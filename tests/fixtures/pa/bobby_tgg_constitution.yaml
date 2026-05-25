@@ -82,7 +82,7 @@ job_briefs:
         - compare_fact
       default_confidence: derived
     response_policy:
-      never_send_replies: true
+      never_send_replies: false
       format: management_brief
       include_recommendation: true
       slash_commands:

@@ -254,6 +254,8 @@ def test_config_bridges_whatsapp_dm_and_group_policy(monkeypatch, tmp_path):
         "  dm_policy: disabled\n"
         "  group_policy: allowlist\n"
         "  group_allow_from:\n"
+        "    - \"120363001234567890@g.us\"\n"
+        "  outbound_allowed_chats:\n"
         "    - \"120363001234567890@g.us\"\n",
         encoding="utf-8",
     )
@@ -262,6 +264,7 @@ def test_config_bridges_whatsapp_dm_and_group_policy(monkeypatch, tmp_path):
     monkeypatch.delenv("WHATSAPP_DM_POLICY", raising=False)
     monkeypatch.delenv("WHATSAPP_GROUP_POLICY", raising=False)
     monkeypatch.delenv("WHATSAPP_GROUP_ALLOWED_USERS", raising=False)
+    monkeypatch.delenv("WHATSAPP_OUTBOUND_ALLOWED_CHATS", raising=False)
 
     config = load_gateway_config()
 
@@ -269,9 +272,11 @@ def test_config_bridges_whatsapp_dm_and_group_policy(monkeypatch, tmp_path):
     assert config.platforms[Platform.WHATSAPP].extra["dm_policy"] == "disabled"
     assert config.platforms[Platform.WHATSAPP].extra["group_policy"] == "allowlist"
     assert config.platforms[Platform.WHATSAPP].extra["group_allow_from"] == ["120363001234567890@g.us"]
+    assert config.platforms[Platform.WHATSAPP].extra["outbound_allowed_chats"] == ["120363001234567890@g.us"]
     assert __import__("os").environ["WHATSAPP_DM_POLICY"] == "disabled"
     assert __import__("os").environ["WHATSAPP_GROUP_POLICY"] == "allowlist"
     assert __import__("os").environ["WHATSAPP_GROUP_ALLOWED_USERS"] == "120363001234567890@g.us"
+    assert __import__("os").environ["WHATSAPP_OUTBOUND_ALLOWED_CHATS"] == "120363001234567890@g.us"
 
 
 def test_config_bridges_whatsapp_allow_from(monkeypatch, tmp_path):

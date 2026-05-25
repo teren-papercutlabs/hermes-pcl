@@ -1083,6 +1083,21 @@ def load_gateway_config() -> GatewayConfig:
                     if isinstance(gaf, list):
                         gaf = ",".join(str(v) for v in gaf)
                     os.environ["WHATSAPP_GROUP_ALLOWED_USERS"] = str(gaf)
+                oac = whatsapp_cfg.get("outbound_allowed_chats")
+                if oac is not None and not os.getenv("WHATSAPP_OUTBOUND_ALLOWED_CHATS"):
+                    if isinstance(oac, list):
+                        oac = ",".join(str(v) for v in oac)
+                    os.environ["WHATSAPP_OUTBOUND_ALLOWED_CHATS"] = str(oac)
+                if oac is not None:
+                    plat_data = platforms_data.setdefault(Platform.WHATSAPP.value, {})
+                    if not isinstance(plat_data, dict):
+                        plat_data = {}
+                        platforms_data[Platform.WHATSAPP.value] = plat_data
+                    extra = plat_data.setdefault("extra", {})
+                    if not isinstance(extra, dict):
+                        extra = {}
+                        plat_data["extra"] = extra
+                    extra["outbound_allowed_chats"] = whatsapp_cfg.get("outbound_allowed_chats")
 
             # DingTalk settings → env vars (env vars take precedence)
             dingtalk_cfg = yaml_cfg.get("dingtalk", {})

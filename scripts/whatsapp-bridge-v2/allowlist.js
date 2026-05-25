@@ -18,6 +18,15 @@ export function parseAllowedUsers(rawValue) {
   );
 }
 
+export function parseIdentifierList(rawValue) {
+  return new Set(
+    String(rawValue || '')
+      .split(/[\s,]+/)
+      .map((value) => normalizeWhatsAppIdentifier(value))
+      .filter(Boolean)
+  );
+}
+
 function readMappingFile(sessionDir, identifier, suffix = '') {
   const filePath = path.join(sessionDir, `lid-mapping-${identifier}${suffix}.json`);
   if (!existsSync(filePath)) {
@@ -80,6 +89,28 @@ export function matchesAllowedUser(senderId, allowedUsers, sessionDir) {
   const aliases = expandWhatsAppIdentifiers(senderId, sessionDir);
   for (const alias of aliases) {
     if (allowedUsers.has(alias)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function matchesAllowedChat(chatId, allowedChats, sessionDir) {
+  // Empty outbound allowlist = NO outbound chats allowed. This is deliberately
+  // fail-closed so client deployments can enable replies per chat without
+  // risking an accidental send to an ops group or unrelated WhatsApp chat.
+  if (!allowedChats || allowedChats.size === 0) {
+    return false;
+  }
+
+  if (allowedChats.has('*')) {
+    return true;
+  }
+
+  const aliases = expandWhatsAppIdentifiers(chatId, sessionDir);
+  for (const alias of aliases) {
+    if (allowedChats.has(alias)) {
       return true;
     }
   }

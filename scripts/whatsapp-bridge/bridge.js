@@ -28,7 +28,7 @@ import { randomBytes } from 'crypto';
 import { execSync } from 'child_process';
 import { tmpdir } from 'os';
 import qrcode from 'qrcode-terminal';
-import { matchesAllowedUser, parseAllowedUsers } from './allowlist.js';
+import { matchesAllowedChat, matchesAllowedUser, parseAllowedUsers, parseIdentifierList } from './allowlist.js';
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -73,6 +73,11 @@ const OUTBOUND_DISABLED =
   process.env &&
   typeof process.env.WHATSAPP_OUTBOUND_DISABLED === 'string' &&
   ['1', 'true', 'yes', 'on'].includes(process.env.WHATSAPP_OUTBOUND_DISABLED.toLowerCase());
+const OUTBOUND_ALLOWED_CHATS_RAW =
+  process.env.WHATSAPP_OUTBOUND_ALLOWED_CHATS ??
+  process.env.WHATSAPP_OUTBOUND_ALLOW_CHATS;
+const OUTBOUND_CHAT_FILTER_CONFIGURED = OUTBOUND_ALLOWED_CHATS_RAW !== undefined;
+const OUTBOUND_ALLOWED_CHATS = parseIdentifierList(OUTBOUND_ALLOWED_CHATS_RAW || '');
 const ALLOWED_USERS = parseAllowedUsers(process.env.WHATSAPP_ALLOWED_USERS || '');
 const DEFAULT_REPLY_PREFIX = '⚕ *Hermes Agent*\n────────────\n';
 const REPLY_PREFIX = process.env.WHATSAPP_REPLY_PREFIX === undefined
@@ -133,10 +138,26 @@ function splitLongMessage(message, maxLength = MAX_MESSAGE_LENGTH) {
   return chunks;
 }
 
-function rejectWhenOutboundDisabled(res, action) {
-  if (!OUTBOUND_DISABLED) return false;
+function outboundPolicyDecision(chatId) {
+  if (OUTBOUND_DISABLED) {
+    return { allowed: false, reason: 'global_disabled' };
+  }
+  if (!OUTBOUND_CHAT_FILTER_CONFIGURED) {
+    return { allowed: true, reason: 'legacy_open' };
+  }
+  if (matchesAllowedChat(chatId, OUTBOUND_ALLOWED_CHATS, SESSION_DIR)) {
+    return { allowed: true, reason: 'explicitly_allowed' };
+  }
+  return { allowed: false, reason: 'not_in_outbound_allowlist' };
+}
+
+function rejectWhenOutboundBlocked(res, action, chatId) {
+  const decision = outboundPolicyDecision(chatId);
+  if (decision.allowed) return false;
   res.status(403).json({
-    error: `WhatsApp outbound disabled: ${action}`,
+    error: `WhatsApp outbound blocked: ${action}`,
+    chatId,
+    reason: decision.reason,
   });
   return true;
 }
@@ -737,7 +758,6 @@ app.get('/messages', (req, res) => {
 
 // Send a message
 app.post('/send', async (req, res) => {
-  if (rejectWhenOutboundDisabled(res, 'send')) return;
   if (!sock || connectionState !== 'connected') {
     return res.status(503).json({ error: 'Not connected to WhatsApp' });
   }
@@ -746,6 +766,7 @@ app.post('/send', async (req, res) => {
   if (!chatId || !message) {
     return res.status(400).json({ error: 'chatId and message are required' });
   }
+  if (rejectWhenOutboundBlocked(res, 'send', chatId)) return;
 
   try {
     const chunks = splitLongMessage(formatOutgoingMessage(message));
@@ -771,7 +792,6 @@ app.post('/send', async (req, res) => {
 
 // Edit a previously sent message
 app.post('/edit', async (req, res) => {
-  if (rejectWhenOutboundDisabled(res, 'edit')) return;
   if (!sock || connectionState !== 'connected') {
     return res.status(503).json({ error: 'Not connected to WhatsApp' });
   }
@@ -780,6 +800,7 @@ app.post('/edit', async (req, res) => {
   if (!chatId || !messageId || !message) {
     return res.status(400).json({ error: 'chatId, messageId, and message are required' });
   }
+  if (rejectWhenOutboundBlocked(res, 'edit', chatId)) return;
 
   try {
     const key = { id: messageId, fromMe: true, remoteJid: chatId };
@@ -825,7 +846,6 @@ function inferMediaType(ext) {
 
 // Send media (image, video, document) natively
 app.post('/send-media', async (req, res) => {
-  if (rejectWhenOutboundDisabled(res, 'send-media')) return;
   if (!sock || connectionState !== 'connected') {
     return res.status(503).json({ error: 'Not connected to WhatsApp' });
   }
@@ -834,6 +854,7 @@ app.post('/send-media', async (req, res) => {
   if (!chatId || !filePath) {
     return res.status(400).json({ error: 'chatId and filePath are required' });
   }
+  if (rejectWhenOutboundBlocked(res, 'send-media', chatId)) return;
 
   try {
     if (!existsSync(filePath)) {
@@ -903,13 +924,13 @@ app.post('/send-media', async (req, res) => {
 
 // Typing indicator
 app.post('/typing', async (req, res) => {
-  if (rejectWhenOutboundDisabled(res, 'typing')) return;
   if (!sock || connectionState !== 'connected') {
     return res.status(503).json({ error: 'Not connected' });
   }
 
   const { chatId } = req.body;
   if (!chatId) return res.status(400).json({ error: 'chatId required' });
+  if (rejectWhenOutboundBlocked(res, 'typing', chatId)) return;
 
   try {
     await sock.sendPresenceUpdate('composing', chatId);
@@ -984,6 +1005,13 @@ if (PAIR_ONLY) {
     }
     if (OUTBOUND_DISABLED) {
       console.log('🔒 Outbound WhatsApp send/edit/media/typing endpoints are disabled.');
+    } else if (OUTBOUND_CHAT_FILTER_CONFIGURED) {
+      const allowed = Array.from(OUTBOUND_ALLOWED_CHATS);
+      if (allowed.length > 0) {
+        console.log(`🔒 Outbound WhatsApp allowed chats: ${allowed.join(', ')}`);
+      } else {
+        console.log('🔒 Outbound WhatsApp fail-closed: no allowed chats configured.');
+      }
     }
     if (SYNC_FULL_HISTORY) {
       console.log(`🕰️  Full WhatsApp history sync is enabled (queue max: ${MAX_QUEUE_SIZE}).`);
