@@ -15,7 +15,10 @@
     "scripts/whatsapp-bridge-v2/package.json",
     "scripts/whatsapp-bridge-v2/package-lock.json",
     "tests/fixtures/clients/tgg/overlay.yaml",
-    "tests/fixtures/pa/bobby_tgg_constitution.yaml"
+    "tests/fixtures/pa/bobby_tgg_constitution.yaml",
+    "gateway/config.py",
+    "scripts/deploy/configure_christopher_outbound.py",
+    "scripts/whatsapp-bridge-v2/allowlist.test.mjs"
   ],
   "requiredEnv": [
     {
@@ -39,6 +42,16 @@
         {
           "name": "legacy-bridge-health",
           "command": "bash -lc 'for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3000/health | python3 -c '\"'\"'import json,sys; d=json.load(sys.stdin); assert d.get(\"status\") == \"connected\"; print(\"port3000 connected\")'\"'\"' && exit 0; sleep 1; done; exit 1'"
+        },
+        {
+          "name": "outbound-policy-check",
+          "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us --check-only"
+        }
+      ],
+      "preRestartHooks": [
+        {
+          "name": "configure-outbound-policy",
+          "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us"
         }
       ]
     },
@@ -55,8 +68,14 @@
           "command": "bash -lc 'for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3001/health | python3 -c '\"'\"'import json,sys; d=json.load(sys.stdin); assert d.get(\"status\") == \"connected\" and d.get(\"paired\") is True; print(\"port3001 connected+paired\")'\"'\"' && exit 0; sleep 1; done; exit 1'"
         },
         {
-          "name": "outbound-disabled",
-          "command": "systemctl show christopher-tgg-whatsapp.service --property=Environment --value | tr ' ' '\\n' | grep -qx 'WHATSAPP_OUTBOUND_DISABLED=true'"
+          "name": "v2-outbound-policy-env",
+          "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us --check-only --check-v2-service-env christopher-tgg-whatsapp.service"
+        }
+      ],
+      "preRestartHooks": [
+        {
+          "name": "install-v2-unit",
+          "command": "install -m 0644 /home/pclaw/apps/hermes-pcl/scripts/whatsapp-bridge-v2/christopher-tgg-whatsapp-v2.service /etc/systemd/system/christopher-tgg-whatsapp.service && systemctl daemon-reload"
         }
       ]
     }
@@ -79,8 +98,12 @@
       "command": "grep -q 'default: gemini-3-flash-preview' /home/pclaw/.hermes-christopher-tgg/config.yaml"
     },
     {
-      "name": "outbound-disabled",
-      "command": "systemctl show christopher-tgg-whatsapp.service --property=Environment --value | tr ' ' '\\n' | grep -qx 'WHATSAPP_OUTBOUND_DISABLED=true'"
+      "name": "outbound-policy-check",
+      "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us --check-only"
+    },
+    {
+      "name": "v2-outbound-policy-env",
+      "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us --check-only --check-v2-service-env christopher-tgg-whatsapp.service"
     }
   ],
   "runtimeOnlyDriftExclusions": [

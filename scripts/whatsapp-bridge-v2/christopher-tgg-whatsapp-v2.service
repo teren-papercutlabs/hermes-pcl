@@ -13,7 +13,9 @@ Environment=USER=pclaw
 Environment=LOGNAME=pclaw
 Environment=WHATSAPP_MODE=bot
 Environment=WHATSAPP_ALLOWED_USERS=*
-Environment=WHATSAPP_OUTBOUND_DISABLED=true
+Environment=WHATSAPP_OUTBOUND_DISABLED=false
+Environment=WHATSAPP_OUTBOUND_ALLOWED_CHATS=
+EnvironmentFile=-/home/pclaw/.hermes-christopher-tgg/outbound-policy.env
 Environment=WHATSAPP_SYNC_FULL_HISTORY=true
 Environment=WHATSAPP_HISTORY_TO_LIVE_QUEUE=false
 Environment=WHATSAPP_MAX_QUEUE_SIZE=5000
