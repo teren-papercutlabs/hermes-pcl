@@ -12,6 +12,7 @@ Environment=HOME=/home/pclaw
 Environment=USER=pclaw
 Environment=LOGNAME=pclaw
 Environment=HERMES_HOME=/home/pclaw/.hermes-christopher-tgg
+EnvironmentFile=-/home/pclaw/.hermes-christopher-tgg-state/.env
 Environment=PATH=/home/pclaw/apps/hermes-pcl/.venv/bin:/home/pclaw/.local/bin:/home/pclaw/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=VIRTUAL_ENV=/home/pclaw/apps/hermes-pcl/.venv
 ExecStart=/home/pclaw/apps/hermes-pcl/.venv/bin/python -m hermes_cli.main gateway run --replace

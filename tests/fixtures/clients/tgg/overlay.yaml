@@ -12,7 +12,7 @@ client:
     tenant: tgg
     auth:
       type: bearer
-      token_env: BOBBY_TGG_PS_SERVICE_TOKEN
+      token_env: CHRISTOPHER_TGG_PS_SERVICE_TOKEN
     operations:
       tgg_case_lookup:
         type: http

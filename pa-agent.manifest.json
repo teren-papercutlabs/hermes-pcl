@@ -256,6 +256,10 @@
       "command": "grep -q 'case_create:' /home/pclaw/.hermes-christopher-tgg-state/config.yaml && grep -q 'url: https://systems.papercut-labs.com/api/operator/cases/create' /home/pclaw/.hermes-christopher-tgg-state/config.yaml"
     },
     {
+      "name": "case-api-read-auth",
+      "command": "set -a && . /home/pclaw/.hermes-christopher-tgg-state/.env && set +a && curl -fsS 'http://127.0.0.1:5191/api/operator/cases/SK%2FJOB%2F2601%2F1174' -H 'X-PS-Tenant: tgg' -H \"Authorization: Bearer ${CHRISTOPHER_TGG_PS_SERVICE_TOKEN}\" >/tmp/christopher-case-read-auth.json && python3 - <<'PY2'\nimport json\np=json.load(open('/tmp/christopher-case-read-auth.json'))\nassert p.get('ok') is True\ncase=(p.get('data') or {}).get('case') or {}\nassert case.get('job_no') == 'SK/JOB/2601/1174' or case.get('jobNo') == 'SK/JOB/2601/1174'\nassert len((p.get('data') or {}).get('timeline') or []) > 0\nPY2"
+    },
+    {
       "name": "live-constitution-custom-create",
       "command": "grep -q 'operation case_create' /home/pclaw/.hermes-christopher-tgg-state/christopher_tgg_constitution.yaml && grep -q 'operation ilinked_wc_lookup' /home/pclaw/.hermes-christopher-tgg-state/christopher_tgg_constitution.yaml && grep -q 'operation ilinked_status' /home/pclaw/.hermes-christopher-tgg-state/christopher_tgg_constitution.yaml && grep -Eq '^[[:space:]]*- custom$' /home/pclaw/.hermes-christopher-tgg-state/christopher_tgg_constitution.yaml"
     },
