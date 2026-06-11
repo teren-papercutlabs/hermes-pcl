@@ -274,6 +274,7 @@ CREATE TABLE IF NOT EXISTS pa_turns (
     provider TEXT,
     input_tokens INTEGER,
     output_tokens INTEGER,
+    context_window_peak INTEGER,
     cost_usd REAL,
     turn_status TEXT,
     error_json TEXT,
@@ -291,7 +292,8 @@ CREATE TABLE IF NOT EXISTS pa_tool_calls (
     result_json TEXT,
     cost_usd REAL,
     duration_ms INTEGER,
-    client_entity_pointer TEXT
+    client_entity_pointer TEXT,
+    call_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS pa_events (
@@ -1075,6 +1077,7 @@ class SessionDB:
         provider: Optional[str] = None,
         input_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
+        context_window_peak: Optional[int] = None,
         cost_usd: Optional[float] = None,
         turn_status: Optional[str] = None,
         error: Optional[Any] = None,
@@ -1088,7 +1091,12 @@ class SessionDB:
         """Atomically record a universal PA turn + its tool-calls + events.
 
         ``tool_calls`` items: ``{tool_name, input, result, cost_usd,
-        duration_ms, client_entity_pointer}`` (all optional except presence).
+        duration_ms, client_entity_pointer, call_id}`` (all optional except
+        presence).  ``call_id`` is the provider tool-call id; when present it
+        drives per-CHAT dedup (session-scope fallback when no chat_id) so a
+        payload extracted from the full session history only persists THIS
+        turn's delta, surviving compression session-rotation (see ``_do``
+        below).
         ``events`` items: ``{event_type, reason, evidence_message_refs,
         source, recorded_at}``.  All complex fields are JSON-encoded here so
         callers pass plain Python objects.
@@ -1131,6 +1139,8 @@ class SessionDB:
                     tc.get("cost_usd"),
                     tc.get("duration_ms"),
                     tc.get("client_entity_pointer"),
+                    # KEEP LAST — the per-session dedup below keys on row[-1].
+                    str(tc["call_id"]) if tc.get("call_id") is not None else None,
                 )
             )
 
@@ -1153,10 +1163,11 @@ class SessionDB:
             conn.execute(
                 """INSERT OR REPLACE INTO pa_turns (
                     turn_id, agent_id, chat_id, session_id, message_refs_json,
-                    model, provider, input_tokens, output_tokens, cost_usd,
+                    model, provider, input_tokens, output_tokens,
+                    context_window_peak, cost_usd,
                     turn_status, error_json, latency_ms, raw_turn_envelope_json,
                     started_at, completed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     turn_id,
                     agent_id,
@@ -1167,6 +1178,7 @@ class SessionDB:
                     provider,
                     input_tokens,
                     output_tokens,
+                    context_window_peak,
                     cost_usd,
                     turn_status,
                     error_json,
@@ -1179,13 +1191,53 @@ class SessionDB:
             # Clear any prior children for an idempotent re-record of the turn.
             conn.execute("DELETE FROM pa_tool_calls WHERE turn_id = ?", (turn_id,))
             conn.execute("DELETE FROM pa_events WHERE turn_id = ?", (turn_id,))
-            if tool_call_rows:
+            # Per-turn delta at source: callers extract tool calls from the
+            # FULL session message history, so each turn's payload re-carries
+            # every prior turn's calls.  The already-recorded call_ids under
+            # OTHER turn_ids (same-turn re-records stay idempotent) are the
+            # high-water mark; only genuinely-new calls are persisted.  Rows
+            # without a call_id (legacy callers) are passed through unchanged.
+            #
+            # Scope: CHAT, not session (v6.3 item 5b, WB f6845320).  Hermes
+            # compression rotates the session_id on every compaction
+            # (_compress_context ends the old session and mints a new id) and
+            # the carried transcript still contains the historical tool
+            # calls — a session-scoped high-water mark therefore reset on
+            # every compaction and re-recorded the whole history under the
+            # next turn (day-30 AMK: 132 calls attributed to one 40-second
+            # turn, including "[Result from earlier conversation]" stubs).
+            # The chat is the rotation-stable conversation key; fall back to
+            # session scope only when the caller has no chat_id.
+            insert_rows = tool_call_rows
+            if tool_call_rows and (chat_id is not None or session_id is not None):
+                if chat_id is not None:
+                    dedup_where = "t.chat_id = ?"
+                    dedup_param = chat_id
+                else:
+                    dedup_where = "t.session_id = ?"
+                    dedup_param = session_id
+                already_recorded = {
+                    r[0]
+                    for r in conn.execute(
+                        f"""SELECT tc.call_id FROM pa_tool_calls tc
+                           JOIN pa_turns t ON t.turn_id = tc.turn_id
+                           WHERE {dedup_where} AND tc.turn_id != ?
+                             AND tc.call_id IS NOT NULL""",
+                        (dedup_param, turn_id),
+                    ).fetchall()
+                }
+                if already_recorded:
+                    insert_rows = [
+                        row for row in tool_call_rows
+                        if row[-1] is None or row[-1] not in already_recorded
+                    ]
+            if insert_rows:
                 conn.executemany(
                     """INSERT INTO pa_tool_calls (
                         turn_id, tool_name, input_json, result_json,
-                        cost_usd, duration_ms, client_entity_pointer
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    tool_call_rows,
+                        cost_usd, duration_ms, client_entity_pointer, call_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    insert_rows,
                 )
             if event_rows:
                 conn.executemany(
