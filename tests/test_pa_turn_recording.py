@@ -958,3 +958,66 @@ def test_run_conversation_wrapper_keeps_impl_values():
     assert result["turn_input_tokens"] == 123
     assert result["turn_output_tokens"] == 45
     assert result["turn_context_window_peak"] == 67_890
+
+
+class TestTurnSourceMessageIds:
+    """message_refs records the turn's INPUT WA message ids (teren 2026-06-12:
+    deterministic at source, never reconstructed from content)."""
+
+    def test_build_turn_record_prefers_injected_source_ids(self):
+        from gateway import pa_observability
+
+        record = pa_observability.build_turn_record(
+            session_id="s1",
+            agent_id="christopher",
+            chat_id="chat@g.us",
+            agent_result={
+                "final_response": "ok",
+                "turn_source_message_ids": ["3AAA", "3BBB"],
+                "messages": [{"role": "user", "content": "x"}],
+            },
+            final_response="ok",
+            started_at=1.0,
+            completed_at=2.0,
+        )
+        assert record.message_refs == ["3AAA", "3BBB"]
+
+    def test_build_turn_record_falls_back_without_injection(self):
+        from gateway import pa_observability
+
+        record = pa_observability.build_turn_record(
+            session_id="s1",
+            agent_id="christopher",
+            chat_id="chat@g.us",
+            agent_result={"final_response": "ok", "messages": [{"role": "user", "content": "x"}]},
+            final_response="ok",
+            started_at=1.0,
+            completed_at=2.0,
+        )
+        assert record.message_refs is None
+
+    def test_boundary_extracts_bundle_and_single_ids(self):
+        # mirror of the gateway boundary extraction logic
+        class _Ev:
+            raw_message = {"bundle": True, "sourceMessageIds": ["A1", "B2"]}
+            message_id = "A1+B2"
+
+        class _Single:
+            raw_message = None
+            message_id = "C3"
+
+        def extract(event):
+            ids = []
+            raw = getattr(event, "raw_message", None)
+            if isinstance(raw, dict):
+                got = raw.get("sourceMessageIds")
+                if isinstance(got, list):
+                    ids = [str(i) for i in got if i]
+            if not ids:
+                mid = getattr(event, "message_id", None)
+                if mid:
+                    ids = [m for m in str(mid).split("+") if m]
+            return ids
+
+        assert extract(_Ev()) == ["A1", "B2"]
+        assert extract(_Single()) == ["C3"]

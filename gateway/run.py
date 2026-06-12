@@ -7660,7 +7660,30 @@ class GatewayRunner:
         _pa_turn_started_at = time.time()
 
         try:
-            _agent_result = await self._handle_message_with_agent(event, source, _quick_key, _run_generation)
+            try:
+                _agent_result = await self._handle_message_with_agent(event, source, _quick_key, _run_generation)
+            except BaseException:
+                # Turn died mid-flight. Flush a best-effort PA turn record so
+                # the dead turn still exists in observability and its tool
+                # calls (recovered from the stash / persisted transcript) are
+                # attributed to THIS turn instead of leaking into the NEXT
+                # turn's record. Never masks the original exception.
+                try:
+                    await self._record_pa_turn_boundary(
+                        source=source,
+                        quick_key=_quick_key,
+                        run_generation=_run_generation,
+                        event=event,
+                        agent_result={
+                            "completed": False,
+                            "failed": True,
+                            "error": "turn died mid-flight (exception before turn boundary)",
+                        },
+                        started_at=_pa_turn_started_at,
+                    )
+                except Exception:
+                    pass
+                raise
             # Goal continuation: after the agent returns a final response
             # for this turn, check any standing /goal — the judge will
             # either mark it done, pause it (budget), or enqueue a
@@ -7697,20 +7720,12 @@ class GatewayRunner:
             # non-blocking — wrapped in try/except + bounded executor timeout so
             # a recording failure can NEVER break live processing or the reply.
             try:
-                _pa_final_text = ""
-                if isinstance(_agent_result, dict):
-                    _pa_final_text = str(_agent_result.get("final_response") or "")
-                elif isinstance(_agent_result, str):
-                    _pa_final_text = _agent_result
-                try:
-                    _pa_session_entry = self.session_store.get_or_create_session(source)
-                except Exception:
-                    _pa_session_entry = None
-                await self._record_pa_turn_safe(
+                await self._record_pa_turn_boundary(
                     source=source,
-                    session_entry=_pa_session_entry,
+                    quick_key=_quick_key,
+                    run_generation=_run_generation,
+                    event=event,
                     agent_result=_agent_result,
-                    final_response=_pa_final_text,
                     started_at=_pa_turn_started_at,
                 )
             except Exception as _pa_rec_exc:
@@ -10971,6 +10986,93 @@ class GatewayRunner:
         except Exception as exc:
             logger.debug("PA turn-record: agent_id resolve failed: %s", exc)
             return None
+
+    async def _record_pa_turn_boundary(
+        self,
+        *,
+        source: Any,
+        quick_key: Any,
+        run_generation: Any,
+        agent_result: Any,
+        started_at: Optional[float],
+        event: Any = None,
+    ) -> None:
+        """Turn-boundary PA recording shared by the success and failure paths.
+
+        ``_handle_message_with_agent`` returns the response STRING for
+        backward-compat, but stashes the full agent_result dict keyed by
+        (quick_key, run_generation). Prefer the rich dict so the turn record
+        carries messages/tool_calls/api_calls instead of a skeletal
+        string-derived envelope.
+
+        When no rich dict is available (turn died before the stash, or a
+        string-only path), fall back to the persisted session transcript for
+        the ``messages`` payload so the turn's tool calls survive turn death.
+        Over-extraction from the full transcript is safe: the DB layer dedups
+        per-session by call_id, so only not-yet-recorded calls persist.
+        """
+        _pa_record_result = agent_result
+        try:
+            _stash = getattr(self, "_last_agent_result_by_run", None)
+            if isinstance(_stash, dict):
+                _stashed = _stash.pop((quick_key, run_generation), None)
+                if isinstance(_stashed, dict):
+                    _pa_record_result = _stashed
+        except Exception:
+            pass
+        # Deterministic turn->message link (teren 2026-06-12): the turn's input
+        # event ALREADY carries the WA source message ids (bundle
+        # raw_message.sourceMessageIds; single message_id). Record them so
+        # pa_turns.message_refs_json is populated at source, never
+        # reconstructed from content downstream.
+        _src_msg_ids: list = []
+        try:
+            _raw = getattr(event, "raw_message", None)
+            if isinstance(_raw, dict):
+                _ids = _raw.get("sourceMessageIds")
+                if isinstance(_ids, list):
+                    _src_msg_ids = [str(i) for i in _ids if i]
+            if not _src_msg_ids:
+                _mid = getattr(event, "message_id", None)
+                if _mid:
+                    _src_msg_ids = [m for m in str(_mid).split("+") if m]
+        except Exception:
+            _src_msg_ids = []
+        if _src_msg_ids and isinstance(_pa_record_result, dict):
+            _pa_record_result.setdefault("turn_source_message_ids", _src_msg_ids)
+        _pa_final_text = ""
+        if isinstance(_pa_record_result, dict):
+            _pa_final_text = str(_pa_record_result.get("final_response") or "")
+        elif isinstance(_pa_record_result, str):
+            _pa_final_text = _pa_record_result
+        try:
+            _pa_session_entry = self.session_store.get_or_create_session(source)
+        except Exception:
+            _pa_session_entry = None
+        if not (isinstance(_pa_record_result, dict) and _pa_record_result.get("messages")):
+            # Failure/skeletal fallback: recover tool calls from the persisted
+            # transcript (run_agent persists messages even on failure returns).
+            try:
+                if _pa_session_entry is not None:
+                    _transcript = self.session_store.load_transcript(
+                        _pa_session_entry.session_id
+                    )
+                    if _transcript:
+                        _base = (
+                            _pa_record_result
+                            if isinstance(_pa_record_result, dict)
+                            else {}
+                        )
+                        _pa_record_result = {**_base, "messages": _transcript}
+            except Exception:
+                pass
+        await self._record_pa_turn_safe(
+            source=source,
+            session_entry=_pa_session_entry,
+            agent_result=_pa_record_result,
+            final_response=_pa_final_text,
+            started_at=started_at,
+        )
 
     def _record_pa_turn_blocking(
         self,

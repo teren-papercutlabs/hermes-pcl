@@ -334,11 +334,16 @@ def build_turn_record(
     if session_id:
         events.extend(drain_agent_events(session_id))
 
-    # message_refs: ids of the conversation messages this turn produced, if the
-    # messages carry ids; otherwise a count marker.  Best-effort, universal.
+    # message_refs: the WA source message ids of the turn's INPUT (injected at
+    # the gateway boundary from the MessageEvent — deterministic, recorded at
+    # source per teren 2026-06-12). Fallback: ids of conversation messages the
+    # turn produced, when they carry ids.
     message_refs: Optional[List[Any]] = None
+    _src_ids = agent_result.get("turn_source_message_ids")
+    if isinstance(_src_ids, list) and _src_ids:
+        message_refs = [str(i) for i in _src_ids]
     msgs = agent_result.get("messages")
-    if isinstance(msgs, list):
+    if message_refs is None and isinstance(msgs, list):
         ids = [m.get("id") for m in msgs if isinstance(m, dict) and m.get("id") is not None]
         message_refs = ids or None
 
