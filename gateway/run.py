@@ -276,6 +276,36 @@ def _build_replay_entry(role: str, content: Any, msg: Dict[str, Any]) -> Dict[st
     return entry
 
 
+# Turn-scoped telemetry keys run_conversation emits for PA turn-recording.
+# run_sync REBUILDS the agent_result dict with an explicit field whitelist
+# (two return sites); these keys were dropped by that whitelist, so every
+# LIVE turn recorded NULL context_window_peak even though run_conversation
+# emitted the value (v6.3 item 5a, WB f6845320). Lifted out of the closure —
+# like _build_replay_entry above — so the passthrough is unit-testable.
+_TURN_TELEMETRY_FIELDS: tuple[str, ...] = (
+    "turn_input_tokens",
+    "turn_output_tokens",
+    "turn_context_window_peak",
+)
+
+
+def _turn_telemetry_fields(result: Any) -> Dict[str, Any]:
+    """Extract the turn-scoped telemetry fields for run_sync's rebuilt dicts.
+
+    Only present-and-non-None keys pass through: build_turn_record treats a
+    missing key as "caller doesn't emit this" and falls back (tokens) or
+    records NULL (context peak) — synthesizing zeros here would corrupt that
+    contract for string-only/legacy callers.
+    """
+    if not isinstance(result, dict):
+        return {}
+    return {
+        key: result[key]
+        for key in _TURN_TELEMETRY_FIELDS
+        if result.get(key) is not None
+    }
+
+
 def _last_transcript_timestamp(history: Optional[List[Dict[str, Any]]]) -> Any:
     """Return the ``timestamp`` of the last usable transcript row, if any.
 
@@ -16992,6 +17022,8 @@ class GatewayRunner:
                     "provider": _resolved_provider,
                     "estimated_cost_usd": result.get("estimated_cost_usd", 0.0),
                     "context_length": _context_length,
+                    # Turn-scoped telemetry passthrough (PA turn-recording).
+                    **_turn_telemetry_fields(result),
                 }
             
             # Scan tool results for MEDIA:<path> tags that need to be delivered
@@ -17115,6 +17147,8 @@ class GatewayRunner:
                 "context_length": _context_length,
                 "session_id": effective_session_id,
                 "response_previewed": result.get("response_previewed", False),
+                # Turn-scoped telemetry passthrough (PA turn-recording).
+                **_turn_telemetry_fields(result),
             }
         
         # Start progress message sender if enabled
