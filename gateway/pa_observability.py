@@ -83,6 +83,10 @@ class PaToolCall:
     # pointer, NOT the client entity itself.  None for tools that touch no
     # client entity.
     client_entity_pointer: Optional[str] = None
+    # Provider tool-call id (OpenAI-style ``tc.id``).  Lets the DB layer
+    # dedup per-session so a payload extracted from the full conversation
+    # history persists only the recording turn's delta.
+    call_id: Optional[str] = None
 
     def to_row(self) -> Dict[str, Any]:
         return asdict(self)
@@ -121,6 +125,9 @@ class PaTurnRecord:
     provider: Optional[str] = None
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
+    # Largest single-call prompt this turn (the context size the model
+    # actually saw) — max input/prompt tokens across the turn's model calls.
+    context_window_peak: Optional[int] = None
     cost_usd: Optional[float] = None
     # turn_status / error are the HIGHEST-VALUE observability fields (seeing
     # FAILURES) and free at this boundary.
@@ -145,6 +152,7 @@ class PaTurnRecord:
             "provider": self.provider,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
+            "context_window_peak": self.context_window_peak,
             "cost_usd": self.cost_usd,
             "turn_status": self.turn_status,
             "error": self.error,
@@ -286,6 +294,7 @@ def extract_tool_calls(messages: Optional[List[Dict[str, Any]]]) -> List[PaToolC
                     cost_usd=None,
                     duration_ms=None,
                     client_entity_pointer=None,
+                    call_id=str(tcid) if tcid is not None else None,
                 )
             )
     return calls
@@ -366,11 +375,30 @@ def build_turn_record(
         message_refs=message_refs,
         model=agent_result.get("model"),
         provider=agent_result.get("provider"),
+        # Token counts: PER-TURN deltas. run_agent's "input_tokens"/
+        # "output_tokens" are SESSION-CUMULATIVE counters (cached gateway
+        # agents span many turns — recording them made pa_turns token columns
+        # grow monotonically, e.g. sk-day26-v6 input 80k -> 2.28M over 14
+        # turns). Prefer the turn-scoped fields run_conversation now emits;
+        # fall back to the legacy fields for callers that don't provide them
+        # (string-only paths, replay backfill).
         input_tokens=_as_int(
-            agent_result.get("input_tokens") or agent_result.get("prompt_tokens")
+            agent_result.get("turn_input_tokens")
+            if agent_result.get("turn_input_tokens") is not None
+            else (agent_result.get("input_tokens") or agent_result.get("prompt_tokens"))
         ),
         output_tokens=_as_int(
-            agent_result.get("output_tokens") or agent_result.get("completion_tokens")
+            agent_result.get("turn_output_tokens")
+            if agent_result.get("turn_output_tokens") is not None
+            else (agent_result.get("output_tokens") or agent_result.get("completion_tokens"))
+        ),
+        # Context-window peak: max single-call prompt size this turn, emitted
+        # by run_conversation as turn_context_window_peak. No legacy fallback
+        # — callers that don't emit it record NULL, never a cumulative proxy.
+        context_window_peak=(
+            _as_int(agent_result.get("turn_context_window_peak"))
+            if agent_result.get("turn_context_window_peak") is not None
+            else None
         ),
         cost_usd=_as_float(
             agent_result.get("estimated_cost_usd") or agent_result.get("cost_usd")

@@ -770,12 +770,19 @@ def handle_function_call(
                 function_name, function_args,
                 task_id=task_id,
                 enabled_tools=sandbox_enabled,
+                session_id=session_id,
             )
         else:
+            # session_id rides into every handler (all handlers accept
+            # **kwargs — dispatch already always passes task_id/user_task).
+            # Session-scoped tools (e.g. record_event staging) MUST key on
+            # this explicit id, not the process-global HERMES_SESSION_ID,
+            # which any concurrent AIAgent.__init__ overwrites.
             result = registry.dispatch(
                 function_name, function_args,
                 task_id=task_id,
                 user_task=user_task,
+                session_id=session_id,
             )
         duration_ms = int((time.monotonic() - _dispatch_start) * 1000)
 
