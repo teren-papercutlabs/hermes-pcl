@@ -1,0 +1,18 @@
+{
+  "dod_met": {
+    "0": true,
+    "1": true,
+    "2": true,
+    "3": true,
+    "4": true
+  },
+  "commit_on_origin": "verified",
+  "verification_altitude": "consumer",
+  "deviations": [
+    "Prod tenant was not empty; provenance check showed prod base data is replay/whatsapp, not demo-port, so base promote is already effectively done.",
+    "Stream-D fix is intentionally parked on worker branch and not deployed/restarted per hard gate.",
+    "Non-maintenance selector rows from message-store were staged but not replayed into the maintenance case-ledger because the validated canonical harness scope is the four maintenance chats."
+  ],
+  "confidence": "high",
+  "spawner_should_know": "Report is at ~/pcl-docs/records/tgg-golive-readiness-2026-06-15.html. Remaining actions are Teren-gated: deploy Stream-D branch, execute prod promote, flip pa.enabled, restart Hermes."
+}
