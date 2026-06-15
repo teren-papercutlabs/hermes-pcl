@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TGG Christopher Go-Live Readiness — 2026-06-15</title>
+<style>
+:root { --bg:#0f172a; --panel:#111827; --card:#ffffff; --ink:#0b1220; --muted:#64748b; --line:#e5e7eb; --blue:#2563eb; --green:#16a34a; --amber:#d97706; --red:#dc2626; --soft:#f8fafc; }
+* { box-sizing:border-box; } body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif; color:var(--ink); background:#f1f5f9; line-height:1.45; }
+.hero { background:linear-gradient(135deg,#0f172a,#1e3a8a); color:white; padding:40px 28px; } .hero h1 { margin:0 0 8px; font-size:32px; letter-spacing:-0.03em; } .hero p { margin:0; color:#dbeafe; max-width:920px; }
+.wrap { max-width:1120px; margin:0 auto; padding:24px; } .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:-42px; }
+.metric { background:white; border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(15,23,42,.08); } .metric .k { color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.06em; } .metric .v { font-weight:750; font-size:24px; margin-top:4px; }
+section { background:white; border:1px solid var(--line); border-radius:16px; padding:22px; margin:18px 0; box-shadow:0 4px 16px rgba(15,23,42,.04); } h2 { margin:0 0 12px; font-size:22px; letter-spacing:-0.02em; } h3 { margin:18px 0 8px; font-size:16px; }
+.notice { border-left:5px solid var(--blue); background:#eff6ff; padding:14px 16px; border-radius:12px; } .warn { border-left-color:var(--amber); background:#fffbeb; } .danger { border-left-color:var(--red); background:#fef2f2; }
+table { width:100%; border-collapse:collapse; margin-top:12px; } th,td { padding:11px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; } th { color:#334155; font-size:13px; text-transform:uppercase; letter-spacing:.05em; background:#f8fafc; }
+.badge { display:inline-flex; align-items:center; border-radius:999px; padding:3px 9px; font-size:12px; font-weight:700; background:#e2e8f0; color:#334155; } .pass { background:#dcfce7; color:#166534; } .wait { background:#fef3c7; color:#92400e; } .block { background:#fee2e2; color:#991b1b; } .info { background:#dbeafe; color:#1e40af; }
+code { background:#f1f5f9; border:1px solid #e2e8f0; padding:2px 5px; border-radius:6px; } .small { color:var(--muted); font-size:13px; } ul { padding-left:20px; } li { margin:6px 0; }
+.step { display:grid; grid-template-columns:170px 1fr 150px 150px; gap:10px; align-items:start; border-top:1px solid var(--line); padding:12px 0; } .step:first-of-type { border-top:0; } .step b { display:block; }
+.footer { color:#64748b; font-size:12px; padding:8px 0 30px; }
+@media (max-width: 820px) { .grid { grid-template-columns:1fr 1fr; margin-top:0; } .step { grid-template-columns:1fr; } }
+@media (max-width: 640px) { .hero { padding:28px 18px; } .wrap { padding:14px; } .grid { grid-template-columns:1fr; } table, thead, tbody, th, td, tr { display:block; } thead { display:none; } tr { border:1px solid var(--line); border-radius:12px; margin:10px 0; overflow:hidden; } td { border:0; border-bottom:1px solid #eef2f7; padding:9px 12px; } td::before { content:attr(data-label); display:block; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; } }
+</style>
+</head>
+<body>
+<div class="hero"><h1>TGG Christopher Go-Live Readiness</h1><p>Prepared on 2026-06-15. This is a prep-and-wait report: no prod promote, no <code>pa.enabled</code> flip, and no Hermes/WhatsApp/Singpass/pair-server restart were executed.</p></div>
+<main class="wrap">
+<div class="grid">
+  <div class="metric"><div class="k">Current gate</div><div class="v">pa.enabled=false</div></div>
+  <div class="metric"><div class="k">Staged engine</div><div class="v">gpt-5.4-mini</div></div>
+  <div class="metric"><div class="k">Eval after gap</div><div class="v">3,089 cases</div></div>
+  <div class="metric"><div class="k">Prod now</div><div class="v">3,068 cases</div></div>
+</div>
+
+<section>
+<h2>Decision-level summary</h2>
+<div class="notice">
+<strong>Ready to wait.</strong> The engine is staged on disk, the case-ledger gap replay has been generated in eval, prod is backed up, and the promote script is staged. The remaining actions are gated on Teren's explicit go.
+</div>
+<ul>
+<li><strong>Prod provenance resolved:</strong> prod's 3,068 base cases / 669 observations are the eval-replay data, not the Jun-14 demo-port data. Prod has <code>case_observations.source='whatsapp'</code> for all 669 observations and <code>wa_demo_port=0</code>. Pre-gap cases/observations hashed equal to eval.</li>
+<li><strong>Base promote is effectively done.</strong> The only data delta now is the gap replay: eval has 3,089 cases / 727 observations after replay; prod remains at 3,068 / 669 until the gated promote.</li>
+<li><strong>Stream-D is not deployed yet.</strong> The branch contains the turn-recording fix; deploy/restart remains gated. Flipping before deploying this fix risks live processing without complete turn receipts.</li>
+</ul>
+</section>
+
+<section>
+<h2>Current state</h2>
+<table><thead><tr><th>Item</th><th>Value</th><th>Status</th></tr></thead><tbody>
+<tr><td data-label="item">Hermes service</td><td data-label="value">active</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Processing gate</td><td data-label="value">pa.enabled=False</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+<tr><td data-label="item">On-disk model config</td><td data-label="value">openai-direct-primary / gpt-5.4-mini</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">On-disk constitution runtime</td><td data-label="value">openai-direct-primary / gpt-5.4-mini</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Runtime loading note</td><td data-label="value">service has not restarted since staging; staged engine loads on the gated restart</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+<tr><td data-label="item">WhatsApp bridge</td><td data-label="value">connected; storeMessages=9,484; latest=2026-06-15T18:20:56+08:00</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">PA turn recording tables</td><td data-label="value">pa_turns=0, pa_tool_calls=0, pa_events=0</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+<tr><td data-label="item">Prod tenant now</td><td data-label="value">cases=3,068, case_observations=669, bridge_message_log=6,557, message_log=0</td><td data-label="status"><span class="badge info">info</span></td></tr>
+<tr><td data-label="item">Eval tenant after gap</td><td data-label="value">cases=3,089, case_observations=727, bridge_message_log=3,077, message_log=0</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>What is prepared / staged</h2>
+<table><thead><tr><th>Prepared item</th><th>Evidence</th><th>Status</th></tr></thead><tbody>
+<tr><td data-label="item">Engine staged on VPS</td><td data-label="value">config+constitution point to openai-direct-primary / gpt-5.4-mini; backup=/home/pclaw/.hermes-christopher-tgg/backups/golive-20260615T094824Z</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Stream-D fix staged in branch</td><td data-label="value">commit fe413376c; tests/test_pa_turn_recording.py = 37 passed; not deployed/restarted</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+<tr><td data-label="item">Gap bridge input built</td><td data-label="value">935 selector rows inserted from message-store; 291 maintenance case-ledger rows; 644 non-maintenance selector rows held out of case-ledger promote</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Gap replay generated</td><td data-label="value">291 messages processed through gpt-5.4-mini; 61 turns; eval now +21 cases / +58 observations</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Eval backup before gap replay</td><td data-label="value">/home/pclaw/.systems-pcl/eval-data/backups/tgg-gap-before-20260615T095501Z.db</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Prod backup before promote window</td><td data-label="value">/home/pclaw/.systems-pcl/data/backups/tgg-golive-prewrite-20260615T101832Z.db</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Prod promote script staged</td><td data-label="value">/home/pclaw/.systems-pcl/data/golive/promote_eval_replay_to_prod.py (dry-run passed; prod-only schema preserved)</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+<tr><td data-label="item">HTML readiness report</td><td data-label="value">~/pcl-docs/records/tgg-golive-readiness-2026-06-15.html</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>Gap replay details</h2>
+<p>The replay source was a fresh copy of <code>message-store.json</code> pulled at the prep window. Total post-cutoff bridge window seen: 967 messages. Inserted selector rows: 935; skipped 29 reaction/protocol messages and 3 non-selector rows.</p>
+<table><thead><tr><th>Chat / zone</th><th>Inserted rows</th><th>Replay action</th></tr></thead><tbody>
+<tr><td data-label="item">HDB Rental house completion photo (COMPLETION_PHOTO)</td><td data-label="value">526</td><td data-label="status">staged only; not in canonical case-ledger replay scope <span class="badge wait">wait</span></td></tr><tr><td data-label="item">MM1A Maintenance (AMK, SRG) (AMK)</td><td data-label="value">184</td><td data-label="status">replayed into eval case ledger <span class="badge pass">pass</span></td></tr><tr><td data-label="item">NE Rental Term Contract (Spazio/TGG) (TERM_CONTRACT)</td><td data-label="value">107</td><td data-label="status">staged only; not in canonical case-ledger replay scope <span class="badge wait">wait</span></td></tr><tr><td data-label="item">MM1B Maintenance (HG, Bedok Resv) (HG)</td><td data-label="value">54</td><td data-label="status">replayed into eval case ledger <span class="badge pass">pass</span></td></tr><tr><td data-label="item">MM2 Maintenance (PG) (PG)</td><td data-label="value">41</td><td data-label="status">replayed into eval case ledger <span class="badge pass">pass</span></td></tr><tr><td data-label="item">MM2 Maintenance (SK) (SK)</td><td data-label="value">12</td><td data-label="status">replayed into eval case ledger <span class="badge pass">pass</span></td></tr><tr><td data-label="item">120363403088884777@g.us (UNKNOWN)</td><td data-label="value">9</td><td data-label="status">staged only; not in canonical case-ledger replay scope <span class="badge wait">wait</span></td></tr><tr><td data-label="item">120363423535922556@g.us (UNKNOWN)</td><td data-label="value">2</td><td data-label="status">staged only; not in canonical case-ledger replay scope <span class="badge wait">wait</span></td></tr>
+</tbody></table>
+<p class="small">Reason for holding non-maintenance rows: the validated eval corpus was generated by the canonical v64 harness over the four maintenance chats (SK, AMK, HG, PG). The TGG chat map marks COMPLETION_PHOTO and TERM_CONTRACT as sprucing/photo streams, not maintenance case-ledger scope. Promoting them into the maintenance case ledger would be a scope change, not go-live prep.</p>
+</section>
+
+<section>
+<h2>Remaining go-live sequence — all gated</h2>
+<div class="step"><b>1. Deploy Stream-D code</b><span>Merge/deploy the staged turn-recording branch so live inbound turns record message refs, per-turn tokens, context peak, tool call IDs, and record_event session IDs.</span><span><span class="badge wait">awaits go</span></span><span>Rollback: redeploy previous code bundle.</span></div>
+<div class="step"><b>2. Execute prod promote</b><span>Run the staged script as <code>pclaw</code> with Teren's per-batch go. It backs up prod again, snapshots eval, then replaces prod <code>cases</code> + <code>case_observations</code> from eval while preserving prod schema, bridge rows, and auxiliary tables.</span><span><span class="badge wait">awaits go</span></span><span>Rollback: restore backup <code>/home/pclaw/.systems-pcl/data/backups/tgg-golive-prewrite-20260615T101832Z.db</code> or the script's fresh promote backup.</span></div>
+<div class="step"><b>3. Flip gate</b><span>Change <code>/home/pclaw/.hermes-christopher-tgg/config.yaml</code> from <code>pa.enabled=false</code> to <code>true</code>.</span><span><span class="badge wait">awaits go</span></span><span>Rollback: set it back to false.</span></div>
+<div class="step"><b>4. Restart Hermes</b><span>Restart <code>christopher-tgg-hermes</code>. This is what actually loads the staged gpt-5.4-mini engine and starts live processing.</span><span><span class="badge wait">awaits go</span></span><span>Rollback: disable PA, restore engine backup if needed, restart under explicit approval.</span></div>
+<div class="step"><b>5. Post-check</b><span>Send/observe a controlled live WhatsApp stimulus, verify <code>pa_turns</code>/<code>pa_tool_calls</code> increment, confirm no repeating errors, and confirm portal counts.</span><span><span class="badge wait">after restart</span></span><span>Rollback depends on failure point; data backup is available.</span></div>
+</section>
+
+<section>
+<h2>Risks + rollback</h2>
+<table><thead><tr><th>Risk</th><th>Mitigation / rollback</th><th>Status</th></tr></thead><tbody>
+<tr><td data-label="item">Go delayed after this report</td><td data-label="value">Message-store continues collecting. Rerun the gap replay before executing prod promote if Teren waits materially after this prep window.</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+<tr><td data-label="item">Stream-D not deployed before flip</td><td data-label="value">Do not flip until the staged code fix is deployed; otherwise live may process without complete turn receipts.</td><td data-label="status"><span class="badge block">block</span></td></tr>
+<tr><td data-label="item">Prod data write blast radius</td><td data-label="value">Promote script is dry-run by default, requires --execute and --teren-go, takes a fresh backup, validates provenance, source refs, and case_id orphan sweeps.</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+<tr><td data-label="item">Engine staged but not loaded</td><td data-label="value">Current staged config can be rolled back from /home/pclaw/.hermes-christopher-tgg/backups/golive-20260615T094824Z; no restart has occurred.</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Non-maintenance selector scope</td><td data-label="value">Completion-photo / term-contract / unknown rows were not promoted into maintenance case ledger. Separate job brief needed if those should become live scope.</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>Open decision</h2>
+<div class="notice warn"><strong>No open decision on base corpus.</strong> The replay-harness corpus is canonical and prod base provenance is already replay/whatsapp, not demo-port. The remaining Teren decision is operational: give go/no-go for the gated sequence above. If go is delayed, rerun the gap replay first.</div>
+</section>
+
+<section>
+<h2>Artifact trail</h2>
+<table><thead><tr><th>Artifact</th><th>Location</th><th>Status</th></tr></thead><tbody>
+<tr><td data-label="item">Engine backup</td><td data-label="value">/home/pclaw/.hermes-christopher-tgg/backups/golive-20260615T094824Z</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Eval pre-gap backup</td><td data-label="value">/home/pclaw/.systems-pcl/eval-data/backups/tgg-gap-before-20260615T095501Z.db</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Prod prewrite backup</td><td data-label="value">/home/pclaw/.systems-pcl/data/backups/tgg-golive-prewrite-20260615T101832Z.db</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Promote dry-run JSON</td><td data-label="value">/home/pclaw/.systems-pcl/data/golive/promote_eval_replay_to_prod.dryrun.json</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Local prep artifacts</td><td data-label="value">specs/2026-06-15-tgg-golive-prep/artifacts</td><td data-label="status"><span class="badge pass">pass</span></td></tr>
+<tr><td data-label="item">Stream-D branch HEAD</td><td data-label="value">fe413376cc15ecd478dc2ae6c6760ad46e3cf9e4</td><td data-label="status"><span class="badge wait">wait</span></td></tr>
+</tbody></table>
+</section>
+
+<div class="footer">Generated by Edna clone for WB da538fdc on 2026-06-15T18:25:10.520272+08:00. No prod promote, PA flip, or restart executed.</div>
+</main></body></html>

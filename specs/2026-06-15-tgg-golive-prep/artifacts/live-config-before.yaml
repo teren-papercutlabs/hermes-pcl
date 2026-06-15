@@ -1,0 +1,246 @@
+model:
+  provider: gemini
+  default: gemini-3.1-flash-lite
+  base_url: https://generativelanguage.googleapis.com/v1beta
+  api_key_source:
+    type: env
+    secrets_env_key: GEMINI_API_KEY_PCL_PA_SHARED
+agent:
+  profile: pa
+pa:
+  enabled: false
+  constitution_path: /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml
+  overlay:
+    identity:
+      display_name: Christopher
+      voice_register: terse operations concierge
+      greeting_style: short, direct, work-first
+      signature: ''
+      refer_to_self: Christopher
+    client:
+      id: tgg
+      name: TGG
+      tenant: tgg
+      business_bridge:
+        tenant: tgg
+        auth:
+          type: bearer
+          token_env: CHRISTOPHER_TGG_PS_SERVICE_TOKEN
+        operations:
+          tgg_case_create:
+            type: http
+            tenant: tgg
+            method: POST
+            url: https://systems.papercut-labs.com/api/operator/cases/create
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          tgg_case_lookup:
+            type: http
+            tenant: tgg
+            method: GET
+            url: https://systems.papercut-labs.com/api/operator/cases/{jobNo}
+            path_params:
+            - jobNo
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          tgg_case_list:
+            type: http
+            tenant: tgg
+            method: GET
+            url: https://systems.papercut-labs.com/api/operator/cases
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          tgg_case_search:
+            type: http
+            tenant: tgg
+            method: GET
+            url: https://systems.papercut-labs.com/api/operator/cases
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          tgg_case_update:
+            type: http
+            tenant: tgg
+            method: PATCH
+            url: https://systems.papercut-labs.com/api/operator/cases/{jobNo}/state
+            path_params:
+            - jobNo
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          tgg_case_observation:
+            type: http
+            tenant: tgg
+            method: POST
+            url: https://systems.papercut-labs.com/api/operator/cases/{jobNo}/observations
+            path_params:
+            - jobNo
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          work_costing_lookup:
+            type: http
+            tenant: tgg
+            method: GET
+            url: https://systems.papercut-labs.com/api/operator/work-costings/{wcNo}
+            path_params:
+            - wcNo
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          job_work_costings:
+            type: http
+            tenant: tgg
+            method: GET
+            url: https://systems.papercut-labs.com/api/operator/cases/{jobNo}/work-costings
+            path_params:
+            - jobNo
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          work_costing_upsert:
+            type: http
+            tenant: tgg
+            method: POST
+            url: https://systems.papercut-labs.com/api/operator/work-costings
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          work_costing_ingest_ilinked:
+            type: http
+            tenant: tgg
+            method: POST
+            url: https://systems.papercut-labs.com/api/operator/work-costings/ingest-ilinked/{jobNo}
+            path_params:
+            - jobNo
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 20
+          agent_config_read:
+            type: http
+            tenant: tgg
+            method: GET
+            url: https://systems.papercut-labs.com/api/operator/agent-config
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          agent_action_record:
+            type: http
+            tenant: tgg
+            method: POST
+            url: https://systems.papercut-labs.com/api/operator/agent-actions
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          ilinked_lookup:
+            type: command
+            tenant: tgg
+            command:
+            - python3
+            - -m
+            - tools.tgg_ilinked_lookup
+            timeout: 90
+          ilinked_wc_lookup:
+            type: command
+            tenant: tgg
+            command:
+            - python3
+            - -m
+            - tools.tgg_ilinked_reads
+            - wc
+            timeout: 30
+          ilinked_status:
+            type: command
+            tenant: tgg
+            command:
+            - python3
+            - -m
+            - tools.tgg_ilinked_reads
+            - status
+            timeout: 30
+      agent_id: christopher
+      owner: Christopher
+platforms:
+  whatsapp:
+    enabled: true
+    gateway_restart_notification: false
+    extra:
+      bridge_port: 3001
+      bridge_script: /home/pclaw/apps/hermes-pcl/scripts/whatsapp-bridge-v2/bridge.js
+      session_path: /home/pclaw/.hermes-christopher-tgg/whatsapp-v2/session
+      require_mention: true
+      dm_policy: allowlist
+      allow_from:
+      - 6591455515
+      - 188690831777827
+      - 6596515711
+      - 6594564662
+      - 6591711776
+      - 6591132954
+      - 6580913349
+      - 244809512038554
+      group_policy: open
+      outbound_allowed_chats:
+      - 120363409954029949@g.us
+      - 120363427363740087@g.us
+      - 120363427897872447@g.us
+      - 120363407433776639@g.us
+      - 120363426509183563@g.us
+      - 120363407903158826@g.us
+whatsapp:
+  require_mention: true
+  dm_policy: allowlist
+  allow_from:
+  - 6591455515
+  - 188690831777827
+  - 6596515711
+  - 6594564662
+  - 6591711776
+  - 6591132954
+  - 6580913349
+  - 244809512038554
+  group_policy: open
+  outbound_allowed_chats:
+  - 120363409954029949@g.us
+  - 120363427363740087@g.us
+  - 120363427897872447@g.us
+  - 120363407433776639@g.us
+  - 120363426509183563@g.us
+  - 120363407903158826@g.us
+onboarding:
+  seen:
+    busy_input_prompt: true
+auxiliary:
+  compression:
+    provider: main
+    model: gemini-3.1-flash-lite
+    timeout: 120
+  session_search:
+    provider: main
+    model: gemini-3.1-flash-lite
+    timeout: 60
+    max_concurrency: 2
+  title_generation:
+    provider: main
+    model: gemini-3.1-flash-lite
+    timeout: 30
+  vision:
+    provider: main
+    model: gemini-3.1-flash-lite
+    timeout: 120
+    download_timeout: 30

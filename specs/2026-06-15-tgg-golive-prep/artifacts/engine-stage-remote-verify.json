@@ -1,0 +1,37 @@
+{
+  "checked_at_utc": "2026-06-15T09:49:35Z",
+  "config_model": {
+    "provider": "openai-direct-primary",
+    "default": "gpt-5.4-mini",
+    "base_url": "https://api.openai.com/v1",
+    "api_key_source": {
+      "type": "env",
+      "secrets_env_key": "OPENAI_API_KEY"
+    }
+  },
+  "pa_enabled": false,
+  "provider": {
+    "name": "OpenAI Direct Primary",
+    "api": "https://api.openai.com/v1",
+    "key_env": "OPENAI_API_KEY",
+    "default_model": "gpt-5.4-mini",
+    "transport": "codex_responses"
+  },
+  "constitution_runtime": {
+    "provider": "openai-direct-primary",
+    "model": "gpt-5.4-mini"
+  },
+  "job_brief_runtimes": {
+    "tgg_ops_ingest": {
+      "model": "gpt-5.4-mini",
+      "provider": "openai-direct-primary"
+    },
+    "tgg_management": {
+      "model": "gpt-5.4-mini",
+      "provider": "openai-direct-primary"
+    }
+  },
+  "config_sha256": "e6dc2490e95999183ec6b2c5caf6eab9f45357d966ce461aaa2d0558324e6c96",
+  "constitution_sha256": "0e6618491fb3af14d4e4d702e72da0e9433650f9a527019e6d1e9482519b7702",
+  "service_active": "active"
+}

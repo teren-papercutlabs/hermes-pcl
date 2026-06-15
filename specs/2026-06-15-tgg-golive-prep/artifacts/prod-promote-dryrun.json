@@ -1,0 +1,178 @@
+{
+  "checked_at_utc": "2026-06-15T10:23:17.501646+00:00",
+  "mode": "dry-run",
+  "prod_before": {
+    "path": "/home/pclaw/.systems-pcl/data/tenants/tgg.db",
+    "exists": true,
+    "size": 30552064,
+    "mtime_utc": "2026-06-15T08:23:20.217717+00:00",
+    "wal_exists": true,
+    "wal_size": 0,
+    "integrity_check": "ok",
+    "counts": {
+      "cases": 3068,
+      "case_observations": 669,
+      "bridge_message_log": 6557,
+      "message_log": 0
+    },
+    "case_sources": [
+      {
+        "value": null,
+        "n": 3068
+      }
+    ],
+    "obs_sources": [
+      {
+        "value": "whatsapp",
+        "n": 669
+      }
+    ],
+    "wa_demo_port_obs": 0,
+    "whatsapp_obs": 669,
+    "case_id_orphans": [
+      {
+        "table": "attention_items",
+        "orphans": 0
+      },
+      {
+        "table": "case_fact_resolutions",
+        "orphans": 0
+      },
+      {
+        "table": "case_messages",
+        "orphans": 0
+      },
+      {
+        "table": "case_observations",
+        "orphans": 0
+      },
+      {
+        "table": "draft_outbound",
+        "orphans": 0
+      },
+      {
+        "table": "job_work_costings",
+        "orphans": 0
+      },
+      {
+        "table": "reconciliation_changes",
+        "orphans": 0
+      },
+      {
+        "table": "source_field_assertions",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_case_status_derivations",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_event_case_links",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_reconstruction_review_items",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_sprucing_evidence",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_sprucing_line_items",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_sprucing_scopes",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_sprucing_supervisor_events",
+        "orphans": 0
+      }
+    ]
+  },
+  "eval_before": {
+    "path": "/home/pclaw/.systems-pcl/eval-data/tenants/tgg.db",
+    "exists": true,
+    "size": 14376960,
+    "mtime_utc": "2026-06-15T10:16:33.059886+00:00",
+    "wal_exists": true,
+    "wal_size": 3848112,
+    "integrity_check": "ok",
+    "counts": {
+      "cases": 3089,
+      "case_observations": 727,
+      "bridge_message_log": 3077,
+      "message_log": 0
+    },
+    "case_sources": [
+      {
+        "value": null,
+        "n": 3089
+      }
+    ],
+    "obs_sources": [
+      {
+        "value": "whatsapp",
+        "n": 727
+      }
+    ],
+    "wa_demo_port_obs": 0,
+    "whatsapp_obs": 727,
+    "case_id_orphans": [
+      {
+        "table": "attention_items",
+        "orphans": 0
+      },
+      {
+        "table": "case_messages",
+        "orphans": 0
+      },
+      {
+        "table": "case_observations",
+        "orphans": 0
+      },
+      {
+        "table": "draft_outbound",
+        "orphans": 0
+      },
+      {
+        "table": "job_work_costings",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_case_status_derivations",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_event_case_links",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_reconstruction_review_items",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_sprucing_evidence",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_sprucing_line_items",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_sprucing_scopes",
+        "orphans": 0
+      },
+      {
+        "table": "tgg_sprucing_supervisor_events",
+        "orphans": 0
+      }
+    ]
+  },
+  "validation_failures": [],
+  "planned_action": "backup prod, snapshot eval, replace prod cases + case_observations from eval while preserving prod schema/bridge_message_log/aux tables, verify counts/provenance/source refs/orphans",
+  "backup_path": "/home/pclaw/.systems-pcl/data/backups/tgg-golive-promote-before-20260615T102317Z.db",
+  "eval_snapshot_path": "/home/pclaw/.systems-pcl/data/backups/tgg-golive-eval-snapshot-20260615T102317Z.db"
+}

@@ -1,0 +1,118 @@
+{
+  "checked_at_utc": "2026-06-15T10:16:58.867672+00:00",
+  "db_mtime_utc": "2026-06-15T10:16:33.059886+00:00",
+  "wal_exists": true,
+  "wal_size": 3848112,
+  "counts": {
+    "cases": 3089,
+    "case_observations": 727,
+    "bridge_message_log": 3077,
+    "message_log": 0
+  },
+  "case_sources": [
+    {
+      "value": null,
+      "n": 3089
+    }
+  ],
+  "obs_sources": [
+    {
+      "value": "whatsapp",
+      "n": 727
+    }
+  ],
+  "new_cases_after_cutoff": 21,
+  "new_observations_after_cutoff": 58,
+  "case_states_updated_after_cutoff": [
+    {
+      "state": "open",
+      "n": 38
+    },
+    {
+      "state": "completed",
+      "n": 13
+    }
+  ],
+  "latest_cases": [
+    {
+      "job_no": "PG/JOB/2606/0467",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-12 16:39:45",
+      "updated_utc": "2026-06-15 10:15:22",
+      "address": "Blk 206A Punggol Place #05-2032"
+    },
+    {
+      "job_no": "PG/JOB/2606/0596",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-15 10:14:59",
+      "updated_utc": "2026-06-15 10:14:59",
+      "address": "Blk 621A Edgefield Walk #04-17"
+    },
+    {
+      "job_no": "PG/JOB/2606/0582",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-15 10:14:44",
+      "updated_utc": "2026-06-15 10:14:44",
+      "address": "Blk 223A Sumang Lane #11-191"
+    },
+    {
+      "job_no": "PG/JOB/2606/0580",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-15 10:14:36",
+      "updated_utc": "2026-06-15 10:14:36",
+      "address": "Blk 326A Sumang Walk #08-1002"
+    },
+    {
+      "job_no": "PG/JOB/2606/0302",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-12 15:52:07",
+      "updated_utc": "2026-06-15 10:14:22",
+      "address": "Blk 326A Sumang Walk #16-988"
+    },
+    {
+      "job_no": "PG/JOB/2606/0414",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-12 16:19:02",
+      "updated_utc": "2026-06-15 10:13:54",
+      "address": "Blk 223A Sumang Lane 07-157"
+    },
+    {
+      "job_no": "PG/JOB/2606/0296",
+      "state": "completed",
+      "source": null,
+      "created_utc": "2026-06-12 15:51:17",
+      "updated_utc": "2026-06-15 10:13:43",
+      "address": "Blk 121A Edgedale Plains 03-221"
+    },
+    {
+      "job_no": "SK/JOB/2606/1603",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-15 10:12:36",
+      "updated_utc": "2026-06-15 10:12:54",
+      "address": "Blk 174C Hougang Ave 1 #06-1559"
+    },
+    {
+      "job_no": "SK/JOB/2606/1605",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-15 10:12:45",
+      "updated_utc": "2026-06-15 10:12:45",
+      "address": "Blk 25 Hougang Ave 3 #11-460"
+    },
+    {
+      "job_no": "SK/JOB/2604/2377",
+      "state": "open",
+      "source": null,
+      "created_utc": "2026-06-09 02:37:00",
+      "updated_utc": "2026-06-15 10:12:25",
+      "address": "Blk 174C Hougang Ave 1 #09-1591"
+    }
+  ]
+}

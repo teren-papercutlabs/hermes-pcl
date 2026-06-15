@@ -1,0 +1,19 @@
+{
+  "engine": {
+    "provider": "openai-direct-primary",
+    "model": "gpt-5.4-mini",
+    "transport": "codex_responses"
+  },
+  "pa_enabled": false,
+  "vision": {
+    "provider": "gemini",
+    "model": "gemini-3.1-flash-lite",
+    "timeout": 120,
+    "download_timeout": 30,
+    "max_concurrency": 8
+  },
+  "files": {
+    "specs/2026-06-15-tgg-golive-prep/artifacts/config.gpt54-staged.yaml": "e6dc2490e95999183ec6b2c5caf6eab9f45357d966ce461aaa2d0558324e6c96",
+    "specs/2026-06-15-tgg-golive-prep/artifacts/christopher_tgg_constitution.gpt54-staged.yaml": "0e6618491fb3af14d4e4d702e72da0e9433650f9a527019e6d1e9482519b7702"
+  }
+}

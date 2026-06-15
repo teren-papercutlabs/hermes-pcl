@@ -1,0 +1,79 @@
+{
+  "since_sgt": "2026-06-13 00:57:54 SGT",
+  "until_sgt": null,
+  "since_ts_exclusive": 1781283474,
+  "selector_count": 15,
+  "message_store_rows": 9479,
+  "window_jid_seen": {
+    "120363420803272720@g.us": 549,
+    "120363421424519051@g.us": 186,
+    "120363421153247095@g.us": 108,
+    "120363422582425366@g.us": 55,
+    "120363423568509280@g.us": 41,
+    "120363403845802098@g.us": 13,
+    "120363403088884777@g.us": 10,
+    "120363426654202984@g.us": 3,
+    "120363423535922556@g.us": 2
+  },
+  "added_total": 935,
+  "added_by_chat": [
+    {
+      "chat_jid": "120363420803272720@g.us",
+      "chat_name": "HDB Rental house completion photo",
+      "zone": "COMPLETION_PHOTO",
+      "added": 526
+    },
+    {
+      "chat_jid": "120363421424519051@g.us",
+      "chat_name": "MM1A Maintenance (AMK, SRG)",
+      "zone": "AMK",
+      "added": 184
+    },
+    {
+      "chat_jid": "120363421153247095@g.us",
+      "chat_name": "NE Rental Term Contract (Spazio/TGG)",
+      "zone": "TERM_CONTRACT",
+      "added": 107
+    },
+    {
+      "chat_jid": "120363422582425366@g.us",
+      "chat_name": "MM1B Maintenance (HG, Bedok Resv)",
+      "zone": "HG",
+      "added": 54
+    },
+    {
+      "chat_jid": "120363423568509280@g.us",
+      "chat_name": "MM2 Maintenance (PG)",
+      "zone": "PG",
+      "added": 41
+    },
+    {
+      "chat_jid": "120363403845802098@g.us",
+      "chat_name": "MM2 Maintenance (SK)",
+      "zone": "SK",
+      "added": 12
+    },
+    {
+      "chat_jid": "120363403088884777@g.us",
+      "chat_name": "120363403088884777@g.us",
+      "zone": "UNKNOWN",
+      "added": 9
+    },
+    {
+      "chat_jid": "120363423535922556@g.us",
+      "chat_name": "120363423535922556@g.us",
+      "zone": "UNKNOWN",
+      "added": 2
+    }
+  ],
+  "skipped": {
+    "outside_window": 8512,
+    "non_selector_jid": 3,
+    "reaction_or_protocol": 29
+  },
+  "unknown_chats": {
+    "120363403088884777@g.us": 10,
+    "120363423535922556@g.us": 2
+  },
+  "bridge_message_log_total": 4012
+}
