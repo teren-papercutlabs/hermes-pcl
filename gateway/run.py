@@ -52,6 +52,7 @@ from typing import Dict, Optional, Any, List, Union, Mapping
 from agent.account_usage import fetch_account_usage, render_account_usage_lines
 from agent.async_utils import safe_schedule_threadsafe
 from agent.i18n import t
+from agent.self_improvement import resolve_self_improvement_notify_policy
 from hermes_cli.config import cfg_get
 
 # --- Agent cache tuning ---------------------------------------------------
@@ -273,6 +274,36 @@ def _build_replay_entry(role: str, content: Any, msg: Dict[str, Any]) -> Dict[st
                 continue
             entry[_rkey] = _rval
     return entry
+
+
+# Turn-scoped telemetry keys run_conversation emits for PA turn-recording.
+# run_sync REBUILDS the agent_result dict with an explicit field whitelist
+# (two return sites); these keys were dropped by that whitelist, so every
+# LIVE turn recorded NULL context_window_peak even though run_conversation
+# emitted the value (v6.3 item 5a, WB f6845320). Lifted out of the closure —
+# like _build_replay_entry above — so the passthrough is unit-testable.
+_TURN_TELEMETRY_FIELDS: tuple[str, ...] = (
+    "turn_input_tokens",
+    "turn_output_tokens",
+    "turn_context_window_peak",
+)
+
+
+def _turn_telemetry_fields(result: Any) -> Dict[str, Any]:
+    """Extract the turn-scoped telemetry fields for run_sync's rebuilt dicts.
+
+    Only present-and-non-None keys pass through: build_turn_record treats a
+    missing key as "caller doesn't emit this" and falls back (tokens) or
+    records NULL (context peak) — synthesizing zeros here would corrupt that
+    contract for string-only/legacy callers.
+    """
+    if not isinstance(result, dict):
+        return {}
+    return {
+        key: result[key]
+        for key in _TURN_TELEMETRY_FIELDS
+        if result.get(key) is not None
+    }
 
 
 def _last_transcript_timestamp(history: Optional[List[Dict[str, Any]]]) -> Any:
@@ -940,8 +971,15 @@ def _check_unavailable_skill(command_name: str) -> str | None:
 
 
 def _platform_config_key(platform: "Platform") -> str:
-    """Map a Platform enum to its config.yaml key (LOCAL→"cli", rest→enum value)."""
-    return "cli" if platform == Platform.LOCAL else platform.value
+    """Map a Platform enum/raw value to its config.yaml key (LOCAL→"cli")."""
+    value = getattr(platform, "value", platform)
+    normalized = str(value or "").strip().lower()
+    return "cli" if normalized == "local" else normalized
+
+
+def _platform_allows_chat_sidebands(platform: "Platform") -> bool:
+    """Return False for client channels that must not receive operator sidebands."""
+    return _platform_config_key(platform) != Platform.WHATSAPP.value
 
 
 def _teams_pipeline_plugin_enabled() -> bool:
@@ -1052,6 +1090,66 @@ def _resolve_pa_context(
         raise
 
 
+def _make_whatsapp_pa_brief_resolver():
+    """Return a ``(chat_id) -> dict | None`` resolver for WhatsApp brief settings.
+
+    The closure resolves the PA job brief assigned to a WhatsApp chat (via the
+    constitution's selectors on ``source.platform`` + ``source.chat_id``) and
+    returns only the per-chat gate / debounce settings the adapter needs:
+    ``require_mention`` / ``debounce_passive_ms`` / ``debounce_addressed_ms``.
+    Debounce values may be overridden on the matched selector; absent selector
+    overrides fall back to the job brief defaults exactly as before.
+
+    Returns ``None`` when no PA constitution is configured, no brief matches the
+    chat, or resolution fails — the adapter then falls back to global config /
+    universal defaults, preserving today's behaviour. This is delivery-only
+    wiring: it does not move or change any gate, it only lets the existing gate
+    read the brief.
+    """
+
+    def _resolve(chat_id: str):
+        if not chat_id:
+            return None
+        try:
+            user_config = _load_gateway_config()
+            platform_key = Platform.WHATSAPP.value
+            platform_extra = (user_config.get("platforms") or {}).get(platform_key) or {}
+            metadata = {
+                "source": {
+                    "platform": platform_key,
+                    "chat_id": chat_id,
+                }
+            }
+            pa_context = _resolve_pa_context(user_config, platform_extra, metadata)
+        except Exception as exc:
+            logger.debug("WhatsApp PA brief resolve failed for %s: %s", chat_id, exc)
+            return None
+        if pa_context is None:
+            return None
+        brief = getattr(pa_context, "job_brief", None)
+        if brief is None:
+            return None
+        selector = getattr(pa_context, "selector", None)
+        if not isinstance(selector, Mapping):
+            selector = {}
+
+        def _debounce_value(key: str):
+            # Per-chat selector override wins; None/absent keeps the job-brief
+            # global default. Selector shape:
+            #   debounce_passive_ms: <int ms>
+            #   debounce_addressed_ms: <int ms>
+            value = selector.get(key)
+            return value if value is not None else getattr(brief, key, None)
+
+        return {
+            "require_mention": getattr(brief, "require_mention", None),
+            "debounce_passive_ms": _debounce_value("debounce_passive_ms"),
+            "debounce_addressed_ms": _debounce_value("debounce_addressed_ms"),
+        }
+
+    return _resolve
+
+
 def _merge_pa_toolsets(
     enabled_toolsets: list[str] | None,
     disabled_toolsets: list[str] | None,
@@ -1084,6 +1182,39 @@ def _merge_pa_toolsets(
         return out or None
 
     return _dedupe(next_enabled), _dedupe(next_disabled)
+
+
+def _apply_pa_job_runtime(
+    model: str,
+    runtime_kwargs: Mapping[str, Any] | None,
+    pa_context: Any,
+) -> tuple[str, dict]:
+    """Apply PA job-specific runtime defaults before session overrides.
+
+    PA selectors already decide which operational job a source belongs to.
+    Runtime defaults belong on that selected job brief so channel ids do not
+    get duplicated in gateway config.
+    """
+    next_runtime = dict(runtime_kwargs or {})
+    job_brief = getattr(pa_context, "job_brief", None) if pa_context is not None else None
+    job_runtime = getattr(job_brief, "runtime", None) if job_brief is not None else None
+    if not isinstance(job_runtime, Mapping) or not job_runtime:
+        return model, next_runtime
+
+    next_model = model
+    configured_model = job_runtime.get("model") or job_runtime.get("default")
+    if isinstance(configured_model, str) and configured_model.strip():
+        next_model = configured_model.strip()
+
+    for key in ("provider", "base_url", "api_mode", "command", "credential_pool"):
+        value = job_runtime.get(key)
+        if value is not None:
+            next_runtime[key] = value
+    if "args" in job_runtime:
+        args = job_runtime.get("args") or []
+        next_runtime["args"] = list(args) if isinstance(args, (list, tuple)) else [str(args)]
+
+    return next_model, next_runtime
 
 
 def _render_pa_ephemeral_prompt(pa_context: Any) -> str:
@@ -2295,6 +2426,7 @@ class GatewayRunner:
         source: Optional[SessionSource] = None,
         session_key: Optional[str] = None,
         user_config: Optional[dict] = None,
+        pa_context: Any = None,
     ) -> tuple[str, dict]:
         """Resolve model/runtime for a session, honoring session-scoped /model overrides.
 
@@ -2348,6 +2480,7 @@ class GatewayRunner:
                 runtime_model,
             )
             model = runtime_model
+        model, runtime_kwargs = _apply_pa_job_runtime(model, runtime_kwargs, pa_context)
         if override and resolved_session_key:
             model, runtime_kwargs = self._apply_session_model_override(
                 resolved_session_key, model, runtime_kwargs
@@ -5811,6 +5944,16 @@ class GatewayRunner:
             if not check_whatsapp_requirements():
                 logger.warning("WhatsApp: Node.js not installed or bridge not configured")
                 return None
+            # Hand the adapter a minimal resolver so its existing gate +
+            # debounce can read per-chat brief settings (require_mention /
+            # debounce windows) from the chat's assigned PA brief. None ->
+            # the adapter falls back to global config / universal defaults,
+            # preserving today's behaviour when no brief sets them.
+            if hasattr(config, "extra") and isinstance(config.extra, dict):
+                config.extra.setdefault(
+                    "pa_brief_resolver",
+                    _make_whatsapp_pa_brief_resolver(),
+                )
             return WhatsAppAdapter(config)
         
         elif platform == Platform.SLACK:
@@ -7330,9 +7473,34 @@ class GatewayRunner:
         self._running_agents[_quick_key] = _AGENT_PENDING_SENTINEL
         self._running_agents_ts[_quick_key] = time.time()
         _run_generation = self._begin_session_run_generation(_quick_key)
+        # Turn-start timestamp for PA universal turn-recording latency.
+        _pa_turn_started_at = time.time()
 
         try:
-            _agent_result = await self._handle_message_with_agent(event, source, _quick_key, _run_generation)
+            try:
+                _agent_result = await self._handle_message_with_agent(event, source, _quick_key, _run_generation)
+            except BaseException:
+                # Turn died mid-flight. Flush a best-effort PA turn record so
+                # the dead turn still exists in observability and its tool
+                # calls (recovered from the stash / persisted transcript) are
+                # attributed to THIS turn instead of leaking into the NEXT
+                # turn's record. Never masks the original exception.
+                try:
+                    await self._record_pa_turn_boundary(
+                        source=source,
+                        quick_key=_quick_key,
+                        run_generation=_run_generation,
+                        event=event,
+                        agent_result={
+                            "completed": False,
+                            "failed": True,
+                            "error": "turn died mid-flight (exception before turn boundary)",
+                        },
+                        started_at=_pa_turn_started_at,
+                    )
+                except Exception:
+                    pass
+                raise
             # Goal continuation: after the agent returns a final response
             # for this turn, check any standing /goal — the judge will
             # either mark it done, pause it (budget), or enqueue a
@@ -7361,6 +7529,25 @@ class GatewayRunner:
                         )
             except Exception as _goal_exc:
                 logger.debug("goal continuation hook failed: %s", _goal_exc)
+
+            # ── PA universal turn-recording (PA-portal observability) ──────
+            # After the turn completes and the response is delivered, write a
+            # universal, agent-keyed record of what the agent did (turn +
+            # tool-calls + events) to the SessionDB. Entirely best-effort and
+            # non-blocking — wrapped in try/except + bounded executor timeout so
+            # a recording failure can NEVER break live processing or the reply.
+            try:
+                await self._record_pa_turn_boundary(
+                    source=source,
+                    quick_key=_quick_key,
+                    run_generation=_run_generation,
+                    event=event,
+                    agent_result=_agent_result,
+                    started_at=_pa_turn_started_at,
+                )
+            except Exception as _pa_rec_exc:
+                logger.debug("PA turn-record hook failed (non-fatal): %s", _pa_rec_exc)
+
             return _agent_result
         finally:
             # If _run_agent replaced the sentinel with a real agent and
@@ -8289,6 +8476,19 @@ class GatewayRunner:
                 pa_context=event.pa_context,
                 suppress_delivery=_pa_suppress_reply_send,
             )
+
+            # _handle_message_with_agent returns the response string for legacy
+            # delivery callers. Stash the rich result so turn-boundary recording
+            # can still carry model/provider/token/cost fields into pa_turns.
+            if isinstance(agent_result, dict):
+                try:
+                    _stash = getattr(self, "_last_agent_result_by_run", None)
+                    if not isinstance(_stash, dict):
+                        _stash = {}
+                        setattr(self, "_last_agent_result_by_run", _stash)
+                    _stash[(_quick_key, run_generation)] = agent_result
+                except Exception as _stash_exc:
+                    logger.debug("PA turn-record: agent_result stash failed: %s", _stash_exc)
 
             # Stop persistent typing indicator now that the agent is done
             try:
@@ -10586,6 +10786,216 @@ class GatewayRunner:
         except Exception as exc:
             logger.debug("goal continuation: enqueue failed: %s", exc)
 
+    def _resolve_pa_agent_id_safe(self, source: Any) -> Optional[str]:
+        """Best-effort resolve the PA agent_id for the turn-recording label.
+
+        Heavyweight (resolves the PA context), but runs only off the reply
+        path inside the wrapped/fire-and-forget recording, so a slow or failing
+        resolve never affects live processing.  Returns None when PA is not
+        enabled or the agent_id cannot be determined.
+        """
+        try:
+            user_config = _load_gateway_config()
+            platform_key = _platform_config_key(source.platform)
+            platform_extra = (user_config.get("platforms") or {}).get(platform_key) or {}
+            metadata = _source_pa_metadata(source)
+            pa_context = _resolve_pa_context(user_config, platform_extra, metadata)
+            return _pa_action_agent_id(pa_context)
+        except Exception as exc:
+            logger.debug("PA turn-record: agent_id resolve failed: %s", exc)
+            return None
+
+    async def _record_pa_turn_boundary(
+        self,
+        *,
+        source: Any,
+        quick_key: Any,
+        run_generation: Any,
+        agent_result: Any,
+        started_at: Optional[float],
+        event: Any = None,
+    ) -> None:
+        """Turn-boundary PA recording shared by the success and failure paths.
+
+        ``_handle_message_with_agent`` returns the response STRING for
+        backward-compat, but stashes the full agent_result dict keyed by
+        (quick_key, run_generation). Prefer the rich dict so the turn record
+        carries messages/tool_calls/api_calls instead of a skeletal
+        string-derived envelope.
+
+        When no rich dict is available (turn died before the stash, or a
+        string-only path), fall back to the persisted session transcript for
+        the ``messages`` payload so the turn's tool calls survive turn death.
+        Over-extraction from the full transcript is safe: the DB layer dedups
+        per-session by call_id, so only not-yet-recorded calls persist.
+        """
+        _pa_record_result = agent_result
+        try:
+            _stash = getattr(self, "_last_agent_result_by_run", None)
+            if isinstance(_stash, dict):
+                _stashed = _stash.pop((quick_key, run_generation), None)
+                if isinstance(_stashed, dict):
+                    _pa_record_result = _stashed
+        except Exception:
+            pass
+        # Deterministic turn->message link (teren 2026-06-12): the turn's input
+        # event ALREADY carries the WA source message ids (bundle
+        # raw_message.sourceMessageIds; single message_id). Record them so
+        # pa_turns.message_refs_json is populated at source, never
+        # reconstructed from content downstream.
+        _src_msg_ids: list = []
+        try:
+            _raw = getattr(event, "raw_message", None)
+            if isinstance(_raw, dict):
+                _ids = _raw.get("sourceMessageIds")
+                if isinstance(_ids, list):
+                    _src_msg_ids = [str(i) for i in _ids if i]
+            if not _src_msg_ids:
+                _mid = getattr(event, "message_id", None)
+                if _mid:
+                    _src_msg_ids = [m for m in str(_mid).split("+") if m]
+        except Exception:
+            _src_msg_ids = []
+        if _src_msg_ids and isinstance(_pa_record_result, dict):
+            _pa_record_result.setdefault("turn_source_message_ids", _src_msg_ids)
+        _pa_final_text = ""
+        if isinstance(_pa_record_result, dict):
+            _pa_final_text = str(_pa_record_result.get("final_response") or "")
+        elif isinstance(_pa_record_result, str):
+            _pa_final_text = _pa_record_result
+        try:
+            _pa_session_entry = self.session_store.get_or_create_session(source)
+        except Exception:
+            _pa_session_entry = None
+        if not (isinstance(_pa_record_result, dict) and _pa_record_result.get("messages")):
+            # Failure/skeletal fallback: recover tool calls from the persisted
+            # transcript (run_agent persists messages even on failure returns).
+            try:
+                if _pa_session_entry is not None:
+                    _transcript = self.session_store.load_transcript(
+                        _pa_session_entry.session_id
+                    )
+                    if _transcript:
+                        _base = (
+                            _pa_record_result
+                            if isinstance(_pa_record_result, dict)
+                            else {}
+                        )
+                        _pa_record_result = {**_base, "messages": _transcript}
+            except Exception:
+                pass
+        await self._record_pa_turn_safe(
+            source=source,
+            session_entry=_pa_session_entry,
+            agent_result=_pa_record_result,
+            final_response=_pa_final_text,
+            started_at=started_at,
+        )
+
+    def _record_pa_turn_blocking(
+        self,
+        *,
+        session_id: Optional[str],
+        agent_id: Optional[str],
+        chat_id: Optional[str],
+        agent_result: Any,
+        final_response: str,
+        started_at: Optional[float],
+    ) -> None:
+        """Synchronous body of PA turn-recording. Runs in an executor.
+
+        Builds the universal record and writes the three tables. Wrapped in
+        try/except by the async caller; ALSO guards itself so a partial failure
+        is swallowed (observability is best-effort; the live agent is never
+        affected).
+        """
+        try:
+            from gateway import pa_observability
+
+            result_dict = agent_result if isinstance(agent_result, dict) else None
+            record = pa_observability.build_turn_record(
+                session_id=session_id,
+                agent_id=agent_id,
+                chat_id=chat_id,
+                agent_result=result_dict,
+                final_response=final_response,
+                started_at=started_at,
+                completed_at=time.time(),
+            )
+            session_db = getattr(self, "_session_db", None)
+            turn_id = pa_observability.safe_record_turn(session_db, record)
+            if turn_id:
+                logger.debug(
+                    "PA turn-record: wrote turn %s (agent=%s chat=%s tools=%d events=%d)",
+                    turn_id, agent_id, chat_id,
+                    len(record.tool_calls), len(record.events),
+                )
+        except Exception as exc:
+            logger.debug("PA turn-record: write failed (non-fatal): %s", exc)
+
+    async def _record_pa_turn_safe(
+        self,
+        *,
+        source: Any,
+        session_entry: Any,
+        agent_result: Any,
+        final_response: str,
+        started_at: Optional[float],
+    ) -> None:
+        """Record a universal PA turn after the turn-boundary.
+
+        SAFETY (both hard requirements from the build contract):
+          (i)  The entire call is wrapped in try/except so a recording failure
+               can never break live processing or the agent's reply.
+          (ii) The DB write runs in an executor with a bounded timeout so a
+               slow / contended write can never backpressure the agent loop.
+
+        On any error or timeout the recording is dropped silently; the live
+        agent path is unaffected.
+        """
+        try:
+            # Skip recording entirely when there is no SessionDB (degraded mode)
+            # — nothing to write to.
+            if getattr(self, "_session_db", None) is None:
+                return
+
+            session_id = getattr(session_entry, "session_id", None) or None
+            chat_id = getattr(source, "chat_id", None)
+            agent_id = self._resolve_pa_agent_id_safe(source)
+
+            # Only record for PA-deployed agents. Without an agent_id this is a
+            # non-PA session (TUI, plain DM) and universal PA observability does
+            # not apply. Clear any staged events so they don't leak into a later
+            # turn, then return.
+            if not agent_id:
+                if session_id:
+                    try:
+                        from gateway.pa_observability import drain_agent_events
+                        drain_agent_events(session_id)
+                    except Exception:
+                        pass
+                return
+
+            loop = asyncio.get_event_loop()
+            await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self._record_pa_turn_blocking(
+                        session_id=session_id,
+                        agent_id=agent_id,
+                        chat_id=chat_id,
+                        agent_result=agent_result,
+                        final_response=final_response,
+                        started_at=started_at,
+                    ),
+                ),
+                timeout=5.0,
+            )
+        except asyncio.TimeoutError:
+            logger.debug("PA turn-record: write timed out (non-fatal)")
+        except Exception as exc:
+            logger.debug("PA turn-record hook failed (non-fatal): %s", exc)
+
     async def _handle_undo_command(self, event: MessageEvent) -> str:
         """Handle /undo command - remove the last user/assistant exchange."""
         source = event.source
@@ -11062,10 +11472,12 @@ class GatewayRunner:
             force_document_attachments = "[[as_document]]" in response
 
             media_files, _ = adapter.extract_media(response)
-            _, cleaned = adapter.extract_images(response)
+            attachment_images, cleaned = adapter.extract_attachment_images(response)
+            extracted_images, cleaned = adapter.extract_images(cleaned)
             local_files, _ = adapter.extract_local_files(cleaned)
 
-            _thread_meta = self._thread_metadata_for_source(event.source, self._reply_anchor_for_event(event))
+            _reply_anchor = self._reply_anchor_for_event(event)
+            _thread_meta = self._thread_metadata_for_source(event.source, _reply_anchor)
 
             from gateway.platforms.base import should_send_media_as_audio
 
@@ -11095,6 +11507,18 @@ class GatewayRunner:
                 else:
                     non_image_local.append(file_path)
 
+            images_from_markers = list(attachment_images or []) + list(extracted_images or [])
+            if images_from_markers:
+                try:
+                    await adapter.send_multiple_images(
+                        chat_id=event.source.chat_id,
+                        images=images_from_markers,
+                        metadata=_thread_meta,
+                        reply_to=_reply_anchor,
+                    )
+                except Exception as e:
+                    logger.warning("[%s] Post-stream image marker delivery failed: %s", adapter.name, e)
+
             if image_paths:
                 try:
                     images = [(f"file://{_quote(p)}", "") for p in image_paths]
@@ -11102,6 +11526,7 @@ class GatewayRunner:
                         chat_id=event.source.chat_id,
                         images=images,
                         metadata=_thread_meta,
+                        reply_to=_reply_anchor,
                     )
                 except Exception as e:
                     logger.warning("[%s] Post-stream image batch delivery failed: %s", adapter.name, e)
@@ -15837,6 +16262,7 @@ class GatewayRunner:
                     source=source,
                     session_key=session_key,
                     user_config=user_config,
+                    pa_context=pa_resolved_context,
                 )
                 logger.debug(
                     "run_agent resolved: model=%s provider=%s session=%s",
@@ -16036,11 +16462,13 @@ class GatewayRunner:
 
             # Per-message state — callbacks and reasoning config change every
             # turn and must not be baked into the cached agent constructor.
-            agent.tool_progress_callback = progress_callback if tool_progress_enabled else None
+            self_improvement_notify_policy = resolve_self_improvement_notify_policy(user_config)
+            chat_sidebands_enabled = _platform_allows_chat_sidebands(source.platform)
+            agent.tool_progress_callback = progress_callback if tool_progress_enabled and chat_sidebands_enabled else None
             agent.step_callback = _step_callback_sync if _hooks_ref.loaded_hooks else None
             agent.stream_delta_callback = _stream_delta_cb
-            agent.interim_assistant_callback = _interim_assistant_cb if _want_interim_messages else None
-            agent.status_callback = None if suppress_delivery else _status_callback_sync
+            agent.interim_assistant_callback = _interim_assistant_cb if _want_interim_messages and chat_sidebands_enabled else None
+            agent.status_callback = None if suppress_delivery or not chat_sidebands_enabled else _status_callback_sync
             agent.reasoning_config = reasoning_config
             agent.service_tier = self._service_tier
             agent.request_overrides = turn_route.get("request_overrides") or {}
@@ -16085,7 +16513,11 @@ class GatewayRunner:
                             return
                 _deliver_bg_review_message(message)
 
-            agent.background_review_callback = _bg_review_send
+            agent.background_review_callback = (
+                _bg_review_send
+                if chat_sidebands_enabled and self_improvement_notify_policy == "channel"
+                else None
+            )
             # Register the release hook on the adapter so base.py's finally
             # block can fire it after delivering the main response.
             if _status_adapter and session_key:
@@ -16509,6 +16941,8 @@ class GatewayRunner:
                     "provider": _resolved_provider,
                     "estimated_cost_usd": result.get("estimated_cost_usd", 0.0),
                     "context_length": _context_length,
+                    # Turn-scoped telemetry passthrough (PA turn-recording).
+                    **_turn_telemetry_fields(result),
                 }
             
             # Scan tool results for MEDIA:<path> tags that need to be delivered
@@ -16632,6 +17066,8 @@ class GatewayRunner:
                 "context_length": _context_length,
                 "session_id": effective_session_id,
                 "response_previewed": result.get("response_previewed", False),
+                # Turn-scoped telemetry passthrough (PA turn-recording).
+                **_turn_telemetry_fields(result),
             }
         
         # Start progress message sender if enabled
@@ -16737,6 +17173,7 @@ class GatewayRunner:
         _NOTIFY_INTERVAL = (
             None
             if suppress_delivery
+            or source.platform == Platform.WHATSAPP
             else _NOTIFY_INTERVAL_RAW if _NOTIFY_INTERVAL_RAW > 0 else None
         )
         _notify_start = time.time()

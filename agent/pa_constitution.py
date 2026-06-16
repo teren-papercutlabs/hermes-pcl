@@ -22,10 +22,17 @@ class PAJobBrief:
     title: str
     purpose: str
     instructions: tuple[str, ...]
+    runtime: Mapping[str, Any] = field(default_factory=dict)
     enabled_toolsets: tuple[str, ...] = field(default_factory=tuple)
     disabled_toolsets: tuple[str, ...] = field(default_factory=tuple)
     fact_operations: Mapping[str, Any] = field(default_factory=dict)
     response_policy: Mapping[str, Any] = field(default_factory=dict)
+    # Optional per-chat gate / debounce overrides. ``None`` means "not set by
+    # this brief" — the caller falls back to global config / universal default
+    # so today's behaviour is preserved when a brief sets nothing.
+    require_mention: bool | None = None
+    debounce_passive_ms: int | None = None
+    debounce_addressed_ms: int | None = None
     hash: str = ""
 
 
@@ -51,6 +58,9 @@ class PAResolvedContext:
     identity_hash: str
     job_hash: str
     behavior_hash: str
+    # Matched selector, preserved so runtime adapters can read per-chat
+    # overrides (for example debounce_passive_ms/debounce_addressed_ms).
+    selector: Mapping[str, Any] = field(default_factory=dict)
 
 
 def load_constitution(path: str | Path) -> PAConstitution:
@@ -166,9 +176,12 @@ def resolve_context(
         return None
 
     metadata_map: Mapping[str, Any] = metadata if isinstance(metadata, Mapping) else {}
+    selected_selector: Mapping[str, Any] | None = None
     job_type = _as_optional_str(metadata_map.get("job_type")) or _as_optional_str(config.get("job_type"))
     if job_type is None:
-        job_type = _select_job_type(constitution, metadata_map)
+        selected_selector = _select_selector(constitution, metadata_map)
+        if selected_selector is not None:
+            job_type = _as_optional_str(selected_selector.get("job_type"))
     if job_type is None:
         return None
 
@@ -184,6 +197,7 @@ def resolve_context(
         identity_hash=constitution.hash,
         job_hash=job_brief.hash,
         behavior_hash=behavior_hash(constitution.hash, job_brief.hash),
+        selector=dict(selected_selector or {}),
     )
 
 
@@ -252,6 +266,7 @@ def _load_job_brief(job_type: str, raw_brief: Mapping[str, Any], source: str) ->
     title = _required_str(raw_brief, "title", f"{source}.job_briefs.{job_type}")
     purpose = _required_str(raw_brief, "purpose", f"{source}.job_briefs.{job_type}")
     instructions = _string_tuple(raw_brief.get("instructions", ()), f"{source}.job_briefs.{job_type}.instructions")
+    runtime = _optional_mapping(raw_brief.get("runtime", {}), f"{source}.job_briefs.{job_type}.runtime")
     fact_operations = _optional_mapping(raw_brief.get("fact_operations", {}), f"{source}.job_briefs.{job_type}.fact_operations")
     response_policy = _optional_mapping(raw_brief.get("response_policy", {}), f"{source}.job_briefs.{job_type}.response_policy")
     enabled_toolsets = _string_tuple(
@@ -262,25 +277,45 @@ def _load_job_brief(job_type: str, raw_brief: Mapping[str, Any], source: str) ->
         raw_brief.get("disabled_toolsets", ()),
         f"{source}.job_briefs.{job_type}.disabled_toolsets",
     )
+    require_mention = _optional_bool(
+        raw_brief.get("require_mention"),
+        f"{source}.job_briefs.{job_type}.require_mention",
+    )
+    debounce_passive_ms = _optional_int(
+        raw_brief.get("debounce_passive_ms"),
+        f"{source}.job_briefs.{job_type}.debounce_passive_ms",
+    )
+    debounce_addressed_ms = _optional_int(
+        raw_brief.get("debounce_addressed_ms"),
+        f"{source}.job_briefs.{job_type}.debounce_addressed_ms",
+    )
     payload = {
         "job_type": job_type,
         "title": title,
         "purpose": purpose,
         "instructions": instructions,
+        "runtime": runtime,
         "enabled_toolsets": enabled_toolsets,
         "disabled_toolsets": disabled_toolsets,
         "fact_operations": fact_operations,
         "response_policy": response_policy,
+        "require_mention": require_mention,
+        "debounce_passive_ms": debounce_passive_ms,
+        "debounce_addressed_ms": debounce_addressed_ms,
     }
     return PAJobBrief(
         job_type=job_type,
         title=title,
         purpose=purpose,
         instructions=instructions,
+        runtime=dict(runtime),
         enabled_toolsets=enabled_toolsets,
         disabled_toolsets=disabled_toolsets,
         fact_operations=dict(fact_operations),
         response_policy=dict(response_policy),
+        require_mention=require_mention,
+        debounce_passive_ms=debounce_passive_ms,
+        debounce_addressed_ms=debounce_addressed_ms,
         hash=behavior_hash(payload),
     )
 
@@ -296,7 +331,12 @@ def _load_selector(
     if job_type not in job_briefs:
         raise ValueError(f"{source}.selectors[]: unknown job_type {job_type!r}")
     match = _required_mapping(selector, "match", f"{source}.selectors[{job_type}]")
-    return {"job_type": job_type, "match": dict(match)}
+    loaded: dict[str, Any] = {"job_type": job_type, "match": dict(match)}
+    for key in ("debounce_passive_ms", "debounce_addressed_ms"):
+        value = _optional_int(selector.get(key), f"{source}.selectors[{job_type}].{key}")
+        if value is not None:
+            loaded[key] = value
+    return loaded
 
 
 def _constitution_from_config(config: Mapping[str, Any]) -> PAConstitution | None:
@@ -379,12 +419,17 @@ def _client_overlay_from_config(config: Mapping[str, Any]) -> Mapping[str, Any] 
     raise ValueError("PA client overlay config must be a path or mapping")
 
 
-def _select_job_type(constitution: PAConstitution, metadata: Mapping[str, Any]) -> str | None:
+def _select_selector(constitution: PAConstitution, metadata: Mapping[str, Any]) -> Mapping[str, Any] | None:
     for selector in constitution.selectors:
         match = selector.get("match", {})
         if isinstance(match, Mapping) and all(_metadata_value(metadata, key) == expected for key, expected in match.items()):
-            return _as_optional_str(selector.get("job_type"))
+            return selector
     return None
+
+
+def _select_job_type(constitution: PAConstitution, metadata: Mapping[str, Any]) -> str | None:
+    selector = _select_selector(constitution, metadata)
+    return _as_optional_str(selector.get("job_type")) if selector is not None else None
 
 
 def _metadata_value(metadata: Mapping[str, Any], dotted_key: str) -> Any:
@@ -417,6 +462,42 @@ def _required_str(data: Mapping[str, Any], key: str, source: str) -> str:
 
 def _as_optional_str(value: Any) -> str | None:
     return value if isinstance(value, str) and value else None
+
+
+def _optional_bool(value: Any, source: str) -> bool | None:
+    """Parse an optional brief bool leniently; absent / None -> None."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return bool(value)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"true", "1", "yes", "on"}:
+            return True
+        if text in {"false", "0", "no", "off"}:
+            return False
+    raise ValueError(f"{source}: must be a boolean")
+
+
+def _optional_int(value: Any, source: str) -> int | None:
+    """Parse an optional brief int leniently; absent / None -> None."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        # bool is a subclass of int; reject to avoid True->1 ms surprises.
+        raise ValueError(f"{source}: must be an integer")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return int(value.strip())
+        except ValueError as exc:
+            raise ValueError(f"{source}: must be an integer") from exc
+    raise ValueError(f"{source}: must be an integer")
 
 
 def _required_mapping(data: Mapping[str, Any], key: str, source: str) -> Mapping[str, Any]:
@@ -464,10 +545,14 @@ def _normalize(value: Any) -> Any:
             "title": value.title,
             "purpose": value.purpose,
             "instructions": value.instructions,
+            "runtime": value.runtime,
             "enabled_toolsets": value.enabled_toolsets,
             "disabled_toolsets": value.disabled_toolsets,
             "fact_operations": value.fact_operations,
             "response_policy": value.response_policy,
+            "require_mention": value.require_mention,
+            "debounce_passive_ms": value.debounce_passive_ms,
+            "debounce_addressed_ms": value.debounce_addressed_ms,
             "hash": value.hash,
         }
     if isinstance(value, PAResolvedContext):
@@ -477,6 +562,7 @@ def _normalize(value: Any) -> Any:
             "identity_hash": value.identity_hash,
             "job_hash": value.job_hash,
             "behavior_hash": value.behavior_hash,
+            "selector": value.selector,
         }
     if isinstance(value, Mapping):
         return {str(key): _normalize(item) for key, item in value.items()}
