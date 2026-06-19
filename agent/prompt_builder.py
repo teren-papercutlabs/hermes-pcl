@@ -170,6 +170,85 @@ MEMORY_GUIDANCE = (
     "workflows belong in skills, not memory."
 )
 
+PA_FACT_OPERATIONS_MEMORY_GUIDANCE = (
+    "You have persistent memory across sessions, but this deployment is a "
+    "Papercut Agents operations assistant. Use memory only for stable client "
+    "operating conventions, durable contact/context preferences, and recurring "
+    "corrections that improve future answers. Do not store case progress, job "
+    "status, WhatsApp turn outcomes, action logs, photos, claim details, or "
+    "temporary follow-ups in memory; record operational facts through the "
+    "available business tools and cite source data when answering. Keep memory "
+    "short, factual, and tenant-safe."
+)
+
+_PA_PROFILE_NAMES = {"pa", "papercut-agent", "papercut_agents", "papercut-agents"}
+_FALSEY_CONFIG_VALUES = {"0", "false", "no", "off", "never", "disabled", "none"}
+_TRUTHY_CONFIG_VALUES = {"1", "true", "yes", "on", "always", "enabled"}
+
+
+def normalize_agent_profile(agent_config: "dict | None") -> str:
+    """Return the lower-case agent prompt profile name from config."""
+    if not isinstance(agent_config, dict):
+        return ""
+    raw = agent_config.get("profile", "")
+    if raw is None:
+        return ""
+    return str(raw).strip().lower()
+
+
+def is_pa_agent_profile(agent_config: "dict | None") -> bool:
+    """Whether config selects the Papercut Agents prompt profile."""
+    return normalize_agent_profile(agent_config) in _PA_PROFILE_NAMES
+
+
+def _config_bool(value, *, default: bool) -> bool:
+    """Coerce common YAML/string config booleans without treating junk as false."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    value_s = str(value).strip().lower()
+    if value_s in _TRUTHY_CONFIG_VALUES:
+        return True
+    if value_s in _FALSEY_CONFIG_VALUES:
+        return False
+    return default
+
+
+def should_expose_framework_identity(agent_config: "dict | None") -> bool:
+    """Return whether Hermes framework identity/help guidance should be shown.
+
+    Default is legacy-visible framework identity. PA profile defaults to hiding it
+    because deployed PA tenants are client operations assistants, not Hermes
+    developer sessions. An explicit agent.expose_framework_identity override wins.
+    """
+    if not isinstance(agent_config, dict):
+        return True
+    if "expose_framework_identity" in agent_config:
+        value = agent_config.get("expose_framework_identity")
+        if str(value).strip().lower() not in {"", "auto", "profile"}:
+            return _config_bool(value, default=True)
+    return not is_pa_agent_profile(agent_config)
+
+
+def memory_guidance_for_agent_profile(agent_config: "dict | None") -> str:
+    """Return the memory guidance block appropriate for an agent profile."""
+    mode = "auto"
+    if isinstance(agent_config, dict):
+        mode = str(agent_config.get("memory_guidance", "auto") or "auto").strip().lower()
+
+    if mode in _FALSEY_CONFIG_VALUES:
+        return ""
+    if mode in {"pa", "papercut-agent", "papercut-agents", "fact_operations", "fact-operations"}:
+        return PA_FACT_OPERATIONS_MEMORY_GUIDANCE
+    if mode in {"default", "developer", "hermes"}:
+        return MEMORY_GUIDANCE
+    if is_pa_agent_profile(agent_config):
+        return PA_FACT_OPERATIONS_MEMORY_GUIDANCE
+    return MEMORY_GUIDANCE
+
 SESSION_SEARCH_GUIDANCE = (
     "When the user references something from a past conversation or you suspect "
     "relevant cross-session context exists, use session_search to recall it before "

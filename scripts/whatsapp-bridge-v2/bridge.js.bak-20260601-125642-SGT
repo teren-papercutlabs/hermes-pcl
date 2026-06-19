@@ -92,10 +92,6 @@ const OUTBOUND_ALLOWED_CHATS_RAW =
 const OUTBOUND_CHAT_FILTER_CONFIGURED = OUTBOUND_ALLOWED_CHATS_RAW !== undefined;
 const OUTBOUND_ALLOWED_CHATS = parseIdentifierList(OUTBOUND_ALLOWED_CHATS_RAW || '');
 const ALLOWED_USERS = parseAllowedUsers(process.env.WHATSAPP_ALLOWED_USERS || '');
-const INBOUND_CAPTURE_ALL_CHATS_RAW =
-  process.env.WHATSAPP_CAPTURE_ALL_CHATS ??
-  process.env.WHATSAPP_INBOUND_CAPTURE_CHATS;
-const INBOUND_CAPTURE_ALL_CHATS = parseIdentifierList(INBOUND_CAPTURE_ALL_CHATS_RAW || '');
 const DEFAULT_REPLY_PREFIX = '⚕ *Hermes Agent*\n────────────\n';
 const REPLY_PREFIX = process.env.WHATSAPP_REPLY_PREFIX === undefined
   ? DEFAULT_REPLY_PREFIX
@@ -661,8 +657,7 @@ async function startSocket() {
           } catch {}
           continue;
         }
-        const captureAllInChat = isGroup && matchesAllowedChat(chatId, INBOUND_CAPTURE_ALL_CHATS, SESSION_DIR);
-        if (!captureAllInChat && !matchesAllowedUser(senderId, ALLOWED_USERS, SESSION_DIR)) {
+        if (!matchesAllowedUser(senderId, ALLOWED_USERS, SESSION_DIR)) {
           try {
             console.log(JSON.stringify({
               event: 'ignored',
@@ -1372,10 +1367,6 @@ if (PAIR_ONLY) {
       } else {
         console.log('🔒 Outbound WhatsApp fail-closed: no allowed chats configured.');
       }
-    }
-    const inboundCaptureAll = Array.from(INBOUND_CAPTURE_ALL_CHATS);
-    if (inboundCaptureAll.length > 0) {
-      console.log(`📥 Inbound capture-all chats: ${inboundCaptureAll.join(', ')}`);
     }
     if (GROUP_CREATE_ENABLED) {
       console.log(`🔒 WhatsApp group admin endpoints enabled (max participants: ${GROUP_CREATE_MAX_PARTICIPANTS}).`);

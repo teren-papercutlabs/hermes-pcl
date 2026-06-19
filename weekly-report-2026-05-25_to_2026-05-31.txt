@@ -1,0 +1,34 @@
+TGG WEEKLY REPORT
+Period: 25 May 2026 to 31 May 2026
+Scope: latest completed week in the available TGG case database backup
+
+Summary
+Total cases in period: 174
+Active cases: 174
+Completed/closed cases: 0
+Flagged cases: 167
+
+State split
+hdb_confirmed: 171
+in_progress: 1
+disputed: 1
+wa_only: 1
+
+Zone split
+BI: 46
+SK: 31
+AM: 24
+QX: 24
+UNKNOWN: 19
+BM: 17
+SD: 7
+PG: 5
+CL: 1
+
+Service line split
+sprucing: 166
+maintenance: 8
+
+Notes
+- No completed or closed cases were recorded in this week window.
+- The data source available in this session runs up to 31 May 2026.

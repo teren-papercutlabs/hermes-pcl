@@ -11,8 +11,6 @@
  *   POST /edit           - Edit a sent message { chatId, messageId, message }
  *   POST /send-media     - Send media natively { chatId, filePath, mediaType?, caption?, fileName? }
  *   POST /typing         - Send typing indicator { chatId }
- *   POST /create-group   - Create a WhatsApp group { subject, participants }
- *   POST /leave-group    - Leave a WhatsApp group { chatId, expectedSubject?, removeParticipants? }
  *   GET  /chat/:id       - Get chat info
  *   GET  /health         - Health check
  *
@@ -29,9 +27,8 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync, existsSync, rea
 import { randomBytes } from 'crypto';
 import { execSync } from 'child_process';
 import { tmpdir } from 'os';
-import QRCode from 'qrcode';
 import qrcode from 'qrcode-terminal';
-import { matchesAllowedChat, matchesAllowedUser, parseAllowedUsers, parseIdentifierList } from './allowlist.js';
+import { matchesAllowedUser, parseAllowedUsers } from './allowlist.js';
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -65,13 +62,6 @@ const HISTORY_SYNC_PATH = process.env.WHATSAPP_HISTORY_SYNC_PATH ||
   path.join(path.dirname(SESSION_DIR), 'history-sync.jsonl');
 const HISTORY_METADATA_PATH = process.env.WHATSAPP_HISTORY_METADATA_PATH ||
   path.join(path.dirname(SESSION_DIR), 'history-metadata.jsonl');
-const STORE_FILE = process.env.WHATSAPP_STORE_FILE ||
-  path.join(path.dirname(SESSION_DIR), 'message-store.json');
-const HERMES_HOME = process.env.HERMES_HOME || path.dirname(path.dirname(SESSION_DIR));
-const CHAT_METADATA_FILE = process.env.WHATSAPP_CHAT_METADATA_FILE ||
-  path.join(HERMES_HOME, 'whatsapp-chat-metadata.json');
-const STORE_WRITE_INTERVAL_MS = parseInt(process.env.WHATSAPP_STORE_WRITE_INTERVAL_MS || '10000', 10);
-const MAX_STORE_MESSAGES = parseInt(process.env.WHATSAPP_MAX_STORE_MESSAGES || '20000', 10);
 const QR_FILE = process.env.WHATSAPP_QR_FILE || '';
 const PAIR_ONLY = args.includes('--pair-only');
 const WHATSAPP_MODE = getArg('mode', process.env.WHATSAPP_MODE || 'self-chat'); // "bot" or "self-chat"
@@ -80,22 +70,7 @@ const OUTBOUND_DISABLED =
   process.env &&
   typeof process.env.WHATSAPP_OUTBOUND_DISABLED === 'string' &&
   ['1', 'true', 'yes', 'on'].includes(process.env.WHATSAPP_OUTBOUND_DISABLED.toLowerCase());
-const GROUP_CREATE_ENABLED =
-  typeof process !== 'undefined' &&
-  process.env &&
-  typeof process.env.WHATSAPP_GROUP_CREATE_ENABLED === 'string' &&
-  ['1', 'true', 'yes', 'on'].includes(process.env.WHATSAPP_GROUP_CREATE_ENABLED.toLowerCase());
-const GROUP_CREATE_MAX_PARTICIPANTS = parseInt(process.env.WHATSAPP_GROUP_CREATE_MAX_PARTICIPANTS || '10', 10);
-const OUTBOUND_ALLOWED_CHATS_RAW =
-  process.env.WHATSAPP_OUTBOUND_ALLOWED_CHATS ??
-  process.env.WHATSAPP_OUTBOUND_ALLOW_CHATS;
-const OUTBOUND_CHAT_FILTER_CONFIGURED = OUTBOUND_ALLOWED_CHATS_RAW !== undefined;
-const OUTBOUND_ALLOWED_CHATS = parseIdentifierList(OUTBOUND_ALLOWED_CHATS_RAW || '');
 const ALLOWED_USERS = parseAllowedUsers(process.env.WHATSAPP_ALLOWED_USERS || '');
-const INBOUND_CAPTURE_ALL_CHATS_RAW =
-  process.env.WHATSAPP_CAPTURE_ALL_CHATS ??
-  process.env.WHATSAPP_INBOUND_CAPTURE_CHATS;
-const INBOUND_CAPTURE_ALL_CHATS = parseIdentifierList(INBOUND_CAPTURE_ALL_CHATS_RAW || '');
 const DEFAULT_REPLY_PREFIX = '⚕ *Hermes Agent*\n────────────\n';
 const REPLY_PREFIX = process.env.WHATSAPP_REPLY_PREFIX === undefined
   ? DEFAULT_REPLY_PREFIX
@@ -155,46 +130,12 @@ function splitLongMessage(message, maxLength = MAX_MESSAGE_LENGTH) {
   return chunks;
 }
 
-function outboundPolicyDecision(chatId) {
-  if (OUTBOUND_DISABLED) {
-    return { allowed: false, reason: 'global_disabled' };
-  }
-  if (!OUTBOUND_CHAT_FILTER_CONFIGURED) {
-    return { allowed: true, reason: 'legacy_open' };
-  }
-  if (matchesAllowedChat(chatId, OUTBOUND_ALLOWED_CHATS, SESSION_DIR)) {
-    return { allowed: true, reason: 'explicitly_allowed' };
-  }
-  return { allowed: false, reason: 'not_in_outbound_allowlist' };
-}
-
-function rejectWhenOutboundBlocked(res, action, chatId) {
-  const decision = outboundPolicyDecision(chatId);
-  if (decision.allowed) return false;
+function rejectWhenOutboundDisabled(res, action) {
+  if (!OUTBOUND_DISABLED) return false;
   res.status(403).json({
-    error: `WhatsApp outbound blocked: ${action}`,
-    chatId,
-    reason: decision.reason,
+    error: `WhatsApp outbound disabled: ${action}`,
   });
   return true;
-}
-
-function rejectWhenGroupAdminBlocked(res, action) {
-  if (OUTBOUND_DISABLED) {
-    res.status(403).json({
-      error: `WhatsApp outbound blocked: ${action}`,
-      reason: 'global_disabled',
-    });
-    return true;
-  }
-  if (!GROUP_CREATE_ENABLED) {
-    res.status(403).json({
-      error: `WhatsApp group admin blocked: ${action}`,
-      reason: 'group_create_not_enabled',
-    });
-    return true;
-  }
-  return false;
 }
 
 function appendJsonLine(filePath, payload, label) {
@@ -207,132 +148,6 @@ function appendJsonLine(filePath, payload, label) {
   }
 }
 
-const chatMetadata = new Map();
-let chatMetadataDirty = false;
-const groupMetadataInflight = new Map();
-
-function chatIdNumber(chatId) {
-  return String(chatId || '').split('@', 1)[0];
-}
-
-function isNumericChatName(chatId, name) {
-  const clean = String(name || '').trim();
-  if (!clean) return true;
-  return clean === chatIdNumber(chatId) || /^\d{8,}$/.test(clean);
-}
-
-function firstTextValue(obj, keys) {
-  if (!obj || typeof obj !== 'object') return '';
-  for (const key of keys) {
-    const value = obj[key];
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-  return '';
-}
-
-function loadChatMetadata() {
-  try {
-    if (!existsSync(CHAT_METADATA_FILE)) return;
-    const parsed = JSON.parse(readFileSync(CHAT_METADATA_FILE, 'utf8'));
-    const chats = parsed?.chats || {};
-    for (const [id, entry] of Object.entries(chats)) {
-      if (entry && typeof entry === 'object') {
-        chatMetadata.set(id, entry);
-      }
-    }
-    console.log(`[bridge-v2] Loaded chat metadata: ${CHAT_METADATA_FILE}`);
-  } catch (err) {
-    console.warn('[bridge-v2] Failed to load chat metadata:', err.message);
-  }
-}
-
-function flushChatMetadata() {
-  if (!chatMetadataDirty) return;
-  try {
-    mkdirSync(path.dirname(CHAT_METADATA_FILE), { recursive: true });
-    const chats = {};
-    for (const [id, entry] of chatMetadata.entries()) chats[id] = entry;
-    writeFileSync(CHAT_METADATA_FILE, JSON.stringify({
-      version: 1,
-      updatedAt: new Date().toISOString(),
-      chats,
-    }, null, 2));
-    chatMetadataDirty = false;
-  } catch (err) {
-    console.warn('[bridge-v2] Failed to write chat metadata:', err.message);
-  }
-}
-
-function rememberChatMetadata(chatId, patch, source = 'unknown') {
-  if (!chatId) return null;
-  const current = chatMetadata.get(chatId) || { id: chatId };
-  const candidateName = patch?.name || patch?.subject;
-  const next = {
-    ...current,
-    id: chatId,
-    type: patch?.type || current.type || (chatId.endsWith('@g.us') ? 'group' : 'dm'),
-    updatedAt: new Date().toISOString(),
-  };
-  if (candidateName && !isNumericChatName(chatId, candidateName)) {
-    next.name = String(candidateName).trim();
-    if (patch?.subject) next.subject = String(patch.subject).trim();
-  } else if (!next.name && candidateName) {
-    next.name = String(candidateName).trim();
-  }
-  if (patch?.participants) next.participants = patch.participants;
-  next.sources = Array.from(new Set([...(current.sources || []), source]));
-  chatMetadata.set(chatId, next);
-  chatMetadataDirty = true;
-  return next;
-}
-
-function rememberHistoryChat(chat) {
-  const chatId = chat?.id || chat?.jid || chat?.remoteJid || chat?.key?.remoteJid;
-  if (!chatId) return;
-  const name = firstTextValue(chat, ['subject', 'name', 'displayName', 'verifiedName', 'pushName', 'notify']);
-  rememberChatMetadata(chatId, {
-    name,
-    subject: chat.subject,
-    type: chatId.endsWith('@g.us') ? 'group' : 'dm',
-  }, 'history');
-}
-
-async function getGroupChatMetadata(chatId) {
-  const cached = chatMetadata.get(chatId);
-  if (cached?.name && !isNumericChatName(chatId, cached.name)) {
-    return cached;
-  }
-  if (!sock || !chatId?.endsWith('@g.us')) return cached || null;
-  if (groupMetadataInflight.has(chatId)) {
-    return groupMetadataInflight.get(chatId);
-  }
-  const promise = sock.groupMetadata(chatId)
-    .then((metadata) => rememberChatMetadata(chatId, {
-      name: metadata?.subject,
-      subject: metadata?.subject,
-      type: 'group',
-      participants: (metadata?.participants || []).map(p => p.id),
-    }, 'groupMetadata'))
-    .catch(() => cached || null)
-    .finally(() => groupMetadataInflight.delete(chatId));
-  groupMetadataInflight.set(chatId, promise);
-  return promise;
-}
-
-function resolveChatName(chatId, msg, isGroup, senderNumber, groupMeta) {
-  if (isGroup) {
-    const cached = groupMeta || chatMetadata.get(chatId);
-    if (cached?.name && !isNumericChatName(chatId, cached.name)) return cached.name;
-    return chatIdNumber(chatId);
-  }
-  const name = msg.pushName || senderNumber;
-  rememberChatMetadata(chatId, { name, type: 'dm' }, 'message');
-  return name;
-}
-
-loadChatMetadata();
-setInterval(flushChatMetadata, 10000).unref();
-
 function trackSentMessageId(sent) {
   if (sent?.key?.id) {
     recentlySentIds.add(sent.key.id);
@@ -342,29 +157,27 @@ function trackSentMessageId(sent) {
   }
 }
 
+const recentInboundMessages = new Map();
+const MAX_RECENT_INBOUND_MESSAGES = parseInt(process.env.WHATSAPP_RECENT_INBOUND_MESSAGES || '500', 10);
+
+function rememberInboundMessage(msg) {
+  const messageId = msg?.key?.id;
+  if (!messageId || msg?.key?.fromMe) return;
+  recentInboundMessages.set(messageId, msg);
+  while (recentInboundMessages.size > MAX_RECENT_INBOUND_MESSAGES) {
+    recentInboundMessages.delete(recentInboundMessages.keys().next().value);
+  }
+}
+
+function sendOptionsForReplyTo(replyTo) {
+  if (!replyTo) return {};
+  const quoted = recentInboundMessages.get(String(replyTo));
+  return quoted ? { quoted } : {};
+}
+
 function normalizeWhatsAppId(value) {
   if (!value) return '';
-  return String(value).trim().replace(/:.*@/, '@');
-}
-
-function normalizeParticipantJid(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  const compact = raw.replace(/[\s()-]/g, '');
-  const jid = compact.replace(/:.*@/, '@').toLowerCase();
-  if (/^\d+@s\.whatsapp\.net$/.test(jid) || /^\d+@lid$/.test(jid)) {
-    return jid;
-  }
-  const phone = compact.replace(/^\+/, '');
-  if (/^\d{8,20}$/.test(phone)) {
-    return `${phone}@s.whatsapp.net`;
-  }
-  return '';
-}
-
-function normalizeGroupJid(value) {
-  const jid = String(value || '').trim().replace(/:.*@/, '@').toLowerCase();
-  return /^\d+@g\.us$/.test(jid) ? jid : '';
+  return String(value).replace(':', '@');
 }
 
 function getMessageContent(msg) {
@@ -389,23 +202,6 @@ function getContextInfo(messageContent) {
   return {};
 }
 
-function textFromMessageContent(messageContent) {
-  if (!messageContent || typeof messageContent !== 'object') return '';
-  if (messageContent.conversation) return String(messageContent.conversation);
-  if (messageContent.extendedTextMessage?.text) return String(messageContent.extendedTextMessage.text);
-  if (messageContent.imageMessage?.caption) return String(messageContent.imageMessage.caption);
-  if (messageContent.videoMessage?.caption) return String(messageContent.videoMessage.caption);
-  if (messageContent.documentMessage?.caption) return String(messageContent.documentMessage.caption);
-  if (messageContent.documentWithCaptionMessage?.message) {
-    return textFromMessageContent(getMessageContent({ message: messageContent.documentWithCaptionMessage.message }));
-  }
-  if (messageContent.audioMessage || messageContent.pttMessage) return '[voice message]';
-  if (messageContent.imageMessage) return '[image]';
-  if (messageContent.videoMessage) return '[video]';
-  if (messageContent.documentMessage) return '[document]';
-  return '';
-}
-
 mkdirSync(SESSION_DIR, { recursive: true });
 
 // Build LID → phone reverse map from session files (lid-mapping-{phone}.json)
@@ -425,64 +221,6 @@ function buildLidMap() {
 let lidToPhone = buildLidMap();
 
 const logger = pino({ level: 'warn' });
-const messageStore = new Map();
-let messageStoreDirty = false;
-
-try {
-  if (existsSync(STORE_FILE)) {
-    const parsed = JSON.parse(readFileSync(STORE_FILE, 'utf8'));
-    const entries = Array.isArray(parsed?.messages) ? parsed.messages : [];
-    for (const entry of entries) {
-      if (entry?.key && entry?.message) {
-        messageStore.set(entry.key, entry);
-      }
-    }
-    console.log(`[bridge-v2] Loaded message store: ${STORE_FILE}`);
-  }
-} catch (err) {
-  console.warn('[bridge-v2] Failed to load message store:', err.message);
-}
-
-function messageStoreKey(key) {
-  if (!key?.remoteJid || !key?.id) return '';
-  return `${key.remoteJid}::${key.id}`;
-}
-
-function rememberMessage(msg) {
-  const key = messageStoreKey(msg?.key);
-  if (!key || !msg?.message) return;
-  messageStore.set(key, {
-    key,
-    remoteJid: msg.key.remoteJid,
-    id: msg.key.id,
-    fromMe: !!msg.key.fromMe,
-    participant: msg.key.participant || null,
-    message: msg.message,
-    messageTimestamp: msg.messageTimestamp || null,
-    storedAt: new Date().toISOString(),
-  });
-  while (messageStore.size > MAX_STORE_MESSAGES) {
-    messageStore.delete(messageStore.keys().next().value);
-  }
-  messageStoreDirty = true;
-}
-
-function flushStore() {
-  if (!messageStoreDirty) return;
-  try {
-    mkdirSync(path.dirname(STORE_FILE), { recursive: true });
-    writeFileSync(STORE_FILE, JSON.stringify({
-      version: 1,
-      updatedAt: new Date().toISOString(),
-      messages: Array.from(messageStore.values()),
-    }));
-    messageStoreDirty = false;
-  } catch (err) {
-    console.warn('[bridge-v2] Failed to write message store:', err.message);
-  }
-}
-
-setInterval(flushStore, STORE_WRITE_INTERVAL_MS).unref();
 
 // Message queue for polling
 const messageQueue = [];
@@ -494,34 +232,11 @@ const MAX_QUEUE_SIZE = parseInt(
 // Track recently sent message IDs to prevent echo-back loops with media
 const recentlySentIds = new Set();
 const MAX_RECENT_IDS = 50;
-const recentInboundMessages = new Map();
-const MAX_RECENT_INBOUND_MESSAGES = parseInt(process.env.WHATSAPP_RECENT_INBOUND_MESSAGES || '500', 10);
-
-function rememberInboundMessage(msg) {
-  const messageId = msg?.key?.id;
-  if (!messageId || msg?.key?.fromMe) return;
-  recentInboundMessages.set(messageId, msg);
-  while (recentInboundMessages.size > MAX_RECENT_INBOUND_MESSAGES) {
-    recentInboundMessages.delete(recentInboundMessages.keys().next().value);
-  }
-}
-
-function sendOptionsForReplyTo(replyTo) {
-  if (!replyTo) return {};
-  const quoted = recentInboundMessages.get(String(replyTo));
-  return quoted ? { quoted } : {};
-}
 
 let sock = null;
 let connectionState = 'disconnected';
-let latestQr = '';
-let latestQrAt = null;
-let lastDisconnectReason = null;
-let connectedAt = null;
-let socketStartedAt = null;
 
 async function startSocket() {
-  socketStartedAt = new Date().toISOString();
   const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -536,19 +251,18 @@ async function startSocket() {
     // Required for Baileys 7.x: without this, incoming messages that need
     // E2EE session re-establishment are silently dropped (msg.message === null)
     getMessage: async (key) => {
-      const stored = messageStore.get(messageStoreKey(key));
-      return stored?.message || { conversation: '' };
+      // We don't maintain a message store, so return a placeholder.
+      // This is enough for Baileys to complete the retry handshake.
+      return { conversation: '' };
     },
   });
 
-  sock.ev.on('creds.update', () => { saveCreds(); lidToPhone = buildLidMap(); flushStore(); });
+  sock.ev.on('creds.update', () => { saveCreds(); lidToPhone = buildLidMap(); });
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      latestQr = qr;
-      latestQrAt = new Date().toISOString();
       console.log('\n📱 Scan this QR code with WhatsApp on your phone:\n');
       if (QR_FILE) {
         try {
@@ -565,8 +279,6 @@ async function startSocket() {
     if (connection === 'close') {
       const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
       connectionState = 'disconnected';
-      lastDisconnectReason = reason || null;
-      connectedAt = null;
 
       if (reason === DisconnectReason.loggedOut) {
         console.log('❌ Logged out. Delete session and restart to re-authenticate.');
@@ -582,10 +294,6 @@ async function startSocket() {
       }
     } else if (connection === 'open') {
       connectionState = 'connected';
-      connectedAt = new Date().toISOString();
-      latestQr = '';
-      latestQrAt = null;
-      lastDisconnectReason = null;
       console.log('✅ WhatsApp connected!');
       if (PAIR_ONLY) {
         console.log('✅ Pairing complete. Credentials saved.');
@@ -661,8 +369,7 @@ async function startSocket() {
           } catch {}
           continue;
         }
-        const captureAllInChat = isGroup && matchesAllowedChat(chatId, INBOUND_CAPTURE_ALL_CHATS, SESSION_DIR);
-        if (!captureAllInChat && !matchesAllowedUser(senderId, ALLOWED_USERS, SESSION_DIR)) {
+        if (!matchesAllowedUser(senderId, ALLOWED_USERS, SESSION_DIR)) {
           try {
             console.log(JSON.stringify({
               event: 'ignored',
@@ -682,10 +389,6 @@ async function startSocket() {
       const quotedParticipant = normalizeWhatsAppId(contextInfo?.participant || '') || null;
       const quotedRemoteJid = normalizeWhatsAppId(contextInfo?.remoteJid || '') || null;
       const hasQuotedMessage = !!contextInfo?.quotedMessage;
-      const quotedText = hasQuotedMessage
-        ? textFromMessageContent(getMessageContent({ message: contextInfo.quotedMessage }))
-        : '';
-      const quotedFromBot = quotedMessageId ? recentlySentIds.has(quotedMessageId) : false;
 
       // Extract message body
       let body = '';
@@ -790,13 +493,7 @@ async function startSocket() {
         chatId,
         senderId,
         senderName: msg.pushName || senderNumber,
-        chatName: resolveChatName(
-          chatId,
-          msg,
-          isGroup,
-          senderNumber,
-          isGroup ? await getGroupChatMetadata(chatId) : null,
-        ),
+        chatName: isGroup ? (chatId.split('@')[0]) : (msg.pushName || senderNumber),
         isGroup,
         body,
         hasMedia,
@@ -807,13 +504,11 @@ async function startSocket() {
         quotedParticipant,
         quotedRemoteJid,
         hasQuotedMessage,
-        quotedText,
-        quotedFromBot,
-    botIds,
-    timestamp: msg.messageTimestamp,
-    fromMe: !!msg.key.fromMe,
-    historySync: isHistory,
-    historySyncType: historyMeta.syncType || null,
+        botIds,
+        timestamp: msg.messageTimestamp,
+        fromMe: !!msg.key.fromMe,
+        historySync: isHistory,
+        historySyncType: historyMeta.syncType || null,
         historyIsLatest: historyMeta.isLatest ?? null,
       };
       rememberInboundMessage(msg);
@@ -833,7 +528,6 @@ async function startSocket() {
   }
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    for (const msg of messages || []) rememberMessage(msg);
     await enqueueMessages(messages || [], type);
   });
 
@@ -854,7 +548,6 @@ async function startSocket() {
       messageCount: messages.length,
     }, 'history batch metadata');
     for (const chat of chats) {
-      rememberHistoryChat(chat);
       appendJsonLine(HISTORY_METADATA_PATH, {
         recordType: 'chat',
         capturedAt: new Date().toISOString(),
@@ -880,7 +573,6 @@ async function startSocket() {
       syncType,
       isLatest,
     }));
-    for (const msg of messages || []) rememberMessage(msg);
     await enqueueMessages(messages || [], 'history', { syncType, isLatest });
   });
 }
@@ -928,6 +620,7 @@ app.get('/messages', (req, res) => {
 
 // Send a message
 app.post('/send', async (req, res) => {
+  if (rejectWhenOutboundDisabled(res, 'send')) return;
   if (!sock || connectionState !== 'connected') {
     return res.status(503).json({ error: 'Not connected to WhatsApp' });
   }
@@ -936,7 +629,6 @@ app.post('/send', async (req, res) => {
   if (!chatId || !message) {
     return res.status(400).json({ error: 'chatId and message are required' });
   }
-  if (rejectWhenOutboundBlocked(res, 'send', chatId)) return;
 
   try {
     const chunks = splitLongMessage(formatOutgoingMessage(message));
@@ -963,6 +655,7 @@ app.post('/send', async (req, res) => {
 
 // Edit a previously sent message
 app.post('/edit', async (req, res) => {
+  if (rejectWhenOutboundDisabled(res, 'edit')) return;
   if (!sock || connectionState !== 'connected') {
     return res.status(503).json({ error: 'Not connected to WhatsApp' });
   }
@@ -971,7 +664,6 @@ app.post('/edit', async (req, res) => {
   if (!chatId || !messageId || !message) {
     return res.status(400).json({ error: 'chatId, messageId, and message are required' });
   }
-  if (rejectWhenOutboundBlocked(res, 'edit', chatId)) return;
 
   try {
     const key = { id: messageId, fromMe: true, remoteJid: chatId };
@@ -1017,15 +709,15 @@ function inferMediaType(ext) {
 
 // Send media (image, video, document) natively
 app.post('/send-media', async (req, res) => {
+  if (rejectWhenOutboundDisabled(res, 'send-media')) return;
   if (!sock || connectionState !== 'connected') {
     return res.status(503).json({ error: 'Not connected to WhatsApp' });
   }
 
-  const { chatId, filePath, mediaType, caption, fileName, replyTo } = req.body;
+  const { chatId, filePath, mediaType, caption, fileName } = req.body;
   if (!chatId || !filePath) {
     return res.status(400).json({ error: 'chatId and filePath are required' });
   }
-  if (rejectWhenOutboundBlocked(res, 'send-media', chatId)) return;
 
   try {
     if (!existsSync(filePath)) {
@@ -1083,7 +775,7 @@ app.post('/send-media', async (req, res) => {
         break;
     }
 
-    const sent = await sendWithTimeout(chatId, msgPayload, sendOptionsForReplyTo(replyTo));
+    const sent = await sendWithTimeout(chatId, msgPayload);
 
     trackSentMessageId(sent);
 
@@ -1095,132 +787,19 @@ app.post('/send-media', async (req, res) => {
 
 // Typing indicator
 app.post('/typing', async (req, res) => {
+  if (rejectWhenOutboundDisabled(res, 'typing')) return;
   if (!sock || connectionState !== 'connected') {
     return res.status(503).json({ error: 'Not connected' });
   }
 
   const { chatId } = req.body;
   if (!chatId) return res.status(400).json({ error: 'chatId required' });
-  if (rejectWhenOutboundBlocked(res, 'typing', chatId)) return;
 
   try {
     await sock.sendPresenceUpdate('composing', chatId);
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false });
-  }
-});
-
-// Create a WhatsApp group. Explicitly feature-gated because there is no
-// existing chat id to run through the per-chat outbound allowlist yet.
-app.post('/create-group', async (req, res) => {
-  if (!sock || connectionState !== 'connected') {
-    return res.status(503).json({ error: 'Not connected to WhatsApp' });
-  }
-  if (rejectWhenGroupAdminBlocked(res, 'create-group')) return;
-
-  const subject = String(req.body?.subject || '').trim();
-  const rawParticipants = req.body?.participants;
-  if (!subject) {
-    return res.status(400).json({ error: 'subject is required' });
-  }
-  if (subject.length > 100) {
-    return res.status(400).json({ error: 'subject must be <= 100 characters' });
-  }
-  if (!Array.isArray(rawParticipants) || rawParticipants.length === 0) {
-    return res.status(400).json({ error: 'participants must be a non-empty array' });
-  }
-
-  const participants = [];
-  const invalidParticipants = [];
-  for (const value of rawParticipants) {
-    const jid = normalizeParticipantJid(value);
-    if (!jid) {
-      invalidParticipants.push(value);
-      continue;
-    }
-    if (!participants.includes(jid)) participants.push(jid);
-  }
-  if (invalidParticipants.length > 0) {
-    return res.status(400).json({
-      error: 'participants contains invalid WhatsApp identifiers',
-      invalidParticipants,
-    });
-  }
-  if (participants.length === 0) {
-    return res.status(400).json({ error: 'participants must include at least one valid user' });
-  }
-  if (Number.isFinite(GROUP_CREATE_MAX_PARTICIPANTS) && participants.length > GROUP_CREATE_MAX_PARTICIPANTS) {
-    return res.status(400).json({
-      error: `participants exceeds WHATSAPP_GROUP_CREATE_MAX_PARTICIPANTS=${GROUP_CREATE_MAX_PARTICIPANTS}`,
-    });
-  }
-
-  try {
-    const metadata = await sock.groupCreate(subject, participants);
-    const jid = metadata?.id || metadata?.jid || metadata?.gid || '';
-    if (jid) {
-      rememberChatMetadata(jid, {
-        name: metadata?.subject || subject,
-        subject: metadata?.subject || subject,
-        type: 'group',
-        participants: (metadata?.participants || []).map(p => p.id).filter(Boolean),
-      }, 'createGroup');
-      flushChatMetadata();
-    }
-    res.json({
-      success: true,
-      jid,
-      subject: metadata?.subject || subject,
-      participants: (metadata?.participants || []).map(p => p.id).filter(Boolean),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Cleanup helper for endpoint smoke tests. The caller must name the expected
-// subject to reduce accidental leaves from real operator groups. For throwaway
-// smoke groups, removeParticipants=true removes non-bot participants first so
-// the cleanup does not strand a test phone in an empty group.
-app.post('/leave-group', async (req, res) => {
-  if (!sock || connectionState !== 'connected') {
-    return res.status(503).json({ error: 'Not connected to WhatsApp' });
-  }
-  if (rejectWhenGroupAdminBlocked(res, 'leave-group')) return;
-
-  const chatId = normalizeGroupJid(req.body?.chatId);
-  const expectedSubject = String(req.body?.expectedSubject || '').trim();
-  if (!chatId) return res.status(400).json({ error: 'valid group chatId is required' });
-  if (!expectedSubject) return res.status(400).json({ error: 'expectedSubject is required' });
-
-  try {
-    const metadata = await sock.groupMetadata(chatId);
-    if (metadata?.subject !== expectedSubject) {
-      return res.status(409).json({
-        error: 'group subject mismatch',
-        expectedSubject,
-        actualSubject: metadata?.subject || '',
-      });
-    }
-    const removedParticipants = [];
-    if (req.body?.removeParticipants === true) {
-      const ownIds = new Set([
-        normalizeParticipantJid(sock.user?.id),
-        normalizeParticipantJid(sock.user?.lid),
-      ].filter(Boolean));
-      const removableParticipants = (metadata?.participants || [])
-        .map(p => normalizeParticipantJid(p?.id))
-        .filter(jid => jid && !ownIds.has(jid));
-      if (removableParticipants.length > 0) {
-        await sock.groupParticipantsUpdate(chatId, removableParticipants, 'remove');
-        removedParticipants.push(...removableParticipants);
-      }
-    }
-    await sock.groupLeave(chatId);
-    res.json({ success: true, chatId, subject: metadata?.subject, removedParticipants });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1232,13 +811,6 @@ app.get('/chat/:id', async (req, res) => {
   if (isGroup && sock) {
     try {
       const metadata = await sock.groupMetadata(chatId);
-      rememberChatMetadata(chatId, {
-        name: metadata.subject,
-        subject: metadata.subject,
-        type: 'group',
-        participants: metadata.participants.map(p => p.id),
-      }, 'chatEndpoint');
-      flushChatMetadata();
       return res.json({
         name: metadata.subject,
         isGroup: true,
@@ -1261,86 +833,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: connectionState,
     queueLength: messageQueue.length,
-    paired: connectionState === 'connected',
-    hasQr: !!latestQr,
-    qrUpdatedAt: latestQrAt,
-    connectedAt,
-    startedAt: socketStartedAt,
-    lastDisconnectReason,
-    storeFile: STORE_FILE,
-    storeMessages: messageStore.size,
-    chatMetadataFile: CHAT_METADATA_FILE,
-    chatMetadataCount: chatMetadata.size,
     uptime: process.uptime(),
   });
-});
-
-app.get('/state', (req, res) => {
-  res.json({
-    ok: true,
-    status: connectionState,
-    paired: connectionState === 'connected',
-    hasQr: !!latestQr,
-    qrUpdatedAt: latestQrAt,
-    connectedAt,
-    startedAt: socketStartedAt,
-    lastDisconnectReason,
-  });
-});
-
-app.post('/start', (req, res) => {
-  res.json({
-    ok: true,
-    status: connectionState,
-    paired: connectionState === 'connected',
-    hasQr: !!latestQr,
-    qrUpdatedAt: latestQrAt,
-    connectedAt,
-    startedAt: socketStartedAt,
-    lastDisconnectReason,
-  });
-});
-
-app.get('/qr', (req, res) => {
-  if (!latestQr) {
-    return res.status(connectionState === 'connected' ? 409 : 404).json({
-      ok: false,
-      status: connectionState,
-      reason: connectionState === 'connected' ? 'already-paired' : 'qr-not-ready',
-    });
-  }
-  res.json({
-    ok: true,
-    status: connectionState,
-    qr: latestQr,
-    qrUpdatedAt: latestQrAt,
-  });
-});
-
-app.get('/qr.png', async (req, res) => {
-  if (!latestQr) {
-    return res.status(connectionState === 'connected' ? 409 : 404).json({
-      ok: false,
-      status: connectionState,
-      reason: connectionState === 'connected' ? 'already-paired' : 'qr-not-ready',
-    });
-  }
-  try {
-    const png = await QRCode.toBuffer(latestQr, {
-      type: 'png',
-      width: 720,
-      margin: 2,
-      errorCorrectionLevel: 'M',
-    });
-    res.writeHead(200, {
-      'Content-Type': 'image/png',
-      'Content-Length': png.length,
-      'Cache-Control': 'no-store',
-    });
-    res.end(png);
-  } catch (err) {
-    res.status(500).json({ ok: false, reason: err.message });
-  }
 });
 
 // Start
@@ -1365,20 +859,6 @@ if (PAIR_ONLY) {
     }
     if (OUTBOUND_DISABLED) {
       console.log('🔒 Outbound WhatsApp send/edit/media/typing endpoints are disabled.');
-    } else if (OUTBOUND_CHAT_FILTER_CONFIGURED) {
-      const allowed = Array.from(OUTBOUND_ALLOWED_CHATS);
-      if (allowed.length > 0) {
-        console.log(`🔒 Outbound WhatsApp allowed chats: ${allowed.join(', ')}`);
-      } else {
-        console.log('🔒 Outbound WhatsApp fail-closed: no allowed chats configured.');
-      }
-    }
-    const inboundCaptureAll = Array.from(INBOUND_CAPTURE_ALL_CHATS);
-    if (inboundCaptureAll.length > 0) {
-      console.log(`📥 Inbound capture-all chats: ${inboundCaptureAll.join(', ')}`);
-    }
-    if (GROUP_CREATE_ENABLED) {
-      console.log(`🔒 WhatsApp group admin endpoints enabled (max participants: ${GROUP_CREATE_MAX_PARTICIPANTS}).`);
     }
     if (SYNC_FULL_HISTORY) {
       console.log(`🕰️  Full WhatsApp history sync is enabled (queue max: ${MAX_QUEUE_SIZE}).`);

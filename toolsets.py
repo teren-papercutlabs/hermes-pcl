@@ -176,9 +176,21 @@ TOOLSETS = {
         "includes": [],
     },
 
+    "custom": {
+        "description": "Client-specific custom operations bridge for configured HTTP endpoints or local commands",
+        "tools": ["pa_business_read", "pa_business_write"],
+        "includes": [],
+    },
+
     "pa-photo-pair": {
         "description": "Opt-in PA before/after photo-pair classifier for sprucing-style workflows",
         "tools": [],
+        "includes": [],
+    },
+
+    "pa-observability": {
+        "description": "PA universal observability: record_event lets the agent emit semantic events for the PA portal (observability only, no client mutation)",
+        "tools": ["record_event"],
         "includes": [],
     },
 

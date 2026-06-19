@@ -1,25 +1,195 @@
 {
   "version": 1,
-  "remoteRoot": "/home/pclaw/apps/hermes-pcl",
-  "include": [
-    "toolsets.py",
-    "tools/tgg_ilinked_lookup.py",
-    "scripts/whatsapp-bridge/allowlist.js",
-    "scripts/whatsapp-bridge/allowlist.test.mjs",
-    "scripts/whatsapp-bridge/bridge.js",
-    "scripts/whatsapp-bridge/package.json",
-    "scripts/whatsapp-bridge/package-lock.json",
-    "scripts/whatsapp-bridge-v2/allowlist.js",
-    "scripts/whatsapp-bridge-v2/bridge.js",
-    "scripts/whatsapp-bridge-v2/christopher-tgg-whatsapp-v2.service",
-    "scripts/whatsapp-bridge-v2/package.json",
-    "scripts/whatsapp-bridge-v2/package-lock.json",
-    "tests/fixtures/clients/tgg/overlay.yaml",
-    "tests/fixtures/pa/bobby_tgg_constitution.yaml"
+  "remoteRoot": "/",
+  "include": [],
+  "files": [
+    {
+      "sourcePath": "gateway/platforms/whatsapp.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/gateway/platforms/whatsapp.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "gateway/platforms/base.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/gateway/platforms/base.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "gateway/pa_observability.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/gateway/pa_observability.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "tools/pa_record_event.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/tools/pa_record_event.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "hermes_state.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/hermes_state.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "gateway/channel_directory.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/gateway/channel_directory.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "gateway/whatsapp_identity.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/gateway/whatsapp_identity.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "gateway/pairing.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/gateway/pairing.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "scripts/whatsapp-bridge-v2/allowlist.js",
+      "targetPath": "home/pclaw/apps/hermes-pcl/scripts/whatsapp-bridge-v2/allowlist.js",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "scripts/whatsapp-bridge-v2/bridge.js",
+      "targetPath": "home/pclaw/apps/hermes-pcl/scripts/whatsapp-bridge-v2/bridge.js",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "scripts/whatsapp-bridge-v2/package.json",
+      "targetPath": "home/pclaw/apps/hermes-pcl/scripts/whatsapp-bridge-v2/package.json",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "scripts/whatsapp-bridge-v2/package-lock.json",
+      "targetPath": "home/pclaw/apps/hermes-pcl/scripts/whatsapp-bridge-v2/package-lock.json",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "tools/pa_business_tools.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/tools/pa_business_tools.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "tools/tgg_ilinked_lookup.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/tools/tgg_ilinked_lookup.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "tools/tgg_ilinked_reads.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/tools/tgg_ilinked_reads.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "tests/fixtures/clients/tgg/ilinked/detail-work-costing.json",
+      "targetPath": "home/pclaw/apps/hermes-pcl/tests/fixtures/clients/tgg/ilinked/detail-work-costing.json",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "toolsets.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/toolsets.py",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "agent/usage_pricing.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/agent/usage_pricing.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "agent/pa_constitution.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/agent/pa_constitution.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "gateway/run.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/gateway/run.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "tests/fixtures/pa/bobby_tgg_constitution.yaml",
+      "targetPath": "home/pclaw/apps/hermes-pcl/tests/fixtures/pa/bobby_tgg_constitution.yaml",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "tests/fixtures/clients/tgg/overlay.yaml",
+      "targetPath": "home/pclaw/apps/hermes-pcl/tests/fixtures/clients/tgg/overlay.yaml",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "pa-agent.manifest.json",
+      "targetPath": "home/pclaw/apps/hermes-pcl/pa-agent.manifest.json",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "deploy/tgg/christopher/config.yaml",
+      "targetPath": "home/pclaw/.hermes-christopher-tgg/config.yaml",
+      "mode": "600",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "deploy/tgg/christopher/christopher_tgg_constitution.yaml",
+      "targetPath": "home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "deploy/tgg/christopher/systemd/christopher-tgg-hermes.service",
+      "targetPath": "etc/systemd/system/christopher-tgg-hermes.service",
+      "mode": "644",
+      "owner": "root:root"
+    },
+    {
+      "sourcePath": "gateway/config.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/gateway/config.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "scripts/deploy/configure_christopher_outbound.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "scripts/whatsapp-bridge-v2/allowlist.test.mjs",
+      "targetPath": "home/pclaw/apps/hermes-pcl/scripts/whatsapp-bridge-v2/allowlist.test.mjs",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "run_agent.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/run_agent.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "agent/prompt_builder.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/agent/prompt_builder.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "hermes_cli/config.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/hermes_cli/config.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "deploy/tgg/christopher/SOUL.md",
+      "targetPath": "home/pclaw/.hermes-christopher-tgg/SOUL.md",
+      "mode": "600",
+      "owner": "pclaw:pclaw"
+    }
   ],
   "requiredEnv": [
     {
       "name": "GEMINI_API_KEY_PCL_PA_SHARED",
+      "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
+    },
+    {
+      "name": "GEMINI_API_KEY",
       "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
     },
     {
@@ -30,74 +200,86 @@
   "services": [
     {
       "name": "christopher-tgg-hermes.service",
-      "restart": true,
-      "postRestartHooks": [
+      "preRestartHooks": [
         {
-          "name": "hermes-active",
-          "command": "systemctl is-active christopher-tgg-hermes.service"
+          "name": "configure-outbound-policy",
+          "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --management-chat 120363427363740087@g.us --management-chat 120363427897872447@g.us --management-chat 120363407433776639@g.us --management-chat 120363426509183563@g.us --management-chat 120363407903158826@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us"
         },
         {
-          "name": "legacy-bridge-health",
-          "command": "bash -lc 'for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3000/health | python3 -c '\"'\"'import json,sys; d=json.load(sys.stdin); assert d.get(\"status\") == \"connected\"; print(\"port3000 connected\")'\"'\"' && exit 0; sleep 1; done; exit 1'"
+          "name": "daemon-reload",
+          "command": "systemctl daemon-reload"
         }
-      ]
-    },
-    {
-      "name": "christopher-tgg-whatsapp.service",
-      "restart": true,
-      "postRestartHooks": [
-        {
-          "name": "whatsapp-active",
-          "command": "systemctl is-active christopher-tgg-whatsapp.service"
-        },
-        {
-          "name": "v2-bridge-health",
-          "command": "bash -lc 'for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3001/health | python3 -c '\"'\"'import json,sys; d=json.load(sys.stdin); assert d.get(\"status\") == \"connected\" and d.get(\"paired\") is True; print(\"port3001 connected+paired\")'\"'\"' && exit 0; sleep 1; done; exit 1'"
-        },
-        {
-          "name": "outbound-disabled",
-          "command": "systemctl show christopher-tgg-whatsapp.service --property=Environment --value | tr ' ' '\\n' | grep -qx 'WHATSAPP_OUTBOUND_DISABLED=true'"
-        }
-      ]
+      ],
+      "postRestartHooks": []
     }
   ],
   "verifyHooks": [
     {
-      "name": "services-active",
-      "command": "systemctl is-active christopher-tgg-hermes.service christopher-tgg-whatsapp.service"
+      "name": "systemd-active",
+      "command": "systemctl is-active --quiet christopher-tgg-hermes.service && systemctl is-active --quiet christopher-tgg-systems.service && systemctl is-active --quiet singpass-pair-server.service"
     },
     {
-      "name": "legacy-bridge-health",
-      "command": "bash -lc 'for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3000/health | python3 -c '\"'\"'import json,sys; d=json.load(sys.stdin); assert d.get(\"status\") == \"connected\"; print(\"port3000 connected\")'\"'\"' && exit 0; sleep 1; done; exit 1'"
+      "name": "whatsapp-v2-health",
+      "command": "curl -fsS http://127.0.0.1:3001/health >/tmp/christopher-wa-v2-health.json && python3 - <<'PY2'\nimport json\np=json.load(open('/tmp/christopher-wa-v2-health.json'))\nassert p.get('status') in ('connected','ok','healthy') or p.get('connected') is True\nassert p.get('paired') is True\nPY2"
     },
     {
-      "name": "v2-bridge-health",
-      "command": "bash -lc 'for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3001/health | python3 -c '\"'\"'import json,sys; d=json.load(sys.stdin); assert d.get(\"status\") == \"connected\" and d.get(\"paired\") is True; print(\"port3001 connected+paired\")'\"'\"' && exit 0; sleep 1; done; exit 1'"
+      "name": "config-constitution-present",
+      "command": "test -s /home/pclaw/.hermes-christopher-tgg/config.yaml && test -s /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml"
     },
     {
       "name": "model-config",
-      "command": "grep -q 'default: gemini-3-flash-preview' /home/pclaw/.hermes-christopher-tgg/config.yaml"
+      "command": "grep -q 'default: gemini-3.1-flash-lite' /home/pclaw/.hermes-christopher-tgg/config.yaml"
     },
     {
-      "name": "outbound-disabled",
-      "command": "systemctl show christopher-tgg-whatsapp.service --property=Environment --value | tr ' ' '\\n' | grep -qx 'WHATSAPP_OUTBOUND_DISABLED=true'"
+      "name": "pa-job-runtime-model-routing",
+      "command": "cd /home/pclaw/apps/hermes-pcl && HERMES_HOME=/home/pclaw/.hermes-christopher-tgg /home/pclaw/apps/hermes-pcl/.venv/bin/python - <<'PY2'\nfrom agent.pa_constitution import resolve_context\nfrom gateway.run import _apply_pa_job_runtime\nconstitution_path = '/home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml'\nbase_runtime = {'provider': 'gemini', 'api_key': 'redacted', 'base_url': 'https://generativelanguage.googleapis.com/v1beta'}\nops = resolve_context({'constitution_path': constitution_path}, {'source': {'platform': 'whatsapp', 'chat_id': '120363403088884777@g.us'}})\nmgmt = resolve_context({'constitution_path': constitution_path}, {'source': {'platform': 'whatsapp', 'chat_id': '120363427897872447@g.us'}})\nlaunch_mgmt = resolve_context({'constitution_path': constitution_path}, {'source': {'platform': 'whatsapp', 'chat_id': '120363407903158826@g.us'}})\nassert ops is not None and ops.job_type == 'tgg_ops_ingest', ops\nassert mgmt is not None and mgmt.job_type == 'tgg_management', mgmt\nassert launch_mgmt is not None and launch_mgmt.job_type == 'tgg_management', launch_mgmt\nassert _apply_pa_job_runtime('gemini-3.1-flash-lite', base_runtime, ops)[0] == 'gemini-3.1-flash-lite'\nassert _apply_pa_job_runtime('gemini-3.1-flash-lite', base_runtime, mgmt)[0] == 'gemini-3.1-flash-lite'\nassert _apply_pa_job_runtime('gemini-3.1-flash-lite', base_runtime, launch_mgmt)[0] == 'gemini-3.1-flash-lite'\nPY2"
+    },
+    {
+      "name": "live-config-case-create",
+      "command": "grep -q 'tgg_case_create:' /home/pclaw/.hermes-christopher-tgg/config.yaml && grep -q 'url: https://systems.papercut-labs.com/api/operator/cases/create' /home/pclaw/.hermes-christopher-tgg/config.yaml"
+    },
+    {
+      "name": "live-constitution-custom-create",
+      "command": "grep -q 'operation tgg_case_create' /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml && grep -q 'ilinked_wc_lookup' /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml && grep -q 'operation ilinked_status' /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml && grep -Eq '^[[:space:]]*- custom$' /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml"
+    },
+    {
+      "name": "outbound-policy-check",
+      "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --management-chat 120363427363740087@g.us --management-chat 120363427897872447@g.us --management-chat 120363407433776639@g.us --management-chat 120363426509183563@g.us --management-chat 120363407903158826@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us --check-only"
+    },
+    {
+      "name": "ilinked-reads-wc-smoke",
+      "command": "cd /home/pclaw/apps/hermes-pcl && python3 -m tools.tgg_ilinked_reads wc <<'JSON' >/tmp/christopher-ilinked-wc.json\n{\"job_no\":\"AM/JOB/2605/0906\"}\nJSON\npython3 - <<'PY2'\nimport json\np=json.load(open('/tmp/christopher-ilinked-wc.json'))\nassert p.get('ok') is True, p\nd=p['data']\nassert d.get('work_costing_id') == 'AM/WC/2605/0334', d\nassert d.get('cost_line_count', 0) > 0, d\nassert d.get('approval_status') == 'Approved', d\nPY2"
+    },
+    {
+      "name": "ilinked-reads-status-smoke",
+      "command": "cd /home/pclaw/apps/hermes-pcl && python3 -m tools.tgg_ilinked_reads status <<'JSON' >/tmp/christopher-ilinked-status.json\n{\"job_no\":\"SK/JOB/2605/0068\"}\nJSON\npython3 - <<'PY2'\nimport json\np=json.load(open('/tmp/christopher-ilinked-status.json'))\nassert p.get('ok') is True, p\nd=p['data']\nassert d.get('task_no') == 'SK/JOB/2605/0068', d\nassert d.get('status') == 'Pending Execution', d\nassert d.get('end_date'), d\nPY2"
+    },
+    {
+      "name": "live-config-ilinked-reads",
+      "command": "grep -q 'ilinked_wc_lookup' /home/pclaw/.hermes-christopher-tgg/config.yaml && grep -q 'ilinked_status' /home/pclaw/.hermes-christopher-tgg/config.yaml"
+    },
+    {
+      "name": "live-constitution-ilinked-reads",
+      "command": "grep -q 'ilinked_wc_lookup' /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml && grep -q 'operation ilinked_status' /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml"
+    },
+    {
+      "name": "pa-profile-system-prompt",
+      "command": "cd /home/pclaw/apps/hermes-pcl && HERMES_HOME=/home/pclaw/.hermes-christopher-tgg /home/pclaw/apps/hermes-pcl/.venv/bin/python - <<'PY2'\nfrom run_agent import AIAgent\nagent = AIAgent(\n    api_key='test-k...7890',\n    base_url='https://generativelanguage.googleapis.com/v1beta',\n    provider='gemini',\n    model='gemini-3.1-flash-lite',\n    quiet_mode=True,\n    skip_context_files=True,\n    load_soul_identity=True,\n    skip_memory=True,\n)\nagent.valid_tool_names.add('memory')\nprompt = agent._build_system_prompt()\nfor forbidden in (\n    'You are Hermes Agent',\n    'created by Nous Research',\n    'hermes-agent.nousresearch.com',\n    'If the user asks about configuring, setting up, or using Hermes Agent itself',\n    'Save durable facts using the memory tool: user preferences',\n    'use session_search to recall those from past transcripts',\n):\n    assert forbidden not in prompt, forbidden\nassert 'You are Christopher, the operations and management AI assistant for TGG' in prompt\nassert 'Papercut Agents operations assistant' in prompt\nPY2"
     }
   ],
   "runtimeOnlyDriftExclusions": [
-    "logs",
-    "sessions",
-    "state.db",
-    "state.db-wal",
-    "state.db-shm",
-    "whatsapp",
-    "whatsapp-v2",
-    "message-store.json",
-    "media",
-    "cache",
-    ".cache",
-    "__pycache__",
-    ".pytest_cache",
-    ".ruff_cache"
+    "home/pclaw/apps/hermes-pcl/.venv",
+    "home/pclaw/apps/hermes-pcl/__pycache__",
+    "home/pclaw/apps/hermes-pcl/logs",
+    "home/pclaw/.hermes-christopher-tgg/logs",
+    "home/pclaw/.hermes-christopher-tgg/sessions",
+    "home/pclaw/.hermes-christopher-tgg/state.db",
+    "home/pclaw/.hermes-christopher-tgg/state.db-wal",
+    "home/pclaw/.hermes-christopher-tgg/state.db-shm",
+    "home/pclaw/.hermes-christopher-tgg/whatsapp-v2",
+    "home/pclaw/.hermes-christopher-tgg/message-store.json",
+    "home/pclaw/.hermes-christopher-tgg/media",
+    "home/pclaw/.hermes-christopher-tgg/.cache"
   ],
   "retainDeploys": 5
 }

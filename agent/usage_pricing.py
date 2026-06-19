@@ -14,7 +14,13 @@ DEFAULT_PRICING = {"input": 0.0, "output": 0.0}
 _ZERO = Decimal("0")
 _ONE_MILLION = Decimal("1000000")
 
-CostStatus = Literal["actual", "estimated", "included", "unknown"]
+CostStatus = Literal[
+    "actual",
+    "calculated_from_usage",
+    "estimated",  # legacy persisted value; new calculations use calculated_from_usage
+    "included",
+    "unknown",
+]
 CostSource = Literal[
     "provider_cost_api",
     "provider_generation_api",
@@ -302,6 +308,39 @@ _OFFICIAL_DOCS_PRICING: Dict[tuple[str, str], PricingEntry] = {
     ),
     # Gemini Developer API, Standard paid tier, text/image/video tokens.
     # Source: https://ai.google.dev/gemini-api/docs/pricing
+    (
+        "gemini",
+        "gemini-3-flash-preview",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("0.50"),
+        output_cost_per_million=Decimal("3.00"),
+        cache_read_cost_per_million=Decimal("0.05"),
+        source="official_docs_snapshot",
+        source_url="https://ai.google.dev/gemini-api/docs/pricing",
+        pricing_version="gemini-pricing-2026-05-27",
+    ),
+    (
+        "gemini",
+        "gemini-3.1-flash-lite",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("0.25"),
+        output_cost_per_million=Decimal("1.50"),
+        cache_read_cost_per_million=Decimal("0.025"),
+        source="official_docs_snapshot",
+        source_url="https://ai.google.dev/gemini-api/docs/pricing",
+        pricing_version="gemini-pricing-2026-05-27",
+    ),
+    (
+        "gemini",
+        "gemini-3.1-flash-lite-preview",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("0.25"),
+        output_cost_per_million=Decimal("1.50"),
+        cache_read_cost_per_million=Decimal("0.025"),
+        source="official_docs_snapshot",
+        source_url="https://ai.google.dev/gemini-api/docs/pricing",
+        pricing_version="gemini-pricing-2026-05-27",
+    ),
     (
         "gemini",
         "gemini-2.5-flash",
@@ -827,14 +866,14 @@ def estimate_usage_cost(
     if entry.request_cost is not None and usage.request_count:
         amount += Decimal(usage.request_count) * entry.request_cost
 
-    status: CostStatus = "estimated"
-    label = f"~${amount:.2f}"
+    status: CostStatus = "calculated_from_usage"
+    label = f"${amount:.2f}"
     if entry.source == "none" and amount == _ZERO:
         status = "included"
         label = "included"
 
     if route.provider == "openrouter":
-        notes.append("OpenRouter cost is estimated from the models API until reconciled.")
+        notes.append("OpenRouter cost is calculated from models API pricing until reconciled.")
 
     return CostResult(
         amount_usd=amount,

@@ -148,8 +148,6 @@ from agent.prompt_builder import (
     HERMES_AGENT_HELP_GUIDANCE,
     KANBAN_GUIDANCE,
     build_nous_subscription_prompt,
-    memory_guidance_for_agent_profile,
-    should_expose_framework_identity,
 )
 from agent.model_metadata import (
     fetch_model_metadata,
@@ -192,7 +190,6 @@ from agent.trajectory import (
     convert_scratchpad_to_think, has_incomplete_scratchpad,
     save_trajectory as _save_trajectory_to_file,
 )
-from agent.self_improvement import resolve_self_improvement_notify_policy
 from utils import atomic_json_write, base_url_host_matches, base_url_hostname, env_var_enabled, normalize_proxy_url
 from hermes_cli.config import cfg_get
 
@@ -2104,10 +2101,7 @@ class AIAgent:
         _agent_section = _agent_cfg.get("agent", {})
         if not isinstance(_agent_section, dict):
             _agent_section = {}
-        self._self_improvement_notify_policy = resolve_self_improvement_notify_policy(_agent_cfg)
         self._tool_use_enforcement = _agent_section.get("tool_use_enforcement", "auto")
-        self._expose_framework_identity = should_expose_framework_identity(_agent_section)
-        self._memory_guidance_block = memory_guidance_for_agent_profile(_agent_section)
 
         # App-level API retry count (wraps each model API call).  Default 3,
         # overridable via agent.api_max_retries in config.yaml.  See #11616.
@@ -4423,12 +4417,10 @@ class AIAgent:
 
                 if actions:
                     summary = " · ".join(dict.fromkeys(actions))
-                    notify_policy = getattr(self, "_self_improvement_notify_policy", "channel")
-                    if notify_policy in {"channel", "operator_log"}:
-                        self._safe_print(
-                            f"  💾 Self-improvement review: {summary}"
-                        )
-                    _bg_cb = self.background_review_callback if notify_policy == "channel" else None
+                    self._safe_print(
+                        f"  💾 Self-improvement review: {summary}"
+                    )
+                    _bg_cb = self.background_review_callback
                     if _bg_cb:
                         try:
                             _bg_cb(
@@ -6052,15 +6044,12 @@ class AIAgent:
             stable_parts.append(DEFAULT_AGENT_IDENTITY)
 
         # Pointer to the hermes-agent skill + docs for user questions about Hermes itself.
-        # Client-deployed PA tenants hide framework identity by profile/config so the
-        # assistant leads with the tenant persona, not the Hermes developer product.
-        if self._expose_framework_identity:
-            stable_parts.append(HERMES_AGENT_HELP_GUIDANCE)
+        stable_parts.append(HERMES_AGENT_HELP_GUIDANCE)
 
         # Tool-aware behavioral guidance: only inject when the tools are loaded
         tool_guidance = []
-        if "memory" in self.valid_tool_names and self._memory_guidance_block:
-            tool_guidance.append(self._memory_guidance_block)
+        if "memory" in self.valid_tool_names:
+            tool_guidance.append(MEMORY_GUIDANCE)
         if "session_search" in self.valid_tool_names:
             tool_guidance.append(SESSION_SEARCH_GUIDANCE)
         if "skill_manage" in self.valid_tool_names:
@@ -10949,7 +10938,6 @@ class AIAgent:
         else:
             return handle_function_call(
                 function_name, function_args, effective_task_id,
-                user_task=getattr(self, "_current_user_task", None),
                 tool_call_id=tool_call_id,
                 session_id=self.session_id or "",
                 enabled_tools=list(self.valid_tool_names) if self.valid_tool_names else None,
@@ -11667,7 +11655,6 @@ class AIAgent:
                 try:
                     function_result = handle_function_call(
                         function_name, function_args, effective_task_id,
-                        user_task=getattr(self, "_current_user_task", None),
                         tool_call_id=tool_call.id,
                         session_id=self.session_id or "",
                         enabled_tools=list(self.valid_tool_names) if self.valid_tool_names else None,
@@ -11688,7 +11675,6 @@ class AIAgent:
                 try:
                     function_result = handle_function_call(
                         function_name, function_args, effective_task_id,
-                        user_task=getattr(self, "_current_user_task", None),
                         tool_call_id=tool_call.id,
                         session_id=self.session_id or "",
                         enabled_tools=list(self.valid_tool_names) if self.valid_tool_names else None,
@@ -12057,49 +12043,6 @@ class AIAgent:
         stream_callback: Optional[callable] = None,
         persist_user_message: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Public entry for a conversation turn — see _run_conversation_impl.
-
-        Thin wrapper that guarantees the TURN-SCOPED telemetry keys
-        (turn_input_tokens / turn_output_tokens / turn_context_window_peak)
-        are present on EVERY dict return path. The impl has ~20 early-return
-        sites (failure / interrupt / retry-exhaustion); before this wrapper
-        only the happy-path result dict carried the keys, so PA turn
-        recording (gateway/pa_observability.build_turn_record) saw NULL
-        context_window_peak on those turns. setdefault keeps the impl's own
-        values when present.
-        """
-        result = self._run_conversation_impl(
-            user_message,
-            system_message=system_message,
-            conversation_history=conversation_history,
-            task_id=task_id,
-            stream_callback=stream_callback,
-            persist_user_message=persist_user_message,
-        )
-        if isinstance(result, dict):
-            result.setdefault(
-                "turn_input_tokens",
-                max(0, self.session_input_tokens - getattr(self, "_turn_input_tokens_baseline", 0)),
-            )
-            result.setdefault(
-                "turn_output_tokens",
-                max(0, self.session_output_tokens - getattr(self, "_turn_output_tokens_baseline", 0)),
-            )
-            result.setdefault(
-                "turn_context_window_peak",
-                int(getattr(self, "_turn_context_window_peak", 0) or 0),
-            )
-        return result
-
-    def _run_conversation_impl(
-        self,
-        user_message: str,
-        system_message: str = None,
-        conversation_history: List[Dict[str, Any]] = None,
-        task_id: str = None,
-        stream_callback: Optional[callable] = None,
-        persist_user_message: Optional[str] = None,
-    ) -> Dict[str, Any]:
         """
         Run a complete conversation with tool calling until completion.
 
@@ -12122,28 +12065,6 @@ class AIAgent:
         # Guard stdio against OSError from broken pipes (systemd/headless/daemon).
         # Installed once, transparent when streams are healthy, prevents crash on write.
         _install_safe_stdio()
-
-        # Per-turn usage baseline. The session_* counters are CUMULATIVE for
-        # the agent's lifetime, and gateway agents are cached across turns —
-        # so result["input_tokens"] grows monotonically per turn. Snapshot
-        # the counters here so the result can also expose this call's
-        # turn-scoped deltas (turn_input_tokens / turn_output_tokens), which
-        # per-turn consumers (PA turn-recording) prefer over the cumulative
-        # fields.
-        _turn_input_tokens_baseline = self.session_input_tokens
-        _turn_output_tokens_baseline = self.session_output_tokens
-        # Per-turn context-window peak: the largest prompt the model actually
-        # saw on any single API call this turn (prompt_tokens = input + cache
-        # read + cache write). The deltas above answer "what did this turn
-        # cost"; this answers "how full was the context window" — the signal
-        # autocompact analysis needs.
-        _turn_context_window_peak = 0
-        # Mirror the per-turn telemetry to self so the run_conversation
-        # wrapper can stamp the keys onto EARLY-RETURN result dicts (the ~20
-        # failure/interrupt sites that don't build the full result below).
-        self._turn_input_tokens_baseline = _turn_input_tokens_baseline
-        self._turn_output_tokens_baseline = _turn_output_tokens_baseline
-        self._turn_context_window_peak = 0
 
         self._ensure_db_session()
 
@@ -12309,7 +12230,6 @@ class AIAgent:
 
         # Preserve the original user message (no nudge injection).
         original_user_message = persist_user_message if persist_user_message is not None else user_message
-        self._current_user_task = original_user_message
 
         # Track memory nudge trigger (turn-based, checked here).
         # Skill trigger is checked AFTER the agent loop completes, based on
@@ -13530,10 +13450,6 @@ class AIAgent:
                         self.session_cache_read_tokens += canonical_usage.cache_read_tokens
                         self.session_cache_write_tokens += canonical_usage.cache_write_tokens
                         self.session_reasoning_tokens += canonical_usage.reasoning_tokens
-                        _turn_context_window_peak = max(
-                            _turn_context_window_peak, canonical_usage.prompt_tokens
-                        )
-                        self._turn_context_window_peak = _turn_context_window_peak
 
                         # Log API call details for debugging/observability
                         _cache_pct = ""

@@ -28,13 +28,14 @@ job_briefs:
     instructions:
       - Extract source, sender, timestamp, commitments, blockers, and requested actions.
       - Preserve original wording for material facts that may need audit.
+      - For clearly new case reports with zone, address, problem, and WhatsApp source, call pa_business_write with operation tgg_case_create before any state update. If those fields are unclear, do not create; surface the missing facts for clarification.
       - For case-state updates, call pa_business_write with operation tgg_case_update before replying.
       - If a TGG chat asks for a Mofex fact, call pa_business_read with operation mofex_lookup and report inability if the tool blocks it.
       - Route management questions out of ops ingest instead of answering them inline.
     enabled_toolsets:
       - memory
       - file
-      - pa-business
+      - custom
       - pa-photo-pair
     disabled_toolsets:
       - web
@@ -66,6 +67,8 @@ job_briefs:
     instructions:
       - Separate facts, interpretation, recommendations, and open questions.
       - For status questions about a block or unit, call pa_business_read with operation tgg_case_lookup before summarizing.
+      - For questions about iLinked Work Costing scope, estimated amounts, vendor/contract, or WC line items, call pa_business_read with operation ilinked_wc_lookup before summarizing and include the result in Facts.
+      - For questions about iLinked status, sub-status, end-date, days outstanding, or last update, call pa_business_read with operation ilinked_status before summarizing and include the result in Facts.
       - If a TGG chat asks for a Mofex fact, call pa_business_read with operation mofex_lookup and report inability if the tool blocks it.
       - Prefer short executive summaries with explicit tradeoffs.
       - Escalate missing financial, legal, or client-commitment facts.
@@ -73,7 +76,7 @@ job_briefs:
       - memory
       - file
       - web
-      - pa-business
+      - custom
     disabled_toolsets:
       - shell
     fact_operations:
@@ -82,7 +85,7 @@ job_briefs:
         - compare_fact
       default_confidence: derived
     response_policy:
-      never_send_replies: true
+      never_send_replies: false
       format: management_brief
       include_recommendation: true
       slash_commands:

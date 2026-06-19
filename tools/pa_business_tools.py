@@ -20,6 +20,17 @@ from tools.registry import registry, tool_error, tool_result
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
+ILINKED_READ_OPERATIONS = frozenset(
+    {"ilinked_lookup", "ilinked_status", "ilinked_wc_lookup"}
+)
+ILINKED_EXPLICIT_CUES = ("ilinked", "hdb", "source-system", "source system")
+WC_EXPLICIT_CUES = ("wc", "work costing", "costing")
+ILINKED_ALLOW_PAYLOAD_KEYS = (
+    "explicit_source_system",
+    "source_system_requested",
+    "ilinked_requested",
+)
+
 
 @dataclass(frozen=True)
 class PABusinessOperation:
@@ -585,19 +596,75 @@ def render_agent_config_prompt(
     return "\n".join(lines)
 
 
-def _handle_business_read(args: Mapping[str, Any], **_kwargs: Any) -> str:
-    return _handle_business_call(args)
+def _truthy_marker(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y"}
+    return bool(value)
 
 
-def _handle_business_write(args: Mapping[str, Any], **_kwargs: Any) -> str:
-    return _handle_business_call(args)
+def _payload_allows_ilinked(payload: Mapping[str, Any] | None) -> bool:
+    if not isinstance(payload, Mapping):
+        return False
+    return any(_truthy_marker(payload.get(key)) for key in ILINKED_ALLOW_PAYLOAD_KEYS)
 
 
-def _handle_business_call(args: Mapping[str, Any]) -> str:
+def _strip_control_payload_keys(payload: Mapping[str, Any] | None) -> dict[str, Any]:
+    clean = _json_payload(payload)
+    for key in ILINKED_ALLOW_PAYLOAD_KEYS:
+        clean.pop(key, None)
+    return clean
+
+
+def _user_task_allows_ilinked(
+    operation: str,
+    user_task: Any,
+    payload: Mapping[str, Any] | None = None,
+) -> bool:
+    """Fail-closed guard for TGG source-system reads.
+
+    Christopher's operator DB may contain facts imported from iLinked, but
+    live iLinked read operations are opt-in. The model sometimes infers
+    iLinked from vague words like "latest" or "chase"; this guard keeps the
+    source-system bridge closed unless the current user message explicitly
+    asks for it.
+    """
+    if operation not in ILINKED_READ_OPERATIONS:
+        return True
+    text = str(user_task or "").lower()
+    if text:
+        if any(cue in text for cue in ILINKED_EXPLICIT_CUES):
+            return True
+        if operation == "ilinked_wc_lookup" and any(cue in text for cue in WC_EXPLICIT_CUES):
+            return True
+        return False
+    return _payload_allows_ilinked(payload)
+
+
+def _handle_business_read(args: Mapping[str, Any], **kwargs: Any) -> str:
+    return _handle_business_call(args, user_task=kwargs.get("user_task"))
+
+
+def _handle_business_write(args: Mapping[str, Any], **kwargs: Any) -> str:
+    return _handle_business_call(args, user_task=kwargs.get("user_task"))
+
+
+def _handle_business_call(args: Mapping[str, Any], *, user_task: Any = None) -> str:
     operation = str(args.get("operation") or "").strip()
     if not operation:
         return tool_error("operation is required")
     payload = args.get("payload") or {}
+    if not _user_task_allows_ilinked(operation, user_task, payload):
+        return tool_error(
+            "iLinked/source-system reads are opt-in. Use operator DB operations "
+            "for normal case questions. Call iLinked operations only when the "
+            "current user message explicitly says iLinked, HDB, source-system, "
+            "or asks for WC/work-costing details. If the current user did make "
+            "that explicit request, include source_system_requested=true in the "
+            "payload."
+        )
+    payload = _strip_control_payload_keys(payload)
     try:
         result = execute_business_operation(
             _load_runtime_bridge_config(),

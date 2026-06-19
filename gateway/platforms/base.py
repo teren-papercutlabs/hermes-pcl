@@ -1025,6 +1025,13 @@ class MessageEvent:
     # completion notifications) that must bypass user authorization checks.
     internal: bool = False
 
+    # Whether this inbound event addresses the bot directly — an @-mention of
+    # the bot OR a reply to one of the bot's messages. Used by the WhatsApp
+    # conditional turn-debounce to pick the short (addressed) window over the
+    # long (passive) one. Adapters that compute addressed-ness stamp it here;
+    # default False means "not addressed / unknown".
+    addressed: bool = False
+
     # Timestamps
     timestamp: datetime = field(default_factory=datetime.now)
     
@@ -1908,6 +1915,7 @@ class BasePlatformAdapter(ABC):
         images: List[Tuple[str, str]],
         metadata: Optional[Dict[str, Any]] = None,
         human_delay: float = 0.0,
+        reply_to: Optional[str] = None,
     ) -> None:
         """Send a batch of images.
 
@@ -1938,6 +1946,7 @@ class BasePlatformAdapter(ABC):
                         chat_id=chat_id,
                         image_path=_unquote(image_url[7:]),
                         caption=alt_text if alt_text else None,
+                        reply_to=reply_to,
                         metadata=metadata,
                     )
                 elif self._is_animation_url(image_url):
@@ -1945,6 +1954,7 @@ class BasePlatformAdapter(ABC):
                         chat_id=chat_id,
                         animation_url=image_url,
                         caption=alt_text if alt_text else None,
+                        reply_to=reply_to,
                         metadata=metadata,
                     )
                 else:
@@ -1952,6 +1962,7 @@ class BasePlatformAdapter(ABC):
                         chat_id=chat_id,
                         image_url=image_url,
                         caption=alt_text if alt_text else None,
+                        reply_to=reply_to,
                         metadata=metadata,
                     )
                 if not img_result.success:
@@ -2047,6 +2058,56 @@ class BasePlatformAdapter(ABC):
             # Clean up leftover blank lines
             cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
         
+        return images, cleaned
+
+    @staticmethod
+    def extract_attachment_images(content: str) -> Tuple[List[Tuple[str, str]], str]:
+        """Extract explicit image attachment markers from final response text.
+
+        Syntax:
+            [ATTACH: /absolute/or/~/path.png]
+            [ATTACH: /path/to/image.jpg | optional caption]
+            [ATTACH: file:///path/to/image.png]
+            [ATTACH: https://example.com/image.png | optional caption]
+
+        The marker is removed from user-visible text. Local filesystem targets
+        are converted to file:// URIs so platform adapters can deliver native
+        attachments without exposing a send tool to the model.
+        """
+        from urllib.parse import quote as _quote, unquote as _unquote, urlsplit as _urlsplit
+
+        image_exts = ("png", "jpg", "jpeg", "gif", "webp")
+        marker_re = re.compile(
+            r"""\[ATTACH(?:MENT)?\s*:\s*(?P<target>`[^`\n]+`|"[^"\n]+"|'[^'\n]+'|[^\]\n|]+)(?:\s*\|\s*(?P<caption>[^\]\n]+))?\]""",
+            re.IGNORECASE,
+        )
+        images: List[Tuple[str, str]] = []
+
+        for match in marker_re.finditer(content):
+            target = (match.group("target") or "").strip()
+            caption = (match.group("caption") or "").strip()
+            if len(target) >= 2 and target[0] == target[-1] and target[0] in "`\"'":
+                target = target[1:-1].strip()
+            if not target:
+                continue
+
+            lower_target = target.lower().split("?", 1)[0]
+            if lower_target.startswith(("http://", "https://")):
+                if lower_target.endswith(image_exts):
+                    images.append((target, caption))
+                continue
+
+            local_path = target
+            if lower_target.startswith("file://"):
+                local_path = _unquote(_urlsplit(target).path)
+            local_path = os.path.expanduser(local_path)
+            if not any(local_path.lower().endswith(f".{ext}") for ext in image_exts):
+                continue
+            images.append((f"file://{_quote(local_path)}", caption))
+
+        cleaned = marker_re.sub("", content) if images else content
+        if images:
+            cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
         return images, cleaned
     
     async def send_voice(
@@ -3156,8 +3217,17 @@ class BasePlatformAdapter(ABC):
                 # Extract MEDIA:<path> tags (from TTS tool) before other processing
                 media_files, response = self.extract_media(response)
 
+                # Extract explicit attachment markers before the text send.
+                # For WhatsApp-style group replies, this lets the agent produce
+                # one final answer with an image marker while the gateway sends
+                # a single quoted image+caption message instead of exposing a
+                # model-callable send tool.
+                attachment_images, response = self.extract_attachment_images(response)
+
                 # Extract image URLs and send them as native platform attachments
                 images, text_content = self.extract_images(response)
+                if attachment_images:
+                    images = attachment_images + images
                 # Strip any remaining internal directives from message body (fixes #1561)
                 text_content = text_content.replace("[[audio_as_voice]]", "").strip()
                 text_content = text_content.replace("[[as_document]]", "").strip()
@@ -3170,6 +3240,13 @@ class BasePlatformAdapter(ABC):
                 local_files, text_content = self.extract_local_files(text_content)
                 if local_files:
                     logger.info("[%s] extract_local_files found %d file(s) in response", self.name, len(local_files))
+
+                _reply_anchor = _reply_anchor_for_event(event)
+
+                if attachment_images and images and text_content:
+                    image_url, image_caption = images[0]
+                    images[0] = (image_url, image_caption or text_content)
+                    text_content = ""
                 
                 # Auto-TTS: if voice message, generate audio FIRST (before sending text)
                 # Gated via ``_should_auto_tts_for_chat``: fires when the chat has
@@ -3212,7 +3289,6 @@ class BasePlatformAdapter(ABC):
                 # Send the text portion
                 if text_content:
                     logger.info("[%s] Sending response (%d chars) to %s", self.name, len(text_content), event.source.chat_id)
-                    _reply_anchor = _reply_anchor_for_event(event)
                     # Mark final response messages for notification delivery.
                     # Platform adapters that support per-message notification
                     # control (e.g. Telegram's disable_notification) use this
@@ -3260,7 +3336,10 @@ class BasePlatformAdapter(ABC):
                             images=images,
                             metadata=_thread_metadata,
                             human_delay=human_delay,
+                            reply_to=_reply_anchor,
                         )
+                        delivery_attempted = True
+                        delivery_succeeded = True
                     except Exception as batch_err:
                         logger.warning("[%s] Error batching images: %s", self.name, batch_err, exc_info=True)
 
@@ -3302,7 +3381,10 @@ class BasePlatformAdapter(ABC):
                             images=_batch,
                             metadata=_thread_metadata,
                             human_delay=human_delay,
+                            reply_to=_reply_anchor,
                         )
+                        delivery_attempted = True
+                        delivery_succeeded = True
                     except Exception as batch_err:
                         logger.warning("[%s] Error batching images: %s", self.name, batch_err, exc_info=True)
 

@@ -507,6 +507,19 @@ DEFAULT_CONFIG = {
         # (force on/off for all models), or a list of model-name substrings
         # to match (e.g. ["gpt", "codex", "gemini", "qwen"]).
         "tool_use_enforcement": "auto",
+        # Prompt profile for the current deployment. Empty/default keeps
+        # developer-session Hermes behavior. "pa" selects Papercut Agents
+        # tenant behavior: hide framework identity/help guidance and swap in
+        # fact-operations memory guidance unless explicitly overridden.
+        "profile": "",
+        # Explicit override for exposing Hermes framework identity/help
+        # guidance. "auto" means true for legacy/developer sessions and false
+        # for agent.profile=pa.
+        "expose_framework_identity": "auto",
+        # "auto" chooses MEMORY_GUIDANCE for developer sessions and
+        # PA_FACT_OPERATIONS_MEMORY_GUIDANCE for agent.profile=pa. Set
+        # "default", "pa", or false/off to force behavior.
+        "memory_guidance": "auto",
         # Staged inactivity warning: send a warning to the user at this
         # threshold before escalating to a full timeout.  The warning fires
         # once per run and does not interrupt the agent.  0 = disable warning.
