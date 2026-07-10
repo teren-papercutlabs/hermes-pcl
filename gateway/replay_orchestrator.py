@@ -146,6 +146,7 @@ class VerifyGateConfig:
     """
 
     tool_error_budget: int = 0
+    allowed_tool_error_codes: tuple[str, ...] = ()
     allowed_outbound_kinds: tuple[str, ...] = ()
     expected_turn_count: Optional[int] = None
     min_turn_count: Optional[int] = None
@@ -166,8 +167,18 @@ class VerifyGateConfig:
         expected = data.get("expected_turn_count", data.get("expectedTurnCount"))
         min_turns = data.get("min_turn_count", data.get("minTurnCount"))
         budget = data.get("tool_error_budget", data.get("toolErrorBudget", 0))
+        allowed_codes = data.get("allowed_tool_error_codes", data.get("allowedToolErrorCodes", ()))
+        if isinstance(allowed_codes, str):
+            allowed_code_tuple = tuple(
+                part.strip() for part in allowed_codes.split(",") if part.strip()
+            )
+        else:
+            allowed_code_tuple = tuple(
+                str(part).strip() for part in allowed_codes if str(part).strip()
+            )
         return cls(
             tool_error_budget=int(budget or 0),
+            allowed_tool_error_codes=allowed_code_tuple,
             allowed_outbound_kinds=allowed_tuple,
             expected_turn_count=int(expected) if expected is not None else None,
             min_turn_count=int(min_turns) if min_turns is not None else None,
@@ -182,6 +193,7 @@ class VerifyGateConfig:
     def to_dict(self) -> dict[str, Any]:
         return {
             "tool_error_budget": self.tool_error_budget,
+            "allowed_tool_error_codes": list(self.allowed_tool_error_codes),
             "allowed_outbound_kinds": list(self.allowed_outbound_kinds),
             "expected_turn_count": self.expected_turn_count,
             "min_turn_count": self.min_turn_count,
@@ -677,7 +689,9 @@ class PAReplayOrchestrator:
         )
 
         metrics = self._load_execution_metrics(
-            latest_attempt, session_db_path=session_db_path
+            latest_attempt,
+            session_db_path=session_db_path,
+            allowed_tool_error_codes=gate.allowed_tool_error_codes,
         )
         expected_turn_count = gate.expected_turn_count
         if expected_turn_count is None:
@@ -788,6 +802,8 @@ class PAReplayOrchestrator:
                 actual={
                     "tool_error_count": tool_error_count,
                     "examples": metrics.get("tool_error_examples") or [],
+                    "allowed_tool_error_count": metrics.get("allowed_tool_error_count") or 0,
+                    "allowed_tool_error_codes": list(gate.allowed_tool_error_codes),
                 },
                 expected={"tool_error_budget": gate.tool_error_budget},
             )
@@ -1054,6 +1070,7 @@ class PAReplayOrchestrator:
         latest_attempt: Mapping[str, Any],
         *,
         session_db_path: str | Path | None = None,
+        allowed_tool_error_codes: Iterable[str] = (),
     ) -> dict[str, Any]:
         result = dict(latest_attempt.get("result") or {})
         summary = dict(
@@ -1089,6 +1106,8 @@ class PAReplayOrchestrator:
                 turn for turn in turns if turn.get("replay_attempt_id") == attempt_id
             ]
         tool_errors: list[dict[str, Any]] = []
+        allowed_tool_errors: list[dict[str, Any]] = []
+        allowed_codes = {str(code) for code in allowed_tool_error_codes}
         covered_refs: set[str] = set()
         failed_turns = 0
         for turn in turns:
@@ -1099,17 +1118,24 @@ class PAReplayOrchestrator:
                 covered_refs.update(str(ref) for ref in refs)
             for tc in turn.get("tool_calls") or []:
                 if _tool_call_has_error(tc):
-                    tool_errors.append({
+                    row = {
                         "turn_id": turn.get("turn_id"),
                         "tool_name": tc.get("tool_name"),
                         "result": tc.get("result"),
-                    })
+                        "error_code": _tool_call_error_code(tc),
+                    }
+                    if row["error_code"] in allowed_codes:
+                        allowed_tool_errors.append(row)
+                    else:
+                        tool_errors.append(row)
         metrics.update({
             "turn_count": len(turns),
             "failed_turn_count": failed_turns,
             "covered_message_refs": sorted(covered_refs),
             "tool_error_count": len(tool_errors),
             "tool_error_examples": tool_errors[:5],
+            "allowed_tool_error_count": len(allowed_tool_errors),
+            "allowed_tool_error_examples": allowed_tool_errors[:5],
         })
         return metrics
 
@@ -1181,13 +1207,30 @@ def _message_ids_from_plan(plan: Mapping[str, Any]) -> list[str]:
     return ids
 
 
-def _tool_call_has_error(tc: Mapping[str, Any]) -> bool:
+def _tool_call_result(tc: Mapping[str, Any]) -> Any:
     result = tc.get("result")
     if result is None and isinstance(tc.get("result_json"), str):
         try:
             result = json.loads(str(tc.get("result_json")))
         except Exception:
             result = tc.get("result_json")
+    return result
+
+
+def _tool_call_error_code(tc: Mapping[str, Any]) -> str | None:
+    result = _tool_call_result(tc)
+    if not isinstance(result, Mapping):
+        return None
+    error = result.get("error")
+    if isinstance(error, Mapping) and error.get("code"):
+        return str(error["code"])
+    if result.get("code"):
+        return str(result["code"])
+    return None
+
+
+def _tool_call_has_error(tc: Mapping[str, Any]) -> bool:
+    result = _tool_call_result(tc)
     if isinstance(result, Mapping):
         if result.get("success") is False or result.get("ok") is False:
             return True

@@ -14,11 +14,33 @@
     "config_template": "baselines/june-2026/config.live-2026-06-19.yaml",
     "business_base_url_from": "https://systems.papercut-labs.com/api/operator",
     "operation_overrides": {
+      "tgg_message_history_search": {
+        "type": "http",
+        "tenant": "tgg",
+        "method": "GET",
+        "url": "https://systems.papercut-labs.com/api/operator/messages/search",
+        "headers": {
+          "X-PS-Tenant": "tgg",
+          "User-Agent": "curl/8.7.1"
+        },
+        "timeout": 10
+      },
       "tgg_clarification_request": {
         "type": "http",
         "tenant": "tgg",
         "method": "POST",
         "url": "https://systems.papercut-labs.com/api/operator/clarifications",
+        "headers": {
+          "X-PS-Tenant": "tgg",
+          "User-Agent": "curl/8.7.1"
+        },
+        "timeout": 10
+      },
+      "tgg_case_update_state": {
+        "type": "http",
+        "tenant": "tgg",
+        "method": "POST",
+        "url": "https://systems.papercut-labs.com/api/operator/cases/state",
         "headers": {
           "X-PS-Tenant": "tgg",
           "User-Agent": "curl/8.7.1"

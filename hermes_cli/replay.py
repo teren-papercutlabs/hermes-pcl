@@ -248,6 +248,9 @@ def _gate_from_args(args):
 
     return VerifyGateConfig(
         tool_error_budget=getattr(args, "tool_error_budget", 0) or 0,
+        allowed_tool_error_codes=tuple(
+            getattr(args, "allow_tool_error_code", None) or ()
+        ),
         allowed_outbound_kinds=tuple(getattr(args, "allow_outbound_kind", None) or ()),
         expected_turn_count=getattr(args, "expected_turn_count", None),
         min_turn_count=getattr(args, "min_turn_count", None),
@@ -352,6 +355,11 @@ def add_replay_run_parser(subparsers) -> argparse.ArgumentParser:
         help="Allowed tool errors before verify fails (default: 0).",
     )
     start.add_argument(
+        "--allow-tool-error-code",
+        action="append",
+        help="Non-failing expected business error code (repeatable, e.g. CASE_NOT_FOUND).",
+    )
+    start.add_argument(
         "--allow-outbound-kind",
         action="append",
         help="Outbound kind allow-list metadata retained in gate reports; non-capture delivery modes still fail.",
@@ -384,6 +392,7 @@ def add_replay_run_parser(subparsers) -> argparse.ArgumentParser:
         help="Hermes state.db path to derive PA turn/tool coverage from.",
     )
     verify.add_argument("--tool-error-budget", type=int, default=0)
+    verify.add_argument("--allow-tool-error-code", action="append")
     verify.add_argument(
         "--allow-outbound-kind",
         action="append",

@@ -438,6 +438,32 @@ def test_verify_gate_enforces_tool_error_budget(tmp_path):
     assert orch.manifest.state is ReplayRunState.DIRTY
 
 
+def test_verify_gate_allows_named_expected_business_error_code(tmp_path):
+    runner = FakeRunner(
+        tmp_path / "state.db",
+        tool_result={
+            "ok": False,
+            "error": {"code": "CASE_NOT_FOUND", "message": "fixture miss"},
+            "status_code": 404,
+        },
+    )
+    orch, _provider = _prepared_orchestrator(tmp_path, runner_factory=lambda: runner)
+    orch.run_agent_replay(_plan())
+
+    report = orch.verify(
+        VerifyGateConfig(
+            expected_turn_count=1,
+            tool_error_budget=0,
+            allowed_tool_error_codes=("CASE_NOT_FOUND",),
+        )
+    )
+
+    check = next(row for row in report["checks"] if row["name"] == "tool-error-budget")
+    assert check["ok"] is True
+    assert check["actual"]["tool_error_count"] == 0
+    assert check["actual"]["allowed_tool_error_count"] == 1
+
+
 def test_promote_and_rollback_call_provider_only_after_verified_fresh_run(tmp_path):
     runner = FakeRunner(tmp_path / "state.db")
     orch, provider = _prepared_orchestrator(tmp_path, runner_factory=lambda: runner)

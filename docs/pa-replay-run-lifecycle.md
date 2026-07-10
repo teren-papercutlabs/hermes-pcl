@@ -153,6 +153,11 @@ Promote is refused unless all checks pass:
 - attempt/code/replay-policy digests match persisted manifests.
 - provider invariants pass through `POST /api/operator/replay-target/verify`.
 
+Expected business misses are not runtime failures. When a corpus legitimately
+probes an absent entity, name the provider code explicitly with repeatable
+`--allow-tool-error-code` (for example `CASE_NOT_FOUND`). Unnamed errors and
+unknown operations still consume the strict error budget.
+
 Re-run the gate:
 
 ```bash
