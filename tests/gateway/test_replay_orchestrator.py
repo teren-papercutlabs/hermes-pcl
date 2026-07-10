@@ -243,6 +243,58 @@ def test_orchestrator_prepare_run_verify_persists_manifest_and_gate(tmp_path):
     assert ("verify", "run-test-001", str(tmp_path / "target-data")) in provider.calls
 
 
+def test_orchestrator_eval_context_adds_fail_closed_adaptive_trace_receipt(
+    tmp_path, monkeypatch
+):
+    runner = FakeRunner(tmp_path / "state.db")
+    orch, _provider = _prepared_orchestrator(tmp_path, runner_factory=lambda: runner)
+    orch.run_agent_replay(_plan())
+    calls = []
+
+    def fake_receipt(**kwargs):
+        calls.append(kwargs)
+        return {"ok": True, "receipt_id": "qualification:arm-a:eval"}
+
+    monkeypatch.setattr(
+        "gateway.eval_instrument.record_evaluation_invocation", fake_receipt
+    )
+    report = orch.verify(
+        VerifyGateConfig(expected_turn_count=1),
+        session_db_path=tmp_path / "state.db",
+        eval_context={
+            "config_path": tmp_path / "eval.json",
+            "arm_id": "arm-a",
+            "mode": "eval",
+            "invocation_id": "qualification",
+            "receipt_index_path": tmp_path / "receipt-index.jsonl",
+        },
+    )
+
+    checks = {check["name"]: check for check in report["checks"]}
+    assert checks["adaptive-trace-eval-receipt"]["ok"] is True
+    assert report["eval_receipt"]["receipt_id"] == "qualification:arm-a:eval"
+    assert calls[0]["run_manifest_path"] == orch.manifest.manifest_path
+    assert calls[0]["session_db_path"] == tmp_path / "state.db"
+
+
+def test_orchestrator_eval_receipt_failure_marks_run_dirty(tmp_path, monkeypatch):
+    runner = FakeRunner(tmp_path / "state.db")
+    orch, _provider = _prepared_orchestrator(tmp_path, runner_factory=lambda: runner)
+    orch.run_agent_replay(_plan())
+    monkeypatch.setattr(
+        "gateway.eval_instrument.record_evaluation_invocation",
+        lambda **_kwargs: {"ok": False, "receipt_id": "failed"},
+    )
+
+    with pytest.raises(ReplayVerifyError, match="adaptive-trace-eval-receipt"):
+        orch.verify(
+            VerifyGateConfig(expected_turn_count=1),
+            eval_context={"config_path": "eval.json", "arm_id": "arm-a"},
+        )
+
+    assert orch.manifest.state is ReplayRunState.DIRTY
+
+
 def test_verify_gate_marks_dirty_on_unexpected_outbound(tmp_path):
     runner = FakeRunner(
         tmp_path / "state.db",

@@ -53,6 +53,85 @@ The command writes:
 - `attempt-<attempt-id>.json` — replay result + attempt provenance.
 - `verify-report.json` — mechanical gate checks.
 
+When a client-side scorer must inspect the replay target before verification,
+stop safely in `replayed` state with `--defer-verify`. Promotion still refuses
+the run until the normal verify command succeeds.
+
+## Model qualification and trust-rung graduation
+
+`hermes replay-eval` is the shared measurement layer around native replay. Its
+config schema is `hermes-replay-eval/v1`; client identity, corpus, isolated
+tenant, model arms, probes, and score definitions are data. The execution path
+remains `GatewayRunner.replay` + `PAReplayOrchestrator`.
+
+The instrument fail-closes on four judgment-layer assertions:
+
+1. tool-call sequence variance across cases,
+2. configured paired probes taking different decision paths,
+3. model output preceding tool results in every judgment turn, and
+4. process provenance matching the pinned deployment artifact and the runtime
+   config/constitution files actually loaded through `HERMES_HOME`.
+
+Deterministic tools invoked by the model can be excluded from the judgment
+layer in config. That preserves the intended boundary: mechanical work belongs
+in code; a fixed pipeline masquerading as judgment does not.
+
+Capture stores can be consumed natively without a projection. A corpus source
+may set `record_path` (for example `normalized`) and `media_root`; ReplayCorpus
+unwraps each immutable capture envelope, remaps missing media paths by basename,
+then applies its normal ordering, reaction, and dedup policies.
+
+```bash
+# Raw client paths stay outside git and are injected through config env refs.
+hermes replay-eval validate --config /path/to/eval-instrument.json
+
+hermes replay-eval materialize \
+  --config /path/to/eval-instrument.json \
+  --arm candidate \
+  --output-dir /isolated/run/candidate/hermes-home \
+  --business-base-url http://127.0.0.1:5192/api/operator
+
+hermes replay-eval plan \
+  --config /path/to/eval-instrument.json \
+  --arm candidate \
+  --runtime-manifest /isolated/run/candidate/hermes-home/eval-runtime-manifest.json \
+  --output /isolated/run/candidate/replay-plan.json
+```
+
+After replay and client-side scoring, bind both into one immutable receipt:
+
+```bash
+hermes replay-run verify \
+  --manifest /isolated/run/candidate/replay-runs/<run-id>/run-manifest.json \
+  --session-db /isolated/run/candidate/hermes-home/state.db \
+  --eval-config /path/to/eval-instrument.json \
+  --eval-arm candidate \
+  --eval-mode eval \
+  --eval-invocation-id <run-id> \
+  --eval-receipt-index /isolated/run/eval-receipt-index.jsonl \
+  --score-manifest /isolated/run/candidate/score.json
+```
+
+The same receipt gate runs with `--eval-mode graduation` at trust-rung
+boundaries. Audit the operating-loop index, then compare distinct model arms:
+
+```bash
+hermes replay-eval audit \
+  --index /isolated/run/eval-receipt-index.jsonl \
+  --instrument-id <instrument-id> \
+  --mode eval \
+  --expect-invocation <run-id>
+
+hermes replay-eval compare \
+  --config /path/to/eval-instrument.json \
+  --receipt /isolated/run/candidate/receipt.json \
+  --receipt /isolated/run/baseline/receipt.json \
+  --output-dir /isolated/run/comparison
+```
+
+The comparison surface never changes the deployed engine. It emits evidence
+and an explicit `driver_verdict_required` decision state.
+
 ## Mechanical verify gate
 
 Promote is refused unless all checks pass:

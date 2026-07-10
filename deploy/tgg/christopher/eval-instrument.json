@@ -1,0 +1,136 @@
+{
+  "schema": "hermes-replay-eval/v1",
+  "instrument_id": "christopher-ops-stream-model-qualification-v1",
+  "platform": "whatsapp",
+  "agent": {
+    "id": "christopher",
+    "job_type": "tgg_ops_ingest",
+    "constitution": "baselines/june-2026/christopher_tgg_constitution.live-2026-06-19.yaml",
+    "constitution_sha256": "59dfdf8c8d66b12e6b473b3c89965908932b8e5e6b2f2f31bfa9790e7d2e9bff",
+    "deployment_manifest": "baselines/june-2026/config.live-2026-06-19.yaml",
+    "deployment_manifest_sha256": "27c005b2edf83ff978940841bdabe8f9acc4790e600cb957022d2471650a17b5"
+  },
+  "runtime": {
+    "config_template": "baselines/june-2026/config.live-2026-06-19.yaml",
+    "business_base_url_from": "https://systems.papercut-labs.com/api/operator"
+  },
+  "corpus": {
+    "manifest": "${TGG_EVAL_CORPUS_MANIFEST}",
+    "manifest_sha256": "f638ce63f38459645f42bca2c2b41eb345771d4158c3b3f397be71b119d70291",
+    "media_manifest": "${TGG_EVAL_MEDIA_MANIFEST}",
+    "media_manifest_sha256": "8813bd9f7f230b18700b2e7ee932f547e734ccc2d2955013a24c8ce75bb1c284",
+    "sources": [
+      {
+        "id": "pg-contiguous-window",
+        "source": "capture_event_jsonl",
+        "path": "${TGG_EVAL_PG_WINDOW}",
+        "sha256": "824c3abad7a480c46c68f17440da06bc2e0ad56044ce93c28996dd4147eb7b6e",
+        "record_path": "normalized",
+        "media_root": "${TGG_EVAL_MEDIA_ROOT}"
+      },
+      {
+        "id": "hg-contiguous-window",
+        "source": "capture_event_jsonl",
+        "path": "${TGG_EVAL_HG_WINDOW}",
+        "sha256": "995f26aac4bcf52d0e67cc23e3d1e43757abd30cc978852c8075fc374f96391b",
+        "record_path": "normalized",
+        "media_root": "${TGG_EVAL_MEDIA_ROOT}"
+      }
+    ]
+  },
+  "tenant": {
+    "slug": "tgg",
+    "isolation": "process_data_root"
+  },
+  "integrity": {
+    "seed_boundary": {
+      "cutoff": "2026-05-24T00:00:00+08:00",
+      "snapshot": "${TGG_EVAL_SEED_SNAPSHOT}",
+      "snapshot_sha256": "684158c21fb79ee91c0cf8c68a980b71c013b8f25bebc76e9dca900f6ab2563e"
+    },
+    "twin_sequences": {
+      "agent_policy": "include_and_score",
+      "judge_policy": "exclude_future_resolution"
+    }
+  },
+  "arms": [
+    {
+      "id": "luna",
+      "provider": "openai-direct-primary",
+      "model": "gpt-5.6-luna"
+    },
+    {
+      "id": "june-baseline",
+      "provider": "openai-direct-primary",
+      "model": "gpt-5.4-mini",
+      "fallback": true
+    }
+  ],
+  "trace": {
+    "min_distinct_sequences": 2,
+    "judgment_layer": {
+      "tool_prefixes": ["tgg_"],
+      "exclude_tool_names": ["record_event"]
+    },
+    "paired_probe_manifest": {
+      "path": "${TGG_EVAL_PROBE_MANIFEST}",
+      "sha256": "df158373b77acfa09272c6c5bff7840638557157a1991c05281994cc7d63c332"
+    }
+  },
+  "judge": {
+    "policy": "parallel-artifact grading; evaluate only evidence available by each message time; exclude a twin's later resolution from the earlier decision",
+    "scorer": "tgg-decision-surface-v2-adapter",
+    "sources": [
+      {
+        "id": "maintenance-master-live-2026-07-10",
+        "path": "${TGG_EVAL_MASTER_SNAPSHOT}",
+        "sha256": "d2a9d54819a8c4882d3829e209ac10b95635990b7d967197a1e6da4982cb641f"
+      },
+      {
+        "id": "submitted-for-closure-live-2026-07-10",
+        "path": "${TGG_EVAL_CLOSURE_SNAPSHOT}",
+        "sha256": "c3125dd45f38634477885c068f7f819e2567e97a340f2d5a6280e417bd4cc283"
+      }
+    ]
+  },
+  "metrics": [
+    {
+      "key": "cases_created",
+      "label": "Cases created",
+      "goal": "report"
+    },
+    {
+      "key": "cases_matched",
+      "label": "Existing cases matched",
+      "goal": "maximize"
+    },
+    {
+      "key": "phantom_cases",
+      "label": "Phantom or synthetic cases",
+      "goal": "minimize",
+      "target": 0
+    },
+    {
+      "key": "wrong_completions",
+      "label": "Wrong completion transitions",
+      "goal": "minimize",
+      "target": 0
+    },
+    {
+      "key": "total_cost_usd",
+      "label": "Model cost (USD)",
+      "goal": "minimize"
+    },
+    {
+      "key": "p95_turn_latency_ms",
+      "label": "P95 turn latency (ms)",
+      "goal": "minimize"
+    },
+    {
+      "key": "failed_turns",
+      "label": "Failed turns",
+      "goal": "minimize",
+      "target": 0
+    }
+  ]
+}

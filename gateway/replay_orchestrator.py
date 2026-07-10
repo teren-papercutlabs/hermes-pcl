@@ -645,6 +645,7 @@ class PAReplayOrchestrator:
         gate: VerifyGateConfig | None = None,
         *,
         session_db_path: str | Path | None = None,
+        eval_context: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         self._require_state(
             {ReplayRunState.REPLAYED.value, ReplayRunState.VERIFIED.value}, "verify"
@@ -796,6 +797,54 @@ class PAReplayOrchestrator:
             self._digest_checks(attempt=attempt, latest_attempt=latest_attempt)
         )
 
+        eval_receipt = None
+        if eval_context is not None:
+            context = dict(eval_context)
+            resolved_session_db = session_db_path or latest_attempt.get("session_db_path")
+            try:
+                if not resolved_session_db:
+                    raise ReplayVerifyError(
+                        "eval context requires --session-db or an attempt session_db_path"
+                    )
+                from gateway.eval_instrument import record_evaluation_invocation
+
+                eval_receipt = record_evaluation_invocation(
+                    config_path=context["config_path"],
+                    arm_id=context["arm_id"],
+                    mode=context.get("mode") or "eval",
+                    invocation_id=context.get("invocation_id") or self.manifest.run_id,
+                    run_manifest_path=self.manifest.manifest_path,
+                    session_db_path=resolved_session_db,
+                    output_dir=context.get("output_dir")
+                    or (self.manifest.run_dir / "eval-receipts"),
+                    receipt_index_path=context.get("receipt_index_path")
+                    or (self.manifest.run_dir.parent / "eval-receipt-index.jsonl"),
+                    score_manifest_path=context.get("score_manifest_path"),
+                )
+                eval_ok = bool(eval_receipt.get("ok"))
+                eval_actual: Any = eval_receipt
+            except Exception as exc:
+                eval_ok = False
+                eval_actual = {
+                    "error": {"type": type(exc).__name__, "message": str(exc)}
+                }
+            checks.append(
+                CheckResult(
+                    "adaptive-trace-eval-receipt",
+                    ok=eval_ok,
+                    actual=eval_actual,
+                    expected={
+                        "receipt_ok": True,
+                        "assertions": [
+                            "sequence-variance",
+                            "paired-probes",
+                            "reasoning-present",
+                            "provenance",
+                        ],
+                    },
+                )
+            )
+
         provider_verify = None
         if gate.require_provider_invariants:
             target_data_dir = str(
@@ -831,6 +880,7 @@ class PAReplayOrchestrator:
             "gate_config": gate.to_dict(),
             "checks": [check.to_dict() for check in checks],
             "provider_verify": provider_verify,
+            "eval_receipt": eval_receipt,
             "verified_at": _utc_now(),
         }
         self.manifest.verify = report

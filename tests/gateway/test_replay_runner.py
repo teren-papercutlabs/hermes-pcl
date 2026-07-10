@@ -693,6 +693,112 @@ def test_replay_plan_loads_typed_plan_and_corpus(tmp_path):
     assert plan.replay_namespace.startswith("agent:replay:")
 
 
+def test_replay_corpus_consumes_nested_capture_events_and_remaps_media(tmp_path):
+    media_root = tmp_path / "media"
+    media_root.mkdir()
+    media = media_root / "photo.jpg"
+    media.write_bytes(b"jpeg")
+    corpus_path = tmp_path / "capture.jsonl"
+    records = [
+        {
+            "schema": "capture-event/v1",
+            "normalized": {
+                "messageId": "m2",
+                "chatId": "ops@g.us",
+                "senderId": "user@s.whatsapp.net",
+                "timestamp": 102,
+                "body": "with media",
+                "hasMedia": True,
+                "mediaUrls": ["/remote/export/photo.jpg"],
+            },
+        },
+        {
+            "schema": "capture-event/v1",
+            "normalized": {
+                "messageId": "reaction",
+                "chatId": "ops@g.us",
+                "senderId": "user@s.whatsapp.net",
+                "timestamp": 101,
+                "body": "[reaction: ok]",
+                "mediaType": "reaction",
+                "hasMedia": False,
+                "mediaUrls": [],
+            },
+        },
+        {
+            "schema": "capture-event/v1",
+            "normalized": {
+                "messageId": "m1",
+                "chatId": "ops@g.us",
+                "senderId": "user@s.whatsapp.net",
+                "timestamp": 100,
+                "body": "first",
+                "hasMedia": False,
+                "mediaUrls": [],
+            },
+        },
+    ]
+    corpus_path.write_text(
+        "\n".join(json.dumps(record) for record in records) + "\n",
+        encoding="utf-8",
+    )
+
+    corpus = ReplayCorpus.from_source(
+        {
+            "source": "capture_event_jsonl",
+            "path": str(corpus_path),
+            "record_path": "normalized",
+            "media_root": str(media_root),
+        }
+    )
+
+    assert [message["messageId"] for message in corpus.messages] == ["m1", "m2"]
+    assert corpus.messages[1]["mediaUrls"] == [str(media)]
+    assert corpus.source_type == "capture_event_jsonl"
+    assert corpus.source_manifest["record_path"] == "normalized"
+    assert corpus.report["messages_skipped"] == [
+        {
+            "reason": "bare_reaction",
+            "source_ref": "reaction",
+            "message_kind": "reaction",
+        }
+    ]
+    assert "missing_media" not in corpus.report
+
+    plan = ReplayPlan.from_mapping(
+        {
+            "corpus": {
+                "source": "capture_event_jsonl",
+                "path": str(corpus_path),
+                "record_path": "normalized",
+                "media_root": str(media_root),
+            }
+        }
+    )
+    assert [message["messageId"] for message in plan.messages] == ["m1", "m2"]
+    assert plan.corpus_manifest["record_path"] == "normalized"
+
+
+def test_default_replay_code_manifest_hashes_loaded_runtime_files(tmp_path, monkeypatch):
+    import hashlib
+
+    config = tmp_path / "config.yaml"
+    constitution = tmp_path / "agent-constitution.yaml"
+    constitution.write_text("id: agent\n", encoding="utf-8")
+    config.write_text(
+        "pa:\n  constitution_path: agent-constitution.yaml\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+
+    code = ReplayPlan().provenance_manifests()["code"]
+
+    assert code["runtime_files"] == {
+        "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
+        "constitution_sha256": hashlib.sha256(constitution.read_bytes()).hexdigest(),
+    }
+
+
 def test_replay_plan_loads_bridge_message_log_corpus_spec(tmp_path):
     db_path = _write_bridge_message_log(
         tmp_path,

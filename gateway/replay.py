@@ -82,6 +82,25 @@ def _coerce_messages(raw: Any) -> list[dict[str, Any]]:
     raise ValueError("replay corpus object must include messages/bridge_messages/events")
 
 
+def _record_at_path(record: Any, record_path: str | None) -> Any:
+    """Return a nested replay record selected by a dotted object path.
+
+    Capture substrates often wrap their normalized bridge message beside the
+    immutable raw envelope.  ``record_path`` lets ReplayCorpus consume that
+    normalized record directly without a client-specific projection step.
+    """
+    if not record_path:
+        return record
+    current = record
+    for component in str(record_path).split("."):
+        if not component or not isinstance(current, Mapping) or component not in current:
+            raise ValueError(f"replay corpus record is missing record_path {record_path!r}")
+        current = current[component]
+    if not isinstance(current, Mapping):
+        raise ValueError(f"replay corpus record_path {record_path!r} must resolve to an object")
+    return dict(current)
+
+
 def _message_id(message: Mapping[str, Any]) -> str | None:
     value = message.get("messageId") or message.get("message_id") or message.get("id")
     return str(value) if value is not None and str(value) else None
@@ -218,14 +237,51 @@ class ReplayCorpus:
                 media_root=source.get("media_root") or source.get("mediaRoot"),
             )
         if "path" in source or "file" in source:
-            return cls.from_json_path(source.get("path") or source.get("file"))
+            return cls.from_json_path(
+                source.get("path") or source.get("file"),
+                record_path=source.get("record_path") or source.get("recordPath"),
+                media_root=source.get("media_root") or source.get("mediaRoot"),
+                source_type=source_type,
+            )
         return cls.from_messages(_coerce_messages(source), source_type=source_type, source_manifest={"inline": True})
 
     @classmethod
-    def from_json_path(cls, path: str | Path) -> "ReplayCorpus":
+    def from_json_path(
+        cls,
+        path: str | Path,
+        *,
+        record_path: str | None = None,
+        media_root: str | Path | None = None,
+        source_type: str = "json",
+    ) -> "ReplayCorpus":
         corpus_path = Path(path).expanduser()
-        messages = _coerce_messages(_load_json_or_jsonl(corpus_path))
-        return cls.from_messages(messages, source_type="json", source_path=str(corpus_path))
+        raw = _load_json_or_jsonl(corpus_path)
+        records = _coerce_messages(raw)
+        messages = [_record_at_path(record, record_path) for record in records]
+        report = _empty_corpus_report()
+        media_root_path = Path(media_root).expanduser().resolve() if media_root else None
+        prepared = _prepare_json_bridge_messages(
+            messages,
+            media_root=media_root_path,
+            report=report,
+        )
+        prepared.sort(key=_bridge_sort_key)
+        prepared, duplicates = _dedup_bridge_messages(prepared)
+        report["duplicates_skipped"] = duplicates
+        manifest: dict[str, Any] = {
+            "source_type": source_type,
+            "record_path": record_path,
+        }
+        if media_root_path:
+            manifest["media_root"] = str(media_root_path)
+        return cls(
+            messages=tuple(prepared),
+            source_type=source_type,
+            source_path=str(corpus_path),
+            policy=ReplayCorpusPolicy(),
+            report=_prune_empty_report(report),
+            source_manifest=manifest,
+        )
 
     @classmethod
     def from_messages(
@@ -366,6 +422,74 @@ def _empty_corpus_report() -> dict[str, Any]:
 
 def _prune_empty_report(report: Mapping[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in dict(report).items() if value}
+
+
+def _prepare_json_bridge_messages(
+    messages: Iterable[Mapping[str, Any]],
+    *,
+    media_root: Path | None,
+    report: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Apply the ReplayCorpus policy to normalized JSON bridge messages."""
+    prepared: list[dict[str, Any]] = []
+    for raw_message in messages:
+        message = dict(raw_message)
+        source_ref = _source_ref_from_bridge_message(message)
+        media_urls = message.get("mediaUrls", message.get("media_urls", []))
+        if isinstance(media_urls, str):
+            media_urls = [media_urls]
+        if not isinstance(media_urls, list):
+            raise ValueError("bridge message mediaUrls must be a list or string")
+        resolved_media: list[Any] = []
+        for value in media_urls:
+            if isinstance(value, str):
+                resolved_media.append(
+                    _resolve_media_path(
+                        value,
+                        source_ref=source_ref,
+                        media_root=media_root,
+                        report=report,
+                    )
+                )
+            elif isinstance(value, Mapping):
+                candidate = value.get("local_path") or value.get("path") or value.get("file_path")
+                if candidate:
+                    resolved_media.append(
+                        _resolve_media_path(
+                            str(candidate),
+                            source_ref=source_ref,
+                            media_root=media_root,
+                            report=report,
+                        )
+                    )
+        if "mediaUrls" in message or resolved_media:
+            message["mediaUrls"] = resolved_media
+        message.pop("media_urls", None)
+        has_media = bool(message.get("hasMedia", message.get("has_media", False)))
+        if has_media and not resolved_media:
+            report["missing_media"].append(
+                {
+                    "source_ref": source_ref,
+                    "path": None,
+                    "basename": None,
+                    "reason": "has_media_no_media_urls",
+                }
+            )
+        if _is_bare_reaction_row(
+            message_kind=str(message.get("mediaType") or message.get("message_kind") or ""),
+            text=str(message.get("body") or message.get("text") or ""),
+            has_media=has_media,
+        ):
+            report["messages_skipped"].append(
+                {
+                    "reason": "bare_reaction",
+                    "source_ref": source_ref,
+                    "message_kind": message.get("mediaType") or message.get("message_kind"),
+                }
+            )
+            continue
+        prepared.append(message)
+    return prepared
 
 
 def _dedup_bridge_messages(messages: Iterable[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -542,7 +666,34 @@ def _default_code_manifest() -> dict[str, Any]:
     except Exception:
         pass
     if os.environ.get("HERMES_HOME"):
-        manifest["hermes_home"] = os.environ.get("HERMES_HOME")
+        hermes_home = Path(str(os.environ["HERMES_HOME"])).expanduser().resolve()
+        manifest["hermes_home"] = str(hermes_home)
+        runtime_files: dict[str, Any] = {}
+        config_path = hermes_home / "config.yaml"
+        if config_path.is_file():
+            runtime_files["config_sha256"] = hashlib.sha256(config_path.read_bytes()).hexdigest()
+            constitution_path: Path | None = None
+            try:
+                import yaml
+
+                config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+                configured = (config.get("pa") or {}).get("constitution_path")
+                if configured:
+                    constitution_path = Path(str(configured)).expanduser()
+                    if not constitution_path.is_absolute():
+                        constitution_path = hermes_home / constitution_path
+            except Exception:
+                constitution_path = None
+            if constitution_path is None:
+                fallback = hermes_home / "constitution.yaml"
+                if fallback.is_file():
+                    constitution_path = fallback
+            if constitution_path is not None and constitution_path.is_file():
+                runtime_files["constitution_sha256"] = hashlib.sha256(
+                    constitution_path.read_bytes()
+                ).hexdigest()
+        if runtime_files:
+            manifest["runtime_files"] = runtime_files
     return manifest
 
 
@@ -592,44 +743,31 @@ class ReplayPlan:
         if messages_value is None:
             corpus = data.get("corpus") or data.get("input")
             if isinstance(corpus, Mapping):
-                corpus_path = corpus.get("path") or corpus.get("file")
-                corpus_kind = str(
-                    corpus.get("source") or corpus.get("type") or corpus.get("kind") or ""
-                ).strip().lower()
-                if corpus_kind in {"bridge_message_log", "bridge-message-log", "sqlite"}:
-                    corpus_spec = dict(corpus)
-                    db_path = corpus_spec.get("db_path") or corpus_spec.get("path") or corpus_spec.get("file")
-                    if db_path:
-                        db = Path(str(db_path)).expanduser()
-                        if not db.is_absolute() and base_dir is not None:
-                            db = base_dir / db
-                        corpus_spec["db_path"] = str(db)
-                    media_root = corpus_spec.get("media_root") or corpus_spec.get("mediaRoot")
-                    if media_root:
-                        root = Path(str(media_root)).expanduser()
-                        if not root.is_absolute() and base_dir is not None:
-                            root = base_dir / root
-                        corpus_spec["media_root"] = str(root)
-                    replay_corpus = ReplayCorpus.from_source(corpus_spec)
-                    messages_value = list(replay_corpus.messages)
-                    source_path = replay_corpus.source_path
-                    corpus_manifest.update(replay_corpus.manifest())
-                    corpus_policy.update(replay_corpus.replay_policy_manifest())
-                elif corpus_path:
-                    path = Path(str(corpus_path)).expanduser()
-                    if not path.is_absolute() and base_dir is not None:
-                        path = base_dir / path
-                    replay_corpus = ReplayCorpus.from_json_path(path)
-                    source_path = replay_corpus.source_path
-                    messages_value = list(replay_corpus.messages)
-                    corpus_manifest.update(replay_corpus.manifest())
-                    corpus_policy.update(replay_corpus.replay_policy_manifest())
-                else:
-                    replay_corpus = ReplayCorpus.from_source(corpus)
-                    messages_value = list(replay_corpus.messages)
-                    source_path = replay_corpus.source_path
-                    corpus_manifest.update(replay_corpus.manifest())
-                    corpus_policy.update(replay_corpus.replay_policy_manifest())
+                corpus_spec = dict(corpus)
+                source_value = (
+                    corpus_spec.get("db_path")
+                    or corpus_spec.get("path")
+                    or corpus_spec.get("file")
+                )
+                if source_value:
+                    source_file = Path(str(source_value)).expanduser()
+                    if not source_file.is_absolute() and base_dir is not None:
+                        source_file = base_dir / source_file
+                    if corpus_spec.get("db_path"):
+                        corpus_spec["db_path"] = str(source_file)
+                    else:
+                        corpus_spec["path"] = str(source_file)
+                media_root = corpus_spec.get("media_root") or corpus_spec.get("mediaRoot")
+                if media_root:
+                    root = Path(str(media_root)).expanduser()
+                    if not root.is_absolute() and base_dir is not None:
+                        root = base_dir / root
+                    corpus_spec["media_root"] = str(root)
+                replay_corpus = ReplayCorpus.from_source(corpus_spec)
+                messages_value = list(replay_corpus.messages)
+                source_path = replay_corpus.source_path
+                corpus_manifest.update(replay_corpus.manifest())
+                corpus_policy.update(replay_corpus.replay_policy_manifest())
             elif isinstance(corpus, (str, Path)):
                 path = Path(str(corpus)).expanduser()
                 if not path.is_absolute() and base_dir is not None:

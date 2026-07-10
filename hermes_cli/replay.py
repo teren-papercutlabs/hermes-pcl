@@ -255,6 +255,42 @@ def _gate_from_args(args):
     )
 
 
+def _add_eval_gate_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--eval-config",
+        help="Shared replay-eval config; enables the fail-closed adaptive-trace receipt gate.",
+    )
+    parser.add_argument("--eval-arm", help="Model arm id from --eval-config.")
+    parser.add_argument(
+        "--eval-mode", choices=("eval", "graduation"), default="eval"
+    )
+    parser.add_argument("--eval-invocation-id")
+    parser.add_argument("--eval-output-dir")
+    parser.add_argument("--eval-receipt-index")
+    parser.add_argument(
+        "--score-manifest",
+        help="Optional client-side score manifest bound into the immutable eval receipt.",
+    )
+
+
+def _eval_context_from_args(args):
+    config_path = getattr(args, "eval_config", None)
+    arm_id = getattr(args, "eval_arm", None)
+    if not config_path and not arm_id:
+        return None
+    if not config_path or not arm_id:
+        raise SystemExit("--eval-config and --eval-arm must be provided together")
+    return {
+        "config_path": config_path,
+        "arm_id": arm_id,
+        "mode": getattr(args, "eval_mode", "eval"),
+        "invocation_id": getattr(args, "eval_invocation_id", None),
+        "output_dir": getattr(args, "eval_output_dir", None),
+        "receipt_index_path": getattr(args, "eval_receipt_index", None),
+        "score_manifest_path": getattr(args, "score_manifest", None),
+    }
+
+
 def add_replay_run_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         "replay-run",
@@ -314,6 +350,12 @@ def add_replay_run_parser(subparsers) -> argparse.ArgumentParser:
         action="store_true",
         help="Skip provider verify call (test harness only).",
     )
+    start.add_argument(
+        "--defer-verify",
+        action="store_true",
+        help="Stop in replayed state so a scorer can write evidence before the verify gate.",
+    )
+    _add_eval_gate_args(start)
 
     verify = commands.add_parser(
         "verify", help="rerun the mechanical verify gate for a manifest"
@@ -333,6 +375,7 @@ def add_replay_run_parser(subparsers) -> argparse.ArgumentParser:
     verify.add_argument("--expected-turn-count", type=int)
     verify.add_argument("--min-turn-count", type=int)
     verify.add_argument("--no-provider-invariants", action="store_true")
+    _add_eval_gate_args(verify)
 
     promote = commands.add_parser(
         "promote", help="call provider promote after a verified fresh run"
@@ -414,8 +457,21 @@ def cmd_replay_run(args) -> None:
         )
         plan = _load_plan(args)
         orch.run_agent_replay(plan)
+        if getattr(args, "defer_verify", False):
+            print(
+                json.dumps(
+                    orch.manifest.to_dict(),
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            return
         try:
-            orch.verify(_gate_from_args(args))
+            orch.verify(
+                _gate_from_args(args),
+                eval_context=_eval_context_from_args(args),
+            )
         except ReplayVerifyError as exc:
             print(
                 json.dumps(
@@ -437,7 +493,9 @@ def cmd_replay_run(args) -> None:
     if command == "verify":
         try:
             report = orch.verify(
-                _gate_from_args(args), session_db_path=getattr(args, "session_db", None)
+                _gate_from_args(args),
+                session_db_path=getattr(args, "session_db", None),
+                eval_context=_eval_context_from_args(args),
             )
         except ReplayVerifyError as exc:
             print(

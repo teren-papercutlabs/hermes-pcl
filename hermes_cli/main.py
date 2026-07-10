@@ -9604,7 +9604,7 @@ _BUILTIN_SUBCOMMANDS = frozenset(
         "config", "cron", "curator", "dashboard", "debug", "doctor",
         "dump", "fallback", "gateway", "hooks", "import", "insights",
         "kanban", "login", "logout", "logs", "lsp", "mcp", "memory",
-        "model", "pairing", "plugins", "postinstall", "profile", "proxy", "replay", "replay-run", "sessions", "setup",
+        "model", "pairing", "plugins", "postinstall", "profile", "proxy", "replay", "replay-eval", "replay-run", "sessions", "setup",
         "skills", "slack", "status", "tools", "uninstall", "update",
         "version", "webhook", "whatsapp", "chat",
         # Help-ish invocations — plugin commands not being listed in
@@ -10000,7 +10000,9 @@ def main():
         add_replay_parser as _add_replay_parser,
         add_replay_run_parser as _add_replay_run_parser,
     )
+    from hermes_cli.replay_eval import add_replay_eval_parser as _add_replay_eval_parser
     _add_replay_parser(subparsers)
+    _add_replay_eval_parser(subparsers)
     _add_replay_run_parser(subparsers)
 
     # =========================================================================
