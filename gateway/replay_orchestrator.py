@@ -813,6 +813,33 @@ class PAReplayOrchestrator:
             self._digest_checks(attempt=attempt, latest_attempt=latest_attempt)
         )
 
+        provider_verify = None
+        if gate.require_provider_invariants:
+            target_data_dir = str(
+                self.manifest.target.get("target_data_dir")
+                or self.manifest.provider.get("target_data_dir")
+                or ""
+            )
+            try:
+                provider_verify = self.provider_client.verify(
+                    run_id=self.manifest.run_id, data_dir=target_data_dir
+                )
+                provider_ok = bool(provider_verify.get("ok"))
+            except Exception as exc:
+                provider_verify = {
+                    "ok": False,
+                    "error": {"type": type(exc).__name__, "message": str(exc)},
+                }
+                provider_ok = False
+            checks.append(
+                CheckResult(
+                    "provider-invariants",
+                    ok=provider_ok,
+                    actual=provider_verify,
+                    expected={"ok": True},
+                )
+            )
+
         eval_receipt = None
         if eval_context is not None:
             context = dict(eval_context)
@@ -824,6 +851,10 @@ class PAReplayOrchestrator:
                     )
                 from gateway.eval_instrument import record_evaluation_invocation
 
+                # The receipt is the qualification evidence. Bind it to every
+                # mechanical check, including target-provider invariants, before
+                # recording it so an isolated tenant marked dirty can never
+                # surface as a qualified arm.
                 mechanical_failed = [check.name for check in checks if not check.ok]
                 eval_receipt = record_evaluation_invocation(
                     config_path=context["config_path"],
@@ -861,33 +892,6 @@ class PAReplayOrchestrator:
                             "provenance",
                         ],
                     },
-                )
-            )
-
-        provider_verify = None
-        if gate.require_provider_invariants:
-            target_data_dir = str(
-                self.manifest.target.get("target_data_dir")
-                or self.manifest.provider.get("target_data_dir")
-                or ""
-            )
-            try:
-                provider_verify = self.provider_client.verify(
-                    run_id=self.manifest.run_id, data_dir=target_data_dir
-                )
-                provider_ok = bool(provider_verify.get("ok"))
-            except Exception as exc:
-                provider_verify = {
-                    "ok": False,
-                    "error": {"type": type(exc).__name__, "message": str(exc)},
-                }
-                provider_ok = False
-            checks.append(
-                CheckResult(
-                    "provider-invariants",
-                    ok=provider_ok,
-                    actual=provider_verify,
-                    expected={"ok": True},
                 )
             )
 

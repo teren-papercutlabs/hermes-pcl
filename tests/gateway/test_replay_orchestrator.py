@@ -297,6 +297,38 @@ def test_orchestrator_eval_receipt_failure_marks_run_dirty(tmp_path, monkeypatch
     assert orch.manifest.state is ReplayRunState.DIRTY
 
 
+def test_orchestrator_eval_receipt_includes_provider_invariant_failure(
+    tmp_path, monkeypatch
+):
+    runner = FakeRunner(tmp_path / "state.db")
+    provider = FakeProviderClient()
+    provider.verify_ok = False
+    orch, _provider = _prepared_orchestrator(
+        tmp_path, runner_factory=lambda: runner, provider=provider
+    )
+    orch.run_agent_replay(_plan())
+    calls = []
+
+    def fake_receipt(**kwargs):
+        calls.append(kwargs)
+        return {"ok": False, "receipt_id": "provider-failed"}
+
+    monkeypatch.setattr(
+        "gateway.eval_instrument.record_evaluation_invocation", fake_receipt
+    )
+
+    with pytest.raises(ReplayVerifyError, match="provider-invariants"):
+        orch.verify(
+            VerifyGateConfig(expected_turn_count=1),
+            session_db_path=tmp_path / "state.db",
+            eval_context={"config_path": "eval.json", "arm_id": "arm-a"},
+        )
+
+    assert calls[0]["mechanical_gate_ok"] is False
+    assert calls[0]["mechanical_failed_checks"] == ["provider-invariants"]
+    assert orch.manifest.state is ReplayRunState.DIRTY
+
+
 def test_verify_gate_marks_dirty_on_unexpected_outbound(tmp_path):
     runner = FakeRunner(
         tmp_path / "state.db",
