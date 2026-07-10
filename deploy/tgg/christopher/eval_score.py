@@ -273,6 +273,7 @@ def _turn_metrics(session_db: Path, run_id: str, agent_id: str) -> dict[str, Any
             connection.execute(
                 """
                 SELECT cost_usd, latency_ms, turn_status
+                     , input_tokens, output_tokens
                 FROM pa_turns
                 WHERE replay_run_id = ? AND agent_id = ?
                 """,
@@ -289,10 +290,11 @@ def _turn_metrics(session_db: Path, run_id: str, agent_id: str) -> dict[str, Any
         p95 = latencies[index]
     else:
         p95 = None
+    cost_rows = [float(row["cost_usd"]) for row in rows if row["cost_usd"] is not None]
     return {
-        "total_cost_usd": round(
-            sum(float(row["cost_usd"] or 0) for row in rows), 6
-        ),
+        "total_cost_usd": round(sum(cost_rows), 6) if cost_rows else None,
+        "input_tokens": sum(int(row["input_tokens"] or 0) for row in rows),
+        "output_tokens": sum(int(row["output_tokens"] or 0) for row in rows),
         "p95_turn_latency_ms": p95,
         "failed_turns": sum(row["turn_status"] == "failed" for row in rows),
         "turns": len(rows),
@@ -406,7 +408,16 @@ def build_score(args: argparse.Namespace) -> dict[str, Any]:
         "cases_matched": len(matched),
         "phantom_cases": len(phantom),
         "wrong_completions": len(wrong_completion),
-        **{key: turn_metrics[key] for key in ("total_cost_usd", "p95_turn_latency_ms", "failed_turns")},
+        **{
+            key: turn_metrics[key]
+            for key in (
+                "total_cost_usd",
+                "input_tokens",
+                "output_tokens",
+                "p95_turn_latency_ms",
+                "failed_turns",
+            )
+        },
     }
     return {
         "schema": SCORE_SCHEMA,

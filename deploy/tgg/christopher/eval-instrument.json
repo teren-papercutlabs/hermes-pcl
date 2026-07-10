@@ -157,6 +157,16 @@
       "goal": "minimize"
     },
     {
+      "key": "input_tokens",
+      "label": "Input tokens",
+      "goal": "minimize"
+    },
+    {
+      "key": "output_tokens",
+      "label": "Output tokens",
+      "goal": "minimize"
+    },
+    {
       "key": "p95_turn_latency_ms",
       "label": "P95 turn latency (ms)",
       "goal": "minimize"

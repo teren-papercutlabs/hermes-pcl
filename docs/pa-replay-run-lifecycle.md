@@ -136,7 +136,9 @@ hermes replay-eval compare \
 ```
 
 The comparison surface never changes the deployed engine. It emits evidence
-and an explicit `driver_verdict_required` decision state.
+and an explicit `driver_verdict_required` decision state. Failed arms remain in
+the matrix with `qualified: false`; failure is comparison evidence, not a reason
+to hide the arm.
 
 ## Mechanical verify gate
 

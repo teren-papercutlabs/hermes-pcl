@@ -824,6 +824,7 @@ class PAReplayOrchestrator:
                     )
                 from gateway.eval_instrument import record_evaluation_invocation
 
+                mechanical_failed = [check.name for check in checks if not check.ok]
                 eval_receipt = record_evaluation_invocation(
                     config_path=context["config_path"],
                     arm_id=context["arm_id"],
@@ -836,6 +837,8 @@ class PAReplayOrchestrator:
                     receipt_index_path=context.get("receipt_index_path")
                     or (self.manifest.run_dir.parent / "eval-receipt-index.jsonl"),
                     score_manifest_path=context.get("score_manifest_path"),
+                    mechanical_gate_ok=not mechanical_failed,
+                    mechanical_failed_checks=mechanical_failed,
                 )
                 eval_ok = bool(eval_receipt.get("ok"))
                 eval_actual: Any = eval_receipt

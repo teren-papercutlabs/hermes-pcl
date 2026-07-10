@@ -382,6 +382,23 @@ def test_eval_receipts_audit_and_compare_distinct_arms(tmp_path):
         "arm-b": 1,
     }
     assert comparison["decision"]["status"] == "driver_verdict_required"
+    assert comparison["decision"]["eligible_arms"] == ["arm-a", "arm-b"]
+
+    failed_receipt = tmp_path / "failed-arm-b.json"
+    failed = json.loads(Path(receipts[1]).read_text(encoding="utf-8"))
+    failed["ok"] = False
+    failed["mechanical_gate"] = {
+        "ok": False,
+        "failed_checks": ["tool-error-budget"],
+    }
+    failed_receipt.write_text(json.dumps(failed), encoding="utf-8")
+    failed_comparison = compare_receipts(
+        config_path,
+        [receipts[0], failed_receipt],
+        output_dir=tmp_path / "compare-failed-arm",
+    )
+    assert failed_comparison["qualification"]["arm-b"]["qualified"] is False
+    assert failed_comparison["decision"]["eligible_arms"] == ["arm-a"]
 
 
 def test_failed_eval_invocation_still_writes_an_auditable_receipt(tmp_path):

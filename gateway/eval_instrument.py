@@ -1023,6 +1023,8 @@ def record_evaluation_invocation(
     output_dir: str | Path,
     receipt_index_path: str | Path,
     score_manifest_path: str | Path | None = None,
+    mechanical_gate_ok: bool | None = None,
+    mechanical_failed_checks: Sequence[str] = (),
 ) -> dict[str, Any]:
     if mode not in {"eval", "graduation"}:
         raise EvalInstrumentError("mode must be eval or graduation")
@@ -1072,6 +1074,8 @@ def record_evaluation_invocation(
     ok = bool(trace and trace.get("ok") and error is None)
     if score is not None:
         ok = ok and bool(score.get("eligible", True))
+    if mechanical_gate_ok is False:
+        ok = False
     receipt: dict[str, Any] = {
         "schema": RECEIPT_SCHEMA,
         "receipt_id": receipt_id,
@@ -1085,6 +1089,10 @@ def record_evaluation_invocation(
         "session_db_sha256": session_db_sha256,
         "trace": trace,
         "score": score,
+        "mechanical_gate": {
+            "ok": mechanical_gate_ok,
+            "failed_checks": [str(name) for name in mechanical_failed_checks],
+        },
         "error": error,
         "created_at": _utc_now(),
     }
@@ -1212,10 +1220,10 @@ def compare_receipts(
     for receipt in receipts:
         if receipt.get("schema") != RECEIPT_SCHEMA:
             raise EvalInstrumentError("comparison input is not an eval receipt")
-        if not receipt.get("ok"):
-            raise EvalInstrumentError(f"cannot compare failed receipt: {receipt.get('receipt_id')}")
         if receipt.get("score") is None:
             raise EvalInstrumentError(f"receipt has no score manifest: {receipt.get('receipt_id')}")
+        if receipt.get("trace") is None:
+            raise EvalInstrumentError(f"receipt has no adaptive trace: {receipt.get('receipt_id')}")
     arm_ids = [str(receipt["arm_id"]) for receipt in receipts]
     if len(set(arm_ids)) != len(arm_ids):
         raise EvalInstrumentError("comparison receipts must use distinct arm ids")
@@ -1287,6 +1295,16 @@ def compare_receipts(
         "ok": True,
         "instrument_id": config.data["instrument_id"],
         "arms": arm_ids,
+        "qualification": {
+            str(receipt["arm_id"]): {
+                "qualified": bool(receipt.get("ok")),
+                "mechanical_gate": receipt.get("mechanical_gate"),
+                "adaptive_trace_ok": bool((receipt.get("trace") or {}).get("ok")),
+                "score_eligible": bool((receipt.get("score") or {}).get("eligible", True)),
+                "error": receipt.get("error"),
+            }
+            for receipt in receipts
+        },
         "invariants": invariant_rows,
         "metrics": matrix,
         "case_matrix": {case_id: case_maps.get(case_id, {}) for case_id in case_ids},
@@ -1295,6 +1313,9 @@ def compare_receipts(
             "status": "driver_verdict_required",
             "note": "The instrument compares evidence; it never changes the deployed engine slot.",
             "fallback_arms": [arm["id"] for arm in config.data["arms"] if arm.get("fallback")],
+            "eligible_arms": [
+                str(receipt["arm_id"]) for receipt in receipts if receipt.get("ok")
+            ],
         },
         "created_at": _utc_now(),
     }
@@ -1303,6 +1324,11 @@ def compare_receipts(
     json_path = output / "comparison.json"
     markdown_path = output / "comparison.md"
     _write_json_atomic(json_path, comparison)
+    def status_label(value: Any) -> str:
+        if value is None:
+            return "N/A"
+        return "PASS" if value else "FAIL"
+
     lines = [
         f"# Replay eval comparison — {config.data['instrument_id']}",
         "",
@@ -1313,6 +1339,19 @@ def compare_receipts(
         "",
         "| Metric | Goal | " + " | ".join(arm_ids) + " |",
         "|---|---|" + "---:|" * len(arm_ids),
+    ]
+    lines[4:4] = [
+        "## Qualification",
+        "",
+        "| Arm | Qualified | Mechanical | Adaptive trace |",
+        "|---|---|---|---|",
+        *[
+            f"| {arm} | {status_label(comparison['qualification'][arm]['qualified'])} | "
+            f"{status_label((comparison['qualification'][arm]['mechanical_gate'] or {}).get('ok'))} | "
+            f"{status_label(comparison['qualification'][arm]['adaptive_trace_ok'])} |"
+            for arm in arm_ids
+        ],
+        "",
     ]
     for key, row in matrix.items():
         lines.append(

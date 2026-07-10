@@ -275,6 +275,8 @@ def test_orchestrator_eval_context_adds_fail_closed_adaptive_trace_receipt(
     assert report["eval_receipt"]["receipt_id"] == "qualification:arm-a:eval"
     assert calls[0]["run_manifest_path"] == orch.manifest.manifest_path
     assert calls[0]["session_db_path"] == tmp_path / "state.db"
+    assert calls[0]["mechanical_gate_ok"] is True
+    assert calls[0]["mechanical_failed_checks"] == []
 
 
 def test_orchestrator_eval_receipt_failure_marks_run_dirty(tmp_path, monkeypatch):
