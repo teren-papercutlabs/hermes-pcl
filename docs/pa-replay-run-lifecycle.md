@@ -57,6 +57,12 @@ When a client-side scorer must inspect the replay target before verification,
 stop safely in `replayed` state with `--defer-verify`. Promotion still refuses
 the run until the normal verify command succeeds.
 
+If the provider process must restart on the prepared target data root, use the
+same lifecycle as explicit commands: `replay-run prepare`, restart the provider
+with the returned target data dir, then `replay-run run --manifest ...` and
+`replay-run verify --manifest ...`. These are slices of the same orchestrator
+state machine, not a parallel runner.
+
 ## Model qualification and trust-rung graduation
 
 `hermes replay-eval` is the shared measurement layer around native replay. Its

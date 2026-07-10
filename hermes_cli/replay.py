@@ -302,6 +302,23 @@ def add_replay_run_parser(subparsers) -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="replay_run_command", required=True)
 
+    prepare = commands.add_parser(
+        "prepare", help="prepare an isolated target and stop before replay"
+    )
+    _add_provider_args(prepare)
+    prepare.add_argument("--source-data-dir", required=True)
+    prepare.add_argument("--target-data-dir", required=True)
+    prepare.add_argument("--target-base-url", required=True)
+    prepare.add_argument("--out-dir", help="Directory for run manifests.")
+    prepare.add_argument("--run-id", help="Optional deterministic run id.")
+
+    run = commands.add_parser(
+        "run", help="run native replay against an already prepared target"
+    )
+    _add_provider_args(run)
+    _add_plan_source_args(run)
+    run.add_argument("--manifest", required=True, help="Prepared run-manifest.json.")
+
     start = commands.add_parser("start", help="prepare target -> run replay -> verify")
     _add_provider_args(start)
     _add_plan_source_args(start)
@@ -444,6 +461,43 @@ def cmd_replay_run(args) -> None:
         return
 
     client = _provider_client_from_args(args)
+    if command == "prepare":
+        orch = PAReplayOrchestrator(
+            provider_client=client,
+            out_dir=getattr(args, "out_dir", None),
+            run_id=getattr(args, "run_id", None),
+        )
+        target = orch.prepare_target(
+            source_data_dir=args.source_data_dir,
+            target_data_dir=args.target_data_dir,
+            target_base_url=args.target_base_url,
+        )
+        print(
+            json.dumps(
+                {
+                    "manifest_path": str(orch.manifest.manifest_path),
+                    "target": target,
+                },
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    if command == "run":
+        orch = PAReplayOrchestrator.from_manifest(
+            args.manifest, provider_client=client
+        )
+        attempt = orch.run_agent_replay(_load_plan(args))
+        print(
+            json.dumps(
+                {"manifest": orch.manifest.to_dict(), "attempt": attempt},
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
     if command == "start":
         orch = PAReplayOrchestrator(
             provider_client=client,
