@@ -94,7 +94,16 @@ def _fixture(tmp_path: Path):
             "deployment_manifest": str(deployment),
             "deployment_manifest_sha256": _sha(deployment),
         },
-        "runtime": {"config_template": str(deployment)},
+        "runtime": {
+            "config_template": str(deployment),
+            "operation_overrides": {
+                "case_clarify": {
+                    "type": "http",
+                    "method": "POST",
+                    "url": "https://example.invalid/v1/clarifications",
+                }
+            },
+        },
         "corpus": {
             "manifest": str(corpus_manifest),
             "manifest_sha256": _sha(corpus_manifest),
@@ -265,6 +274,15 @@ def test_eval_instrument_pins_runtime_and_enforces_four_trace_assertions(tmp_pat
     ]
 
     runtime = materialize_arm_runtime(config, "arm-a", tmp_path / "runtime-a")
+    materialized_config = yaml.safe_load(
+        (tmp_path / "runtime-a" / "config.yaml").read_text(encoding="utf-8")
+    )
+    assert (
+        materialized_config["pa"]["overlay"]["client"]["business_bridge"][
+            "operations"
+        ]["case_clarify"]["method"]
+        == "POST"
+    )
     plan = build_arm_plan(config, "arm-a", runtime_manifest=runtime)
     assert len(plan.messages) == 2
     assert plan.config_overlay_manifest["runtime"] == {

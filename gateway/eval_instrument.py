@@ -571,6 +571,20 @@ def materialize_arm_runtime(
     if provider_profile:
         provider_profile.setdefault("default_model", model)
         hermes_config["providers"] = {provider: provider_profile}
+    operation_overrides = runtime.get("operation_overrides") or {}
+    if operation_overrides:
+        operations = hermes_config
+        for key in ("pa", "overlay", "client", "business_bridge", "operations"):
+            child = operations.get(key)
+            if not isinstance(child, dict):
+                child = {}
+                operations[key] = child
+            operations = child
+        for operation_name, raw_operation in dict(operation_overrides).items():
+            operations[str(operation_name)] = _require_mapping(
+                raw_operation,
+                f"runtime.operation_overrides.{operation_name}",
+            )
     if business_base_url:
         old_base = str(runtime.get("business_base_url_from") or "")
 
