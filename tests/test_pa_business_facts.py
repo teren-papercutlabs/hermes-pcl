@@ -1228,6 +1228,11 @@ def test_case_observation_unwraps_generic_business_call_shape(captured_writes):
                 "sourceRefs": ["wa:13"],
                 "fields": {"work_items": [{"label": "Window handle"}]},
                 "confidence": "high",
+                "justification": {
+                    "kind": "identifier_match",
+                    "identifier": {"type": "job_no", "value": "SK/JOB/2606/2372"},
+                    "source": "thread_ref",
+                },
             },
         }
     )
@@ -1237,6 +1242,37 @@ def test_case_observation_unwraps_generic_business_call_shape(captured_writes):
     assert op == "tgg_case_observation"
     assert payload["jobNo"] == "SK/JOB/2606/2372"
     assert payload["fields"]["source_refs"] == ["wa:13"]
+    assert payload["justification"]["identifier"]["value"] == "SK/JOB/2606/2372"
+
+
+def test_attach_tool_schemas_require_structured_justification():
+    import tools.pa_business_tools as pbt
+
+    observation = pbt.TGG_CASE_OBSERVATION_SCHEMA["parameters"]
+    assert "justification" in observation["required"]
+    assert observation["properties"]["justification"]["required"] == [
+        "kind",
+        "identifier",
+        "source",
+    ]
+    generic = pbt.PA_BUSINESS_WRITE_SCHEMA["parameters"]
+    attach_rule = generic["allOf"][0]
+    assert attach_rule["if"]["properties"]["operation"]["const"] == "tgg_case_wc_attach"
+    assert attach_rule["then"]["properties"]["payload"]["required"] == ["justification"]
+
+
+def test_case_observation_rejects_missing_justification_before_write(captured_writes):
+    import tools.pa_business_tools as pbt
+
+    out = pbt._handle_tgg_case_observation(
+        {
+            "jobNo": "SK/JOB/2606/2372",
+            "sourceRefs": ["wa:13"],
+            "fields": {},
+        }
+    )
+    assert "requires justification" in json.loads(out)["error"]
+    assert captured_writes == []
 
 
 def test_case_update_state_coerces_iso_observed_at_to_epoch(captured_writes):

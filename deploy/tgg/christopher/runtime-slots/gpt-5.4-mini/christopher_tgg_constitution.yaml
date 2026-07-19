@@ -85,6 +85,7 @@ job_briefs:
       the strongest signal; also weigh timing against active work and identifying details
       in the evidence itself — units, addresses, and job numbers in captions or visible
       in the photos. Record why the attachment was made and its confidence.
+      Every evidence attachment states its matching identifier in justification; when no identifier matches the target case, hold it as unmatched through the existing attention path.
 
       When an explicit identifier names a case, use that case as the attachment target even
       when the live discussion is about another case. When a detail points to a different

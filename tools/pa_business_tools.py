@@ -424,8 +424,34 @@ def _normalize_path_param_aliases(
     return clean
 
 
+def _require_attach_justification(operation: str, value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(
+            f"{operation} requires justification with kind, identifier, and source"
+        )
+    justification = dict(value)
+    if justification.get("kind") not in {
+        "identifier_match",
+        "thread_continuation",
+        "operator_directive",
+    }:
+        raise ValueError(f"{operation} justification.kind is invalid")
+    if justification.get("source") not in {"caption", "image_content", "thread_ref"}:
+        raise ValueError(f"{operation} justification.source is invalid")
+    identifier = justification.get("identifier")
+    if not isinstance(identifier, Mapping):
+        raise ValueError(f"{operation} justification.identifier is required")
+    if identifier.get("type") not in {"job_no", "block_unit"} or not str(
+        identifier.get("value") or ""
+    ).strip():
+        raise ValueError(f"{operation} justification.identifier is invalid")
+    return justification
+
+
 def _validate_operation_payload(op: PABusinessOperation, payload: Mapping[str, Any] | None) -> None:
     request_payload = _json_payload(payload)
+    if op.name in {"tgg_case_wc_attach", "tgg_case_observation"}:
+        _require_attach_justification(op.name, request_payload.get("justification"))
     if "jobNo" in request_payload:
         value = str(request_payload.get("jobNo") or "").strip().upper()
         if value and not re.match(JOB_NO_RE, value):
@@ -1216,6 +1242,12 @@ def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str
         raw = {**dict(nested_payload), **direct}
     if raw.get("jobNo") is None and raw.get("job_no") is not None:
         raw["jobNo"] = raw.get("job_no")
+    try:
+        justification = _require_attach_justification(
+            "tgg_case_observation", raw.get("justification")
+        )
+    except ValueError as exc:
+        return tool_error(exc)
     fields = raw.get("fields") if isinstance(raw.get("fields"), Mapping) else {}
     fields = dict(fields)
     for source_key, field_key in (
@@ -1250,6 +1282,7 @@ def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str
         "fields": fields,
         "notes": raw.get("notes"),
         "confidence": raw.get("confidence"),
+        "justification": justification,
     }
     # v6.3 item 4b: the backend observation response carries only
     # {observationId} — echo the case's last-known backend state into the
@@ -1379,6 +1412,36 @@ _PA_BUSINESS_PAYLOAD_SCHEMA = {
     "additionalProperties": True,
 }
 
+_ATTACH_JUSTIFICATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "kind": {
+            "type": "string",
+            "enum": ["identifier_match", "thread_continuation", "operator_directive"],
+        },
+        "identifier": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": ["job_no", "block_unit"]},
+                "value": {"type": "string", "minLength": 1},
+            },
+            "required": ["type", "value"],
+            "additionalProperties": False,
+        },
+        "source": {
+            "type": "string",
+            "enum": ["caption", "image_content", "thread_ref"],
+        },
+    },
+    "required": ["kind", "identifier", "source"],
+    "additionalProperties": False,
+}
+
+_PA_BUSINESS_WRITE_PAYLOAD_SCHEMA = {
+    **_PA_BUSINESS_PAYLOAD_SCHEMA,
+    "properties": {"justification": _ATTACH_JUSTIFICATION_SCHEMA},
+}
+
 
 PA_BUSINESS_READ_SCHEMA = {
     "name": "pa_business_read",
@@ -1415,9 +1478,26 @@ PA_BUSINESS_WRITE_SCHEMA = {
                 "type": "string",
                 "description": "Configured PA business operation name.",
             },
-            "payload": _PA_BUSINESS_PAYLOAD_SCHEMA,
+            "payload": _PA_BUSINESS_WRITE_PAYLOAD_SCHEMA,
         },
         "required": ["operation"],
+        "allOf": [
+            {
+                "if": {
+                    "properties": {"operation": {"const": "tgg_case_wc_attach"}},
+                    "required": ["operation"],
+                },
+                "then": {
+                    "properties": {
+                        "payload": {
+                            **_PA_BUSINESS_WRITE_PAYLOAD_SCHEMA,
+                            "required": ["justification"],
+                        }
+                    },
+                    "required": ["payload"],
+                },
+            }
+        ],
     },
 }
 
@@ -1700,8 +1780,17 @@ TGG_CASE_OBSERVATION_SCHEMA = {
                     "media refs or photo counts."
                 ),
             },
+            "justification": _ATTACH_JUSTIFICATION_SCHEMA,
         },
-        "required": ["jobNo", "source", "observedAt", "notes", "confidence", "sourceRefs"],
+        "required": [
+            "jobNo",
+            "source",
+            "observedAt",
+            "notes",
+            "confidence",
+            "sourceRefs",
+            "justification",
+        ],
         "additionalProperties": False,
     },
 }
