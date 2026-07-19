@@ -402,6 +402,28 @@ def _normalize_operation_payload(operation: str, payload: Mapping[str, Any] | No
     return clean
 
 
+def _normalize_path_param_aliases(
+    op: PABusinessOperation, payload: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Canonicalize snake_case aliases for declared camelCase path params.
+
+    Generic business tools intentionally accept open payloads. Models therefore
+    sometimes use the snake_case spelling exposed by a convenience tool (for
+    example ``job_no``) when calling the canonical operation whose URL declares
+    ``jobNo``. Normalize only declared path params; other payload keys remain
+    untouched.
+    """
+    clean = dict(payload)
+    for param_name in op.path_params:
+        snake_name = re.sub(r"(?<!^)(?=[A-Z])", "_", param_name).lower()
+        if snake_name == param_name or snake_name not in clean:
+            continue
+        if clean.get(param_name) is None:
+            clean[param_name] = clean[snake_name]
+        clean.pop(snake_name, None)
+    return clean
+
+
 def _validate_operation_payload(op: PABusinessOperation, payload: Mapping[str, Any] | None) -> None:
     request_payload = _json_payload(payload)
     if "jobNo" in request_payload:
@@ -556,6 +578,7 @@ def execute_business_operation(
         )
 
     normalized_payload = _normalize_operation_payload(operation, payload)
+    normalized_payload = _normalize_path_param_aliases(op, normalized_payload)
     _validate_operation_payload(op, normalized_payload)
 
     if op.kind == "http":
@@ -1179,6 +1202,20 @@ def _handle_tgg_case_update_state(args: Mapping[str, Any], **_kwargs: Any) -> st
 
 def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str:
     raw = dict(args)
+    # The dedicated tool occasionally receives the generic business-tool call
+    # shape (``{operation, payload}``). Recover the nested payload rather than
+    # silently replacing its valid job number with None. Direct dedicated-tool
+    # fields win if both shapes are present.
+    nested_payload = raw.get("payload")
+    if isinstance(nested_payload, Mapping):
+        direct = {
+            key: value
+            for key, value in raw.items()
+            if key not in {"operation", "payload"}
+        }
+        raw = {**dict(nested_payload), **direct}
+    if raw.get("jobNo") is None and raw.get("job_no") is not None:
+        raw["jobNo"] = raw.get("job_no")
     fields = raw.get("fields") if isinstance(raw.get("fields"), Mapping) else {}
     fields = dict(fields)
     for source_key, field_key in (

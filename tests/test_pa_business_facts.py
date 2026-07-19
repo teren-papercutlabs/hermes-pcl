@@ -948,6 +948,32 @@ def test_path_param_missing_from_payload_fails_loudly(path_param_endpoint):
         execute_business_operation(config, "case_lookup", {})
 
 
+def test_path_param_accepts_snake_case_alias(path_param_endpoint):
+    config = {
+        "pa_business": {
+            "operations": {
+                "case_update": {
+                    "type": "http",
+                    "method": "POST",
+                    "url": f"{path_param_endpoint}/api/operator/cases/{{jobNo}}/state",
+                    "path_params": ["jobNo"],
+                }
+            }
+        }
+    }
+
+    result = execute_business_operation(
+        config,
+        "case_update",
+        {"job_no": "SK/JOB/2604/2376", "state": "completed"},
+    )
+
+    assert result["ok"] is True
+    last = _PathParamHandler.last_request
+    assert last["path"] == "/api/operator/cases/SK%2FJOB%2F2604%2F2376/state"
+    assert last["payload"] == {"state": "completed"}
+
+
 def test_clarification_request_posts_to_clarifications_endpoint(path_param_endpoint):
     config = {
         "pa_business": {
@@ -1189,6 +1215,28 @@ def test_case_update_state_maps_contract_payload(captured_writes):
         # (the backend expects epoch; see the observed_at coercion tests).
         "observedAt": 1781071200,
     }
+
+
+def test_case_observation_unwraps_generic_business_call_shape(captured_writes):
+    import tools.pa_business_tools as pbt
+
+    out = pbt._handle_tgg_case_observation(
+        {
+            "operation": "tgg_case_observation",
+            "payload": {
+                "jobNo": "SK/JOB/2606/2372",
+                "sourceRefs": ["wa:13"],
+                "fields": {"work_items": [{"label": "Window handle"}]},
+                "confidence": "high",
+            },
+        }
+    )
+
+    assert json.loads(out)["ok"] is True
+    op, payload = captured_writes[0]
+    assert op == "tgg_case_observation"
+    assert payload["jobNo"] == "SK/JOB/2606/2372"
+    assert payload["fields"]["source_refs"] == ["wa:13"]
 
 
 def test_case_update_state_coerces_iso_observed_at_to_epoch(captured_writes):
