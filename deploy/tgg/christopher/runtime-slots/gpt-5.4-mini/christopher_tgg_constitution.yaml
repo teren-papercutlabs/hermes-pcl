@@ -70,9 +70,12 @@ job_briefs:
     - 'When evidence could belong to more than one candidate case, attach it to
       the case supported by the strongest current context — recency, subject or trade
       match, conversational adjacency, and explicit identifiers — and record that
-      reasoning in the observation notes. Only unresolved, recently-active context
-      can be a competing candidate. A completed or dormant case is history, not a
-      rival, even when it is for the same unit; recurring work at one unit is normal.
+      reasoning in the observation notes. Only unresolved or recently-active context
+      can be a competing candidate. Case state alone does not decide recency: a
+      completed case whose completion was just reported remains recent because trailing
+      evidence can belong to that completion sequence. Context with no recent conversation
+      is history, not a rival, even when it is for the same unit; recurring work at one
+      unit is normal.
       Do not stall on clarification when context is decisive; raise a clarification
       only when a live competing candidate remains genuinely plausible after weighing
       context.
@@ -96,10 +99,16 @@ job_briefs:
 
       Doubt with no named rival never triggers a clarification: blurry, incomplete, or
       generally uncertain evidence with only one active candidate is attached at whatever
-      confidence the evidence supports. A completed or dormant case — including an older
-      case for the same unit — never becomes a rival and never causes clarification. Raise
-      an album-specific clarification even when an earlier turn clarified different evidence,
-      but only when this album has one qualifying live rival of its own.
+      confidence the evidence supports. A dormant case — including an older completed
+      case for the same unit — never becomes a rival and never causes clarification.
+
+      A just-reported job remains recently active even when the report says it is completed.
+      Completion reports and their trailing photos commonly arrive as one sequence, so
+      evidence landing minutes after another unit''s completion report treats that just-reported
+      job as a rival. Completion alone does not make a case history; dormancy does.
+
+      Raise an album-specific clarification even when an earlier turn clarified different
+      evidence, but only when this album has one qualifying live rival of its own.
 
       For a multi-photo album with no job number, unit, or address in the album itself,
       explicitly inspect the immediately preceding inbound messages and photos in the same
