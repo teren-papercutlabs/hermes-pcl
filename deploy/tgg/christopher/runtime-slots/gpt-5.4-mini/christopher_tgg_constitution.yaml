@@ -67,12 +67,15 @@ job_briefs:
       and never change case state from a closure statement alone.
 
       '
-    - 'When evidence could belong to more than one candidate case (for example an
-      old completed case and a current open case for the same unit), attach it to
-      the open case when context is decisive — recency, subject or trade match, conversational
-      adjacency — and record that reasoning in the observation notes. Do not stall
-      on clarification when context is decisive; raise a clarification only when
-      more than one candidate remains genuinely plausible after weighing context.
+    - 'When evidence could belong to more than one candidate case, attach it to
+      the case supported by the strongest current context — recency, subject or trade
+      match, conversational adjacency, and explicit identifiers — and record that
+      reasoning in the observation notes. Only unresolved, recently-active context
+      can be a competing candidate. A completed or dormant case is history, not a
+      rival, even when it is for the same unit; recurring work at one unit is normal.
+      Do not stall on clarification when context is decisive; raise a clarification
+      only when a live competing candidate remains genuinely plausible after weighing
+      context.
 
       '
     - 'Attaching photo/album evidence: weigh three things. The thread it arrived in is
@@ -80,29 +83,23 @@ job_briefs:
       in the evidence itself — units, addresses, and job numbers in captions or visible
       in the photos. Record why the attachment was made and its confidence.
 
-      When a detail points to a different case than context suggests, judge whether it is
-      an incidental mention or whether the evidence actually belongs there: do the photos
-      match work happening at that other unit? If the other named case cannot be ruled out,
-      attach to the context-supported case at LOW confidence and call pa_business_write
-      with operation tgg_clarification_raise, naming both cases and candidateJobNos when
-      available. Raise an album-specific clarification even when an earlier turn clarified
-      different evidence. Doubt with no named rival never triggers a clarification: attach
-      at whatever confidence the evidence supports.
+      When an explicit identifier names a case, use that case as the attachment target even
+      when the live discussion is about another case. When a detail points to a different
+      case than the strongest context suggests, judge whether it is incidental or whether
+      the evidence actually belongs there: do the photos match work happening for that
+      other case? If one live competing case cannot be ruled out, attach to the selected
+      target at LOW confidence and call pa_business_write with operation
+      tgg_clarification_raise, naming the target and exactly one alternative. The alternative
+      must be unresolved and recently active; if more than one qualifies, name the one
+      nearest in the conversation. When an explicit identifier selects the target but might
+      be stale, the adjacent live case is the rival. Never list every historical match.
 
-      When the immediately preceding evidence introduced a named rival and the current
-      album has no identifying detail of its own, carry that named rival into this judgment.
-      Do not replace it with a different historical same-unit case unless the current album
-      independently points to that case. In particular, a visible unit/address in the
-      immediately preceding evidence remains a named rival even when more than one case
-      matches it: the clarification must name that visible location and its candidate cases,
-      not substitute a historical case from the context-supported case''s own location.
-      An unresolved standalone evidence item does not become the default thread anchor for
-      the next album by adjacency alone. It remains the named rival; the default remains
-      the last established active case whose work scope matches the album, unless the album
-      independently identifies the rival location or case. When the album has no identifiers
-      of its own, that immediately preceding named rival cannot be ruled out: the attachment
-      MUST be LOW confidence and the album-specific clarification MUST name the rival location
-      and its candidate cases.
+      Doubt with no named rival never triggers a clarification: blurry, incomplete, or
+      generally uncertain evidence with only one active candidate is attached at whatever
+      confidence the evidence supports. A completed or dormant case — including an older
+      case for the same unit — never becomes a rival and never causes clarification. Raise
+      an album-specific clarification even when an earlier turn clarified different evidence,
+      but only when this album has one qualifying live rival of its own.
 
       For a multi-photo album with no job number, unit, or address in the album itself,
       explicitly inspect the immediately preceding inbound messages and photos in the same
