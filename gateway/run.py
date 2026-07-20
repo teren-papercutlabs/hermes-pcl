@@ -1869,6 +1869,21 @@ def _turn_now_line() -> str:
 
         turn_now = _current_replay_now()
     except Exception:
+        # If replay IS active, falling to wall clock here silently reintroduces
+        # the exact bug this stamp exists to fix — make it greppable.
+        _replay_active: Any = "unknown"
+        try:
+            from gateway.replay import current_replay_context as _crc
+
+            _replay_active = _crc() is not None
+        except Exception:
+            pass
+        logger.warning(
+            "_turn_now_line: replay-now resolver raised (replay_context_active=%s); "
+            "falling back to wall clock",
+            _replay_active,
+            exc_info=True,
+        )
         turn_now = None
     if turn_now is None:
         from hermes_time import now as _hermes_now
