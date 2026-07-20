@@ -29,6 +29,13 @@ _REPLAY_TURN_HISTORY_BEFORE_TS: ContextVar[int | None] = ContextVar(
     "HERMES_REPLAY_TURN_HISTORY_BEFORE_TS",
     default=None,
 )
+# The corpus's "now" for the turn being replayed. Set from the SAME value that
+# fences history, so the date the model is told and the history it can see are
+# one notion of the present rather than two that can drift.
+_REPLAY_TURN_NOW_TS: ContextVar[int | None] = ContextVar(
+    "HERMES_REPLAY_TURN_NOW_TS",
+    default=None,
+)
 
 
 def _json_default(value: Any) -> Any:
@@ -1000,9 +1007,11 @@ def replay_context(plan: ReplayPlan) -> Iterator[ReplayExecutionContext]:
     ctx = ReplayExecutionContext(plan=plan)
     ctx_token = _REPLAY_CONTEXT.set(ctx)
     turn_token = _REPLAY_TURN_HISTORY_BEFORE_TS.set(None)
+    now_token = _REPLAY_TURN_NOW_TS.set(None)
     try:
         yield ctx
     finally:
+        _REPLAY_TURN_NOW_TS.reset(now_token)
         _REPLAY_TURN_HISTORY_BEFORE_TS.reset(turn_token)
         _REPLAY_CONTEXT.reset(ctx_token)
 
@@ -1013,6 +1022,44 @@ def set_replay_turn_history_before_ts(value: int | None):
 
 def reset_replay_turn_history_before_ts(token) -> None:
     _REPLAY_TURN_HISTORY_BEFORE_TS.reset(token)
+
+
+def set_replay_turn_now_ts(value: int | None):
+    return _REPLAY_TURN_NOW_TS.set(value)
+
+
+def reset_replay_turn_now_ts(token) -> None:
+    _REPLAY_TURN_NOW_TS.reset(token)
+
+
+def current_replay_now_ts() -> int | None:
+    """The corpus moment the current replay turn is standing in, if any.
+
+    Returns None outside replay, which is what makes every caller fall through
+    to the wall clock with no behaviour change in normal operation.
+
+    INSIDE replay we never fall through to the wall clock if we can avoid it:
+    when a turn yields no derivable timestamp, the plan's corpus-level present
+    is still a far better answer than today's date. Wall clock is the last
+    resort, not the first fallback.
+    """
+    ctx = current_replay_context()
+    if ctx is None:
+        return None
+    turn_value = _REPLAY_TURN_NOW_TS.get()
+    if turn_value is not None:
+        return turn_value
+    return ctx.plan.history_before_ts
+
+
+def current_replay_now():
+    """`current_replay_now_ts` as a local-time datetime, ready for strftime."""
+    ts = current_replay_now_ts()
+    if ts is None:
+        return None
+    from datetime import datetime
+
+    return datetime.fromtimestamp(ts)
 
 
 def _timestamp_to_epoch(value: Any) -> int | None:

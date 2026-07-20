@@ -1820,6 +1820,63 @@ def _preserve_queued_followup_history_offset(
     return merged
 
 
+def _set_replay_turn_state_for_event(event: Any) -> None:
+    """Pin the corpus's present for the turn triggered by ``event``.
+
+    ONE notion of the corpus's present, fed to both consumers: the history
+    read-fence, and the date the model is told. Deriving a second "now"
+    anywhere else is how the two drift apart.
+
+    Must be re-called for every event that starts a model turn — including the
+    queued follow-up chain — because these are plan-scoped ContextVars: a turn
+    that failed to re-derive would keep reading the PREVIOUS turn's fence and
+    date, a silent wrong answer that looks like a right one. No-op (and safe)
+    outside replay.
+    """
+    try:
+        from gateway.replay import (
+            current_replay_context as _current_replay_context,
+            history_before_ts_for_event as _replay_history_before_ts_for_event,
+            set_replay_turn_history_before_ts as _set_replay_turn_history_before_ts,
+            set_replay_turn_now_ts as _set_replay_turn_now_ts,
+        )
+
+        if _current_replay_context() is None:
+            return
+        # Clear first, so a derivation miss falls back to the plan's corpus
+        # present rather than the last turn's value.
+        _set_replay_turn_history_before_ts(None)
+        _set_replay_turn_now_ts(None)
+        _fence_ts = _replay_history_before_ts_for_event(event)
+        _set_replay_turn_history_before_ts(_fence_ts)
+        # The fence is exclusive (max message ts + 1); the moment the turn
+        # actually stands in is that last message.
+        _set_replay_turn_now_ts(None if _fence_ts is None else _fence_ts - 1)
+    except Exception:
+        pass
+
+
+def _turn_now_line() -> str:
+    """The per-turn "current time" stamp handed to the model.
+
+    Resolution order is replay's corpus present, then the wall clock. Outside
+    replay the first resolver returns None and behaviour is the wall clock,
+    unchanged.
+    """
+    turn_now = None
+    try:
+        from gateway.replay import current_replay_now as _current_replay_now
+
+        turn_now = _current_replay_now()
+    except Exception:
+        turn_now = None
+    if turn_now is None:
+        from hermes_time import now as _hermes_now
+
+        turn_now = _hermes_now()
+    return f"[Current time: {turn_now.strftime('%A, %B %d, %Y %I:%M %p')}]"
+
+
 class GatewayRunner:
     """
     Main gateway controller.
@@ -6892,14 +6949,12 @@ class GatewayRunner:
         """
         source = event.source
         try:
-            from gateway.replay import (
-                current_replay_context as _current_replay_context,
-                history_before_ts_for_event as _replay_history_before_ts_for_event,
-                set_replay_turn_history_before_ts as _set_replay_turn_history_before_ts,
-            )
+            from gateway.replay import current_replay_context as _current_replay_context
             _replay_ctx = _current_replay_context()
             if _replay_ctx is not None:
-                _set_replay_turn_history_before_ts(_replay_history_before_ts_for_event(event))
+                # ONE notion of the corpus's present per turn, fed to both the
+                # history read-fence and the date the model is told.
+                _set_replay_turn_state_for_event(event)
         except Exception:
             _replay_ctx = None
 
@@ -12314,8 +12369,14 @@ class GatewayRunner:
                     fallback_model=self._fallback_model,
                 )
                 try:
+                    # Stamp the model-facing turn with the current time, same as
+                    # the interactive path (_run_agent). The cached system-prompt
+                    # date line is off by default, so this is the sole date
+                    # authority for background turns too — including replayed
+                    # ones (_run_in_executor_with_context preserves the replay
+                    # ContextVars, so _turn_now_line resolves the corpus present).
                     return agent.run_conversation(
-                        user_message=enriched_prompt,
+                        user_message=f"{_turn_now_line()}\n{enriched_prompt}",
                         task_id=task_id,
                     )
                 finally:
@@ -16368,6 +16429,19 @@ class GatewayRunner:
         This is run in a thread pool to not block the event loop.
         Supports interruption via new messages.
         """
+        # Tell the agent what "now" is, every turn. The system prompt carries a
+        # "Conversation started" line, but it is composed once per session and
+        # cached, so on a long session — and on every replayed turn, where the
+        # session clock is not the corpus clock — it is the wrong answer to
+        # "what is today's date".
+        #
+        # This is applied HERE, at the model boundary, and deliberately not in
+        # _prepare_inbound_message_text: the text that function returns is also
+        # what gets written to the PA observation log and the agent:start hook,
+        # and stamping there would file our own metadata as the user's words.
+        _user_message_untagged = message  # for consumers that want the raw prompt
+        message = f"{_turn_now_line()}\n{message}"
+
         # ---- Proxy mode: delegate to remote API server ----
         if self._get_proxy_url():
             return await self._run_agent_via_proxy(
@@ -17746,7 +17820,9 @@ class GatewayRunner:
                     maybe_auto_title(
                         self._session_db,
                         effective_session_id,
-                        message,
+                        # Title from the user's actual words, not our injected
+                        # "[Current time: ...]" turn stamp.
+                        _user_message_untagged,
                         final_response,
                         all_msgs,
                         **maybe_auto_title_kwargs,
@@ -18300,6 +18376,11 @@ class GatewayRunner:
                             session_key or "?",
                         )
                         return result
+                    # Re-pin the corpus present for THIS follow-up event —
+                    # plan-scoped ContextVars still hold the previous turn's
+                    # value otherwise, so a replayed follow-up would be stamped
+                    # with the wrong corpus date. No-op outside replay.
+                    _set_replay_turn_state_for_event(pending_event)
                     next_message = await self._prepare_inbound_message_text(
                         event=pending_event,
                         source=next_source,

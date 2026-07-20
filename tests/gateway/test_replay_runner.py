@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -903,3 +904,133 @@ async def test_telegram_replay_honors_group_mention_gate_when_not_bypassed():
 
     assert processed == 0
     assert handled == []
+
+
+# ---------------------------------------------------------------------------
+# Replay-aware "current time" (WB 61a9d153, teren 2026-07-20).
+#
+# During replay the agent was told the WALL-CLOCK date, so it reasoned about
+# "today" as the day the replay ran rather than the day the corpus was living
+# in. These pin that the date the model sees comes from the corpus, and that it
+# comes from the SAME value that fences history.
+# ---------------------------------------------------------------------------
+
+REPLAY_NOW_EPOCH = 1782000000  # 2026-06-21 (fixed past instant)
+
+
+def _corpus_event(ts: int):
+    """A minimal event carrying a corpus timestamp, as the fence helper reads it."""
+    return SimpleNamespace(raw_message={"timestamp": ts})
+
+
+def test_replay_context_sets_turn_now_and_falls_back_to_wall_clock():
+    from gateway.replay import (
+        current_replay_now,
+        current_replay_now_ts,
+        replay_context,
+        set_replay_turn_now_ts,
+    )
+
+    # Outside any replay there is no corpus present — callers use the clock.
+    assert current_replay_now_ts() is None
+    assert current_replay_now() is None
+
+    with replay_context(ReplayPlan(platform="whatsapp")):
+        # Entering a replay does not by itself pin a turn.
+        assert current_replay_now_ts() is None
+        set_replay_turn_now_ts(REPLAY_NOW_EPOCH)
+        assert current_replay_now_ts() == REPLAY_NOW_EPOCH
+        assert current_replay_now().strftime("%Y-%m-%d") == datetime.fromtimestamp(
+            REPLAY_NOW_EPOCH
+        ).strftime("%Y-%m-%d")
+
+    # Leaving the context restores wall-clock behaviour for everyone else.
+    assert current_replay_now_ts() is None
+
+
+def test_replayed_turn_text_carries_the_corpus_date_not_todays():
+    """The composed model-facing stamp must show the corpus date, not today's.
+
+    The negative assertion is the one that catches regression: if the wall
+    clock leaks back in, today's date appears here.
+    """
+    from gateway.replay import replay_context, set_replay_turn_now_ts
+    from gateway.run import _turn_now_line
+    from hermes_time import now as hermes_now
+
+    corpus_date = datetime.fromtimestamp(REPLAY_NOW_EPOCH).strftime("%A, %B %d, %Y")
+    todays_date = hermes_now().strftime("%A, %B %d, %Y")
+    assert corpus_date != todays_date, "fixture epoch must not be today"
+
+    with replay_context(ReplayPlan(platform="whatsapp")):
+        set_replay_turn_now_ts(REPLAY_NOW_EPOCH)
+        composed = f"{_turn_now_line()}\nstatus please"
+
+    assert corpus_date in composed
+    assert todays_date not in composed
+
+    # Outside replay the same helper reports the wall clock, unchanged.
+    assert todays_date in _turn_now_line()
+
+
+def test_replay_turn_without_a_derivable_timestamp_still_avoids_the_wall_clock():
+    """A turn we cannot date must fall back to the corpus, not to today."""
+    from gateway.replay import current_replay_now_ts, replay_context
+    from gateway.run import _turn_now_line
+    from hermes_time import now as hermes_now
+
+    todays_date = hermes_now().strftime("%A, %B %d, %Y")
+    plan_date = datetime.fromtimestamp(REPLAY_NOW_EPOCH).strftime("%A, %B %d, %Y")
+
+    plan = ReplayPlan(platform="whatsapp", history_before_ts=REPLAY_NOW_EPOCH)
+    with replay_context(plan):
+        # No per-turn value was ever set for this turn.
+        assert current_replay_now_ts() == REPLAY_NOW_EPOCH
+        assert plan_date in _turn_now_line()
+        assert todays_date not in _turn_now_line()
+
+
+def test_turn_stamp_is_not_written_into_the_observation_log_text():
+    """The stamp belongs to the model turn, not to the recorded user message.
+
+    _prepare_inbound_message_text's return value is what gets filed as the PA
+    observation payload and the agent:start hook context. Our own metadata must
+    not end up recorded there as the user's words.
+    """
+    import inspect
+
+    from gateway.run import GatewayRunner
+
+    prepare_src = inspect.getsource(GatewayRunner._prepare_inbound_message_text)
+    assert "Current time:" not in prepare_src
+    assert "_turn_now_line" not in prepare_src
+
+    # And it IS applied at the model boundary.
+    run_agent_src = inspect.getsource(GatewayRunner._run_agent)
+    assert "_turn_now_line()" in run_agent_src
+
+
+def test_turn_now_and_history_fence_derive_from_one_value():
+    """Date line and history fence must not be able to disagree."""
+    from gateway.replay import (
+        current_history_before_ts,
+        current_replay_now_ts,
+        history_before_ts_for_event,
+        replay_context,
+        set_replay_turn_history_before_ts,
+        set_replay_turn_now_ts,
+    )
+
+    event = _corpus_event(REPLAY_NOW_EPOCH)
+
+    with replay_context(ReplayPlan(platform="whatsapp")):
+        # This mirrors gateway/run.py: compute ONCE, feed both consumers.
+        fence_ts = history_before_ts_for_event(event)
+        set_replay_turn_history_before_ts(fence_ts)
+        set_replay_turn_now_ts(None if fence_ts is None else fence_ts - 1)
+
+        assert current_history_before_ts() == fence_ts
+        # The fence is exclusive (max message ts + 1); "now" is that last message.
+        assert current_replay_now_ts() == fence_ts - 1
+        # Same source value: the present is the newest message the turn can see.
+        assert current_replay_now_ts() == REPLAY_NOW_EPOCH

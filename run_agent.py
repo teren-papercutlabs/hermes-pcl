@@ -6259,16 +6259,32 @@ class AIAgent:
             except Exception:
                 pass
 
-        from hermes_time import now as _hermes_now
-        now = _hermes_now()
-        timestamp_line = f"Conversation started: {now.strftime('%A, %B %d, %Y %I:%M %p')}"
+        # The "Conversation started: <date>" line is DISABLED by default
+        # (teren ruling 2026-07-20). This block is composed once per session and
+        # cached for prefix-cache warmth, so its date is wrong by construction
+        # the moment a session spans a day boundary or a corpus is replayed — and
+        # now that a per-turn current-time line exists at the model boundary
+        # (gateway.run._turn_now_line), keeping a second cached date authority
+        # only invites the two to contradict. Single authority: the per-turn
+        # line. HERMES_SYSTEM_PROMPT_DATE_LINE=1 is the revert lever.
+        #
+        # The Session ID / Model / Provider lines are session-stable facts, not a
+        # date authority, so they stay on the cached path regardless.
+        timestamp_parts: list[str] = []
+        if env_var_enabled("HERMES_SYSTEM_PROMPT_DATE_LINE"):
+            from hermes_time import now as _hermes_now
+            _started = _hermes_now()
+            timestamp_parts.append(
+                f"Conversation started: {_started.strftime('%A, %B %d, %Y %I:%M %p')}"
+            )
         if self.pass_session_id and self.session_id:
-            timestamp_line += f"\nSession ID: {self.session_id}"
+            timestamp_parts.append(f"Session ID: {self.session_id}")
         if self.model:
-            timestamp_line += f"\nModel: {self.model}"
+            timestamp_parts.append(f"Model: {self.model}")
         if self.provider:
-            timestamp_line += f"\nProvider: {self.provider}"
-        volatile_parts.append(timestamp_line)
+            timestamp_parts.append(f"Provider: {self.provider}")
+        if timestamp_parts:
+            volatile_parts.append("\n".join(timestamp_parts))
 
         return {
             "stable":   "\n\n".join(p.strip() for p in stable_parts   if p and p.strip()),

@@ -1061,10 +1061,20 @@ class TestBuildSystemPrompt:
         assert MEMORY_GUIDANCE in prompt
         assert PA_FACT_OPERATIONS_MEMORY_GUIDANCE not in prompt
 
-    def test_includes_datetime(self, agent):
+    def test_cached_conversation_started_date_line_is_off_by_default(self, agent, monkeypatch):
+        # teren ruling 2026-07-20: the session-cached "Conversation started:"
+        # date line is DISABLED by default — it is composed once and cached, so
+        # its date is wrong the moment a session spans a day or a corpus is
+        # replayed. The per-turn current-time line at the model boundary is the
+        # single date authority now. The env flag is the revert lever.
+        monkeypatch.delenv("HERMES_SYSTEM_PROMPT_DATE_LINE", raising=False)
         prompt = agent._build_system_prompt()
-        # Should contain current date info like "Conversation started:"
-        assert "Conversation started:" in prompt
+        assert "Conversation started:" not in prompt
+
+        monkeypatch.setattr(agent, "_cached_system_prompt", None, raising=False)
+        monkeypatch.setenv("HERMES_SYSTEM_PROMPT_DATE_LINE", "1")
+        prompt_enabled = agent._build_system_prompt()
+        assert "Conversation started:" in prompt_enabled
 
     def test_includes_nous_subscription_prompt(self, agent, monkeypatch):
         monkeypatch.setattr(run_agent, "build_nous_subscription_prompt", lambda tool_names: "NOUS SUBSCRIPTION BLOCK")
