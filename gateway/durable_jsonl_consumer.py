@@ -527,6 +527,30 @@ class DurableInbox:
                     )
             conn.commit()
 
+    def finish_processed_batch(
+        self,
+        records: Sequence[InboxRecord],
+        *,
+        turn_for_message: Mapping[str, str],
+    ) -> None:
+        """Atomically terminal every record in a processor-evidenced batch."""
+        now = _utc_now()
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            for record in records:
+                turn_id = turn_for_message.get(record.message_id)
+                status = "completed" if turn_id else "skipped"
+                changed = conn.execute(
+                    "UPDATE ingress_events SET status=?,pa_turn_id=?,last_error=NULL,"
+                    "updated_at=? WHERE seq=? AND status='processing'",
+                    (status, turn_id, now, record.seq),
+                ).rowcount
+                if changed != 1:
+                    raise ConsumerError(
+                        f"inbox record {record.seq} was not processing at batch finish"
+                    )
+            conn.commit()
+
     def reconcile_orphan_processing(self, state_db: Path) -> dict[str, int]:
         """Recover prior-process claims using successful pa_turn evidence.
 
@@ -1319,20 +1343,9 @@ async def _process_claimed_chat_batch(
             raise ConsumerError(
                 f"turn evidence referenced messages outside claimed chat batch: {sorted(unknown)}"
             )
-        handled_by_turn: dict[str, list[InboxRecord]] = {}
-        skipped: list[InboxRecord] = []
-        for record in records:
-            turn_id = turn_for_message.get(record.message_id)
-            if turn_id:
-                handled_by_turn.setdefault(turn_id, []).append(record)
-            else:
-                # The native replay path consumed the row but legitimately
-                # produced no turn (mention/debounce/dedup/non-content).
-                skipped.append(record)
-        for turn_id, handled in handled_by_turn.items():
-            inbox.finish(handled, status="completed", pa_turn_id=turn_id)
-        if skipped:
-            inbox.finish(skipped, status="skipped")
+        # One transaction: a multi-turn batch can never land partially
+        # terminal if the process exits between turn groups.
+        inbox.finish_processed_batch(records, turn_for_message=turn_for_message)
     except asyncio.CancelledError:
         inbox.requeue(records, reason="graceful-cancellation")
         raise
