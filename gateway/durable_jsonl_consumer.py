@@ -607,6 +607,28 @@ class DurableInbox:
     def total(self) -> int:
         return sum(self.counts().values())
 
+    def assert_and_record_conservation(self) -> int:
+        """Persist a monotonic row-total high-water mark; deletion hard-aborts."""
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            current = int(conn.execute("SELECT COUNT(*) FROM ingress_events").fetchone()[0])
+            row = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='state_total_high_water'"
+            ).fetchone()
+            previous = int(row[0]) if row else 0
+            if current < previous:
+                raise ConsumerError(
+                    "inbox conservation hard-abort: "
+                    f"recorded_total={previous} current_total={current}"
+                )
+            conn.execute(
+                "INSERT INTO ingress_meta(key,value) VALUES('state_total_high_water',?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (str(current),),
+            )
+            conn.commit()
+        return current
+
     def oldest_processing_updated_at(self) -> str | None:
         with self.connect() as conn:
             row = conn.execute(
@@ -1351,7 +1373,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
 
     with SingletonLock(Path(args.lock_file).resolve()):
         recovery = inbox.reconcile_orphan_processing(state_db)
-        expected_total = inbox.total()
+        expected_total = inbox.assert_and_record_conservation()
         runner: Any | None = None
         tasks: dict[str, asyncio.Task[None]] = {}
         lanes: dict[str, str] = {}
@@ -1392,6 +1414,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "source_opened": False,
                             "cursor_advanced": False,
                             "scheduler_mode": "per-chat-parallel",
+                            "claim_stale_seconds": 1800,
                             "site_concurrency": site_concurrency,
                             "chat_batch_size": chat_batch_size,
                             "active_management_chats": [],
@@ -1423,6 +1446,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "source_opened": True,
                         "cursor_advanced": False,
                         "scheduler_mode": "per-chat-parallel",
+                        "claim_stale_seconds": 1800,
                         "site_concurrency": site_concurrency,
                         "chat_batch_size": chat_batch_size,
                         "active_management_chats": sorted(
@@ -1453,6 +1477,11 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         f"before={before_stage} after={after_stage}"
                     )
                 expected_total += after_stage - before_stage
+                if inbox.assert_and_record_conservation() != expected_total:
+                    raise ConsumerError(
+                        "inbox conservation hard-abort after staging: "
+                        f"expected={expected_total} actual={inbox.total()}"
+                    )
 
                 try:
                     priority_chats = _management_selector_chats(config_path)
@@ -1522,6 +1551,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "pid": os.getpid(),
                             "staged": after_stage - before_stage,
                             "scheduler_mode": "per-chat-parallel",
+                            "claim_stale_seconds": 1800,
                             "site_concurrency": site_concurrency,
                             "chat_batch_size": chat_batch_size,
                             "active_management_chats": [],
@@ -1552,6 +1582,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "pid": os.getpid(),
                         "staged": after_stage - before_stage,
                         "scheduler_mode": "per-chat-parallel",
+                        "claim_stale_seconds": 1800,
                         "site_concurrency": site_concurrency,
                         "chat_batch_size": chat_batch_size,
                         "active_management_chats": sorted(

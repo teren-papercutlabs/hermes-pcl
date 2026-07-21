@@ -162,6 +162,10 @@ spec:
       consumer:
         implementation: gateway/durable_jsonl_consumer.py
         mode: durable-jsonl-tail
+        scheduler: per-chat-parallel
+        siteConcurrency: 4
+        chatBatchSize: 25
+        managementCapacity: reserved
         singletonLock: /home/pclaw/.hermes-christopher-tgg/runtime/capture-consumer.lock
         cursorCommitRule: sqlite-inbox-before-cursor
         outboundDelivery: disabled

@@ -53,13 +53,39 @@ if [[ ! "$main_pid" =~ ^[1-9][0-9]*$ ]]; then
   echo "Christopher consumer has no live MainPID" >&2
   exit 32
 fi
-for fd in /proc/"$main_pid"/fd/*; do
-  target="$(readlink "$fd" 2>/dev/null || true)"
-  if [[ "$target" == /var/lib/tgg-capture/* ]]; then
-    echo "disabled consumer unexpectedly opened capture state: $target" >&2
-    exit 33
+for _ in $(seq 1 30); do
+  if python3 - "$RUNTIME_ROOT/capture-consumer-status.json" "$main_pid" <<'PY'
+import json, pathlib, sys
+try:
+    status = json.loads(pathlib.Path(sys.argv[1]).read_text())
+except (OSError, ValueError):
+    raise SystemExit(1)
+raise SystemExit(0 if status.get("pid") == int(sys.argv[2]) and status.get("scheduler_mode") == "per-chat-parallel" else 1)
+PY
+  then
+    break
   fi
+  sleep 1
 done
+python3 - "$RUNTIME_ROOT/capture-consumer-status.json" "$main_pid" <<'PY'
+import json, pathlib, sys
+status = json.loads(pathlib.Path(sys.argv[1]).read_text())
+assert status.get("pid") == int(sys.argv[2]), (status.get("pid"), int(sys.argv[2]))
+assert status.get("scheduler_mode") == "per-chat-parallel"
+PY
+if python3 - "$RUNTIME_ROOT/capture-consumer-status.json" <<'PY'
+import json, pathlib, sys
+raise SystemExit(0 if not json.loads(pathlib.Path(sys.argv[1]).read_text()).get("processing_enabled") else 1)
+PY
+then
+  for fd in /proc/"$main_pid"/fd/*; do
+    target="$(readlink "$fd" 2>/dev/null || true)"
+    if [[ "$target" == /var/lib/tgg-capture/* ]]; then
+      echo "disabled consumer unexpectedly opened capture state: $target" >&2
+      exit 33
+    fi
+  done
+fi
 
 "$APP_ROOT/.venv/bin/python" - "$APP_ROOT" "$HERMES_HOME" <<'PY'
 import datetime, hashlib, json, os, pathlib, sqlite3, stat, sys, yaml
@@ -86,11 +112,18 @@ for line in (deploy / "runtime-slots/SHA256SUMS").read_text().splitlines():
     expected[relative.strip()] = digest
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 
-assert sha(home / "config.yaml") == expected[f"{slot}/config.yaml"]
 assert sha(home / "christopher_tgg_constitution.yaml") == expected[f"{slot}/christopher_tgg_constitution.yaml"]
 config = yaml.safe_load((home / "config.yaml").read_text())
+slot_config = yaml.safe_load((deploy / "runtime-slots" / slot / "config.yaml").read_text())
 constitution = yaml.safe_load((home / "christopher_tgg_constitution.yaml").read_text())
-assert config["pa"]["enabled"] is False
+config_enabled = config["pa"]["enabled"]
+assert isinstance(config_enabled, bool)
+# ExecStartPre preserves the activation-owned live key while every authored
+# slot stays disabled by default.  Normalize only that key before comparing;
+# every other config field must remain byte-semantically equal to the slot.
+normalized_config = json.loads(json.dumps(config))
+normalized_config["pa"]["enabled"] = False
+assert normalized_config == slot_config
 assert config["group_sessions_per_user"] is False
 assert config["platforms"]["whatsapp"]["enabled"] is False
 assert config["model"]["provider"] == "openai-direct-primary"
@@ -102,7 +135,8 @@ else:
 assert constitution["runtime"] == {"provider": "openai-direct-primary", "model": slot_model}
 
 gate = json.loads((runtime / "processing-gate.json").read_text())
-assert gate["enabled"] is False
+assert isinstance(gate["enabled"], bool)
+assert gate["enabled"] is config_enabled, (gate["enabled"], config_enabled)
 # Generation counts every APPLIED transition, including fail-closed
 # rollbacks of attempted activations (activate writes gen N+1, the
 # confirmation window lapses, deactivate writes gen N+2 — the counter is
@@ -113,24 +147,30 @@ assert isinstance(gate["generation"], int) and gate["generation"] >= 0
 if gate["generation"] > 0:
     assert gate.get("change_run_id"), "transitioned gate must carry its change run id"
     assert datetime.datetime.fromisoformat(gate["changed_at"]).tzinfo is not None
-assert gate["last_transition"] is None
-assert gate["disabled_at"] == gate["initial_disabled_boundary"]
-boundary = datetime.datetime.fromisoformat(gate["disabled_at"])
+boundary_raw = gate.get("disabled_at") or gate["initial_disabled_boundary"]
+boundary = datetime.datetime.fromisoformat(boundary_raw)
 assert boundary.tzinfo is not None
 assert boundary <= datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=5)
 
 cursor = json.loads((runtime / "capture-cursor.json").read_text())
 assert cursor["source_path"] == "/var/lib/tgg-capture/whatsapp/capture/events.jsonl"
-assert int(cursor["offset"]) == int(cursor["initial_offset"])
+if not config_enabled:
+    assert int(cursor["offset"]) == int(cursor["initial_offset"])
 
 status = json.loads((runtime / "capture-consumer-status.json").read_text())
-assert status["state"] == "standby"
-assert status["processing_enabled"] is False
-assert status["config_enabled"] is False
-assert status["gate_enabled"] is False
+assert status["state"] == ("running" if config_enabled else "standby")
+assert status["processing_enabled"] is config_enabled
+assert status["config_enabled"] is config_enabled
+assert status["gate_enabled"] is config_enabled
 assert status["gate_generation"] == gate["generation"]
-assert status["source_opened"] is False
-assert status["cursor_advanced"] is False
+assert status["scheduler_mode"] == "per-chat-parallel"
+assert status["site_concurrency"] == 4
+assert status["chat_batch_size"] == 25
+assert isinstance(status["state_total"], int) and status["state_total"] >= 0
+assert sum(status["inbox"].values()) == status["state_total"]
+if not config_enabled:
+    assert status["source_opened"] is False
+    assert status["cursor_advanced"] is False
 
 state_db = home / "state.db"
 production_turns = 0
@@ -145,19 +185,57 @@ if state_db.exists():
             ).fetchone()[0]
     finally:
         conn.close()
-assert production_turns == 0, production_turns
+if not config_enabled:
+    assert production_turns == 0, production_turns
 
 inbox_db = runtime / "capture-inbox.db"
 inbox_rows = 0
 if inbox_db.exists():
     conn = sqlite3.connect(inbox_db)
+    conn.row_factory = sqlite3.Row
     try:
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if "ingress_events" in tables:
             inbox_rows = conn.execute("SELECT COUNT(*) FROM ingress_events").fetchone()[0]
+            high_water = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='state_total_high_water'"
+            ).fetchone()
+            assert high_water is not None
+            assert int(high_water[0]) == inbox_rows, (int(high_water[0]), inbox_rows)
+            active_chats = set(status["active_management_chats"]) | set(status["active_site_chats"])
+            processing = conn.execute(
+                "SELECT DISTINCT chat_id FROM ingress_events WHERE status='processing'"
+            ).fetchall()
+            processing_chats = {str(row["chat_id"]) for row in processing}
+            assert processing_chats <= active_chats, (processing_chats, active_chats)
+            constitution_path = pathlib.Path(config["pa"]["constitution_path"])
+            management = {
+                str((selector.get("match") or {}).get("source.chat_id"))
+                for selector in (yaml.safe_load(constitution_path.read_text()) or {}).get("selectors", [])
+                if selector.get("job_type") == "tgg_management"
+                and (selector.get("match") or {}).get("source.platform") == "whatsapp"
+                and (selector.get("match") or {}).get("source.chat_id")
+            }
+            if management:
+                placeholders = ",".join("?" for _ in management)
+                pending_management = conn.execute(
+                    f"SELECT COUNT(*) FROM ingress_events WHERE status='pending' AND chat_id IN ({placeholders})",
+                    tuple(sorted(management)),
+                ).fetchone()[0]
+                assert pending_management == 0 or bool(status["active_management_chats"]), (
+                    pending_management, status["active_management_chats"]
+                )
+            oldest = conn.execute(
+                "SELECT MIN(updated_at) FROM ingress_events WHERE status='processing'"
+            ).fetchone()[0]
+            if oldest:
+                oldest_dt = datetime.datetime.fromisoformat(str(oldest))
+                age = (datetime.datetime.now(datetime.timezone.utc) - oldest_dt).total_seconds()
+                assert age <= int(status["claim_stale_seconds"]), (age, status["claim_stale_seconds"])
     finally:
         conn.close()
-assert inbox_rows == 0, inbox_rows
+if not config_enabled:
+    assert inbox_rows == 0, inbox_rows
 
 config_mode = stat.S_IMODE((home / "config.yaml").stat().st_mode)
 assert config_mode == 0o640, oct(config_mode)
@@ -170,9 +248,12 @@ print(json.dumps({
     "reasoning_effort": slot_effort,
     "config_sha256": sha(home / "config.yaml"),
     "constitution_sha256": sha(home / "christopher_tgg_constitution.yaml"),
+    "processing_enabled": config_enabled,
     "production_turns_after_disabled_boundary": production_turns,
     "production_inbox_rows": inbox_rows,
-    "cursor_unchanged_while_disabled": True,
+    "cursor_unchanged_while_disabled": (not config_enabled),
+    "scheduler_mode": status["scheduler_mode"],
+    "state_total": status["state_total"],
 }, sort_keys=True))
 PY
 
