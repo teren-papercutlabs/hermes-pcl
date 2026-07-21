@@ -18,7 +18,6 @@ import argparse
 import asyncio
 import contextlib
 import fcntl
-import hashlib
 import json
 import os
 import sqlite3
@@ -396,6 +395,50 @@ class DurableInbox:
             for row in rows
         ]
 
+    def pending_chat_batches(
+        self,
+        *,
+        batch_size: int,
+        priority_chats: frozenset[str] | set[str] | None = None,
+        exclude_chats: frozenset[str] | set[str] | None = None,
+    ) -> tuple[list[tuple[str, list[InboxRecord]]], list[tuple[str, list[InboxRecord]]]]:
+        """Return FIFO batches grouped by chat, split into management/site lanes.
+
+        A chat appears at most once.  Rows stay pending until the scheduler has
+        capacity and claims that chat's batch, so no unrelated chat can own or
+        strand them.  Ordering is oldest pending row per chat, then row seq.
+        """
+        size = max(1, int(batch_size))
+        priority = set(priority_chats or ())
+        excluded = set(exclude_chats or ())
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT seq,message_id,chat_id,start_offset,end_offset,raw_json "
+                "FROM ingress_events WHERE status='pending' ORDER BY seq"
+            ).fetchall()
+        grouped: dict[str, list[InboxRecord]] = {}
+        for row in rows:
+            chat_id = str(row["chat_id"])
+            if chat_id in excluded:
+                continue
+            batch = grouped.setdefault(chat_id, [])
+            if len(batch) >= size:
+                continue
+            batch.append(
+                InboxRecord(
+                    seq=int(row["seq"]),
+                    message_id=str(row["message_id"]),
+                    chat_id=chat_id,
+                    start_offset=int(row["start_offset"]),
+                    end_offset=int(row["end_offset"]),
+                    raw=json.loads(row["raw_json"]),
+                )
+            )
+        ordered = sorted(grouped.items(), key=lambda item: item[1][0].seq)
+        management = [item for item in ordered if item[0] in priority]
+        site = [item for item in ordered if item[0] not in priority]
+        return management, site
+
     def newest_pending_for_chats(
         self, chats: frozenset[str] | set[str]
     ) -> list[InboxRecord]:
@@ -454,12 +497,105 @@ class DurableInbox:
         with self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             for record in records:
-                conn.execute(
+                changed = conn.execute(
                     "UPDATE ingress_events SET status=?, pa_turn_id=?, last_error=?, "
                     "updated_at=? WHERE seq=? AND status='processing'",
                     (status, pa_turn_id, (error or "")[:2000] or None, now, record.seq),
+                ).rowcount
+                if changed != 1:
+                    raise ConsumerError(
+                        f"inbox record {record.seq} was not processing at finish"
+                    )
+            conn.commit()
+
+    def requeue(self, records: Sequence[InboxRecord], *, reason: str) -> None:
+        """Return an owned batch to pending after graceful interruption."""
+        if not records:
+            return
+        now = _utc_now()
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            for record in records:
+                changed = conn.execute(
+                    "UPDATE ingress_events SET status='pending', last_error=?, updated_at=? "
+                    "WHERE seq=? AND status='processing'",
+                    ((reason or "interrupted")[:2000], now, record.seq),
+                ).rowcount
+                if changed != 1:
+                    raise ConsumerError(
+                        f"inbox record {record.seq} was not processing at requeue"
+                    )
+            conn.commit()
+
+    def reconcile_orphan_processing(self, state_db: Path) -> dict[str, int]:
+        """Recover prior-process claims using successful pa_turn evidence.
+
+        Completed turn refs are authoritative.  A processing row referenced by
+        such a turn becomes completed with that turn id; every other orphan is
+        returned to pending.  Nothing is deleted and the row total must remain
+        identical across the transaction.
+        """
+        turn_by_message: dict[str, str] = {}
+        if state_db.exists():
+            conn = sqlite3.connect(state_db)
+            conn.row_factory = sqlite3.Row
+            try:
+                tables = {
+                    str(row[0])
+                    for row in conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                }
+                if "pa_turns" in tables:
+                    rows = conn.execute(
+                        "SELECT turn_id,message_refs_json FROM pa_turns "
+                        "WHERE turn_status='completed' AND error_json IS NULL "
+                        "ORDER BY completed_at"
+                    ).fetchall()
+                    for row in rows:
+                        try:
+                            refs = json.loads(row["message_refs_json"] or "[]")
+                        except (TypeError, ValueError):
+                            refs = []
+                        for ref in refs:
+                            if ref:
+                                turn_by_message[str(ref)] = str(row["turn_id"])
+            finally:
+                conn.close()
+
+        now = _utc_now()
+        completed = 0
+        requeued = 0
+        with self.connect() as conn:
+            before = int(conn.execute("SELECT COUNT(*) FROM ingress_events").fetchone()[0])
+            processing = conn.execute(
+                "SELECT seq,message_id FROM ingress_events WHERE status='processing'"
+            ).fetchall()
+            conn.execute("BEGIN IMMEDIATE")
+            for row in processing:
+                turn_id = turn_by_message.get(str(row["message_id"]))
+                if turn_id:
+                    conn.execute(
+                        "UPDATE ingress_events SET status='completed',pa_turn_id=?,"
+                        "last_error=NULL,updated_at=? WHERE seq=? AND status='processing'",
+                        (turn_id, now, int(row["seq"])),
+                    )
+                    completed += 1
+                else:
+                    conn.execute(
+                        "UPDATE ingress_events SET status='pending',"
+                        "last_error='startup-orphan-requeued',updated_at=? "
+                        "WHERE seq=? AND status='processing'",
+                        (now, int(row["seq"])),
+                    )
+                    requeued += 1
+            after = int(conn.execute("SELECT COUNT(*) FROM ingress_events").fetchone()[0])
+            if after != before:
+                raise ConsumerError(
+                    f"inbox conservation failed during recovery: before={before} after={after}"
                 )
             conn.commit()
+        return {"completed": completed, "requeued": requeued, "total": completed + requeued}
 
     def counts(self) -> dict[str, int]:
         with self.connect() as conn:
@@ -467,6 +603,16 @@ class DurableInbox:
                 "SELECT status,COUNT(*) AS n FROM ingress_events GROUP BY status"
             ).fetchall()
         return {str(row["status"]): int(row["n"]) for row in rows}
+
+    def total(self) -> int:
+        return sum(self.counts().values())
+
+    def oldest_processing_updated_at(self) -> str | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT MIN(updated_at) FROM ingress_events WHERE status='processing'"
+            ).fetchone()
+        return str(row[0]) if row and row[0] else None
 
     def claim_reply_delivery(
         self, delivery_key: str, *, chat_id: str, reply_to_message_id: str | None
@@ -662,6 +808,7 @@ async def process_live_records(
     *,
     config_path: Path,
     state_db: Path,
+    runner: Any | None = None,
 ) -> dict[str, Any]:
     """Process live durable records through the replay orchestrator.
 
@@ -687,7 +834,9 @@ async def process_live_records(
     from gateway.run import GatewayRunner
 
     provider, model = configured_engine(config_path)
-    runner = GatewayRunner(load_gateway_config())
+    # Production passes one long-lived runner into every per-chat task.  The
+    # optional construction path preserves isolated callers and fixtures.
+    runner = runner or GatewayRunner(load_gateway_config())
     run_id = f"live-drain-{uuid.uuid4().hex[:12]}"
     persistent_scope = os.environ.get(
         "TGG_PERSISTENT_CHAT_SESSION_SCOPE", "management"
@@ -745,6 +894,7 @@ async def process_live_records(
         "handled": handled,
         "captured_outbound": [dict(entry) for entry in result.outbound],
         "outbound_sent": 0,
+        "submitted_message_ids": [record.message_id for record in records],
     }
 
 
@@ -1006,13 +1156,13 @@ def deliver_management_replies(
         ):
             summary["suppressed"] += 1
             continue
-        # Key = chat + anchor + content digest (codex round): two DISTINCT
-        # responses to the same anchor each deliver once; an identical
-        # response re-emitted (crash-rerun, model stutter) is refused. The
-        # synthetic replay message_id is per-run and would collide across
-        # runs ('replay-1'), so the content digest carries the identity.
-        content_digest = hashlib.sha256(send["content"].encode()).hexdigest()[:16]
-        delivery_key = f"{chat_id}::{anchor or 'no-anchor'}::{content_digest}"
+        # Cross-source contract: WhatsApp-native inbound identity only.
+        # Export/backfill and live capture may render body/quote/media text
+        # differently; content hashing would silently turn those rendering
+        # differences into distinct sends.  Once a reply is claimed for an
+        # inbound WA message, no second rendering/model response may send it
+        # again.  ``anchor`` is the source-native messageId, not replay-1.
+        delivery_key = f"{chat_id}::{anchor or 'no-anchor'}"
         if not inbox.claim_reply_delivery(
             delivery_key, chat_id=chat_id, reply_to_message_id=anchor
         ):
@@ -1093,6 +1243,101 @@ def _write_status(path: Path, payload: Mapping[str, Any]) -> None:
     _atomic_write_json(path, {"version": 1, "updated_at": _utc_now(), **dict(payload)})
 
 
+def _new_gateway_runner() -> Any:
+    from gateway.config import load_gateway_config
+    from gateway.run import GatewayRunner
+
+    return GatewayRunner(load_gateway_config())
+
+
+async def _process_claimed_chat_batch(
+    inbox: DurableInbox,
+    records: Sequence[InboxRecord],
+    *,
+    config_path: Path,
+    state_db: Path,
+    gate_changed_at: str,
+    runner: Any,
+) -> None:
+    """Claim and process exactly one chat batch through the shared runner."""
+    if not records:
+        return
+    chat_ids = {record.chat_id for record in records}
+    if len(chat_ids) != 1:
+        raise ConsumerError(f"scheduler produced a mixed-chat batch: {sorted(chat_ids)}")
+    inbox.claim(records)
+    try:
+        async with _management_typing_presence(
+            records,
+            config_path=config_path,
+            gate_changed_at=gate_changed_at,
+        ):
+            result = await process_live_records(
+                records,
+                config_path=config_path,
+                state_db=state_db,
+                runner=runner,
+            )
+        submitted = {str(value) for value in result.get("submitted_message_ids") or []}
+        expected = {record.message_id for record in records}
+        if submitted != expected:
+            raise ConsumerError(
+                "processor evidence did not conserve claimed messages: "
+                f"claimed={len(expected)} evidenced={len(submitted)}"
+            )
+        turn_for_message: dict[str, str] = {}
+        for group in result.get("handled") or []:
+            turn_id = str(group.get("turn_id") or "")
+            if not turn_id:
+                continue
+            for message_id in group.get("message_ids") or []:
+                turn_for_message[str(message_id)] = turn_id
+        unknown = set(turn_for_message) - expected
+        if unknown:
+            raise ConsumerError(
+                f"turn evidence referenced messages outside claimed chat batch: {sorted(unknown)}"
+            )
+        handled_by_turn: dict[str, list[InboxRecord]] = {}
+        skipped: list[InboxRecord] = []
+        for record in records:
+            turn_id = turn_for_message.get(record.message_id)
+            if turn_id:
+                handled_by_turn.setdefault(turn_id, []).append(record)
+            else:
+                # The native replay path consumed the row but legitimately
+                # produced no turn (mention/debounce/dedup/non-content).
+                skipped.append(record)
+        for turn_id, handled in handled_by_turn.items():
+            inbox.finish(handled, status="completed", pa_turn_id=turn_id)
+        if skipped:
+            inbox.finish(skipped, status="skipped")
+    except asyncio.CancelledError:
+        inbox.requeue(records, reason="graceful-cancellation")
+        raise
+    except Exception as exc:
+        inbox.finish(records, status="failed", error=str(exc))
+        raise
+
+    # Delivery follows durable ingest completion.  It cannot change inbox
+    # terminal state, retry the batch, or consume site-lane capacity.
+    try:
+        delivery = deliver_management_replies(
+            inbox,
+            config_path=config_path,
+            captured_outbound=result.get("captured_outbound") or [],
+            batch_records=records,
+            gate_changed_at=gate_changed_at,
+            handled_groups=result.get("handled") or [],
+        )
+        if delivery.get("delivered") or delivery.get("undelivered"):
+            print(f"reply deliveries: {delivery}", file=sys.stderr)
+    except Exception as exc:
+        print(
+            f"reply delivery machinery FAILED (ingest unaffected): {exc}",
+            file=sys.stderr,
+        )
+
+
 async def run_consumer(args: argparse.Namespace) -> int:
     config_path = Path(args.config).resolve()
     source = Path(args.source).resolve()
@@ -1100,158 +1345,237 @@ async def run_consumer(args: argparse.Namespace) -> int:
     inbox = DurableInbox(Path(args.inbox).resolve())
     status_path = Path(args.status_file).resolve()
     gate_path = Path(args.processing_gate).resolve()
+    state_db = Path(args.state_db).resolve()
+    site_concurrency = max(1, int(getattr(args, "site_concurrency", 4)))
+    chat_batch_size = max(1, int(getattr(args, "chat_batch_size", 25)))
 
     with SingletonLock(Path(args.lock_file).resolve()):
-        while True:
-            config_enabled = processing_enabled(config_path)
-            gate = processing_gate_state(gate_path)
-            gate_enabled = gate["enabled"] is True
-            if not (config_enabled and gate_enabled):
+        recovery = inbox.reconcile_orphan_processing(state_db)
+        expected_total = inbox.total()
+        runner: Any | None = None
+        tasks: dict[str, asyncio.Task[None]] = {}
+        lanes: dict[str, str] = {}
+        try:
+            while True:
+                done_chats = [chat_id for chat_id, task in tasks.items() if task.done()]
+                for chat_id in done_chats:
+                    task = tasks.pop(chat_id)
+                    lanes.pop(chat_id, None)
+                    await task
+
+                config_enabled = processing_enabled(config_path)
+                gate = processing_gate_state(gate_path)
+                gate_enabled = gate["enabled"] is True
+                if not (config_enabled and gate_enabled):
+                    if tasks:
+                        for task in tasks.values():
+                            task.cancel()
+                        await asyncio.gather(*tasks.values(), return_exceptions=True)
+                        tasks.clear()
+                        lanes.clear()
+                    counts = inbox.counts()
+                    if sum(counts.values()) != expected_total:
+                        raise ConsumerError(
+                            "inbox conservation failed in standby: "
+                            f"expected={expected_total} actual={sum(counts.values())}"
+                        )
+                    _write_status(
+                        status_path,
+                        {
+                            "state": "standby",
+                            "processing_enabled": False,
+                            "config_enabled": config_enabled,
+                            "gate_enabled": gate_enabled,
+                            "gate_generation": int(gate["generation"]),
+                            "gate_change_run_id": gate.get("change_run_id"),
+                            "pid": os.getpid(),
+                            "source_opened": False,
+                            "cursor_advanced": False,
+                            "scheduler_mode": "per-chat-parallel",
+                            "site_concurrency": site_concurrency,
+                            "chat_batch_size": chat_batch_size,
+                            "active_management_chats": [],
+                            "active_site_chats": [],
+                            "oldest_active_claim": inbox.oldest_processing_updated_at(),
+                            "state_total": expected_total,
+                            "startup_recovery": recovery,
+                            "inbox": counts,
+                        },
+                    )
+                    if args.once:
+                        return 0
+                    await asyncio.sleep(args.poll_seconds)
+                    continue
+
+                if runner is None:
+                    runner = _new_gateway_runner()
+
                 _write_status(
                     status_path,
                     {
-                        "state": "standby",
-                        "processing_enabled": False,
-                        "config_enabled": config_enabled,
-                        "gate_enabled": gate_enabled,
+                        "state": "running",
+                        "processing_enabled": True,
+                        "config_enabled": True,
+                        "gate_enabled": True,
                         "gate_generation": int(gate["generation"]),
                         "gate_change_run_id": gate.get("change_run_id"),
                         "pid": os.getpid(),
-                        "source_opened": False,
+                        "source_opened": True,
                         "cursor_advanced": False,
+                        "scheduler_mode": "per-chat-parallel",
+                        "site_concurrency": site_concurrency,
+                        "chat_batch_size": chat_batch_size,
+                        "active_management_chats": sorted(
+                            chat for chat, lane in lanes.items() if lane == "management"
+                        ),
+                        "active_site_chats": sorted(
+                            chat for chat, lane in lanes.items() if lane == "site"
+                        ),
+                        "oldest_active_claim": inbox.oldest_processing_updated_at(),
+                        "state_total": expected_total,
+                        "startup_recovery": recovery,
                         "inbox": inbox.counts(),
                     },
                 )
-                if args.once:
-                    return 0
-                await asyncio.sleep(args.poll_seconds)
-                continue
 
-            # Confirm the open-gate state BEFORE staging/processing the batch.
-            # The first batch against a real backlog runs the model for up to
-            # max_records messages — minutes, not seconds — while the
-            # processing-activation transaction's post-start confirmation
-            # window is 20s. "Running" is true the moment both keys read open;
-            # the post-batch write below remains as the per-cycle heartbeat
-            # with fresh inbox counts. (2026-07-21 activation round 6: wait()
-            # timed out against a 1,563-event backlog and rolled back an
-            # otherwise-healthy activation.)
-            _write_status(
-                status_path,
-                {
-                    "state": "running",
-                    "processing_enabled": True,
-                    "config_enabled": True,
-                    "gate_enabled": True,
-                    "gate_generation": int(gate["generation"]),
-                    "gate_change_run_id": gate.get("change_run_id"),
-                    "pid": os.getpid(),
-                    "source_opened": True,
-                    "cursor_advanced": False,
-                    "inbox": inbox.counts(),
-                },
-            )
-            # Stage until the cursor reaches the file head: staging is
-            # disk-bound and cheap, and the mgmt-priority pick below is only
-            # meaningful when fresh messages are actually staged — otherwise
-            # a new management message waits behind the whole backlog just
-            # to enter the inbox.
-            staged = inbox.stage_from_source(
-                source, cursor, max_records=args.max_records
-            )
-            while staged >= args.max_records:
+                before_stage = inbox.total()
                 staged = inbox.stage_from_source(
                     source, cursor, max_records=args.max_records
                 )
-            try:
-                priority_chats = _management_selector_chats(config_path)
-            except Exception:
-                priority_chats = frozenset()
-            demo_management_only = os.environ.get(
-                "TGG_DEMO_MANAGEMENT_ONLY", ""
-            ).strip().lower() in {"1", "true", "yes", "on"}
-            if demo_management_only:
-                # Demo window containment: the serial worker must never begin
-                # a site-backlog turn that can hold the management lane for
-                # minutes. Keep staging live traffic, but only claim one newest
-                # management record per cycle. The env flag is removed after
-                # the demo to resume the ordinary backlog drain.
-                records = inbox.newest_pending_for_chats(priority_chats)
-            else:
-                records = inbox.pending(
-                    limit=args.max_records, priority_chats=priority_chats
+                while staged >= args.max_records:
+                    staged = inbox.stage_from_source(
+                        source, cursor, max_records=args.max_records
+                    )
+                after_stage = inbox.total()
+                if after_stage < before_stage:
+                    raise ConsumerError(
+                        "inbox conservation failed during staging: "
+                        f"before={before_stage} after={after_stage}"
+                    )
+                expected_total += after_stage - before_stage
+
+                try:
+                    priority_chats = _management_selector_chats(config_path)
+                except Exception:
+                    priority_chats = frozenset()
+                demo_management_only = os.environ.get(
+                    "TGG_DEMO_MANAGEMENT_ONLY", ""
+                ).strip().lower() in {"1", "true", "yes", "on"}
+                management_batches, site_batches = inbox.pending_chat_batches(
+                    batch_size=chat_batch_size,
+                    priority_chats=priority_chats,
+                    exclude_chats=set(tasks),
                 )
-            if records:
-                inbox.claim(records)
-                async with _management_typing_presence(
-                    records,
-                    config_path=config_path,
-                    gate_changed_at=str(gate.get("changed_at") or ""),
-                ):
-                    try:
-                        result = await process_live_records(
+                gate_changed_at = str(gate.get("changed_at") or "")
+
+                # Reserved management capacity: these tasks never acquire or
+                # wait for a site slot.  One task per chat preserves FIFO.
+                for chat_id, records in management_batches:
+                    tasks[chat_id] = asyncio.create_task(
+                        _process_claimed_chat_batch(
+                            inbox,
                             records,
                             config_path=config_path,
-                            state_db=Path(args.state_db),
+                            state_db=state_db,
+                            gate_changed_at=gate_changed_at,
+                            runner=runner,
                         )
-                        handled_ids = {
-                            message_id
-                            for group in result["handled"]
-                            for message_id in group["message_ids"]
-                        }
-                        turn_ids = [group["turn_id"] for group in result["handled"]]
-                        handled = [r for r in records if r.message_id in handled_ids]
-                        skipped = [r for r in records if r.message_id not in handled_ids]
-                        if handled:
-                            inbox.finish(
-                                handled,
-                                status="completed",
-                                pa_turn_id=turn_ids[-1] if turn_ids else None,
+                    )
+                    lanes[chat_id] = "management"
+
+                if not demo_management_only:
+                    active_site = sum(1 for lane in lanes.values() if lane == "site")
+                    available_site = max(0, site_concurrency - active_site)
+                    for chat_id, records in site_batches[:available_site]:
+                        tasks[chat_id] = asyncio.create_task(
+                            _process_claimed_chat_batch(
+                                inbox,
+                                records,
+                                config_path=config_path,
+                                state_db=state_db,
+                                gate_changed_at=gate_changed_at,
+                                runner=runner,
                             )
-                        if skipped:
-                            inbox.finish(skipped, status="skipped")
-                    except Exception as exc:
-                        inbox.finish(records, status="failed", error=str(exc))
-                        raise
-                    # Management-selector reply delivery (teren 2026-07-21): runs
-                    # AFTER classification is committed, outside its try, so a
-                    # delivery problem can never re-mark records or fail ingest.
-                    # deliver_management_replies swallows per-send errors (loud
-                    # log + durable undelivered mark, never a retry); this guard
-                    # covers unexpected faults in the delivery machinery itself.
-                    try:
-                        delivery = deliver_management_replies(
-                            inbox,
-                            config_path=config_path,
-                            captured_outbound=result.get("captured_outbound") or [],
-                            batch_records=records,
-                            gate_changed_at=str(gate.get("changed_at") or ""),
-                            handled_groups=result.get("handled") or [],
                         )
-                        if delivery.get("delivered") or delivery.get("undelivered"):
-                            print(f"reply deliveries: {delivery}", file=sys.stderr)
-                    except Exception as exc:
-                        print(
-                            f"reply delivery machinery FAILED (ingest unaffected): {exc}",
-                            file=sys.stderr,
+                        lanes[chat_id] = "site"
+
+                if args.once:
+                    if tasks:
+                        await asyncio.gather(*tasks.values())
+                        tasks.clear()
+                        lanes.clear()
+                    counts = inbox.counts()
+                    if sum(counts.values()) != expected_total:
+                        raise ConsumerError(
+                            "inbox conservation failed at once boundary: "
+                            f"expected={expected_total} actual={sum(counts.values())}"
                         )
-            _write_status(
-                status_path,
-                {
-                    "state": "running",
-                    "processing_enabled": True,
-                    "config_enabled": True,
-                    "gate_enabled": True,
-                    "gate_generation": int(gate["generation"]),
-                    "gate_change_run_id": gate.get("change_run_id"),
-                    "pid": os.getpid(),
-                    "staged": staged,
-                    "inbox": inbox.counts(),
-                },
-            )
-            if args.once:
-                return 0
-            await asyncio.sleep(args.poll_seconds)
+                    _write_status(
+                        status_path,
+                        {
+                            "state": "running",
+                            "processing_enabled": True,
+                            "config_enabled": True,
+                            "gate_enabled": True,
+                            "gate_generation": int(gate["generation"]),
+                            "gate_change_run_id": gate.get("change_run_id"),
+                            "pid": os.getpid(),
+                            "staged": after_stage - before_stage,
+                            "scheduler_mode": "per-chat-parallel",
+                            "site_concurrency": site_concurrency,
+                            "chat_batch_size": chat_batch_size,
+                            "active_management_chats": [],
+                            "active_site_chats": [],
+                            "oldest_active_claim": inbox.oldest_processing_updated_at(),
+                            "state_total": expected_total,
+                            "startup_recovery": recovery,
+                            "inbox": counts,
+                        },
+                    )
+                    return 0
+
+                counts = inbox.counts()
+                if sum(counts.values()) != expected_total:
+                    raise ConsumerError(
+                        "inbox conservation failed: "
+                        f"expected={expected_total} actual={sum(counts.values())}"
+                    )
+                _write_status(
+                    status_path,
+                    {
+                        "state": "running",
+                        "processing_enabled": True,
+                        "config_enabled": True,
+                        "gate_enabled": True,
+                        "gate_generation": int(gate["generation"]),
+                        "gate_change_run_id": gate.get("change_run_id"),
+                        "pid": os.getpid(),
+                        "staged": after_stage - before_stage,
+                        "scheduler_mode": "per-chat-parallel",
+                        "site_concurrency": site_concurrency,
+                        "chat_batch_size": chat_batch_size,
+                        "active_management_chats": sorted(
+                            chat for chat, lane in lanes.items() if lane == "management"
+                        ),
+                        "active_site_chats": sorted(
+                            chat for chat, lane in lanes.items() if lane == "site"
+                        ),
+                        "oldest_active_claim": inbox.oldest_processing_updated_at(),
+                        "state_total": expected_total,
+                        "startup_recovery": recovery,
+                        "inbox": counts,
+                    },
+                )
+                await asyncio.sleep(args.poll_seconds)
+        except asyncio.CancelledError:
+            for task in tasks.values():
+                task.cancel()
+            await asyncio.gather(*tasks.values(), return_exceptions=True)
+            if inbox.total() != expected_total:
+                raise ConsumerError(
+                    "inbox conservation failed during graceful cancellation"
+                )
+            raise
 
 
 async def run_fixture(args: argparse.Namespace) -> int:
@@ -1319,6 +1643,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--status-file", required=True)
     run.add_argument("--poll-seconds", type=float, default=2.0)
     run.add_argument("--max-records", type=int, default=100)
+    run.add_argument("--site-concurrency", type=int, default=4)
+    run.add_argument("--chat-batch-size", type=int, default=25)
     run.add_argument("--once", action="store_true")
 
     fixture = sub.add_parser(
