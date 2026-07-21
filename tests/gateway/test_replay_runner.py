@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import sqlite3
@@ -74,7 +75,8 @@ async def test_gateway_runner_replay_uses_no_connect_build_and_captures_outbound
         assert ctx is not None
         assert ctx.execution_mode == "replay"
         assert ctx.run_id == "run-1"
-        assert os.getenv("WHATSAPP_HOME_CHANNEL") == "eval-home@g.us"
+        assert os.getenv("WHATSAPP_HOME_CHANNEL") is None
+        assert runner._home_channel_is_configured("whatsapp") is True
         return "captured reply"
 
     monkeypatch.setattr(runner, "_build_adapter", fake_build)
@@ -98,6 +100,93 @@ async def test_gateway_runner_replay_uses_no_connect_build_and_captures_outbound
     assert result.outbound[0]["headers"]["X-Replay-Attempt-Id"] == "attempt-1"
     assert result.attempt["run_id"] == "run-1"
     assert result.attempt["replay_namespace"] == "agent:replay:run-1"
+    assert "WHATSAPP_HOME_CHANNEL" not in os.environ
+
+
+@pytest.mark.asyncio
+async def test_gateway_runner_concurrent_replays_keep_adapter_context_home_and_sessions_isolated(
+    monkeypatch,
+):
+    """Two overlapping chats must not inherit the last replay's adapter/context."""
+    monkeypatch.delenv("WHATSAPP_HOME_CHANNEL", raising=False)
+    runner = GatewayRunner(GatewayConfig(
+        platforms={Platform.WHATSAPP: PlatformConfig(
+            enabled=True,
+            extra={"group_sessions_per_user": False, "thread_sessions_per_user": False},
+        )}
+    ))
+    runner._session_db = None
+    both_entered = asyncio.Event()
+    entered = 0
+    observed = {}
+
+    class ConcurrentReplayAdapter(FakeReplayAdapter):
+        def __init__(self, label):
+            super().__init__()
+            self.label = label
+
+        async def replay_bridge_messages(self, messages, *, bypass_require_mention=True) -> int:
+            nonlocal entered
+            entered += 1
+            if entered == 2:
+                both_entered.set()
+            await asyncio.wait_for(both_entered.wait(), timeout=2)
+            message = messages[0]
+            source = SessionSource(
+                platform=Platform.WHATSAPP,
+                chat_id=message["chatId"],
+                chat_type="group",
+                user_id=f"{self.label}@s.whatsapp.net",
+            )
+            ctx = current_replay_context()
+            observed[self.label] = {
+                "run_id": ctx.run_id if ctx else None,
+                "session_key": runner._session_key_for_source(source),
+                "home": runner._home_channel_is_configured("whatsapp"),
+                "env": os.getenv("WHATSAPP_HOME_CHANNEL"),
+            }
+            await runner.delivery_router._deliver_to_platform(
+                DeliveryTarget(Platform.WHATSAPP, chat_id=message["chatId"]),
+                f"reply-{self.label}",
+                {"label": self.label},
+            )
+            return 1
+
+    async def fake_build(platform, platform_config, *, connect=True):
+        ctx = current_replay_context()
+        adapter = ConcurrentReplayAdapter(ctx.run_id)
+        runner._wire_adapter(adapter)
+        return adapter, None
+
+    monkeypatch.setattr(runner, "_build_adapter", fake_build)
+    plans = [
+        ReplayPlan(
+            platform="whatsapp",
+            run_id=f"run-{label}",
+            attempt_id=f"attempt-{label}",
+            messages=({
+                "messageId": f"message-{label}",
+                "chatId": f"chat-{label}@g.us",
+                "body": label,
+                "timestamp": 100,
+            },),
+        )
+        for label in ("a", "b")
+    ]
+
+    result_a, result_b = await asyncio.gather(*(runner.replay(plan) for plan in plans))
+
+    assert [entry["args"][1] for entry in result_a.outbound] == ["reply-run-a"]
+    assert [entry["args"][1] for entry in result_b.outbound] == ["reply-run-b"]
+    assert observed["run-a"]["run_id"] == "run-a"
+    assert observed["run-b"]["run_id"] == "run-b"
+    assert observed["run-a"]["session_key"].startswith("agent:replay:run-a:")
+    assert observed["run-b"]["session_key"].startswith("agent:replay:run-b:")
+    assert observed["run-a"]["session_key"] != observed["run-b"]["session_key"]
+    assert observed["run-a"]["home"] is True
+    assert observed["run-b"]["home"] is True
+    assert observed["run-a"]["env"] is None
+    assert observed["run-b"]["env"] is None
     assert "WHATSAPP_HOME_CHANNEL" not in os.environ
 
 

@@ -37,7 +37,10 @@ import signal
 import tempfile
 import threading
 import time
+from collections.abc import MutableMapping
 from collections import OrderedDict
+from contextlib import contextmanager
+from contextvars import ContextVar
 from contextvars import copy_context
 from pathlib import Path
 from datetime import datetime
@@ -65,6 +68,55 @@ _AGENT_CACHE_IDLE_TTL_SECS = 3600.0  # evict agents idle for >1h
 _PLATFORM_CONNECT_TIMEOUT_SECS_DEFAULT = 30.0
 _ADAPTER_DISCONNECT_TIMEOUT_SECS_DEFAULT = 5.0
 _TELEGRAM_COMMAND_MENTION_RE = re.compile(r"(?<![\w:/])/([A-Za-z0-9][A-Za-z0-9_-]*)")
+
+
+class _TaskLocalAdapterRegistry(MutableMapping):
+    """Live adapter registry with replay-only task-local overrides.
+
+    A single ``GatewayRunner`` may execute multiple replay plans concurrently.
+    Replay adapters must therefore never be installed into the process-wide
+    live registry: the last installation otherwise captures sends from every
+    in-flight replay.  Normal gateway reads/writes use ``_base`` unchanged;
+    a replay task sees and mutates only its ContextVar-backed overlay.
+    """
+
+    def __init__(self) -> None:
+        self._base: dict[Any, Any] = {}
+        self._overlay: ContextVar[dict[Any, Any] | None] = ContextVar(
+            "gateway_replay_adapter_overlay", default=None
+        )
+
+    @contextmanager
+    def task_local(self, adapters: Mapping[Any, Any]):
+        token = self._overlay.set(dict(adapters))
+        try:
+            yield self
+        finally:
+            self._overlay.reset(token)
+
+    def _current(self) -> dict[Any, Any]:
+        overlay = self._overlay.get()
+        return self._base if overlay is None else overlay
+
+    def __getitem__(self, key: Any) -> Any:
+        return self._current()[key]
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        self._current()[key] = value
+
+    def __delitem__(self, key: Any) -> None:
+        del self._current()[key]
+
+    def __iter__(self):
+        return iter(self._current())
+
+    def __len__(self) -> int:
+        return len(self._current())
+
+
+_REPLAY_HOME_CHANNELS: ContextVar[dict[str, str] | None] = ContextVar(
+    "gateway_replay_home_channels", default=None
+)
 
 
 def _telegramize_command_mentions(text: str, platform: Any) -> str:
@@ -1846,7 +1898,9 @@ class GatewayRunner:
     def __init__(self, config: Optional[GatewayConfig] = None):
         global _gateway_runner_ref
         self.config = config or load_gateway_config()
-        self.adapters: Dict[Platform, BasePlatformAdapter] = {}
+        self.adapters: MutableMapping[Platform, BasePlatformAdapter] = (
+            _TaskLocalAdapterRegistry()
+        )
         self._warn_if_docker_media_delivery_is_risky()
         _gateway_runner_ref = _weakref.ref(self)
 
@@ -1869,6 +1923,10 @@ class GatewayRunner:
             has_active_processes_fn=lambda key: process_registry.has_active_for_session(key),
         )
         self.delivery_router = DeliveryRouter(self.config)
+        # DeliveryRouter's constructor treats an empty mapping as false and
+        # replaces it with a plain dict, so bind the task-aware registry after
+        # construction.
+        self.delivery_router.adapters = self.adapters
         self._running = False
         self._gateway_loop: Optional[asyncio.AbstractEventLoop] = None
         self._shutdown_event = asyncio.Event()
@@ -6208,8 +6266,8 @@ class GatewayRunner:
             if hasattr(adapter, name):
                 setattr(adapter, name, _make_guard(name))
 
-    def _install_replay_home_channel_env(self, platform: Any, plan: Any) -> tuple[str, str | None] | None:
-        """Temporarily seed a replay-only home-channel env var.
+    def _replay_home_channel(self, platform: Any, plan: Any) -> str | None:
+        """Resolve the replay-only home channel without mutating ``os.environ``.
 
         The first-message onboarding notice checks ``<PLATFORM>_HOME_CHANNEL``
         directly. Eval replay homes are disposable, so seed the env var from
@@ -6220,7 +6278,7 @@ class GatewayRunner:
         platform_name = getattr(platform, "value", str(platform))
         env_key = _home_target_env_var(platform_name)
         if os.environ.get(env_key):
-            return None
+            return str(os.environ[env_key])
 
         chat_id = None
         try:
@@ -6245,19 +6303,14 @@ class GatewayRunner:
         if not chat_id:
             return None
 
-        previous = os.environ.get(env_key)
-        os.environ[env_key] = chat_id
-        return env_key, previous
+        return chat_id
 
     @staticmethod
-    def _restore_replay_home_channel_env(patch: tuple[str, str | None] | None) -> None:
-        if patch is None:
-            return
-        env_key, previous = patch
-        if previous is None:
-            os.environ.pop(env_key, None)
-        else:
-            os.environ[env_key] = previous
+    def _home_channel_is_configured(platform_name: str) -> bool:
+        if os.getenv(_home_target_env_var(platform_name)):
+            return True
+        replay_homes = _REPLAY_HOME_CHANNELS.get()
+        return bool(replay_homes and replay_homes.get(platform_name))
 
     async def replay(self, plan: Any):
         """Replay bridge-message corpus through the native gateway path."""
@@ -6283,25 +6336,29 @@ class GatewayRunner:
         if session_db is not None and hasattr(session_db, "record_replay_attempt"):
             session_db.record_replay_attempt(**attempt.to_db_kwargs())
 
-        home_channel_patch = None
         try:
             with replay_context(plan) as ctx:
-                home_channel_patch = self._install_replay_home_channel_env(platform, plan)
+                replay_home = self._replay_home_channel(platform, plan)
                 adapter, _ = await self._build_adapter(platform, platform_config, connect=False)
                 if adapter is None:
                     raise RuntimeError(f"No adapter available for {platform.value}")
                 if not hasattr(adapter, "replay_bridge_messages"):
                     raise RuntimeError(f"Adapter {platform.value!r} does not support replay_bridge_messages")
-                self.adapters[platform] = adapter
-                self.delivery_router.adapters = self.adapters
-                self._install_replay_delivery_guard(adapter, ctx)
-
-                replay_fn = getattr(adapter, "replay_bridge_messages")
-                processed = await replay_fn(
-                    list(plan.messages),
-                    bypass_require_mention=plan.bypass_require_mention,
+                home_token = _REPLAY_HOME_CHANNELS.set(
+                    {platform.value: replay_home} if replay_home else {}
                 )
-                await self._drain_replay_adapter_tasks(adapter)
+                try:
+                    with self.adapters.task_local({platform: adapter}):
+                        self._install_replay_delivery_guard(adapter, ctx)
+
+                        replay_fn = getattr(adapter, "replay_bridge_messages")
+                        processed = await replay_fn(
+                            list(plan.messages),
+                            bypass_require_mention=plan.bypass_require_mention,
+                        )
+                        await self._drain_replay_adapter_tasks(adapter)
+                finally:
+                    _REPLAY_HOME_CHANNELS.reset(home_token)
 
                 completed_at = time.time()
                 if session_db is not None and hasattr(session_db, "finish_replay_attempt"):
@@ -6343,8 +6400,6 @@ class GatewayRunner:
                 except Exception:
                     pass
             raise
-        finally:
-            self._restore_replay_home_channel_env(home_channel_patch)
 
     def _create_adapter(
         self, 
@@ -8874,7 +8929,7 @@ class GatewayRunner:
         if not history and source.platform and source.platform != Platform.LOCAL and source.platform != Platform.WEBHOOK:
             platform_name = source.platform.value
             env_key = _home_target_env_var(platform_name)
-            if not os.getenv(env_key):
+            if not self._home_channel_is_configured(platform_name):
                 # Slack dispatches all Hermes commands through a single
                 # parent slash command `/hermes`; bare `/sethome` is not
                 # registered and would fail with "app did not respond".

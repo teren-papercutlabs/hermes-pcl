@@ -3,7 +3,7 @@
 The contract under test:
 - delivery keys on the inbound chat's SELECTOR class: management only —
   a site/ingest-selector response must NEVER deliver (negative test);
-- at-most-once per turn response via a durable pre-send claim;
+- at-most-once per inbound WhatsApp message via a durable pre-send claim;
 - a bridge refusal / transport failure marks undelivered and never raises
   into the ingest path, and never retries.
 """
@@ -166,7 +166,7 @@ def test_mgmt_delivery_is_at_most_once(
     }
 
 
-def test_distinct_responses_to_same_anchor_each_deliver(
+def test_distinct_renderings_for_same_anchor_still_deliver_only_once(
     inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     sent: list = []
@@ -187,8 +187,13 @@ def test_distinct_responses_to_same_anchor_each_deliver(
         gate_changed_at=GATE_CHANGED_AT,
         handled_groups=_handled("MSG1"),
     )
-    assert summary["delivered"] == 2 and summary["duplicate"] == 0
-    assert len(sent) == 2
+    assert summary["delivered"] == 1 and summary["duplicate"] == 1
+    assert len(sent) == 1
+    with inbox.connect() as conn:
+        row = conn.execute(
+            "SELECT delivery_key FROM reply_deliveries"
+        ).fetchone()
+    assert row["delivery_key"] == f"{MGMT_CHAT}::MSG1"
 
 
 def test_indeterminate_202_outcome_marks_undelivered(
