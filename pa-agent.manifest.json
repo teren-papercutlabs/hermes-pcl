@@ -205,7 +205,7 @@
           "name": "verify-outbound-policy-pre-restart",
           "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --management-chat 120363427363740087@g.us --management-chat 120363427897872447@g.us --management-chat 120363407433776639@g.us --management-chat 120363426509183563@g.us --management-chat 120363407903158826@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us --env-file /home/pclaw/.hermes-christopher-tgg/.env --env-file /home/pclaw/.hermes-christopher-tgg-state/.env --config-file /home/pclaw/.hermes-christopher-tgg/config.yaml --constitution-file /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml --policy-env-file /home/pclaw/.hermes-christopher-tgg/outbound-policy.env --check-only",
           "transaction": {
-            "behavior": "idempotent"
+            "behavior": "read-only"
           }
         },
         {
