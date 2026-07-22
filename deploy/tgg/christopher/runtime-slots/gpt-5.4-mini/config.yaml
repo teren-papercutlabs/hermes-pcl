@@ -12,7 +12,8 @@ pa:
   enabled: false
   media_retention:
     enabled: true
-    media_root: /home/pclaw/.systems-pcl/data/media
+    media_root: /home/pclaw/.systems-pcl/data/media/tgg/hermes
+    media_ref_prefix: /media/tgg/hermes
     source_roots:
     - /var/lib/tgg-capture/whatsapp/media
     operation: tgg_media_retention

@@ -48,7 +48,8 @@ MEMORY_OFF_BLOCK = "memory:\n  memory_enabled: false\n  user_profile_enabled: fa
 MEDIA_RETENTION_BLOCK = (
     "  media_retention:\n"
     "    enabled: true\n"
-    "    media_root: /home/pclaw/.systems-pcl/data/media\n"
+    "    media_root: /home/pclaw/.systems-pcl/data/media/tgg/hermes\n"
+    "    media_ref_prefix: /media/tgg/hermes\n"
     "    source_roots:\n"
     "    - /var/lib/tgg-capture/whatsapp/media\n"
     "    operation: tgg_media_retention\n"
@@ -463,7 +464,8 @@ def _validate(
     assert config["pa"]["enabled"] is False
     assert config["pa"]["media_retention"] == {
         "enabled": True,
-        "media_root": "/home/pclaw/.systems-pcl/data/media",
+        "media_root": "/home/pclaw/.systems-pcl/data/media/tgg/hermes",
+        "media_ref_prefix": "/media/tgg/hermes",
         "source_roots": ["/var/lib/tgg-capture/whatsapp/media"],
         "operation": "tgg_media_retention",
         "min_free_percent": 20,

@@ -941,6 +941,7 @@ def _retention_config(config_path: Path) -> dict[str, Any] | None:
     root = Path(root_value).expanduser()
     source_roots = raw.get("source_roots") or raw.get("allowed_source_roots") or []
     operation = str(raw.get("operation") or raw.get("retention_operation") or "")
+    ref_prefix = str(raw.get("media_ref_prefix") or "/media").strip().rstrip("/")
     if not root_value:
         raise MediaRetentionError("media retention root is not configured")
     if isinstance(source_roots, (str, bytes)):
@@ -949,10 +950,19 @@ def _retention_config(config_path: Path) -> dict[str, Any] | None:
         raise MediaRetentionError("media retention source_roots are not configured")
     if not operation:
         raise MediaRetentionError("media retention operation is not configured")
+    if (
+        ref_prefix != "/media"
+        and (
+            not ref_prefix.startswith("/media/")
+            or any(part in {"", ".", ".."} for part in ref_prefix.split("/")[2:])
+        )
+    ):
+        raise MediaRetentionError("media retention ref prefix is invalid")
     return {
         "root": root.resolve(),
         "source_roots": tuple(Path(str(p)).expanduser().resolve() for p in source_roots),
         "operation": operation,
+        "ref_prefix": ref_prefix,
         "min_free_percent": float(raw.get("min_free_percent", 20)),
     }
 
@@ -1212,7 +1222,7 @@ def _retain_record_media_impl(
             "media_ordinal": ordinal,
             "digest": digest,
             "mime": mime,
-            "ref": f"/media/{target.name}",
+            "ref": f"{config['ref_prefix']}/{target.name}",
         })
 
     try:

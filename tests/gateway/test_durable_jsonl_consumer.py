@@ -47,6 +47,7 @@ def _retention_config(tmp_path: Path, source_root: Path, media_root: Path) -> Pa
             "media_retention": {
                 "enabled": True,
                 "media_root": str(media_root),
+                "media_ref_prefix": "/media/tgg/hermes",
                 "source_roots": [str(source_root)],
                 "operation": "tgg_media_retention",
             },
@@ -84,7 +85,7 @@ def test_media_retention_is_atomic_idempotent_and_provenance_bound(tmp_path, mon
     assert calls[0] == calls[1]
     assert calls[0]["message_id"] == "M-IMAGE"
     assert calls[0]["media"][0]["media_ordinal"] == 0
-    assert calls[0]["media"][0]["ref"] == f"/media/{files[0].name}"
+    assert calls[0]["media"][0]["ref"] == f"/media/tgg/hermes/{files[0].name}"
 
     files[0].write_bytes(_png_bytes(b"changed"))
     with pytest.raises(consumer.MediaRetentionError, match="PROVENANCE_DIVERGENCE"):

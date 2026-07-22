@@ -234,7 +234,8 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
             raise RuntimeError(f"slot {slot} enables PA")
         if config["pa"].get("media_retention") != {
             "enabled": True,
-            "media_root": "/home/pclaw/.systems-pcl/data/media",
+            "media_root": "/home/pclaw/.systems-pcl/data/media/tgg/hermes",
+            "media_ref_prefix": "/media/tgg/hermes",
             "source_roots": ["/var/lib/tgg-capture/whatsapp/media"],
             "operation": "tgg_media_retention",
             "min_free_percent": 20,
