@@ -203,11 +203,13 @@
       "preRestartHooks": [
         {
           "name": "configure-outbound-policy",
-          "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --management-chat 120363427363740087@g.us --management-chat 120363427897872447@g.us --management-chat 120363407433776639@g.us --management-chat 120363426509183563@g.us --management-chat 120363407903158826@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us"
+          "command": "python3 /home/pclaw/apps/hermes-pcl/scripts/deploy/configure_christopher_outbound.py --management-chat 120363409954029949@g.us --management-chat 120363427363740087@g.us --management-chat 120363427897872447@g.us --management-chat 120363407433776639@g.us --management-chat 120363426509183563@g.us --management-chat 120363407903158826@g.us --ops-chat 120363403088884777@g.us --ops-chat 120363403845802098@g.us --ops-chat 120363405141229117@g.us --ops-chat 120363420803272720@g.us --ops-chat 120363421153247095@g.us --ops-chat 120363421424519051@g.us --ops-chat 120363422582425366@g.us --ops-chat 120363423535922556@g.us --ops-chat 120363423568509280@g.us",
+          "transaction": { "behavior": "idempotent" }
         },
         {
           "name": "daemon-reload",
-          "command": "systemctl daemon-reload"
+          "command": "systemctl daemon-reload",
+          "transaction": { "behavior": "idempotent" }
         }
       ],
       "postRestartHooks": []
