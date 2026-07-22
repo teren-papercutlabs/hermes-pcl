@@ -55,3 +55,32 @@ Merge gate: cleared from this reviewer's side. No maker code was changed.
 3. Commit history on the branch is noisy (fix → revert → fix → restore from the worktree race); net tree is coherent. Squash-merge would keep main clean.
 
 Merge gate: cleared from this reviewer's side at 01c0a4c. No maker code was changed.
+
+---
+
+# Round 3: one-pass fixed point + coupled reversal — re-review
+
+- Target: `origin/worker/99130591` @ `84a660ad3939ac18750bb56c6de5f165f23545d5` (deploy branch; supersedes intermediate `cd0c669` which parent blocked on coupled reversal)
+- Context: production apply (10,735 ledger rows, 25 observations) was not a one-pass fixed point — immediate dry-run predicted 3 more observation changes, because observations were refreshed per-message against intermediate ledger state. `cd0c669` restructured the batch into two phases (converge ALL ledger rows, then refresh each affected observation ONCE from final state, same `BEGIN IMMEDIATE`), with a virtual CAS chain in the manifest (first matching mutation owns before→final; later ones assert final→final). Parent caught the coupled-reversal blocker in that shape (edit one ledger post-apply → sibling mutation could still reverse, clobbering the shared observation); `84a660a` fixes it by grouping manifest mutations into connected components (union-find over shared observation ids), preflighting the whole component (ledger hash CAS + simulated observation-chain CAS + insert-reference guard) before mutating anything, and applying or holding each component atomically.
+
+## Verdict (round 3): CLEAR at 84a660a — no blocking defects
+
+## Independently verified (fresh worktree, own runs)
+
+- Focused convergence file **10/10**, full suite **374/374**, build exit 0.
+- Scope check: vs my cleared `01c0a4c` content, only `store.ts` + tests differ (plus an unrelated sender-key deployment doc); reconcile script, routes, README, schema byte-identical. No schema/config/exact-match regression.
+- Two-phase batch is a fixed point by construction: second run finds identical ledger rows → identical derivation → 0/0.
+- Legacy chained manifests (real before→intermediate→final chains, i.e. the manifest already produced by the production apply under prior code) remain reversible under the new component logic — maker test constructs one and it unwinds to the exact initial fields.
+- Adversarial probes beyond maker tests (5, throwaway file, run then deleted — all passed):
+  1. 3-message shared observation (one message pre-existing with legacy natural keys, cited only via stored `source_ref`; two inserted later in batch — the production topology): ONE pass lands all 3 media, immediate replay 0/0, reverse restores the observation exactly once, deletes only the 2 inserted rows, pre-existing row survives with its legacy source_key.
+  2. **Coupled adversary (the parent's blocker case)**: two inserted messages feed one observation; post-apply edit to ONE ledger row → whole component held (`conflictsHeld: 2`), observation byte-identical, both ledger rows survive including the edit. No partial reversal, no clobber.
+  3. Component isolation: an unrelated third mutation in the same manifest still reverses (its row deleted, its observation restored) while the coupled pair holds.
+  4. Later observation edit holds ALL connected mutations; the edit survives; ledger rows survive.
+  5. Audit: exactly one `message.media_converged` row per effective mutation; the shared observation's change attributed to exactly one mutation; replay writes zero audit rows; a held reverse writes zero reversal audit rows.
+
+## Non-blocking observations (round 3)
+
+1. `conflictsHeld` now counts mutations (component members), not components — operator reading the reverse report should know a single conflict can surface as N held counts. Consistent with tests; worth a line in README on next touch.
+2. Round-2 non-blocking notes (ledger `source` label for export-keyed inserts, placeholder chat_jid documentation, noisy history → squash-merge) still stand.
+
+Merge gate: cleared from this reviewer's side at 84a660ad3939ac18750bb56c6de5f165f23545d5. No maker code was changed.
