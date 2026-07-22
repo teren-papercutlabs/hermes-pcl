@@ -168,8 +168,8 @@ spec:
         convergenceOperation: tgg_media_retention
         retrievalOperation: tgg_case_media
         retrievalTool: tgg_case_photos
-        ordering: retain-and-converge-before-model-and-inbox-completion
-        failureDisposition: retry-pending
+        ordering: retain-and-converge-while-business-pending-before-lane-selection-with-claimed-chat-idempotent-safety-net
+        failureDisposition: retention-held-business-pending-retry-without-lane-death
         activationBacklogPreflight: all-image-paths-from-current-cursor-must-resolve
         minimumRealVolumeFreePercent: 20
         pathContract: opaque-media-refs-resolved-under-configured-root
@@ -186,6 +186,7 @@ spec:
         scheduler: per-chat-parallel
         siteConcurrency: 4
         chatBatchSize: 25
+        retentionBatchSize: 25
         managementCapacity: reserved
         singletonLock: /home/pclaw/.hermes-christopher-tgg/runtime/capture-consumer.lock
         cursorCommitRule: sqlite-inbox-before-cursor
@@ -195,6 +196,12 @@ spec:
         statusMediaFields:
           - retention_total
           - retention_failures
+          - retention_attempts
+          - retention_pending
+          - retention_complete
+          - retention_bypassed
+          - retention_held
+          - retention_hold
           - media_root_count
           - media_root_bytes
           - media_volume_free_percent
