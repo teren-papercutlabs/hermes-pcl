@@ -29,3 +29,29 @@
 3. Dry-run's `observationsChanged` is a predictor heuristic; apply output overrides it with actual counts. Labeled correctly in output.
 
 Merge gate: cleared from this reviewer's side. No maker code was changed.
+
+---
+
+# Round 2: production-shape correction — re-review
+
+- New target: `origin/worker/a5a36f41` @ `01c0a4ce957f2079563208bab30cf3915e0360df` (6 commits past `a19fccb`; net +271/-55 across README, reconcile script, store.ts, tests)
+- Context: maker's live dry-run against production capture data found the reconcile parser did not match real capture shapes; a same-worktree commit race (ab1e61a/b84824a "unidentified concurrent" edits) was reverted and restored; final tree is what I reviewed.
+
+## Verdict (round 2): CLEAR — no blocking defects
+
+## Independently verified at 01c0a4c (fresh worktree, own runs)
+
+- Focused convergence file **10/10**, full suite **374/374**, build exit 0 — all match maker claims.
+- **Capture matching** now prefers production `normalized.messageId` / `normalized.chatId` / `normalized.mediaUrls`; media URLs join to exactly one basename in the media root (URL parse failure → unmatched; >1 candidate → held). Still exact-only.
+- **Export matching rewritten**: `export_backfill_<zone>_<24hex>_<ordinal>-PHOTO` files join only to observation source refs `EXPORT_BACKFILL_<zone>_<ts>_<24hex>` on exact zone + trailing 24-hex hash. The timestamp inside the ref string is NOT a matching input — multiple distinct refs sharing zone+hash are held as ambiguous (tested), multiple ledger rows held, capture-vs-ledger source_key mismatch held, ordinal collisions held. Exact-only contract preserved.
+- **CAS fix is a real correctness improvement**: the manifest now snapshots every observation that cited an inserted alias (including unchanged ones), so reversal can distinguish pre-existing citations (reversible) from post-apply citations (held). Round 1's semantics would have made an inserted row with any pre-existing citation permanently irreversible.
+- Adversarial probes (throwaway test, run then deleted): (1) inserted row with pre-existing citation now reverses cleanly — ledger row deleted, observation restored; (2) referenced-but-unchanged observation edited after apply → whole mutation held, later edit survives. Maker's own new test covers the post-apply-citation hold.
+- README documents the production shapes, export semantics, updated reversal contract, and corrected `pnpm tgg:media-reconcile` syntax (exercised via `pnpm --silent` in tests). No schema change; manifest still transaction-bound; dry-run remains pure-read (asserted: no ledger row created for ambiguous fixtures).
+
+## Non-blocking observations (round 2)
+
+1. Ledger inserts hardcode `source='whatsapp-capture-v1'` even for export-backfill-keyed rows (`export-backfill-v1:` source_key); source_key carries true provenance, but the `source` label is misleading for that subset.
+2. Export-only inserts with no ledger/capture context use placeholder `chat_jid = export-backfill:<zone>:<hash>` — deterministic and greppable, but not explicitly documented in README.
+3. Commit history on the branch is noisy (fix → revert → fix → restore from the worktree race); net tree is coherent. Squash-merge would keep main clean.
+
+Merge gate: cleared from this reviewer's side at 01c0a4c. No maker code was changed.
