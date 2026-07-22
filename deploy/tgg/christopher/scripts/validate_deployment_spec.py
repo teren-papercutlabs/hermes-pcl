@@ -141,8 +141,13 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         "convergenceOperation": "tgg_media_retention",
         "retrievalOperation": "tgg_case_media",
         "retrievalTool": "tgg_case_photos",
-        "ordering": "retain-and-converge-before-model-and-inbox-completion",
-        "failureDisposition": "retry-pending",
+        "ordering": (
+            "retain-and-converge-while-business-pending-before-lane-selection-"
+            "with-claimed-chat-idempotent-safety-net"
+        ),
+        "failureDisposition": (
+            "retention-held-business-pending-retry-without-lane-death"
+        ),
         "activationBacklogPreflight": "all-image-paths-from-current-cursor-must-resolve",
         "minimumRealVolumeFreePercent": 20,
         "pathContract": "opaque-media-refs-resolved-under-configured-root",
@@ -160,6 +165,12 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
     expected_status_media_fields = [
         "retention_total",
         "retention_failures",
+        "retention_attempts",
+        "retention_pending",
+        "retention_complete",
+        "retention_bypassed",
+        "retention_held",
+        "retention_hold",
         "media_root_count",
         "media_root_bytes",
         "media_volume_free_percent",
@@ -169,6 +180,8 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         != expected_status_media_fields
     ):
         raise RuntimeError("consumer media-status contract drifted")
+    if spec["channels"]["whatsapp"]["consumer"].get("retentionBatchSize") != 25:
+        raise RuntimeError("consumer retention batch bound drifted")
     if spec["channels"]["whatsapp"]["prohibitedConsumerSurface"]["path"] != "/messages":
         raise RuntimeError("the destructive bridge route must stay prohibited")
 

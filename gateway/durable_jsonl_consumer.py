@@ -35,7 +35,7 @@ import yaml
 
 
 CURSOR_VERSION = 1
-INBOX_SCHEMA_VERSION = 1
+INBOX_SCHEMA_VERSION = 2
 
 
 class ConsumerError(RuntimeError):
@@ -204,6 +204,27 @@ class InboxRecord:
     raw: dict[str, Any]
 
 
+def _initial_retention_state(item: Mapping[str, Any]) -> str:
+    """Classify obvious non-images without doing any retention I/O."""
+    coarse = str(item.get("mediaType") or item.get("mimeType") or "")
+    if coarse.split("/", 1)[0].strip().lower() == "image":
+        return "pending"
+    values = item.get("mediaUrls") or item.get("media") or item.get("mediaPaths") or []
+    if isinstance(values, Mapping):
+        values = [values]
+    if isinstance(values, Sequence) and not isinstance(values, (str, bytes)):
+        for value in values:
+            if not isinstance(value, Mapping):
+                continue
+            mime = str(
+                value.get("mime") or value.get("mimeType")
+                or value.get("contentType") or ""
+            )
+            if mime.split("/", 1)[0].strip().lower() == "image":
+                return "pending"
+    return "bypassed"
+
+
 class DurableInbox:
     """Consumer-owned durable inbox and source cursor staging ledger."""
 
@@ -255,6 +276,11 @@ class DurableInbox:
                     last_error TEXT,
                     retained_media_count INTEGER NOT NULL DEFAULT 0,
                     retention_failures INTEGER NOT NULL DEFAULT 0,
+                    retention_attempts INTEGER NOT NULL DEFAULT 0,
+                    retention_state TEXT NOT NULL DEFAULT 'pending'
+                        CHECK (retention_state IN ('pending','complete','bypassed','held')),
+                    retention_last_error TEXT,
+                    retention_updated_at TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -281,6 +307,52 @@ class DurableInbox:
                     "ALTER TABLE ingress_events ADD COLUMN retention_failures "
                     "INTEGER NOT NULL DEFAULT 0"
                 )
+            if "retention_attempts" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN retention_attempts "
+                    "INTEGER NOT NULL DEFAULT 0"
+                )
+            retention_state_added = "retention_state" not in ingress_columns
+            if retention_state_added:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN retention_state "
+                    "TEXT NOT NULL DEFAULT 'pending'"
+                )
+            if "retention_last_error" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN retention_last_error TEXT"
+                )
+            if "retention_updated_at" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN retention_updated_at TEXT"
+                )
+            if retention_state_added:
+                rows = conn.execute(
+                    "SELECT seq,raw_json,retained_media_count FROM ingress_events"
+                ).fetchall()
+                for row in rows:
+                    if int(row["retained_media_count"] or 0) > 0:
+                        conn.execute(
+                            "UPDATE ingress_events SET retention_state='complete',"
+                            "retention_updated_at=? WHERE seq=?",
+                            (_utc_now(), int(row["seq"])),
+                        )
+                        continue
+                    try:
+                        item = _bridge_item(json.loads(row["raw_json"]))
+                        state = _initial_retention_state(item)
+                    except (ConsumerError, TypeError, ValueError):
+                        state = "pending"
+                    if state == "bypassed":
+                        conn.execute(
+                            "UPDATE ingress_events SET retention_state='bypassed',"
+                            "retention_updated_at=? WHERE seq=?",
+                            (_utc_now(), int(row["seq"])),
+                        )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS ingress_events_retention_queue_idx "
+                "ON ingress_events(status,retention_state,seq)"
+            )
             conn.execute(
                 "INSERT INTO ingress_meta(key,value) VALUES('schema_version',?) "
                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -352,8 +424,9 @@ class DurableInbox:
                     """
                     INSERT INTO ingress_events(
                         message_id,chat_id,source_device,source_inode,
-                        start_offset,end_offset,raw_json,status,created_at,updated_at
-                    ) VALUES(?,?,?,?,?,?,?,'pending',?,?)
+                        start_offset,end_offset,raw_json,status,retention_state,
+                        retention_updated_at,created_at,updated_at
+                    ) VALUES(?,?,?,?,?,?,?,'pending',?,?,?,?)
                     ON CONFLICT(message_id) DO NOTHING
                     """,
                     (
@@ -364,6 +437,8 @@ class DurableInbox:
                         start,
                         end,
                         json.dumps(item, sort_keys=True, separators=(",", ":")),
+                        _initial_retention_state(item),
+                        now,
                         now,
                         now,
                     ),
@@ -442,7 +517,8 @@ class DurableInbox:
         with self.connect() as conn:
             rows = conn.execute(
                 "SELECT seq,message_id,chat_id,start_offset,end_offset,raw_json "
-                "FROM ingress_events WHERE status='pending' ORDER BY seq"
+                "FROM ingress_events WHERE status='pending' "
+                "AND retention_state IN ('complete','bypassed') ORDER BY seq"
             ).fetchall()
         grouped: dict[str, list[InboxRecord]] = {}
         for row in rows:
@@ -656,40 +732,118 @@ class DurableInbox:
             ).fetchall()
         return {str(row["status"]): int(row["n"]) for row in rows}
 
-    def record_retention(
-        self, record: InboxRecord, *, retained: int | None = None,
-        failed: bool = False,
-    ) -> None:
+    def retention_candidates(self, *, limit: int) -> list[InboxRecord]:
+        """Bounded pending-business work, with new rows ahead of retries."""
         with self.connect() as conn:
-            if failed:
+            rows = conn.execute(
+                "SELECT seq,message_id,chat_id,start_offset,end_offset,raw_json "
+                "FROM ingress_events WHERE status='pending' "
+                "AND retention_state IN ('pending','held') "
+                "ORDER BY CASE retention_state WHEN 'pending' THEN 0 ELSE 1 END, "
+                "COALESCE(retention_updated_at,created_at),seq LIMIT ?",
+                (max(1, int(limit)),),
+            ).fetchall()
+        return [
+            InboxRecord(
+                seq=int(row["seq"]),
+                message_id=str(row["message_id"]),
+                chat_id=str(row["chat_id"]),
+                start_offset=int(row["start_offset"]),
+                end_offset=int(row["end_offset"]),
+                raw=json.loads(row["raw_json"]),
+            )
+            for row in rows
+        ]
+
+    def retention_result(self, record: InboxRecord) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT retention_state,retained_media_count "
+                "FROM ingress_events WHERE seq=?",
+                (record.seq,),
+            ).fetchone()
+        if row is None:
+            raise ConsumerError(f"inbox record {record.seq} disappeared")
+        state = str(row["retention_state"])
+        if state not in {"complete", "bypassed"}:
+            return None
+        return {
+            "retained": int(row["retained_media_count"]),
+            "bytes": 0,
+            "operation": state == "complete",
+            "durable": True,
+        }
+
+    def record_retention(
+        self,
+        record: InboxRecord,
+        *,
+        retained: int | None = None,
+        bypassed: bool = False,
+        error: str | None = None,
+    ) -> None:
+        now = _utc_now()
+        with self.connect() as conn:
+            if error is not None:
                 conn.execute(
-                    "UPDATE ingress_events SET retention_failures=retention_failures+1 "
-                    "WHERE seq=? AND status='processing'",
+                    "UPDATE ingress_events SET retention_state='held',"
+                    "retention_attempts=retention_attempts+1,"
+                    "retention_failures=retention_failures+1,"
+                    "retention_last_error=?,retention_updated_at=? "
+                    "WHERE seq=? AND retention_state IN ('pending','held')",
+                    ((error or "retention failed")[:2000], now, record.seq),
+                )
+                return
+            state = "bypassed" if bypassed else "complete"
+            changed = conn.execute(
+                "UPDATE ingress_events SET retention_state=?,"
+                "retained_media_count=?,retention_attempts=retention_attempts+1,"
+                "retention_last_error=NULL,retention_updated_at=? "
+                "WHERE seq=? AND retention_state IN ('pending','held')",
+                (state, max(0, int(retained or 0)), now, record.seq),
+            ).rowcount
+            if changed == 0:
+                row = conn.execute(
+                    "SELECT retention_state FROM ingress_events WHERE seq=?",
                     (record.seq,),
-                )
-            elif retained is not None:
-                conn.execute(
-                    "UPDATE ingress_events SET retained_media_count=?, last_error=NULL "
-                    "WHERE seq=? AND status='processing'",
-                    (max(0, int(retained)), record.seq),
-                )
+                ).fetchone()
+                if row is None or str(row[0]) not in {"complete", "bypassed"}:
+                    raise ConsumerError(
+                        f"inbox record {record.seq} could not record retention outcome"
+                    )
 
     def retention_counts(self) -> dict[str, int]:
         with self.connect() as conn:
             row = conn.execute(
                 "SELECT COALESCE(SUM(retained_media_count),0),"
-                "COALESCE(SUM(retention_failures),0) FROM ingress_events"
+                "COALESCE(SUM(retention_failures),0),"
+                "COALESCE(SUM(retention_attempts),0),"
+                "COALESCE(SUM(CASE WHEN status='pending' "
+                "AND retention_state='pending' THEN 1 ELSE 0 END),0),"
+                "COALESCE(SUM(CASE WHEN retention_state='complete' THEN 1 ELSE 0 END),0),"
+                "COALESCE(SUM(CASE WHEN retention_state='bypassed' THEN 1 ELSE 0 END),0),"
+                "COALESCE(SUM(CASE WHEN status IN ('pending','processing') "
+                "AND retention_state='held' THEN 1 ELSE 0 END),0) "
+                "FROM ingress_events"
             ).fetchone()
-        return {"retention_total": int(row[0]), "retention_failures": int(row[1])}
+        return {
+            "retention_total": int(row[0]),
+            "retention_failures": int(row[1]),
+            "retention_attempts": int(row[2]),
+            "retention_pending": int(row[3]),
+            "retention_complete": int(row[4]),
+            "retention_bypassed": int(row[5]),
+            "retention_held": int(row[6]),
+        }
 
     def retention_last_error(self) -> str | None:
         """Newest unresolved retention hold, independent across chat lanes."""
         with self.connect() as conn:
             row = conn.execute(
-                "SELECT last_error FROM ingress_events "
+                "SELECT retention_last_error FROM ingress_events "
                 "WHERE status IN ('pending','processing') "
-                "AND last_error LIKE 'media-retention-retry:%' "
-                "ORDER BY updated_at DESC, seq DESC LIMIT 1"
+                "AND retention_state='held' "
+                "ORDER BY retention_updated_at DESC, seq DESC LIMIT 1"
             ).fetchone()
         return str(row[0]) if row else None
 
@@ -1087,6 +1241,55 @@ def retain_record_media(record: InboxRecord, *, config_path: Path) -> dict[str, 
         raise
     except OSError as exc:
         raise MediaRetentionError(f"media retention I/O failed: {exc}") from exc
+
+
+def ensure_record_media_retained(
+    inbox: DurableInbox, record: InboxRecord, *, config_path: Path
+) -> dict[str, Any]:
+    """Retain once, with a durable result shared by capture and claim paths."""
+    durable = inbox.retention_result(record)
+    if durable is not None:
+        return durable
+    try:
+        result = retain_record_media(record, config_path=config_path)
+    except MediaRetentionError as exc:
+        inbox.record_retention(record, error=f"media-retention-retry: {exc}")
+        raise
+    inbox.record_retention(
+        record,
+        retained=int(result["retained"]),
+        bypassed=not bool(result.get("operation")),
+    )
+    return result
+
+
+async def retain_pending_media(
+    inbox: DurableInbox, *, config_path: Path, limit: int
+) -> dict[str, int]:
+    """Bounded capture-lane retention independent of business processing."""
+    summary = {"examined": 0, "retained": 0, "bypassed": 0, "held": 0}
+    for record in inbox.retention_candidates(limit=limit):
+        summary["examined"] += 1
+        try:
+            result = await asyncio.to_thread(
+                ensure_record_media_retained,
+                inbox,
+                record,
+                config_path=config_path,
+            )
+        except MediaRetentionError as exc:
+            summary["held"] += 1
+            print(
+                "media retention HELD/PENDING: "
+                f"chat={record.chat_id} message={record.message_id} error={exc}",
+                file=sys.stderr,
+            )
+            continue
+        if result.get("operation"):
+            summary["retained"] += int(result["retained"])
+        else:
+            summary["bypassed"] += 1
+    return summary
 
 
 def retain_claimed_media(records: Sequence[InboxRecord], *, config_path: Path) -> dict[str, int]:
@@ -1790,18 +1993,16 @@ async def _process_claimed_chat_batch(
         raise ConsumerError(f"scheduler produced a mixed-chat batch: {sorted(chat_ids)}")
     inbox.claim(records)
     try:
-        # The inbox claim, not the source cursor, is the retry boundary.  Media
-        # retention and its system convergence must complete before Hermes can
-        # reason over the event or terminal its row.
+        # Capture-lane retention normally completed while the row was pending.
+        # This claimed-chat path remains the idempotent safety net: a row can
+        # never reach Hermes until its durable retention outcome is complete.
         for record in records:
-            try:
-                retention = await asyncio.to_thread(
-                    retain_record_media, record, config_path=config_path
-                )
-            except MediaRetentionError as exc:
-                inbox.record_retention(record, failed=True)
-                raise
-            inbox.record_retention(record, retained=int(retention["retained"]))
+            await asyncio.to_thread(
+                ensure_record_media_retained,
+                inbox,
+                record,
+                config_path=config_path,
+            )
         async with _management_typing_presence(
             records,
             config_path=config_path,
@@ -1875,6 +2076,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
     state_db = Path(args.state_db).resolve()
     site_concurrency = max(1, int(getattr(args, "site_concurrency", 4)))
     chat_batch_size = max(1, int(getattr(args, "chat_batch_size", 25)))
+    retention_batch_size = max(1, int(getattr(args, "retention_batch_size", 25)))
 
     with SingletonLock(Path(args.lock_file).resolve()):
         recovery = inbox.reconcile_orphan_processing(state_db)
@@ -1934,6 +2136,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "claim_stale_seconds": 1800,
                             "site_concurrency": site_concurrency,
                             "chat_batch_size": chat_batch_size,
+                            "retention_batch_size": retention_batch_size,
                             "active_management_chats": [],
                             "active_site_chats": [],
                             "oldest_active_claim": inbox.oldest_processing_updated_at(),
@@ -1970,9 +2173,6 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         },
                     )
                     raise
-                if runner is None:
-                    runner = _new_gateway_runner()
-
                 _write_status(
                     status_path,
                     {
@@ -1992,6 +2192,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "claim_stale_seconds": 1800,
                         "site_concurrency": site_concurrency,
                         "chat_batch_size": chat_batch_size,
+                        "retention_batch_size": retention_batch_size,
                         "active_management_chats": sorted(
                             chat for chat, lane in lanes.items() if lane == "management"
                         ),
@@ -2026,6 +2227,15 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         f"expected={expected_total} actual={inbox.total()}"
                     )
 
+                # Retention is a capture-lane concern, not a model/business
+                # concern.  It runs before demo-pause lane selection and never
+                # claims or terminals the business row.
+                retention_cycle = await retain_pending_media(
+                    inbox,
+                    config_path=config_path,
+                    limit=retention_batch_size,
+                )
+
                 try:
                     priority_chats = _management_selector_chats(config_path)
                 except Exception:
@@ -2039,6 +2249,13 @@ async def run_consumer(args: argparse.Namespace) -> int:
                     exclude_chats=set(tasks),
                 )
                 gate_changed_at = str(gate.get("changed_at") or "")
+                active_site = sum(1 for lane in lanes.values() if lane == "site")
+                available_site = max(0, site_concurrency - active_site)
+                selected_site_batches = (
+                    [] if demo_management_only else site_batches[:available_site]
+                )
+                if (management_batches or selected_site_batches) and runner is None:
+                    runner = _new_gateway_runner()
 
                 # Reserved management capacity: these tasks never acquire or
                 # wait for a site slot.  One task per chat preserves FIFO.
@@ -2056,9 +2273,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                     lanes[chat_id] = "management"
 
                 if not demo_management_only:
-                    active_site = sum(1 for lane in lanes.values() if lane == "site")
-                    available_site = max(0, site_concurrency - active_site)
-                    for chat_id, records in site_batches[:available_site]:
+                    for chat_id, records in selected_site_batches:
                         tasks[chat_id] = asyncio.create_task(
                             _process_claimed_chat_batch(
                                 inbox,
@@ -2112,6 +2327,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "claim_stale_seconds": 1800,
                             "site_concurrency": site_concurrency,
                             "chat_batch_size": chat_batch_size,
+                            "retention_batch_size": retention_batch_size,
+                            "retention_cycle": retention_cycle,
                             "active_management_chats": [],
                             "active_site_chats": [],
                             "oldest_active_claim": inbox.oldest_processing_updated_at(),
@@ -2148,6 +2365,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "claim_stale_seconds": 1800,
                         "site_concurrency": site_concurrency,
                         "chat_batch_size": chat_batch_size,
+                        "retention_batch_size": retention_batch_size,
+                        "retention_cycle": retention_cycle,
                         "active_management_chats": sorted(
                             chat for chat, lane in lanes.items() if lane == "management"
                         ),
@@ -2239,6 +2458,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--max-records", type=int, default=100)
     run.add_argument("--site-concurrency", type=int, default=4)
     run.add_argument("--chat-batch-size", type=int, default=25)
+    run.add_argument("--retention-batch-size", type=int, default=25)
     run.add_argument("--once", action="store_true")
 
     fixture = sub.add_parser(

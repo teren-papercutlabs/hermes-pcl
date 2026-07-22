@@ -210,6 +210,11 @@ async def test_pending_production_video_bypasses_retention_and_completes(
     assert inbox.retention_counts() == {
         "retention_total": 0,
         "retention_failures": 0,
+        "retention_attempts": 0,
+        "retention_pending": 0,
+        "retention_complete": 0,
+        "retention_bypassed": 1,
+        "retention_held": 0,
     }
 
 
@@ -293,6 +298,257 @@ async def test_one_chat_retention_hold_does_not_kill_other_chat(tmp_path, monkey
     assert "media source is unavailable" in (inbox.retention_last_error() or "")
 
 
+@pytest.mark.asyncio
+async def test_demo_pause_retains_pending_site_image_without_runner_or_delivery(
+    tmp_path, monkeypatch
+):
+    args = _enabled_consumer_args(tmp_path, [])
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    source = capture / "site-photo.png"
+    source.write_bytes(_png_bytes())
+    config = Path(args.config)
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"] = {
+        "enabled": True,
+        "media_root": str(tmp_path / "retained"),
+        "source_roots": [str(capture)],
+        "operation": "tgg_media_retention",
+        "min_free_percent": 0,
+    }
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    normalized = _message("PAUSED-SITE-IMAGE", "site@g.us")
+    normalized.update({
+        "hasMedia": True,
+        "mediaType": "image/png",
+        "mediaUrls": [str(source)],
+        "timestamp": 1784630163.917,
+    })
+    _write_jsonl(
+        Path(args.source),
+        [{"type": "whatsapp_capture_event", "normalized": normalized}],
+    )
+    convergence = []
+    monkeypatch.setattr(
+        consumer,
+        "_converge_retained_media",
+        lambda config_path, **kwargs: convergence.append(kwargs["payload"])
+        or {
+            "ok": True,
+            "data": {"ledgerChanged": True, "observationsChanged": True},
+        },
+    )
+    monkeypatch.setattr(
+        consumer,
+        "_new_gateway_runner",
+        lambda: pytest.fail("paused site retention constructed a model runner"),
+    )
+    monkeypatch.setattr(
+        consumer,
+        "deliver_management_replies",
+        lambda *args, **kwargs: pytest.fail("paused site retention invoked delivery"),
+    )
+    monkeypatch.setenv("TGG_DEMO_MANAGEMENT_ONLY", "1")
+
+    assert await consumer.run_consumer(args) == 0
+    inbox = consumer.DurableInbox(Path(args.inbox))
+    assert inbox.counts() == {"pending": 1}
+    with inbox.connect() as conn:
+        row = conn.execute(
+            "SELECT status,pa_turn_id,retention_state,retained_media_count "
+            "FROM ingress_events WHERE message_id='PAUSED-SITE-IMAGE'"
+        ).fetchone()
+    assert tuple(row) == ("pending", None, "complete", 1)
+    assert len(list((tmp_path / "retained").glob("*.png"))) == 1
+    assert len(convergence) == 1
+    status = json.loads(Path(args.status_file).read_text())
+    assert status["retention_cycle"] == {
+        "examined": 1,
+        "retained": 1,
+        "bypassed": 0,
+        "held": 0,
+    }
+    assert status["retention_total"] == 1
+    assert status["retention_complete"] == 1
+    assert status["inbox"] == {"pending": 1}
+
+
+@pytest.mark.asyncio
+async def test_demo_pause_non_image_bypasses_retention_without_runner(
+    tmp_path, monkeypatch
+):
+    args = _enabled_consumer_args(tmp_path, [])
+    normalized = _message("PAUSED-SITE-TEXT", "site@g.us")
+    normalized["timestamp"] = 1784630163.917
+    _write_jsonl(
+        Path(args.source),
+        [{"type": "whatsapp_capture_event", "normalized": normalized}],
+    )
+    monkeypatch.setenv("TGG_DEMO_MANAGEMENT_ONLY", "1")
+    monkeypatch.setattr(
+        consumer,
+        "retain_record_media",
+        lambda *args, **kwargs: pytest.fail("non-image entered retention I/O"),
+    )
+    monkeypatch.setattr(
+        consumer,
+        "_new_gateway_runner",
+        lambda: pytest.fail("paused site text constructed a model runner"),
+    )
+
+    assert await consumer.run_consumer(args) == 0
+    inbox = consumer.DurableInbox(Path(args.inbox))
+    with inbox.connect() as conn:
+        row = conn.execute(
+            "SELECT status,retention_state,retention_attempts "
+            "FROM ingress_events WHERE message_id='PAUSED-SITE-TEXT'"
+        ).fetchone()
+    assert tuple(row) == ("pending", "bypassed", 0)
+    assert json.loads(Path(args.status_file).read_text())["retention_cycle"] == {
+        "examined": 0,
+        "retained": 0,
+        "bypassed": 0,
+        "held": 0,
+    }
+
+
+@pytest.mark.asyncio
+async def test_demo_pause_retention_hold_preserves_management_lane_and_retries(
+    tmp_path, monkeypatch
+):
+    args = _enabled_consumer_args(tmp_path, [])
+    args.retention_batch_size = 1
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    config = Path(args.config)
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"] = {
+        "enabled": True,
+        "media_root": str(tmp_path / "retained"),
+        "source_roots": [str(capture)],
+        "operation": "tgg_media_retention",
+        "min_free_percent": 0,
+    }
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    missing = _message("PAUSED-MISSING", "site@g.us")
+    missing.update({
+        "hasMedia": True,
+        "mediaType": "image/jpeg",
+        "mediaUrls": [str(capture / "raced-away.jpg")],
+        "timestamp": 1784630163.917,
+    })
+    management = _message("MANAGEMENT-LIVE", "management@g.us")
+    management["timestamp"] = 1784630164.917
+    _write_jsonl(Path(args.source), [
+        {"type": "whatsapp_capture_event", "normalized": missing},
+        {"type": "whatsapp_capture_event", "normalized": management},
+    ])
+    processed = []
+
+    async def fake_process(records, **kwargs):
+        processed.extend(record.message_id for record in records)
+        return {
+            "submitted_message_ids": [record.message_id for record in records],
+            "handled": [{
+                "message_ids": [record.message_id for record in records],
+                "turn_id": "turn-management",
+            }],
+            "captured_outbound": [],
+        }
+
+    monkeypatch.setattr(consumer, "process_live_records", fake_process)
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    monkeypatch.setenv("TGG_DEMO_MANAGEMENT_ONLY", "1")
+
+    assert await consumer.run_consumer(args) == 0
+    assert processed == ["MANAGEMENT-LIVE"]
+    inbox = consumer.DurableInbox(Path(args.inbox))
+    with inbox.connect() as conn:
+        rows = {
+            row["message_id"]: (
+                row["status"], row["retention_state"], row["retention_failures"]
+            )
+            for row in conn.execute(
+                "SELECT message_id,status,retention_state,retention_failures "
+                "FROM ingress_events"
+            )
+        }
+    assert rows == {
+        "PAUSED-MISSING": ("pending", "held", 1),
+        "MANAGEMENT-LIVE": ("completed", "bypassed", 0),
+    }
+    status = json.loads(Path(args.status_file).read_text())
+    assert status["state"] == "held-pending"
+    assert status["retention_held"] == 1
+    assert "media source is unavailable" in status["retention_hold"]
+    assert await consumer.run_consumer(args) == 0
+    assert processed == ["MANAGEMENT-LIVE"]
+    retry_counts = consumer.DurableInbox(Path(args.inbox)).retention_counts()
+    assert retry_counts["retention_failures"] == 2
+    assert retry_counts["retention_attempts"] == 2
+
+
+@pytest.mark.asyncio
+async def test_demo_pause_retention_rerun_is_counter_and_storage_idempotent(
+    tmp_path, monkeypatch
+):
+    args = _enabled_consumer_args(tmp_path, [])
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    source = capture / "rerun.png"
+    source.write_bytes(_png_bytes())
+    config = Path(args.config)
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"] = {
+        "enabled": True,
+        "media_root": str(tmp_path / "retained"),
+        "source_roots": [str(capture)],
+        "operation": "tgg_media_retention",
+        "min_free_percent": 0,
+    }
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    normalized = _message("PAUSED-RERUN", "site@g.us")
+    normalized.update({
+        "hasMedia": True,
+        "mediaType": "image/png",
+        "mediaUrls": [str(source)],
+        "timestamp": 1784630163.917,
+    })
+    _write_jsonl(
+        Path(args.source),
+        [{"type": "whatsapp_capture_event", "normalized": normalized}],
+    )
+    convergence = []
+    monkeypatch.setattr(
+        consumer,
+        "_converge_retained_media",
+        lambda config_path, **kwargs: convergence.append(kwargs["payload"])
+        or {
+            "ok": True,
+            "data": {"ledgerChanged": False, "observationsChanged": False},
+        },
+    )
+    monkeypatch.setenv("TGG_DEMO_MANAGEMENT_ONLY", "1")
+    monkeypatch.setattr(
+        consumer,
+        "_new_gateway_runner",
+        lambda: pytest.fail("paused site rerun constructed a model runner"),
+    )
+
+    assert await consumer.run_consumer(args) == 0
+    first = consumer.DurableInbox(Path(args.inbox)).retention_counts()
+    first_files = [path.name for path in (tmp_path / "retained").glob("*")]
+    assert await consumer.run_consumer(args) == 0
+    second = consumer.DurableInbox(Path(args.inbox)).retention_counts()
+    second_files = [path.name for path in (tmp_path / "retained").glob("*")]
+    assert first == second
+    assert first["retention_total"] == 1
+    assert first["retention_attempts"] == 1
+    assert first_files == second_files
+    assert len(second_files) == 1
+    assert len(convergence) == 1
+
+
 def test_retention_operation_resolves_from_real_overlay_registry(tmp_path, monkeypatch):
     canonical = Path("deploy/tgg/christopher/config.yaml")
     data = yaml.safe_load(canonical.read_text())
@@ -371,6 +627,11 @@ async def test_retention_failure_requeues_before_model(tmp_path, monkeypatch):
     consumer.initialize_cursor(source, cursor, position="start")
     inbox.stage_from_source(source, cursor)
     records = inbox.pending(limit=1)
+    with inbox.connect() as conn:
+        conn.execute(
+            "UPDATE ingress_events SET retention_state='pending' WHERE seq=?",
+            (records[0].seq,),
+        )
     config = tmp_path / "config.yaml"
     config.write_text("pa:\n  enabled: true\n", encoding="utf-8")
     model_called = False
@@ -388,7 +649,15 @@ async def test_retention_failure_requeues_before_model(tmp_path, monkeypatch):
         )
     assert model_called is False
     assert inbox.counts() == {"pending": 1}
-    assert inbox.retention_counts() == {"retention_total": 0, "retention_failures": 1}
+    assert inbox.retention_counts() == {
+        "retention_total": 0,
+        "retention_failures": 1,
+        "retention_attempts": 1,
+        "retention_pending": 0,
+        "retention_complete": 0,
+        "retention_bypassed": 0,
+        "retention_held": 1,
+    }
 
 
 def test_stage_is_durable_before_cursor_and_idempotent(tmp_path):
@@ -415,6 +684,73 @@ def test_stage_is_durable_before_cursor_and_idempotent(tmp_path):
     assert inbox.stage_from_source(source, cursor_path, max_records=10) == 2
     assert inbox.counts() == {"pending": 2}
     assert consumer.SourceCursor.from_path(cursor_path).offset == source.stat().st_size
+
+
+def test_inbox_v1_migration_classifies_existing_retention_queue(tmp_path):
+    db = tmp_path / "v1-inbox.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        """
+        CREATE TABLE ingress_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE reply_deliveries (
+            delivery_key TEXT PRIMARY KEY, chat_id TEXT NOT NULL,
+            reply_to_message_id TEXT, status TEXT NOT NULL,
+            bridge_message_id TEXT, error TEXT, created_at TEXT NOT NULL
+        );
+        CREATE TABLE ingress_events (
+            seq INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id TEXT NOT NULL UNIQUE, chat_id TEXT NOT NULL,
+            source_device INTEGER NOT NULL, source_inode INTEGER NOT NULL,
+            start_offset INTEGER NOT NULL, end_offset INTEGER NOT NULL,
+            raw_json TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+            attempts INTEGER NOT NULL DEFAULT 0, pa_turn_id TEXT, last_error TEXT,
+            retained_media_count INTEGER NOT NULL DEFAULT 0,
+            retention_failures INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
+        """
+    )
+    image = _message("OLD-IMAGE", "site@g.us")
+    image.update({
+        "hasMedia": True,
+        "mediaType": "image/png",
+        "mediaUrls": [str(tmp_path / "old.png")],
+    })
+    text = _message("OLD-TEXT", "site@g.us")
+    for item in (image, text):
+        conn.execute(
+            "INSERT INTO ingress_events(message_id,chat_id,source_device,source_inode,"
+            "start_offset,end_offset,raw_json,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?)",
+            (
+                item["messageId"], item["chatId"], 1, 1, 0, 1,
+                json.dumps({"type": "whatsapp_capture_event", "normalized": item}),
+                "2026-07-22T00:00:00+00:00", "2026-07-22T00:00:00+00:00",
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+    inbox = consumer.DurableInbox(db)
+    with inbox.connect() as migrated:
+        columns = {
+            row[1] for row in migrated.execute("PRAGMA table_info(ingress_events)")
+        }
+        states = {
+            row["message_id"]: row["retention_state"]
+            for row in migrated.execute(
+                "SELECT message_id,retention_state FROM ingress_events"
+            )
+        }
+        schema_version = migrated.execute(
+            "SELECT value FROM ingress_meta WHERE key='schema_version'"
+        ).fetchone()[0]
+    assert {
+        "retention_attempts", "retention_state", "retention_last_error",
+        "retention_updated_at",
+    } <= columns
+    assert states == {"OLD-IMAGE": "pending", "OLD-TEXT": "bypassed"}
+    assert schema_version == "2"
 
 
 def test_partial_line_never_advances_cursor(tmp_path):
