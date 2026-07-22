@@ -160,6 +160,84 @@ def test_multi_photo_delivery_uses_send_media_and_distinct_durable_keys(
     assert len(keys) == 2 and all(key.startswith(f"media::{MGMT_CHAT}::MSG1::") for key in keys)
 
 
+def test_streamed_media_directive_becomes_one_native_media_send(
+    inbox: DurableInbox, config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    media_root = tmp_path / "retained"
+    media_root.mkdir()
+    photo = media_root / "case-photo.jpg"
+    photo.write_bytes(b"\xff\xd8\xffcase-photo")
+    _enable_media_retention(config_path, media_root)
+    sent: list[tuple[str, dict]] = []
+
+    def fake_urlopen(request, timeout=0):
+        sent.append((request.full_url, json.loads(request.data)))
+        return _FakeResponse({"success": True, "messageId": "WA-MEDIA-DIRECTIVE"})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[
+            _captured(
+                MGMT_CHAT,
+                f"SK/JOB/2606/2372 — first retained photo:\n\nMEDIA:{photo}",
+            )
+        ],
+        batch_records=[_record(MGMT_CHAT)],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1"),
+    )
+
+    assert summary == {
+        "delivered": 1,
+        "undelivered": 0,
+        "suppressed": 0,
+        "duplicate": 0,
+    }
+    assert sent == [
+        (
+            "http://127.0.0.1:3011/send-media",
+            {
+                "chatId": MGMT_CHAT,
+                "replyTo": "MSG1",
+                "filePath": str(photo),
+                "mediaType": "image",
+                "caption": "SK/JOB/2606/2372 — first retained photo:",
+            },
+        )
+    ]
+
+
+def test_streamed_media_directive_outside_retained_root_is_not_sent_as_text(
+    inbox: DurableInbox, config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    media_root = tmp_path / "retained"
+    media_root.mkdir()
+    outside = tmp_path / "outside.jpg"
+    outside.write_bytes(b"\xff\xd8\xffoutside")
+    _enable_media_retention(config_path, media_root)
+    calls: list = []
+    monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: calls.append(a))
+
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[_captured(MGMT_CHAT, f"MEDIA:{outside}")],
+        batch_records=[_record(MGMT_CHAT)],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1"),
+    )
+
+    assert summary == {
+        "delivered": 0,
+        "undelivered": 0,
+        "suppressed": 1,
+        "duplicate": 0,
+    }
+    assert not calls
+
+
 def test_media_delivery_refuses_non_management_missing_and_path_escape(
     inbox: DurableInbox, config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

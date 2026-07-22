@@ -21,6 +21,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -1836,6 +1837,42 @@ def _parse_captured_send(entry: Mapping[str, Any]) -> dict[str, Any] | None:
     }
 
 
+_CAPTURED_IMAGE_MEDIA_RE = re.compile(
+    r"MEDIA:\s*(?P<path>(?:file://)?(?:~/|/)\S+\.(?:png|jpe?g|gif|webp))",
+    re.IGNORECASE,
+)
+
+
+def _expand_captured_send(send: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Turn streamed ``MEDIA:`` directives into native captured image sends.
+
+    Streaming records the assistant's final chunk as a plain ``send`` before
+    the normal adapter post-processing can always emit ``send_multiple_images``.
+    Treat the captured body as the same gateway response surface: extract local
+    image directives, attach the remaining text as the first image caption, and
+    never forward the private filesystem path as chat text.  The downstream
+    retained-root and image-signature checks remain the authority boundary.
+    """
+    content = str(send.get("content") or "")
+    matches = list(_CAPTURED_IMAGE_MEDIA_RE.finditer(content))
+    if not matches:
+        return [dict(send)]
+    cleaned = _CAPTURED_IMAGE_MEDIA_RE.sub("", content).strip()
+    expanded: list[dict[str, Any]] = []
+    for ordinal, match in enumerate(matches):
+        expanded.append(
+            {
+                "send_kind": "media",
+                "chat_id": str(send.get("chat_id") or ""),
+                "path": match.group("path"),
+                "caption": cleaned if ordinal == 0 and cleaned else None,
+                "reply_to": send.get("reply_to"),
+                "ordinal": ordinal,
+            }
+        )
+    return expanded
+
+
 def _captured_provider_error(
     captured_outbound: Sequence[Mapping[str, Any]],
 ) -> str | None:
@@ -2112,11 +2149,11 @@ def deliver_management_replies(
     from urllib.error import HTTPError, URLError
 
     summary = {"delivered": 0, "undelivered": 0, "suppressed": 0, "duplicate": 0}
-    sends: list[dict[str, Any]] = [
-        parsed
-        for parsed in (_parse_captured_send(entry) for entry in captured_outbound)
-        if parsed is not None
-    ]
+    sends: list[dict[str, Any]] = []
+    for entry in captured_outbound:
+        parsed = _parse_captured_send(entry)
+        if parsed is not None:
+            sends.extend(_expand_captured_send(parsed))
     for entry in captured_outbound:
         sends.extend(_parse_captured_media(entry))
     if not sends:
