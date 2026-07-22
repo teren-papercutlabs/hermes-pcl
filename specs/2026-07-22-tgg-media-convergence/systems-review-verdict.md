@@ -84,3 +84,28 @@ Merge gate: cleared from this reviewer's side at 01c0a4c. No maker code was chan
 2. Round-2 non-blocking notes (ledger `source` label for export-keyed inserts, placeholder chat_jid documentation, noisy history → squash-merge) still stand.
 
 Merge gate: cleared from this reviewer's side at 84a660ad3939ac18750bb56c6de5f165f23545d5. No maker code was changed.
+
+---
+
+# Round 4: dry-run fixed-point truthfulness — re-review
+
+- Target: `origin/worker/92d419eb` @ `f5dd17d35e893647dcb872b935b48ef9e1d69096`
+- Context: after the production corrective apply, dry-run predicted 3 observation changes while apply correctly changed 0. Cause: the dry-run predictor deduped media by served URL string, while authoritative convergence dedupes by the complete retained-media object (`deriveObservationMediaFromSourceRefs` sets `seen` on `JSON.stringify(ref)` — store.ts:3996). Two exact messages legitimately citing the same retained file with different provenance collapse to 1 in the old predictor but count as 2 authoritatively — an eternal phantom "would change".
+
+## Verdict (round 4): CLEAR at f5dd17d — no blocking defects
+
+## Independently verified
+
+- **Scope**: vs cleared `84a660a` content, `src/` is byte-identical (0 diff lines) — apply/reverse semantics untouched, exactly as required. Only `scripts/tgg-media-reconcile.ts` (predictor: new `canonicalMediaCount` = Set of `JSON.stringify` over full media objects) and tests changed. No schema/config/exact-match regression.
+- **Predictor identity matches authoritative identity**: both sides dedupe full objects via `JSON.stringify`; script-built media objects and canonical ledger objects share literal key order (`source_key, media_ordinal, digest, mime, ref`), so identical logical media stringify identically. Legacy string-shaped refs intentionally count separately — apply would genuinely rewrite those, so predicting a change is correct.
+- **Tests/build**: focused 11/11 (incl. maker's new shared-file/different-provenance fixture: apply → photo_count 2 over 1 URL, post-apply dry-run 0, second apply 0/0), full 375/375, build exit 0.
+- **Live read-only dry-run on production data** (tgg-app-1; f5dd17d script esbuild-bundled, run with the service's node 22.23.1 against a `sqlite3 .backup` snapshot of the live tenant DB + real capture events.jsonl + real media root — zero writes to live state, snapshot and bundles deleted after):
+  - Fixed script: **observationsWouldChange: 0**, observationsChanged: 0 — with production-consistent denominators (totalFiles 10,749; captureExact 10,735; observationsMatched 25; scanned 47).
+  - **Positive control**: the prior (`84a660a`) predictor on the SAME snapshot reports observationsWouldChange: 3 with identical denominators — proving the harness detects the defect and the fix removes exactly it.
+
+## Non-blocking observations (round 4)
+
+1. Dry-run's `observationsChanged` and `observationsWouldChange` are now duplicates of one another in the report — harmless, but one could be dropped on next touch.
+2. Rounds 2–3 non-blocking notes stand.
+
+Merge gate: cleared from this reviewer's side at f5dd17d35e893647dcb872b935b48ef9e1d69096. No maker code was changed.
