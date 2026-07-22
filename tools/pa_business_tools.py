@@ -60,6 +60,7 @@ class PABusinessBridgeConfig:
     # can say "not permitted in this chat" instead of "unknown operation".
     denied_operations: frozenset[str] = frozenset()
     media_root: Path | None = None
+    media_ref_prefix: str = "/media"
 
 
 class OperationNotPermitted(ValueError):
@@ -150,6 +151,9 @@ def load_business_bridge_config(
     if client_bridge.get("tenant"):
         tenant = str(client_bridge.get("tenant"))
     media_root = _configured_media_root(config, client_bridge=client_bridge)
+    media_ref_prefix = _configured_media_ref_prefix(
+        config, client_bridge=client_bridge
+    )
     raw_operations = section.get("operations", {})
     client_operations = client_bridge.get("operations", {})
     if client_operations:
@@ -232,6 +236,7 @@ def load_business_bridge_config(
         auth=dict(auth) if isinstance(auth, Mapping) else None,
         denied_operations=denied,
         media_root=media_root,
+        media_ref_prefix=media_ref_prefix,
     )
 
 
@@ -251,6 +256,33 @@ def _configured_media_root(
         return None
     raw = retention.get("media_root") or retention.get("root")
     return Path(str(raw)).expanduser() if raw else None
+
+
+def _configured_media_ref_prefix(
+    config: Mapping[str, Any] | None,
+    *,
+    client_bridge: Mapping[str, Any] | None = None,
+) -> str:
+    """Read the opaque URL prefix that maps directly to ``media_root``."""
+    raw: Any = None
+    if isinstance(client_bridge, Mapping):
+        raw = client_bridge.get("media_ref_prefix")
+    if raw is None and isinstance(config, Mapping):
+        pa = config.get("pa")
+        retention = pa.get("media_retention") if isinstance(pa, Mapping) else None
+        if isinstance(retention, Mapping):
+            raw = retention.get("media_ref_prefix")
+    prefix = str(raw or "/media").strip().rstrip("/")
+    segments = prefix.split("/")
+    if (
+        not (prefix == "/media" or prefix.startswith("/media/"))
+        or prefix == ""
+        or any(segment in {"", ".", ".."} for segment in segments[1:])
+    ):
+        raise ValueError(
+            "INVALID_MEDIA_REF_PREFIX: media_ref_prefix must be /media or /media/<segments>"
+        )
+    return prefix
 
 
 def _job_brief_business_operations(pa_context: Any | None) -> Mapping[str, Any]:
@@ -1109,7 +1141,9 @@ def _case_media_items(result: Mapping[str, Any]) -> list[Any]:
     return []
 
 
-def _resolve_case_photo(item: Any, media_root: Path) -> tuple[str, str] | None:
+def _resolve_case_photo(
+    item: Any, media_root: Path, media_ref_prefix: str = "/media"
+) -> tuple[str, str] | None:
     """Resolve one opaque /media ref to an existing contained image.
 
     The Systems API is allowed to name only opaque refs.  Local paths are
@@ -1129,9 +1163,12 @@ def _resolve_case_photo(item: Any, media_root: Path) -> tuple[str, str] | None:
     if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment:
         raise ValueError("INVALID_MEDIA_REF: case media must be an opaque /media/... ref")
     path = urllib.parse.unquote(parsed.path)
-    if not path.startswith("/media/") or path == "/media/":
-        raise ValueError("INVALID_MEDIA_REF: case media must be an opaque /media/... ref")
-    relative = path.removeprefix("/media/")
+    prefix = media_ref_prefix.rstrip("/")
+    if not path.startswith(f"{prefix}/") or path == f"{prefix}/":
+        raise ValueError(
+            "INVALID_MEDIA_REF: case media must match the configured opaque media prefix"
+        )
+    relative = path.removeprefix(f"{prefix}/")
     root = media_root.expanduser().resolve(strict=True)
     candidate = (root / relative).resolve(strict=True)
     if not candidate.is_relative_to(root) or not candidate.is_file():
@@ -1180,7 +1217,9 @@ def _handle_tgg_case_photos(args: Mapping[str, Any], **_kwargs: Any) -> str:
         photos: list[dict[str, str]] = []
         seen: set[str] = set()
         for item in _case_media_items(result):
-            resolved = _resolve_case_photo(item, bridge.media_root)
+            resolved = _resolve_case_photo(
+                item, bridge.media_root, bridge.media_ref_prefix
+            )
             if resolved is None:
                 continue
             ref, local_path = resolved

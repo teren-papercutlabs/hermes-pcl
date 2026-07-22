@@ -343,6 +343,10 @@ def test_tgg_production_config_exposes_searchable_case_operations():
     assert "tgg_clarification_request" not in bridge.operations
     assert "tgg_case_update_state" not in bridge.operations
     assert bridge.operations["job_work_costings"].url.endswith("/api/operator/cases/{jobNo}/work-costings")
+    assert bridge.media_root == Path(
+        "/home/pclaw/.systems-pcl/data/media/tgg/hermes"
+    )
+    assert bridge.media_ref_prefix == "/media/tgg/hermes"
 
 
 def test_ilinked_read_operations_require_explicit_current_user_cue():
@@ -832,6 +836,73 @@ def test_tgg_case_photos_resolves_opaque_refs_under_configured_root(
     assert result["photos"] == [
         {"media_ref": "/media/retained/one.jpg", "image_path": str(photo.resolve())}
     ]
+
+
+def test_tgg_case_photos_maps_configured_prefix_directly_to_media_root(
+    monkeypatch, tmp_path
+):
+    import tools.pa_business_tools as pbt
+
+    root = tmp_path / "media" / "tgg" / "hermes"
+    photo = root / "d7ba5f99ed0a259185f5c07e_0.jpg"
+    _jpeg(photo)
+    bridge = PABusinessBridgeConfig(
+        operations={},
+        media_root=root,
+        media_ref_prefix="/media/tgg/hermes",
+    )
+    monkeypatch.setattr(pbt, "_load_runtime_bridge_config", lambda: bridge)
+    monkeypatch.setattr(
+        pbt,
+        "execute_business_operation",
+        lambda *_a, **_kw: {
+            "ok": True,
+            "data": {
+                "media": [
+                    {
+                        "ref": "/media/tgg/hermes/d7ba5f99ed0a259185f5c07e_0.jpg",
+                        "mimeType": "image/jpeg",
+                    }
+                ]
+            },
+        },
+    )
+
+    result = json.loads(pbt._handle_tgg_case_photos({"job_no": "SK/JOB/2606/2372"}))
+
+    assert result["ok"] is True
+    assert result["photos"] == [
+        {
+            "media_ref": "/media/tgg/hermes/d7ba5f99ed0a259185f5c07e_0.jpg",
+            "image_path": str(photo.resolve()),
+        }
+    ]
+
+
+def test_tgg_case_photos_refuses_ref_outside_configured_prefix(monkeypatch, tmp_path):
+    import tools.pa_business_tools as pbt
+
+    root = tmp_path / "media" / "tgg" / "hermes"
+    root.mkdir(parents=True)
+    bridge = PABusinessBridgeConfig(
+        operations={},
+        media_root=root,
+        media_ref_prefix="/media/tgg/hermes",
+    )
+    monkeypatch.setattr(pbt, "_load_runtime_bridge_config", lambda: bridge)
+    monkeypatch.setattr(
+        pbt,
+        "execute_business_operation",
+        lambda *_a, **_kw: {
+            "ok": True,
+            "data": {"media": [{"ref": "/media/other/photo.jpg"}]},
+        },
+    )
+
+    result = json.loads(pbt._handle_tgg_case_photos({"job_no": "SK/JOB/2606/2372"}))
+
+    assert "error" in result
+    assert "INVALID_MEDIA_REF" in result["error"]
 
 
 def test_tgg_case_photos_known_case_without_media_is_graceful(monkeypatch, tmp_path):
