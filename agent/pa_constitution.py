@@ -257,8 +257,19 @@ def render_job_prompt(resolved: PAResolvedContext) -> str:
         lines.extend(["", "## Fact Operations"])
         lines.extend(_render_mapping(brief.fact_operations))
     if brief.response_policy:
-        lines.extend(["", "## Response Policy"])
-        lines.extend(_render_mapping(brief.response_policy))
+        # `enforced_sentences` is MACHINE config consumed by the runtime, not
+        # instruction for the model. Rendering it would (a) burn context, (b) tell
+        # the model exactly which sentences we police, and (c) make the model's own
+        # compliance indistinguishable from the runtime's repair — which makes the
+        # enforcement untestable by observing output.
+        _visible_policy = {
+            key: value
+            for key, value in brief.response_policy.items()
+            if key != "enforced_sentences"
+        }
+        if _visible_policy:
+            lines.extend(["", "## Response Policy"])
+            lines.extend(_render_mapping(_visible_policy))
     lines.extend(
         [
             "",

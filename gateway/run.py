@@ -1330,6 +1330,58 @@ def _pa_response_policy(pa_context: Any) -> Mapping[str, Any]:
     return response_policy if isinstance(response_policy, Mapping) else {}
 
 
+def _pa_enforce_sentences(response: str, pa_context: Any, inbound: str) -> tuple[str, list[str]]:
+    """Deterministically repair two-valued sentences the model must not author.
+
+    Some constitution-required sentences are a fixed lookup from an explicit
+    answer the sender gave, not a judgement: the sender says yes or no and
+    exactly one approved sentence follows. A language model asked to WRITE such
+    a sentence will occasionally write the opposite one, which on a compliance
+    declaration is a signed misstatement. Observed on the MTU BOR agent
+    2026-07-23: 2 inversions in 4 draws on identical input.
+
+    OPT-IN. Inert unless the job brief declares
+    ``response_policy.enforced_sentences``; every other tenant is unaffected.
+
+    Each rule is a mapping:
+        if_input_any: [str, ...]   trigger phrases matched against the inbound text
+        require:      str          the sentence that MUST appear
+        forbid:       [str, ...]   sentences that must NOT appear for this trigger
+
+    A forbidden sentence present under a matched trigger is REPLACED by the
+    required one. Never raises into the response path: on any internal error the
+    original response is returned unchanged.
+    """
+    repairs: list[str] = []
+    try:
+        rules = _pa_response_policy(pa_context).get("enforced_sentences")
+        if not isinstance(rules, (list, tuple)) or not rules:
+            return response, repairs
+        haystack = (inbound or "").lower()
+        for rule in rules:
+            if not isinstance(rule, Mapping):
+                continue
+            triggers = [str(t).lower() for t in rule.get("if_input_any", []) if str(t).strip()]
+            required = str(rule.get("require", ""))
+            if not triggers or not required:
+                continue
+            if not any(t in haystack for t in triggers):
+                continue
+            for bad in rule.get("forbid", []) or []:
+                bad = str(bad)
+                if bad and bad in response:
+                    response = response.replace(bad, required)
+                    repairs.append(str(rule.get("id") or "unnamed"))
+            if required not in response and repairs:
+                # Forbidden text was present in a variant we could not match
+                # exactly; surface rather than silently ship a wrong sentence.
+                repairs.append(f"{rule.get('id') or 'unnamed'}:required-missing")
+    except Exception:  # never break the response path on a policy bug
+        logger.exception("PA enforced_sentences check failed; response left unchanged")
+        return response, repairs
+    return response, repairs
+
+
 def _pa_tenant_slug(pa_context: Any) -> str | None:
     constitution = getattr(pa_context, "constitution", None) if pa_context is not None else None
     client = getattr(constitution, "client", None) if constitution is not None else None
@@ -9126,6 +9178,20 @@ class GatewayRunner:
                     "results. This can happen with some models — try again or "
                     "rephrase your question."
                 )
+            # Deterministic repair of two-valued constitution sentences the model
+            # must not author (opt-in via response_policy.enforced_sentences).
+            # NOTE: must be the RESOLVED context (_pa_action_context), not
+            # event.pa_context — the latter exists but is raw metadata with no
+            # job_brief, so passing it makes this check silently inert.
+            response, _pa_sentence_repairs = _pa_enforce_sentences(
+                response, _pa_action_context, message_text
+            )
+            if _pa_sentence_repairs:
+                logger.warning(
+                    "PA enforced_sentences repaired model output: %s",
+                    ", ".join(_pa_sentence_repairs),
+                )
+
             agent_messages = agent_result.get("messages", [])
             _response_time = time.time() - _msg_start_time
             _api_calls = agent_result.get("api_calls", 0)
