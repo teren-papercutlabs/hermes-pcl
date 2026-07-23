@@ -14,7 +14,7 @@ import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import yaml
 
@@ -29,12 +29,36 @@ ALLOWED_SECRET_KEYS = {
 class _OperatorStub(BaseHTTPRequestHandler):
     requests_total = 0
     mutation_requests = 0
+    mutation_payloads: list[dict[str, object]] = []
 
     def _reply(self) -> None:
         type(self).requests_total += 1
+        content_length = int(self.headers.get("Content-Length") or 0)
+        raw_body = self.rfile.read(content_length) if content_length else b""
         if self.command in {"POST", "PATCH", "PUT", "DELETE"}:
             type(self).mutation_requests += 1
-        body = json.dumps({"ok": True, "data": [], "cases": []}).encode()
+            try:
+                body: object = json.loads(raw_body) if raw_body else None
+            except json.JSONDecodeError:
+                body = raw_body.decode("utf-8", errors="replace")
+            type(self).mutation_payloads.append(
+                {"method": self.command, "path": self.path, "body": body}
+            )
+        response: dict[str, object] = {"ok": True, "data": [], "cases": []}
+        if self.command == "GET":
+            path = urlsplit(self.path).path
+            marker = "/api/operator/cases/"
+            if path.startswith(marker):
+                job_no = unquote(path.removeprefix(marker)).strip("/")
+                if job_no and "/" in job_no:
+                    case = {
+                        "jobNo": job_no,
+                        "state": "open",
+                        "progressStatus": "in_progress",
+                        "work_items": [],
+                    }
+                    response = {"ok": True, "data": case, "case": case}
+        body = json.dumps(response).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -158,6 +182,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--body",
         default="Synthetic deployment verification. Reply with exactly READY.",
     )
+    parser.add_argument(
+        "--fixture-file",
+        help=(
+            "Optional synthetic JSONL fixture containing one or more messages. "
+            "The file is copied into the isolated run root before replay."
+        ),
+    )
     return parser
 
 
@@ -183,6 +214,7 @@ def main() -> int:
 
     _OperatorStub.requests_total = 0
     _OperatorStub.mutation_requests = 0
+    _OperatorStub.mutation_payloads = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), _OperatorStub)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -195,23 +227,44 @@ def main() -> int:
             soul_path=app_root / "deploy" / "tgg" / "christopher" / "SOUL.md",
             stub_url=stub_url,
         )
-        fixture = {
-            "messageId": f"synthetic-{uuid.uuid4().hex}",
-            "chatId": args.chat_id,
-            "senderId": "synthetic-verifier",
-            "senderName": "Synthetic Verifier",
-            "chatName": args.chat_name,
-            "isGroup": True,
-            "body": args.body,
-            "hasMedia": False,
-            "mediaType": None,
-            "mediaUrls": [],
-            "mentionedIds": [],
-            "timestamp": int(time.time()),
-            "fromMe": False,
-            "historySync": False,
-        }
-        fixture_path.write_text(json.dumps(fixture) + "\n", encoding="utf-8")
+        if args.fixture_file:
+            source_fixture = Path(args.fixture_file).resolve()
+            if not source_fixture.is_file():
+                raise RuntimeError(f"fixture file is missing: {source_fixture}")
+            fixture_lines = [
+                line
+                for line in source_fixture.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            if not fixture_lines:
+                raise RuntimeError("fixture file contains no messages")
+            for line in fixture_lines:
+                payload = json.loads(line)
+                if not isinstance(payload, dict) or not payload.get("messageId"):
+                    raise RuntimeError(
+                        "every fixture line must be an object with messageId"
+                    )
+            fixture_path.write_text(
+                "\n".join(fixture_lines) + "\n", encoding="utf-8"
+            )
+        else:
+            fixture = {
+                "messageId": f"synthetic-{uuid.uuid4().hex}",
+                "chatId": args.chat_id,
+                "senderId": "synthetic-verifier",
+                "senderName": "Synthetic Verifier",
+                "chatName": args.chat_name,
+                "isGroup": True,
+                "body": args.body,
+                "hasMedia": False,
+                "mediaType": None,
+                "mediaUrls": [],
+                "mentionedIds": [],
+                "timestamp": int(time.time()),
+                "fromMe": False,
+                "historySync": False,
+            }
+            fixture_path.write_text(json.dumps(fixture) + "\n", encoding="utf-8")
 
         # HERMES_HOME must be set before importing Hermes runtime modules.
         os.environ["HERMES_HOME"] = str(run_root)
@@ -241,6 +294,7 @@ def main() -> int:
         report["client_mutation_requests"] = 0
         report["operator_stub_mutation_attempts"] = _OperatorStub.mutation_requests
         report["operator_stub_requests_total"] = _OperatorStub.requests_total
+        report["operator_stub_mutation_payloads"] = _OperatorStub.mutation_payloads
         report["external_outbound_sent"] = 0
         report["run_root"] = str(run_root)
         report_path.parent.mkdir(parents=True, exist_ok=True)

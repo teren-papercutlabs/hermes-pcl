@@ -588,8 +588,16 @@ def _validate(
     assert "never an attach target" in joined
     assert "message_search for the same chat_jid with limit 10" in joined
     assert "LOW confidence" in joined
-    assert "runtime supplies" in joined
-    assert "current-turn refs when they are omitted" in joined
+    # Source-ref binding (2026-07-23): the model cites exactly the messages it
+    # used. The shared middleware validates those refs against the current turn;
+    # it no longer expands an omitted list to every message in the turn.
+    assert "EVERY message from" in joined
+    assert "that you actually used for that write" in joined
+    assert "not every message batched into the turn" in joined
+    assert "Grouping related report and photo" in joined
+    assert "runtime rejects omitted, empty, placeholder, earlier-turn, or invented" in joined
+    assert "runtime supplies" not in joined
+    assert "current-turn refs when they are omitted" not in joined
     # Stage-1 roll-forward (2026-07-20): placeholder sourceRefs ban + the
     # evidence-attach justification contract with refs-preserving retry.
     assert "Never write a placeholder token" in joined

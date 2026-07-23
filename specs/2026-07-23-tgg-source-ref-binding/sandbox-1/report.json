@@ -1,0 +1,130 @@
+{
+  "client_mutation_requests": 0,
+  "external_outbound_sent": 0,
+  "inbox": {
+    "completed": 3
+  },
+  "mode": "fixture-only",
+  "ok": true,
+  "operator_stub_mutation_attempts": 5,
+  "operator_stub_mutation_payloads": [
+    {
+      "body": {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_management",
+          "message": "[Synthetic Manager] WhatsApp turn bundle (3 messages)\nChat: Christopher Source Ref Sandbox (120363409954029949@g.us)\n\n1. [1784822401] Synthetic Manager: Record a completion observation for AM/JOB/2607/1032: the window handle was replaced. Use the next photo as evidence.\n   source_message_id: fx1-instruction\n2. [1784822402] Synthetic Manager: AM/JOB/2607/1032 after photo: replacement window handle installed.\n   source_message_id: fx1-photo-am\n3. [1784822403] Synthetic Manager: Lunch coordination only: delivery arrives at 1pm. This is unrelated to any case.\n   source_message_id: fx1-unrelated",
+          "message_id": "fx1-instruction+fx1-photo-am+fx1-unrelated",
+          "session_id": "20260724_001001_4b280167",
+          "session_key": "agent:replay:deploy-smoke-150528120c3e:whatsapp:group:120363409954029949@g.us",
+          "source": {
+            "chat_id": "120363409954029949@g.us",
+            "chat_name": "Christopher Source Ref Sandbox",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "synthetic-manager",
+            "user_name": "Synthetic Manager"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260724_001001_4b280167:fx1-instruction+fx1-photo-am+fx1-unrelated"
+      },
+      "method": "POST",
+      "path": "/api/operator/agent-actions"
+    },
+    {
+      "body": {
+        "confidence": "observed",
+        "fields": {
+          "chat_name": "Christopher Source Ref Sandbox",
+          "completion_observation": true,
+          "evidence_type": "photo",
+          "message_text": "AM/JOB/2607/1032 after photo: replacement window handle installed.",
+          "observed_at": "1784822402",
+          "sender_name": "Synthetic Manager",
+          "source_refs": [
+            "fx1-instruction",
+            "fx1-photo-am"
+          ],
+          "window_handle": "replaced"
+        },
+        "notes": "Replacement window handle installed. Recorded on operator instruction via management chat: \u201cRecord a completion observation for AM/JOB/2607/1032: the window handle was replaced. Use the next photo as evidence.\u201d",
+        "source": "whatsapp"
+      },
+      "method": "POST",
+      "path": "/api/operator/cases/AM%2FJOB%2F2607%2F1032/observations"
+    },
+    {
+      "body": {
+        "sql": "SELECT c.job_no, c.state, o.observed_at, o.notes, o.source_ref FROM cases c JOIN case_observations o ON o.case_id = c.id WHERE c.job_no = 'AM/JOB/2607/1032' ORDER BY o.id DESC LIMIT 1"
+      },
+      "method": "POST",
+      "path": "/api/operator/query"
+    },
+    {
+      "body": {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "fx1-instruction+fx1-photo-am+fx1-unrelated",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": false,
+          "provider": "openai-direct-primary",
+          "reply": "Recorded for AM/JOB/2607/1032:\n\n- Observation: replacement window handle installed.\n- Evidence: fx1-photo-am.\n- Case state remains open.",
+          "session_id": "20260724_001001_4b280167"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 68258,
+        "tokens_output": 642,
+        "turn_id": "20260724_001001_4b280167:fx1-instruction+fx1-photo-am+fx1-unrelated"
+      },
+      "method": "POST",
+      "path": "/api/operator/agent-actions"
+    },
+    {
+      "body": {
+        "action_type": "executed-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "delivery": "gateway-return",
+          "message_id": "fx1-instruction+fx1-photo-am+fx1-unrelated",
+          "model": "gpt-5.6-luna",
+          "provider": "openai-direct-primary",
+          "reply": "Recorded for AM/JOB/2607/1032:\n\n- Observation: replacement window handle installed.\n- Evidence: fx1-photo-am.\n- Case state remains open.",
+          "session_id": "20260724_001001_4b280167"
+        },
+        "source": "whatsapp",
+        "status": "executed",
+        "tokens_input": 68258,
+        "tokens_output": 642,
+        "turn_id": "20260724_001001_4b280167:fx1-instruction+fx1-photo-am+fx1-unrelated"
+      },
+      "method": "POST",
+      "path": "/api/operator/agent-actions"
+    }
+  ],
+  "operator_stub_requests_total": 7,
+  "result": {
+    "blocked_commands": 0,
+    "model": "gpt-5.6-luna",
+    "outbound_captured": 1,
+    "processed": 3,
+    "provider": "openai-direct-primary",
+    "turn_id": "paturn_5eb2af30f26f4ccc9548ff1cb1331dab"
+  },
+  "run_root": "/Users/pcloffice/pcl/_worktrees/edna-0e1e1951-3163c003/specs/2026-07-23-tgg-source-ref-binding/sandbox-1/smoke-1784823001-7fe9efd7",
+  "staged": 3
+}

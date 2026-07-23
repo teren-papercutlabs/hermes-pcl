@@ -35,6 +35,10 @@ CHRISTOPHER_CONSTITUTION = (
 @pytest.fixture(autouse=True)
 def _clean_state_cache(monkeypatch):
     monkeypatch.delenv("HERMES_PA_BUSINESS_DRY_RUN", raising=False)
+    monkeypatch.setenv(
+        "HERMES_SESSION_SOURCE_MESSAGE_REFS",
+        json.dumps([f"wa-msg-{index}" for index in range(1, 6)]),
+    )
     pbt._LAST_SEEN_CASE_STATE.clear()
     yield
     pbt._LAST_SEEN_CASE_STATE.clear()
@@ -223,7 +227,7 @@ def test_observation_requires_source_refs_before_backend_write(monkeypatch):
     assert calls == []
 
 
-def test_observation_injects_current_turn_source_refs(monkeypatch):
+def test_observation_does_not_inject_whole_turn_source_refs(monkeypatch):
     monkeypatch.setenv(
         "HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-current-1", "wa-current-2"]'
     )
@@ -240,11 +244,10 @@ def test_observation_injects_current_turn_source_refs(monkeypatch):
 
     raw = pbt._handle_tgg_case_observation({"jobNo": "AM/JOB/2601/1018"})
 
-    assert json.loads(raw)["ok"] is True
-    assert calls[0][1]["fields"]["source_refs"] == [
-        "wa-current-1",
-        "wa-current-2",
-    ]
+    data = json.loads(raw)
+    assert "SOURCE_REFS_REQUIRED" in data["error"]
+    assert "Retry the same write" in data["error"]
+    assert calls == []
 
 
 def test_observation_strips_model_supplied_media_and_photo_fields(monkeypatch):

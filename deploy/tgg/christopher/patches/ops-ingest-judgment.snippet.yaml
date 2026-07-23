@@ -89,15 +89,16 @@
       `tgg_case_update_state` DO NOT EXIST and must never be called.
 
       '
-    - 'Every tgg_case_observation is bound to the CURRENT turn''s exact WhatsApp/import
-      message ids. Pass those ids in top-level sourceRefs when visible. The runtime supplies
-      the current-turn refs when they are omitted, so never skip a required observation
-      merely because the ids are not shown in the prompt. Never write a placeholder token
-      such as current_turn in sourceRefs — a placeholder is not a message id, and the
-      runtime treats it as omitted; when the real ids are not visible, omit sourceRefs
-      entirely and the runtime binds them. Do not search message history for
-      the current source id; call the observation and let the runtime bind it. Do not put earlier-turn ids in
-      sourceRefs, and do not use fields.evidence_refs as a substitute.
+    - 'Every tgg_case_observation must cite in top-level sourceRefs EVERY message from
+      the CURRENT turn that you actually used for that write — the report or instruction
+      message and every photo/media message whose evidence you used. Cite only those used
+      messages, not every message batched into the turn. Grouping related report and photo
+      messages is your judgment from their content and thread context; never cite an
+      unrelated message merely because it arrived in the same turn. sourceRefs are
+      mandatory: the runtime rejects omitted, empty, placeholder, earlier-turn, or invented
+      refs and asks you to retry. Never write a placeholder token such as current_turn.
+      Do not search message history for a current source id, and do not use
+      fields.evidence_refs as a substitute.
 
       '
     - 'Evidence-attach justification contract: when a tgg_case_observation cites message

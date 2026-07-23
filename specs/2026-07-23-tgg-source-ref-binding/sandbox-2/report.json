@@ -1,0 +1,124 @@
+{
+  "client_mutation_requests": 0,
+  "external_outbound_sent": 0,
+  "inbox": {
+    "completed": 3
+  },
+  "mode": "fixture-only",
+  "ok": true,
+  "operator_stub_mutation_attempts": 4,
+  "operator_stub_mutation_payloads": [
+    {
+      "body": {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_management",
+          "message": "[Synthetic Manager] WhatsApp turn bundle (3 messages)\nChat: Christopher Source Ref Sandbox (120363409954029949@g.us)\n\n1. [1784822501] Synthetic Manager: Record a completion observation for SK/JOB/2607/2035: ceiling patching was completed. Use the next photo as evidence.\n   source_message_id: fx2-instruction\n2. [1784822502] Synthetic Manager: SK/JOB/2607/2035 after photo: patched ceiling complete.\n   source_message_id: fx2-photo-sk\n3. [1784822503] Synthetic Manager: HG/JOB/2607/9999 separate after photo: tap replacement complete. Do not attach this to SK/JOB/2607/2035.\n   source_message_id: fx2-photo-other",
+          "message_id": "fx2-instruction+fx2-photo-sk+fx2-photo-other",
+          "session_id": "20260724_001027_c285ce70",
+          "session_key": "agent:replay:deploy-smoke-fa5b82e222a1:whatsapp:group:120363409954029949@g.us",
+          "source": {
+            "chat_id": "120363409954029949@g.us",
+            "chat_name": "Christopher Source Ref Sandbox",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "synthetic-manager",
+            "user_name": "Synthetic Manager"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260724_001027_c285ce70:fx2-instruction+fx2-photo-sk+fx2-photo-other"
+      },
+      "method": "POST",
+      "path": "/api/operator/agent-actions"
+    },
+    {
+      "body": {
+        "confidence": "high",
+        "fields": {
+          "chat_name": "Christopher Source Ref Sandbox",
+          "completion_status": "completed",
+          "evidence_type": "after photo",
+          "message_text": "SK/JOB/2607/2035 after photo: patched ceiling complete.",
+          "observed_at": "1784822502",
+          "operator_directed": true,
+          "sender_name": "Synthetic Manager",
+          "source_refs": [
+            "fx2-instruction",
+            "fx2-photo-sk"
+          ],
+          "work_description": "ceiling patching"
+        },
+        "notes": "Ceiling patching completed; after photo shows patched ceiling complete. Operator-directed via management chat: \u201cRecord a completion observation for SK/JOB/2607/2035: ceiling patching was completed. Use the next photo as evidence.\u201d The separate HG/JOB/2607/9999 tap-replacement photo was explicitly excluded.",
+        "source": "whatsapp"
+      },
+      "method": "POST",
+      "path": "/api/operator/cases/SK%2FJOB%2F2607%2F2035/observations"
+    },
+    {
+      "body": {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "fx2-instruction+fx2-photo-sk+fx2-photo-other",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": false,
+          "provider": "openai-direct-primary",
+          "reply": "Recorded against SK/JOB/2607/2035:\n\n- Ceiling patching completed.\n- Evidence: after photo fx2-photo-sk.\n- Separate HG/JOB/2607/9999 photo was not attached.\n- Case state remains open.",
+          "session_id": "20260724_001027_c285ce70"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 54651,
+        "tokens_output": 631,
+        "turn_id": "20260724_001027_c285ce70:fx2-instruction+fx2-photo-sk+fx2-photo-other"
+      },
+      "method": "POST",
+      "path": "/api/operator/agent-actions"
+    },
+    {
+      "body": {
+        "action_type": "executed-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "delivery": "gateway-return",
+          "message_id": "fx2-instruction+fx2-photo-sk+fx2-photo-other",
+          "model": "gpt-5.6-luna",
+          "provider": "openai-direct-primary",
+          "reply": "Recorded against SK/JOB/2607/2035:\n\n- Ceiling patching completed.\n- Evidence: after photo fx2-photo-sk.\n- Separate HG/JOB/2607/9999 photo was not attached.\n- Case state remains open.",
+          "session_id": "20260724_001027_c285ce70"
+        },
+        "source": "whatsapp",
+        "status": "executed",
+        "tokens_input": 54651,
+        "tokens_output": 631,
+        "turn_id": "20260724_001027_c285ce70:fx2-instruction+fx2-photo-sk+fx2-photo-other"
+      },
+      "method": "POST",
+      "path": "/api/operator/agent-actions"
+    }
+  ],
+  "operator_stub_requests_total": 7,
+  "result": {
+    "blocked_commands": 0,
+    "model": "gpt-5.6-luna",
+    "outbound_captured": 1,
+    "processed": 3,
+    "provider": "openai-direct-primary",
+    "turn_id": "paturn_1a684fd5dcf54706984be72efeef31b6"
+  },
+  "run_root": "/Users/pcloffice/pcl/_worktrees/edna-0e1e1951-3163c003/specs/2026-07-23-tgg-source-ref-binding/sandbox-2/smoke-1784823027-c3bebfda",
+  "staged": 3
+}

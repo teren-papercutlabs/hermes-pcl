@@ -533,6 +533,11 @@ def _normalize_operation_payload(operation: str, payload: Mapping[str, Any] | No
     return clean
 
 
+def _is_observation_write_operation(operation: str) -> bool:
+    """Whether a client operation uses the shared case-observation contract."""
+    return operation.strip().lower().endswith("case_observation")
+
+
 def _validate_operation_payload(op: PABusinessOperation, payload: Mapping[str, Any] | None) -> None:
     request_payload = _json_payload(payload)
     if "jobNo" in request_payload:
@@ -971,6 +976,13 @@ def _handle_business_write(args: Mapping[str, Any], **kwargs: Any) -> str:
             if op is None:
                 known = ", ".join(sorted(bridge.operations)) or "none configured"
                 return tool_error(f"unknown PA business operation {operation!r}; known: {known}")
+            canonical = {
+                "tgg_clarification_request": "tgg_clarification_raise",
+                "tgg_message_history_search": "message_search",
+                "tgg_case_update_state": "tgg_case_update",
+            }.get(operation)
+            if _is_observation_write_operation(canonical or operation):
+                payload = _bind_observation_source_refs(payload)
             _validate_operation_payload(op, payload)
         except Exception as exc:
             return tool_error(exc)
@@ -1812,7 +1824,10 @@ def _handle_tgg_case_update_state(args: Mapping[str, Any], **_kwargs: Any) -> st
 
 
 def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str:
-    raw = dict(args)
+    try:
+        raw = _bind_observation_source_refs(dict(args))
+    except Exception as exc:
+        return tool_error(exc)
     fields = raw.get("fields") if isinstance(raw.get("fields"), Mapping) else {}
     fields = dict(fields)
     for source_key, field_key in (
@@ -1827,14 +1842,6 @@ def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str
     source_refs = _filter_placeholder_source_refs(
         _string_list(fields.get("source_refs") or raw.get("sourceRefs"))
     )
-    if not source_refs:
-        source_refs = _current_turn_source_refs()
-        if not source_refs:
-            return tool_error(
-                "tgg_case_observation requires non-empty sourceRefs. Cite the "
-                "WhatsApp message id(s) that support this observation; photos are "
-                "attached server-side from those source refs."
-            )
     fields["source_refs"] = source_refs
     # Media attachment is mechanical. Christopher cites source messages; the
     # systems API derives media_refs/photo_count from message_ledger. Strip any
@@ -1950,7 +1957,7 @@ def _handle_business_call(args: Mapping[str, Any], *, user_task: Any = None) -> 
             }.get(operation)
             configured = bridge.operations.get(canonical) if canonical else None
         effective_operation = canonical or operation
-        if effective_operation == "tgg_case_observation":
+        if _is_observation_write_operation(effective_operation):
             payload = _bind_observation_source_refs(payload)
         elif effective_operation == "tgg_case_create":
             payload = dict(payload)
@@ -1987,11 +1994,9 @@ def _current_turn_source_refs() -> list[str]:
         return []
 
 
-# The constitution instructs the model to OMIT sourceRefs so the runtime binds
-# the current turn's real message ids. Some models instead pass the literal
-# placeholder string "current_turn"; a stored placeholder resolves no WhatsApp
-# excerpt and can never derive media (stage-1 backprocess finding, 2026-07-20).
-# A placeholder is not a citable id — treat it exactly like an omitted field.
+# A stored placeholder resolves no WhatsApp excerpt and can never derive media.
+# A placeholder is not a citable id — strip it before validating the model's
+# explicit citations against the current turn.
 _SOURCE_REF_PLACEHOLDERS = frozenset({"current_turn"})
 
 
@@ -2003,13 +2008,13 @@ def _filter_placeholder_source_refs(refs: list[str]) -> list[str]:
 
 
 def _bind_observation_source_refs(payload: dict[str, Any]) -> dict[str, Any]:
-    """Normalize observation sourceRefs: strip placeholders, bind turn refs.
+    """Normalize and validate observation refs against the current turn.
 
     Collects refs from every location the backend honors (top-level
     sourceRefs/source_refs and the same keys inside fields), drops placeholder
-    and empty entries, and when nothing real remains binds the gateway's
-    current-turn message ids — exactly as when the field was omitted.
-    Payloads that already carry only real ids pass through untouched.
+    and empty entries, and requires every remaining model-cited ref to belong
+    to the gateway's current inbound turn.  The model chooses the relevant
+    subset; this layer never staples the whole turn onto a write.
     """
     fields = payload.get("fields")
     fields = fields if isinstance(fields, Mapping) else None
@@ -2021,21 +2026,34 @@ def _bind_observation_source_refs(payload: dict[str, Any]) -> dict[str, Any]:
     for ref in _filter_placeholder_source_refs(collected):
         if ref not in cleaned:
             cleaned.append(ref)
-    if cleaned and len(cleaned) == len(collected):
-        return payload
-    payload = dict(payload)
-    payload.pop("source_refs", None)
-    if fields is not None and ("sourceRefs" in fields or "source_refs" in fields):
-        fields = dict(fields)
-        fields.pop("sourceRefs", None)
-        fields.pop("source_refs", None)
-        payload["fields"] = fields
-    bound = cleaned or _current_turn_source_refs()
-    if bound:
-        payload["sourceRefs"] = bound
-    else:
-        payload.pop("sourceRefs", None)
-    return payload
+    if not cleaned:
+        raise ValueError(
+            "SOURCE_REFS_REQUIRED: cite every current-turn WhatsApp message "
+            "actually used for this write in sourceRefs, including the report "
+            "message and each photo/media message used. Do not use "
+            "'current_turn'. Retry the same write with explicit message ids."
+        )
+
+    current_refs = _current_turn_source_refs()
+    current_ref_set = set(current_refs)
+    invalid = [ref for ref in cleaned if ref not in current_ref_set]
+    if invalid:
+        raise ValueError(
+            "SOURCE_REFS_OUTSIDE_CURRENT_TURN: cited sourceRefs are not in "
+            f"this turn: {', '.join(invalid)}. Cite only message ids from "
+            "the current inbound turn and retry."
+        )
+
+    normalized = dict(payload)
+    normalized.pop("source_refs", None)
+    normalized.pop("sourceRefs", None)
+    if fields is not None:
+        normalized_fields = dict(fields)
+        normalized_fields.pop("sourceRefs", None)
+        normalized_fields.pop("source_refs", None)
+        normalized["fields"] = normalized_fields
+    normalized["sourceRefs"] = cleaned
+    return normalized
 
 
 # Recovery contract for the backend's evidence-attach gate. Mirrors
