@@ -7,3 +7,4 @@
 - fixture-only sandbox run 2: PASS, 3 messages processed, observation persisted refs `fx2-instruction`, `fx2-photo-sk`; excluded `fx2-photo-other`; zero client mutations; zero external sends.
 
 The four baseline failures are not introduced by this branch, but they leave the literal all-existing-suites gate unclean. Deployment must remain held under the task's conditional authorization until the driver/teren settles that gate.
+- cold cross-provider review (Claude/Opus): CLEAR. It confirmed shared-path placement, subset binding, fail-closed validation, direct/generic coverage, media preservation, constitution shape, and fixture safety. Residuals: relevance remains model judgment by design; every legitimate observation context must supply current-turn refs; baseline failures require driver settlement.
