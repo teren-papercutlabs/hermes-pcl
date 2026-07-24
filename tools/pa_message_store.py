@@ -16,6 +16,7 @@ DESCRIPTION_PROMPT = (
     "objects, condition, damage, work state, and readable identifiers when "
     "present. Do not infer facts that are not visible."
 )
+MAX_LAZY_DESCRIPTIONS_PER_CALL = 3
 
 
 def _store_path() -> Path | None:
@@ -98,7 +99,7 @@ async def _handle_search(args: Mapping[str, Any], **_kwargs: Any) -> str:
             limit=int(args.get("limit") or 20),
         )
         changed = False
-        for row in rows:
+        for row in rows[:MAX_LAZY_DESCRIPTIONS_PER_CALL]:
             if row.get("has_media") and not row.get("description"):
                 changed = await _describe_candidate(store, str(row["message_id"])) or changed
         if changed:
@@ -130,7 +131,7 @@ async def _handle_context(args: Mapping[str, Any], **_kwargs: Any) -> str:
             raise MessageStoreError("message_id is required")
         rows = store.context(message_id, window=int(args.get("window") or 3))
         changed = False
-        for row in rows:
+        for row in rows[:MAX_LAZY_DESCRIPTIONS_PER_CALL]:
             if row.get("has_media") and not row.get("description"):
                 changed = await _describe_candidate(store, str(row["message_id"])) or changed
         if changed:

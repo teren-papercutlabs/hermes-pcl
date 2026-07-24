@@ -35,9 +35,11 @@ class MessageConflictError(MessageStoreError):
 
 SOURCE_PRIORITY = {
     "legacy": 0,
+    "whatsapp": 1,
     "whatsapp_export": 1,
     "export": 1,
     "history-sync": 2,
+    "whatsapp-capture-v1": 2,
     "capture": 3,
 }
 
@@ -275,6 +277,16 @@ class MessageStore:
                 );
                 CREATE INDEX IF NOT EXISTS pa_message_aliases_message_idx
                   ON pa_message_aliases(message_id);
+                CREATE TABLE IF NOT EXISTS pa_message_holds (
+                  hold_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  source TEXT NOT NULL,
+                  message_id TEXT,
+                  chat_id TEXT,
+                  record_sha256 TEXT NOT NULL,
+                  error TEXT NOT NULL,
+                  held_at INTEGER NOT NULL,
+                  UNIQUE(source, record_sha256)
+                );
                 CREATE VIRTUAL TABLE IF NOT EXISTS pa_message_fts USING fts5(
                   message_id UNINDEXED, text, description, tokenize='unicode61'
                 );
@@ -304,6 +316,78 @@ class MessageStore:
                 "INSERT OR IGNORE INTO pa_message_aliases(alias,message_id) "
                 "SELECT message_id,message_id FROM message_ledger"
             )
+
+    def assert_ready(self) -> None:
+        """Fail before consumption when the explicit cutover migration is absent."""
+        required_tables = {
+            "message_ledger",
+            "pa_message_aliases",
+            "pa_message_holds",
+            "pa_message_fts",
+        }
+        with self.connect(read_only=True) as conn:
+            tables = {
+                str(row[0])
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type IN ('table','view')"
+                )
+            }
+            missing = sorted(required_tables - tables)
+            columns = {
+                str(row["name"])
+                for row in conn.execute("PRAGMA table_info(message_ledger)")
+            } if "message_ledger" in tables else set()
+        missing_columns = sorted({"description", "source_keys_json"} - columns)
+        if missing or missing_columns:
+            raise MessageStoreError(
+                "PA_MESSAGE_STORE_NOT_INITIALIZED: "
+                f"missing_tables={missing} missing_columns={missing_columns}"
+            )
+
+    def hold_record(
+        self, record: Mapping[str, Any], *, source: str, error: Exception
+    ) -> WriteResult:
+        """Quarantine one bad ingress record without blocking later messages."""
+        try:
+            item = _bridge_item(record)
+        except MessageStoreError:
+            item = {}
+        message_id = str(item.get("messageId") or "").strip()
+        chat_id = str(item.get("chatId") or "").strip()
+        digest = hashlib.sha256(_json(record).encode()).hexdigest()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO pa_message_holds(
+                  source,message_id,chat_id,record_sha256,error,held_at
+                ) VALUES(?,?,?,?,?,?)
+                ON CONFLICT(source,record_sha256) DO UPDATE SET
+                  error=excluded.error,held_at=excluded.held_at
+                """,
+                (
+                    source,
+                    message_id or None,
+                    chat_id or None,
+                    digest,
+                    f"{type(error).__name__}: {error}"[:2000],
+                    int(time.time()),
+                ),
+            )
+        return WriteResult(
+            action="held",
+            message_id=message_id or f"held:{digest[:24]}",
+            source_key="",
+            sources=(source,),
+        )
+
+    def record_or_hold(
+        self, record: Mapping[str, Any], *, source: str
+    ) -> WriteResult:
+        """Record one event or durably hold an event-level validation conflict."""
+        try:
+            return self.record_message(record, source=source)
+        except MessageStoreError as exc:
+            return self.hold_record(record, source=source, error=exc)
 
     def _row_for_event(
         self, conn: sqlite3.Connection, event: MessageEvent
@@ -423,15 +507,30 @@ class MessageStore:
                 action = "created"
             else:
                 canonical_message_id = str(existing["message_id"])
+                prior_raw = _json_object(existing["raw_json"])
+                incoming_raw = dict(event.raw)
+                merged_raw = {**prior_raw, **incoming_raw}
+                if "importProvenance" in prior_raw:
+                    merged_raw["importProvenance"] = prior_raw["importProvenance"]
                 values = {
-                    "source_key": event.source_key if incoming_wins else existing["source_key"],
+                    # source_key is a durable external join key. New feed keys
+                    # become aliases; they never rewrite the canonical key.
+                    "source_key": existing["source_key"],
                     "source": event.source if incoming_wins else existing["source"],
                     "source_ref": event.source_ref if incoming_wins else existing["source_ref"],
                     "chat_name": event.chat_name if incoming_wins else existing["chat_name"],
-                    "sender_id": event.sender_id if incoming_wins else existing["sender_id"],
+                    "sender_id": (
+                        event.sender_id
+                        if incoming_wins and event.sender_id
+                        else existing["sender_id"]
+                    ),
                     "from_me": int(event.from_me) if incoming_wins else existing["from_me"],
                     "ts": event.timestamp if incoming_wins else existing["ts"],
-                    "text": event.text if incoming_wins else existing["text"],
+                    "text": (
+                        event.text
+                        if incoming_wins and event.text.strip()
+                        else existing["text"]
+                    ),
                     "message_kind": (
                         event.message_kind if incoming_wins else existing["message_kind"]
                     ),
@@ -443,7 +542,7 @@ class MessageStore:
                         if incoming_wins
                         else existing["reply_to_source_ref"]
                     ),
-                    "raw_json": _json(event.raw) if incoming_wins else existing["raw_json"],
+                    "raw_json": _json(merged_raw) if incoming_wins else existing["raw_json"],
                 }
                 conn.execute(
                     """
@@ -681,6 +780,7 @@ class MessageStore:
                     "SELECT COUNT(*) FROM (SELECT source_key FROM message_ledger "
                     "GROUP BY source_key HAVING COUNT(*)>1)"
                 ),
+                "held_records": scalar("SELECT COUNT(*) FROM pa_message_holds"),
                 "undescribed_images": len(self.pending_image_descriptions(limit=100)),
                 "integrity_check": str(
                     conn.execute("PRAGMA integrity_check").fetchone()[0]
@@ -718,7 +818,7 @@ def backfill_jsonl(
                             "before": result.before_image,
                         }
                     )
-            except (json.JSONDecodeError, MessageStoreError) as exc:
+            except (json.JSONDecodeError, MessageStoreError, sqlite3.IntegrityError) as exc:
                 counts["held"] += 1
                 if held_sink:
                     held_sink(

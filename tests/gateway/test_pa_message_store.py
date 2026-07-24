@@ -70,6 +70,7 @@ def test_same_writer_dedupes_and_capture_wins(tmp_path: Path) -> None:
         assert row["text"] == "capture body exact"
         assert row["ts"] == 101
         assert row["source"] == "capture"
+        assert row["source_key"] == "history-sync:m-1"
         assert json.loads(row["sources"]) == ["capture", "history-sync"]
         assert conn.execute("SELECT COUNT(*) FROM message_ledger").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM pa_message_aliases").fetchone()[0] == 3
@@ -78,6 +79,10 @@ def test_same_writer_dedupes_and_capture_wins(tmp_path: Path) -> None:
     store.record_message(
         event("m-1", text="stale history", timestamp=99, history=True),
         source="history-sync",
+    )
+    store.record_message(
+        event("m-1", text="", timestamp=102),
+        source="capture",
     )
     assert store.search("capture body")[0]["message_id"] == "m-1"
 
@@ -288,3 +293,42 @@ def test_capture_admission_calls_canonical_writer_before_cursor_advance(
     )
     assert store.search("written admission")[0]["message_id"] == "admitted"
     assert inbox.total() == 1
+
+
+def test_bad_live_record_is_held_and_does_not_block_later_admission(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "events.jsonl"
+    cursor = tmp_path / "cursor.json"
+    bad = event("bad-time", text="bad", timestamp=300)
+    bad["timestamp"] = "not-a-time"
+    write_jsonl(
+        source,
+        [bad, event("good-after", text="continues safely", timestamp=301)],
+    )
+    initialize_cursor(source, cursor, position="start")
+    store = MessageStore(tmp_path / "tenant.db")
+    store.initialize()
+    store.assert_ready()
+    inbox = DurableInbox(tmp_path / "inbox.db")
+    admitted: list[str] = []
+
+    assert inbox.stage_from_source(
+        source,
+        cursor,
+        max_records=10,
+        message_store=store,
+        admitted_message_ids=admitted,
+    ) == 2
+    assert admitted == ["good-after"]
+    assert store.search("continues safely")[0]["message_id"] == "good-after"
+    with store.connect(read_only=True) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM pa_message_holds").fetchone()[0] == 1
+    with inbox.connect() as conn:
+        statuses = {
+            row["message_id"]: row["status"]
+            for row in conn.execute(
+                "SELECT message_id,status FROM ingress_events ORDER BY seq"
+            )
+        }
+    assert statuses == {"bad-time": "skipped", "good-after": "pending"}

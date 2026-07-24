@@ -37,9 +37,9 @@ from zoneinfo import ZoneInfo
 import yaml
 
 try:
-    from gateway.pa_message_store import MessageStore, describe_pending_images
+    from gateway.pa_message_store import MessageStore
 except ModuleNotFoundError:  # direct ``python gateway/...`` service entrypoint
-    from pa_message_store import MessageStore, describe_pending_images
+    from pa_message_store import MessageStore
 
 
 CURSOR_VERSION = 1
@@ -93,7 +93,7 @@ async def _describe_ingress_images(
     store: MessageStore | None,
     *,
     config_path: Path,
-    limit: int,
+    message_ids: Sequence[str],
 ) -> dict[str, Any] | None:
     if store is None or not _message_descriptions_enabled(config_path):
         return None
@@ -114,12 +114,33 @@ async def _describe_ingress_images(
             )
         return text
 
-    return await describe_pending_images(
-        store,
-        descriptor,
-        eager_only=True,
-        limit=max(1, limit),
-    )
+    report: dict[str, Any] = {
+        "selected": 0,
+        "described": 0,
+        "deferred": 0,
+        "errors": [],
+    }
+    for message_id in message_ids:
+        candidate = store.image_description_candidate(message_id)
+        if not candidate or candidate.get("source") != "capture":
+            continue
+        report["selected"] += 1
+        image_path = store.first_local_image(candidate)
+        if not image_path:
+            report["deferred"] += 1
+            continue
+        try:
+            description = await descriptor(image_path)
+            if store.set_description_once(message_id, description):
+                report["described"] += 1
+        except Exception as exc:
+            report["errors"].append(
+                {
+                    "message_id": message_id,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            )
+    return report
 
 
 def _secret_hash(value: str) -> str:
@@ -534,6 +555,7 @@ class DurableInbox:
         *,
         max_records: int = 100,
         message_store: MessageStore | None = None,
+        admitted_message_ids: list[str] | None = None,
     ) -> int:
         """Stage complete JSONL records, then advance the source cursor.
 
@@ -591,9 +613,10 @@ class DurableInbox:
         # The canonical PA writer runs before inbox/cursor admission.  A
         # failure leaves the source cursor untouched; a later retry is
         # idempotent because the writer reconciles by message id and aliases.
+        writer_results: dict[str, Any] = {}
         if message_store is not None:
             for _start, _end, item in staged:
-                message_store.record_message(
+                result = message_store.record_or_hold(
                     item,
                     source=(
                         "history-sync"
@@ -601,6 +624,9 @@ class DurableInbox:
                         else "capture"
                     ),
                 )
+                writer_results[str(item["messageId"])] = result
+                if result.action != "held" and admitted_message_ids is not None:
+                    admitted_message_ids.append(result.message_id)
 
         now = _utc_now()
         with self.connect() as conn:
@@ -610,9 +636,10 @@ class DurableInbox:
                     """
                     INSERT INTO ingress_events(
                         message_id,chat_id,source_device,source_inode,
-                        start_offset,end_offset,raw_json,status,retention_state,
-                        retention_updated_at,created_at,updated_at
-                    ) VALUES(?,?,?,?,?,?,?,'pending',?,?,?,?)
+                        start_offset,end_offset,raw_json,status,attempts,
+                        pa_turn_id,last_error,retention_state,retention_updated_at,
+                        created_at,updated_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(message_id) DO NOTHING
                     """,
                     (
@@ -623,6 +650,20 @@ class DurableInbox:
                         start,
                         end,
                         json.dumps(item, sort_keys=True, separators=(",", ":")),
+                        (
+                            "skipped"
+                            if writer_results.get(str(item["messageId"]))
+                            and writer_results[str(item["messageId"])].action == "held"
+                            else "pending"
+                        ),
+                        0,
+                        None,
+                        (
+                            "message-store-held"
+                            if writer_results.get(str(item["messageId"]))
+                            and writer_results[str(item["messageId"])].action == "held"
+                            else None
+                        ),
                         _initial_retention_state(item),
                         now,
                         now,
@@ -2785,6 +2826,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
     retention_batch_size = max(1, int(getattr(args, "retention_batch_size", 25)))
     message_store_path = str(getattr(args, "message_store_db", "") or "").strip()
     message_store = MessageStore(message_store_path) if message_store_path else None
+    if message_store is not None:
+        message_store.assert_ready()
 
     with SingletonLock(Path(args.lock_file).resolve()):
         recovery = inbox.reconcile_orphan_processing(state_db)
@@ -2915,11 +2958,13 @@ async def run_consumer(args: argparse.Namespace) -> int:
                 )
 
                 before_stage = inbox.total()
+                admitted_message_ids: list[str] = []
                 staged = inbox.stage_from_source(
                     source,
                     cursor,
                     max_records=args.max_records,
                     message_store=message_store,
+                    admitted_message_ids=admitted_message_ids,
                 )
                 while staged >= args.max_records:
                     staged = inbox.stage_from_source(
@@ -2927,6 +2972,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         cursor,
                         max_records=args.max_records,
                         message_store=message_store,
+                        admitted_message_ids=admitted_message_ids,
                     )
                 after_stage = inbox.total()
                 if after_stage < before_stage:
@@ -2943,7 +2989,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                 description_cycle = await _describe_ingress_images(
                     message_store,
                     config_path=config_path,
-                    limit=max(args.max_records, after_stage - before_stage),
+                    message_ids=admitted_message_ids,
                 )
 
                 # Retention is a capture-lane concern, not a model/business
