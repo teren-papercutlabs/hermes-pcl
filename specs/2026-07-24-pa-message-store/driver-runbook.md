@@ -5,7 +5,7 @@ the client host during the approved Sunday window.
 
 ## Inputs
 
-- Reviewed Hermes code commit: `0ac2563aea`
+- Reviewed Hermes code commit: `01597faba2`
 - Reviewed Systems commit: `8841d89b30e6c6dfc107974ae7a3364e47d118c0`
 - Physical database:
   `/home/pclaw/.systems-pcl/data/tenants/tgg.db`
@@ -33,7 +33,8 @@ test -s "$DB"
 test -s "$CAPTURE"
 test -s "$HISTORY"
 systemctl is-active christopher-tgg-hermes.service
-systemctl stop christopher-tgg-hermes.service
+systemctl is-active systems-papercut-labs.service
+systemctl stop christopher-tgg-hermes.service systems-papercut-labs.service
 ```
 
 Stop any old scheduled invocation of
@@ -42,7 +43,7 @@ version is a fail-loud tombstone, not a writer.
 
 ## 2. Install the reviewed source while the writer is stopped
 
-Use the normal deployment mechanism to put exactly `0ac2563aea` at
+Use the normal deployment mechanism to put exactly `01597faba2` at
 `$HERMES_APP` and exactly `8841d89b30e6c6dfc107974ae7a3364e47d118c0` at
 `$SYSTEMS_APP`. Build Systems from that canonical checkout. Do not restart
 either service yet.
@@ -54,13 +55,9 @@ git -C "$HERMES_APP" rev-parse HEAD > "$RUN/hermes.before.sha"
 git -C "$SYSTEMS_APP" rev-parse HEAD > "$RUN/systems.before.sha"
 ```
 
-## 3. Initialize and backfill through the one writer
+## 3. Snapshot, initialize, and backfill through the one writer
 
 ```bash
-"$HERMES_APP/.venv/bin/python" \
-  "$HERMES_APP/scripts/pa_message_store.py" init --db "$DB" \
-  | tee "$RUN/init.json"
-
 "$HERMES_APP/.venv/bin/python" \
   "$HERMES_APP/scripts/pa_message_store.py" backfill \
   --db "$DB" \
@@ -73,9 +70,16 @@ git -C "$SYSTEMS_APP" rev-parse HEAD > "$RUN/systems.before.sha"
   | tee "$RUN/backfill.stdout.json"
 ```
 
-The command deliberately runs capture first and history-sync second through
-the same writer. Capture facts win overlap; history aliases are retained.
-Zero-byte before-image and held-conflict files are valid.
+The command snapshots the unmodified database first, then initializes the
+schema and deliberately runs capture first and history-sync second through the
+same writer. Capture facts win overlap; history aliases are retained. Zero-byte
+before-image and held-conflict files are valid.
+
+Initialization rebuilds the FTS index and therefore runs only while both
+database consumers are stopped. If this command fails after mutating the
+database, do not rerun it against that partial state. Restore
+`tgg.pre-backfill.db`, preserve the original snapshot, choose a new run
+directory, then retry.
 
 ## 4. Verify before enabling ingress
 
@@ -113,6 +117,8 @@ window, leave it held and record that gap.
 
 ```bash
 systemctl daemon-reload
+systemctl start systems-papercut-labs.service
+systemctl is-active systems-papercut-labs.service
 systemctl start christopher-tgg-hermes.service
 systemctl is-active christopher-tgg-hermes.service
 journalctl -u christopher-tgg-hermes.service -n 100 --no-pager
@@ -137,13 +143,21 @@ second retrieval does not generate another description.
 ## Rollback
 
 ```bash
-systemctl stop christopher-tgg-hermes.service
+systemctl stop christopher-tgg-hermes.service systems-papercut-labs.service
 cp -p "$DB" "$RUN/tgg.failed-cutover.db"
-cp -p "$RUN/tgg.pre-backfill.db" "$DB"
 ```
 
 Restore the recorded pre-cutover Hermes and Systems revisions through the
-normal deployment mechanism, rebuild Systems, reload units, and restart the
-previous service. Then verify SQLite integrity and service health. Keep
+normal deployment mechanism and rebuild Systems **before** restoring the
+database. This removes the new consumer flag and restores the old table
+contract before the old database returns:
+
+```bash
+cp -p "$RUN/tgg.pre-backfill.db" "$DB"
+systemctl daemon-reload
+systemctl start systems-papercut-labs.service christopher-tgg-hermes.service
+```
+
+Then verify SQLite integrity and both services' health. Keep
 `report.json`, `before-images.jsonl`, `held-conflicts.jsonl`, and the failed DB
 copy under the run directory for diagnosis.

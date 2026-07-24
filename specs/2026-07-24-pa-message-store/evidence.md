@@ -7,7 +7,7 @@ All message fixtures were synthetic and created in pytest temporary directories.
 
 Build commits:
 
-- Hermes: `0ac2563aea`
+- Hermes: `01597faba2`
 - Systems: `8841d89b30e6c6dfc107974ae7a3364e47d118c0`
 
 ## Hermes
@@ -17,7 +17,7 @@ TZ=UTC python -m pytest -o addopts= -n 4 \
   tests/gateway/test_pa_message_store.py \
   tests/gateway/test_durable_jsonl_consumer.py -q
 
-63 passed in 23.16s
+64 passed
 ```
 
 This includes the two-feed CLI backfill fixture, capture-wins overlap,
@@ -33,6 +33,21 @@ TZ=UTC python -m pytest -o addopts= tests/test_pa_business_facts.py -q
 
 This verifies the PA business toolset contains the new retrieval tools and
 retains the existing PA boundary checks.
+
+The three suites were rerun together after the review fixes:
+
+```text
+145 passed in 55.66s
+```
+
+## Cross-provider gate
+
+Claude/Opus independently reviewed the cumulative Hermes and Systems patches.
+The final verdict is **CLEAR — round 3**:
+
+`specs/2026-07-24-pa-message-store/cross-provider-review.md`
+
+The two earlier BLOCK reviews are retained beside it as the correction trail.
 
 ```text
 python -m compileall -q \
