@@ -40,3 +40,11 @@ The resolved tree intentionally matches current main at merge time. Main had alr
 ## Merge-specific correction
 
 The older branch removed `hashlib`; newer main media retention and media reply identity still call it. The integration restored the main import before tests. No other merged-tree delta from current main remained.
+
+## Verification outcome
+
+- Focused conflict/feature tests: `99 passed` (`test_durable_jsonl_consumer.py`, `test_replay_runner.py`, `test_consumer_reply_delivery.py`).
+- Required sequential full selection: `5706 passed, 54 skipped, 45 failed` in 2060.44s.
+- Failure-only rerun: 11 order/transient failures cleared; 34 failed persistently.
+- Detached `origin/main` baseline rerun of those 34: the same 34 failed. This proves the integration introduced zero test failures, but the brief's stricter acceptance condition (only the named baseline failures may remain) is not met because current main carries 31 additional persistent failures outside the integration surface.
+- Of the four named expected failures, three still reproduce (`test_state_claim_gate_in_both_job_briefs`, both replay-preflight tests); `test_tgg_management_defaults_to_operator_db_before_ilinked` passed on current main.
