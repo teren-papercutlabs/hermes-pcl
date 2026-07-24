@@ -60,6 +60,11 @@ def test_same_writer_dedupes_and_capture_wins(tmp_path: Path) -> None:
     capture = event("m-1", text="capture body exact", timestamp=101)
 
     assert store.record_message(history, source="history-sync").action == "created"
+    with store.connect() as conn:
+        conn.execute(
+            "UPDATE message_ledger SET raw_json=? WHERE message_id='m-1'",
+            (json.dumps({"importProvenance": {"artifact": "fixture.zip"}}),),
+        )
     assert store.record_message(history, source="history-sync").action == "repaired"
     result = store.record_message(capture, source="capture")
     assert result.action == "repaired"
@@ -72,6 +77,9 @@ def test_same_writer_dedupes_and_capture_wins(tmp_path: Path) -> None:
         assert row["source"] == "capture"
         assert row["source_key"] == "history-sync:m-1"
         assert json.loads(row["sources"]) == ["capture", "history-sync"]
+        assert json.loads(row["raw_json"])["importProvenance"] == {
+            "artifact": "fixture.zip"
+        }
         assert conn.execute("SELECT COUNT(*) FROM message_ledger").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM pa_message_aliases").fetchone()[0] == 3
 

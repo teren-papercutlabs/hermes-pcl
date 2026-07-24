@@ -227,6 +227,7 @@ class MessageStore:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=FULL")
             conn.execute("PRAGMA busy_timeout=30000")
+            conn.execute("PRAGMA foreign_keys=ON")
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -386,7 +387,7 @@ class MessageStore:
         """Record one event or durably hold an event-level validation conflict."""
         try:
             return self.record_message(record, source=source)
-        except MessageStoreError as exc:
+        except (MessageStoreError, sqlite3.IntegrityError) as exc:
             return self.hold_record(record, source=source, error=exc)
 
     def _row_for_event(
@@ -562,7 +563,9 @@ class MessageStore:
                         "sgt": datetime.fromtimestamp(
                             int(values["ts"]), tz=ZoneInfo("Asia/Singapore")
                         ).isoformat(),
-                        "has_media": int(event.has_media or bool(media)),
+                        "has_media": int(
+                            event.has_media or bool(media) or bool(existing["has_media"])
+                        ),
                         "media_refs": _json(media),
                         "sources": _json(sources),
                         "source_flags": _json(source_flags),

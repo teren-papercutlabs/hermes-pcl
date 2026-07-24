@@ -24,6 +24,7 @@ TOP_LEVEL_RUNTIME_FILES = {
     "model_tools.py",
     "pyproject.toml",
     "run_agent.py",
+    "scripts/pa_message_store.py",
     "toolset_distributions.py",
     "toolsets.py",
     "trajectory_compressor.py",
