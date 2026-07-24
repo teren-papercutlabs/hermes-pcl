@@ -47,6 +47,8 @@ if grep -q '/messages' "$DEPLOY_ROOT/systemd/christopher-tgg-hermes.service"; th
 fi
 grep -q '/var/lib/tgg-capture/whatsapp/capture/events.jsonl' \
   "$DEPLOY_ROOT/systemd/christopher-tgg-hermes.service"
+grep -q -- '--message-store-db /home/pclaw/.systems-pcl/data/tenants/tgg.db' \
+  "$DEPLOY_ROOT/systemd/christopher-tgg-hermes.service"
 
 main_pid="$(systemctl show -p MainPID --value christopher-tgg-hermes.service)"
 if [[ ! "$main_pid" =~ ^[1-9][0-9]*$ ]]; then

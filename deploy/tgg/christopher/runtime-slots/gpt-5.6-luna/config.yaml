@@ -10,6 +10,9 @@ agent:
   max_turns: 12
 pa:
   enabled: false
+  message_store:
+    db_path: /home/pclaw/.systems-pcl/data/tenants/tgg.db
+    describe_images: true
   media_retention:
     enabled: true
     media_root: /home/pclaw/.systems-pcl/data/media/tgg/hermes

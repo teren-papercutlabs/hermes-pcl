@@ -784,6 +784,8 @@ def test_pa_business_toolset_is_registered_without_all_tools():
         "tgg_case_search",
         "tgg_message_history_search",
         "message_history_search",
+        "messages_search",
+        "message_context",
         "tgg_clarification_request",
         "clarification_request",
         "tgg_case_observation",

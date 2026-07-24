@@ -572,6 +572,10 @@ DEFAULT_CONFIG = {
         "enabled": False,
         "constitution_path": "",
         "business": {},
+        "message_store": {
+            "db_path": "",
+            "describe_images": True,
+        },
     },
     "inter_session": {
         "enabled": False,

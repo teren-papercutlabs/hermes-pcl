@@ -36,6 +36,11 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
+try:
+    from gateway.pa_message_store import MessageStore, describe_pending_images
+except ModuleNotFoundError:  # direct ``python gateway/...`` service entrypoint
+    from pa_message_store import MessageStore, describe_pending_images
+
 
 CURSOR_VERSION = 1
 INBOX_SCHEMA_VERSION = 2
@@ -72,6 +77,49 @@ def _record_ingress_timestamp(record: "InboxRecord") -> datetime:
         if key in record.raw:
             return _parse_ingress_timestamp(record.raw[key])
     raise ConsumerError(f"inbox record {record.message_id} has no ingress timestamp")
+
+
+def _message_descriptions_enabled(config_path: Path) -> bool:
+    try:
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        pa = config.get("pa") if isinstance(config, Mapping) else None
+        store = pa.get("message_store") if isinstance(pa, Mapping) else None
+        return not isinstance(store, Mapping) or store.get("describe_images", True) is not False
+    except Exception:
+        return True
+
+
+async def _describe_ingress_images(
+    store: MessageStore | None,
+    *,
+    config_path: Path,
+    limit: int,
+) -> dict[str, Any] | None:
+    if store is None or not _message_descriptions_enabled(config_path):
+        return None
+    from tools.vision_tools import vision_analyze_tool
+
+    async def descriptor(path: str) -> str:
+        raw = await vision_analyze_tool(
+            path,
+            "Describe this operational photo in one factual sentence. Include "
+            "visible objects, condition, damage, work state, and readable "
+            "identifiers. Do not infer facts that are not visible.",
+        )
+        result = json.loads(raw)
+        text = str(result.get("analysis") or "").strip()
+        if not result.get("success") or not text:
+            raise ConsumerError(
+                f"photo description failed: {result.get('error') or 'empty result'}"
+            )
+        return text
+
+    return await describe_pending_images(
+        store,
+        descriptor,
+        eager_only=True,
+        limit=max(1, limit),
+    )
 
 
 def _secret_hash(value: str) -> str:
@@ -485,6 +533,7 @@ class DurableInbox:
         cursor_path: Path,
         *,
         max_records: int = 100,
+        message_store: MessageStore | None = None,
     ) -> int:
         """Stage complete JSONL records, then advance the source cursor.
 
@@ -538,6 +587,20 @@ class DurableInbox:
 
         if not staged:
             return 0
+
+        # The canonical PA writer runs before inbox/cursor admission.  A
+        # failure leaves the source cursor untouched; a later retry is
+        # idempotent because the writer reconciles by message id and aliases.
+        if message_store is not None:
+            for _start, _end, item in staged:
+                message_store.record_message(
+                    item,
+                    source=(
+                        "history-sync"
+                        if bool(item.get("historySync"))
+                        else "capture"
+                    ),
+                )
 
         now = _utc_now()
         with self.connect() as conn:
@@ -2720,6 +2783,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
     site_concurrency = max(1, int(getattr(args, "site_concurrency", 4)))
     chat_batch_size = max(1, int(getattr(args, "chat_batch_size", 25)))
     retention_batch_size = max(1, int(getattr(args, "retention_batch_size", 25)))
+    message_store_path = str(getattr(args, "message_store_db", "") or "").strip()
+    message_store = MessageStore(message_store_path) if message_store_path else None
 
     with SingletonLock(Path(args.lock_file).resolve()):
         recovery = inbox.reconcile_orphan_processing(state_db)
@@ -2851,11 +2916,17 @@ async def run_consumer(args: argparse.Namespace) -> int:
 
                 before_stage = inbox.total()
                 staged = inbox.stage_from_source(
-                    source, cursor, max_records=args.max_records
+                    source,
+                    cursor,
+                    max_records=args.max_records,
+                    message_store=message_store,
                 )
                 while staged >= args.max_records:
                     staged = inbox.stage_from_source(
-                        source, cursor, max_records=args.max_records
+                        source,
+                        cursor,
+                        max_records=args.max_records,
+                        message_store=message_store,
                     )
                 after_stage = inbox.total()
                 if after_stage < before_stage:
@@ -2869,6 +2940,11 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "inbox conservation hard-abort after staging: "
                         f"expected={expected_total} actual={inbox.total()}"
                     )
+                description_cycle = await _describe_ingress_images(
+                    message_store,
+                    config_path=config_path,
+                    limit=max(args.max_records, after_stage - before_stage),
+                )
 
                 # Retention is a capture-lane concern, not a model/business
                 # concern.  It runs before demo-pause lane selection and never
@@ -2972,6 +3048,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "chat_batch_size": chat_batch_size,
                             "retention_batch_size": retention_batch_size,
                             "retention_cycle": retention_cycle,
+                            "message_description_cycle": description_cycle,
                             "active_management_chats": [],
                             "active_site_chats": [],
                             "oldest_active_claim": inbox.oldest_processing_updated_at(),
@@ -3010,6 +3087,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "chat_batch_size": chat_batch_size,
                         "retention_batch_size": retention_batch_size,
                         "retention_cycle": retention_cycle,
+                        "message_description_cycle": description_cycle,
                         "active_management_chats": sorted(
                             chat for chat, lane in lanes.items() if lane == "management"
                         ),
@@ -3050,8 +3128,20 @@ async def run_fixture(args: argparse.Namespace) -> int:
         raise ConsumerError("fixture config must explicitly enable PA inside test root")
 
     inbox = DurableInbox(inbox_path)
+    message_store_path = str(getattr(args, "message_store_db", "") or "").strip()
+    message_store = MessageStore(message_store_path) if message_store_path else None
+    if message_store is not None:
+        resolved_store = message_store.db_path
+        if resolved_store != test_root and test_root not in resolved_store.parents:
+            raise ConsumerError(f"fixture message store escapes test root: {resolved_store}")
+        message_store.initialize()
     initialize_cursor(source, cursor, position="start")
-    staged = inbox.stage_from_source(source, cursor, max_records=args.max_records)
+    staged = inbox.stage_from_source(
+        source,
+        cursor,
+        max_records=args.max_records,
+        message_store=message_store,
+    )
     records = inbox.pending(limit=args.max_records)
     if not records:
         raise ConsumerError("fixture source staged no records")
@@ -3073,6 +3163,9 @@ async def run_fixture(args: argparse.Namespace) -> int:
         "staged": staged,
         "inbox": inbox.counts(),
         "result": result,
+        "message_store": (
+            message_store.verification_report() if message_store is not None else None
+        ),
     }
     _atomic_write_json(Path(args.report).resolve(), report)
     print(json.dumps(report, sort_keys=True))
@@ -3910,6 +4003,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--site-concurrency", type=int, default=4)
     run.add_argument("--chat-batch-size", type=int, default=25)
     run.add_argument("--retention-batch-size", type=int, default=25)
+    run.add_argument(
+        "--message-store-db",
+        help="SQLite database containing the PA-owned message_ledger table.",
+    )
     run.add_argument("--once", action="store_true")
 
     fixture = sub.add_parser(
@@ -3924,6 +4021,7 @@ def build_parser() -> argparse.ArgumentParser:
     fixture.add_argument("--report", required=True)
     fixture.add_argument("--run-id", required=True)
     fixture.add_argument("--max-records", type=int, default=10)
+    fixture.add_argument("--message-store-db")
 
     bounded = sub.add_parser(
         "bounded-backplay", help="Run one capture-only existing-inbox window"
