@@ -1827,14 +1827,9 @@ def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str
     source_refs = _filter_placeholder_source_refs(
         _string_list(fields.get("source_refs") or raw.get("sourceRefs"))
     )
-    if not source_refs:
-        source_refs = _current_turn_source_refs()
-        if not source_refs:
-            return tool_error(
-                "tgg_case_observation requires non-empty sourceRefs. Cite the "
-                "WhatsApp message id(s) that support this observation; photos are "
-                "attached server-side from those source refs."
-            )
+    source_error = _validate_cited_turn_source_refs(source_refs, "tgg_case_observation")
+    if source_error:
+        return source_error
     fields["source_refs"] = source_refs
     # Media attachment is mechanical. Christopher cites source messages; the
     # systems API derives media_refs/photo_count from message_ledger. Strip any
@@ -1850,6 +1845,7 @@ def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str
         "notes": raw.get("notes"),
         "confidence": raw.get("confidence"),
     }
+    payload["observedAt"] = _observed_at_for_source_refs(source_refs)
     # v6.3 item 4b: the backend observation response carries only
     # {observationId} — echo the case's last-known backend state into the
     # success result so fresh state is in-face at evidence-attach time.
@@ -1867,17 +1863,35 @@ _CREATE_JOB_NO_ALIASES = ("reportedJobNo", "reported_job_no", "job_no", "jobno",
 def _handle_tgg_case_create(args: Mapping[str, Any], **_kwargs: Any) -> str:
     payload = dict(args)
 
-    # New source documents are their own citation. Bind the current turn's
-    # exact message ids mechanically so the case and its opening observation
-    # retain the same evidence the model read.
-    if not payload.get("evidenceMessageRefs") and not payload.get("evidence_message_refs"):
-        current_refs = _current_turn_source_refs()
-        if current_refs:
-            payload["evidenceMessageRefs"] = current_refs
-            # A source-native job sheet is direct observed evidence, not an
-            # inferred candidate. Keep the backend decision gate explicit even
-            # when the model omits this mechanical classification.
-            payload.setdefault("confidence", "high")
+    source_refs = _filter_placeholder_source_refs(
+        _string_list(
+            payload.get("evidenceMessageRefs")
+            or payload.get("evidence_message_refs")
+            or payload.get("sourceRefs")
+            or payload.get("source_refs")
+        )
+    )
+    source_error = _validate_cited_turn_source_refs(source_refs, "tgg_case_create")
+    if source_error:
+        return source_error
+    payload["evidenceMessageRefs"] = source_refs
+    payload.pop("evidence_message_refs", None)
+    payload.pop("sourceRefs", None)
+    payload.pop("source_refs", None)
+    receipt_timestamp = _coerce_observed_at_epoch(
+        payload.get("receivedAt") or payload.get("received_at")
+    )
+    if not isinstance(receipt_timestamp, int):
+        return tool_error(
+            "tgg_case_create requires receivedAt as the job-sheet receipt epoch "
+            "seconds. This is distinct from observedAt, which the runtime binds "
+            "from the cited ingress message."
+        )
+    payload["receivedAt"] = receipt_timestamp
+    payload.pop("received_at", None)
+    payload["observedAt"] = _observed_at_for_source_refs(source_refs)
+    payload["dueAt"] = receipt_timestamp + 30 * 86400
+    payload.setdefault("confidence", "high")
 
     # Alias coercion: the model sometimes invents sibling names for the job
     # number param (PG day-26 run passed reportedJobNo); the backend only
@@ -1953,12 +1967,10 @@ def _handle_business_call(args: Mapping[str, Any], *, user_task: Any = None) -> 
         if effective_operation == "tgg_case_observation":
             payload = _bind_observation_source_refs(payload)
         elif effective_operation == "tgg_case_create":
-            payload = dict(payload)
-            if not payload.get("evidenceMessageRefs") and not payload.get("evidence_message_refs"):
-                current_refs = _current_turn_source_refs()
-                if current_refs:
-                    payload["evidenceMessageRefs"] = current_refs
-                    payload.setdefault("confidence", "high")
+            prepared = _prepare_case_create_source_refs(payload)
+            if isinstance(prepared, str):
+                return prepared
+            payload = prepared
         # Recover only declared path params accidentally placed beside the
         # generic payload object; arbitrary top-level args never cross over.
         if configured is not None:
@@ -1986,12 +1998,84 @@ def _current_turn_source_refs() -> list[str]:
     except Exception:
         return []
 
+def _current_turn_source_timestamps() -> dict[str, int]:
+    """Ingress epochs keyed by exact message ref for this concurrent turn."""
+    try:
+        from gateway.session_context import get_session_env
 
-# The constitution instructs the model to OMIT sourceRefs so the runtime binds
-# the current turn's real message ids. Some models instead pass the literal
-# placeholder string "current_turn"; a stored placeholder resolves no WhatsApp
-# excerpt and can never derive media (stage-1 backprocess finding, 2026-07-20).
-# A placeholder is not a citable id — treat it exactly like an omitted field.
+        encoded = get_session_env("HERMES_SESSION_SOURCE_MESSAGE_TIMESTAMPS", "")
+        decoded = json.loads(encoded) if encoded else {}
+        return {
+            str(ref): int(timestamp)
+            for ref, timestamp in decoded.items()
+            if str(ref).strip() and not isinstance(timestamp, bool)
+        } if isinstance(decoded, Mapping) else {}
+    except Exception:
+        return {}
+
+
+def _validate_cited_turn_source_refs(refs: list[str], operation: str) -> str | None:
+    current_refs = set(_current_turn_source_refs())
+    if not refs:
+        return tool_error(
+            f"{operation} requires explicit source refs. Cite only the current-turn "
+            "WhatsApp message id(s) that support THIS write; the runtime will not "
+            "attach the whole turn."
+        )
+    outside = [ref for ref in refs if ref not in current_refs]
+    if outside:
+        return tool_error(
+            f"{operation} source refs are outside the current turn: {', '.join(outside)}. "
+            "Retry with only current-turn message ids that support THIS write."
+        )
+    missing_timestamps = [ref for ref in refs if ref not in _current_turn_source_timestamps()]
+    if missing_timestamps:
+        return tool_error(
+            f"{operation} cannot bind ingress time for cited refs: "
+            f"{', '.join(missing_timestamps)}. Refusing rather than inventing observed_at."
+        )
+    return None
+
+
+def _observed_at_for_source_refs(refs: list[str]) -> int:
+    timestamps = _current_turn_source_timestamps()
+    return max(timestamps[ref] for ref in refs)
+
+
+def _prepare_case_create_source_refs(payload: Mapping[str, Any]) -> dict[str, Any] | str:
+    prepared = dict(payload)
+    refs = _filter_placeholder_source_refs(
+        _string_list(
+            prepared.get("evidenceMessageRefs")
+            or prepared.get("evidence_message_refs")
+            or prepared.get("sourceRefs")
+            or prepared.get("source_refs")
+        )
+    )
+    source_error = _validate_cited_turn_source_refs(refs, "tgg_case_create")
+    if source_error:
+        return source_error
+    received_at = _coerce_observed_at_epoch(
+        prepared.get("receivedAt") or prepared.get("received_at")
+    )
+    if not isinstance(received_at, int):
+        return tool_error(
+            "tgg_case_create requires receivedAt as the job-sheet receipt epoch "
+            "seconds. This is distinct from observedAt, which the runtime binds "
+            "from the cited ingress message."
+        )
+    prepared["evidenceMessageRefs"] = refs
+    for key in ("evidence_message_refs", "sourceRefs", "source_refs", "received_at"):
+        prepared.pop(key, None)
+    prepared["receivedAt"] = received_at
+    prepared["observedAt"] = _observed_at_for_source_refs(refs)
+    prepared["dueAt"] = received_at + 30 * 86400
+    prepared.setdefault("confidence", "high")
+    return prepared
+
+
+# Placeholder source refs are never evidence. The model must cite exact
+# current-turn message ids; middleware validates membership and ingress time.
 _SOURCE_REF_PLACEHOLDERS = frozenset({"current_turn"})
 
 
@@ -2003,13 +2087,10 @@ def _filter_placeholder_source_refs(refs: list[str]) -> list[str]:
 
 
 def _bind_observation_source_refs(payload: dict[str, Any]) -> dict[str, Any]:
-    """Normalize observation sourceRefs: strip placeholders, bind turn refs.
+    """Normalize and validate explicit observation source refs.
 
-    Collects refs from every location the backend honors (top-level
-    sourceRefs/source_refs and the same keys inside fields), drops placeholder
-    and empty entries, and when nothing real remains binds the gateway's
-    current-turn message ids — exactly as when the field was omitted.
-    Payloads that already carry only real ids pass through untouched.
+    Collect refs from every backend-supported location, drop placeholders, and
+    refuse unless every remaining id belongs to the current ingress turn.
     """
     fields = payload.get("fields")
     fields = fields if isinstance(fields, Mapping) else None
@@ -2021,8 +2102,6 @@ def _bind_observation_source_refs(payload: dict[str, Any]) -> dict[str, Any]:
     for ref in _filter_placeholder_source_refs(collected):
         if ref not in cleaned:
             cleaned.append(ref)
-    if cleaned and len(cleaned) == len(collected):
-        return payload
     payload = dict(payload)
     payload.pop("source_refs", None)
     if fields is not None and ("sourceRefs" in fields or "source_refs" in fields):
@@ -2030,11 +2109,11 @@ def _bind_observation_source_refs(payload: dict[str, Any]) -> dict[str, Any]:
         fields.pop("sourceRefs", None)
         fields.pop("source_refs", None)
         payload["fields"] = fields
-    bound = cleaned or _current_turn_source_refs()
-    if bound:
-        payload["sourceRefs"] = bound
-    else:
-        payload.pop("sourceRefs", None)
+    source_error = _validate_cited_turn_source_refs(cleaned, "tgg_case_observation")
+    if source_error:
+        raise ValueError(json.loads(source_error)["error"])
+    payload["sourceRefs"] = cleaned
+    payload["observedAt"] = _observed_at_for_source_refs(cleaned)
     return payload
 
 
@@ -2483,7 +2562,6 @@ TGG_CASE_OBSERVATION_SCHEMA = {
         "properties": {
             "jobNo": {"type": "string", "description": "Exact job number to attach the observation to."},
             "source": {"type": "string", "description": "Observation source, e.g. whatsapp."},
-            "observedAt": {"type": "string", "description": "Observed time in SGT or ISO format."},
             "notes": {"type": "string", "description": "Short factual observation notes."},
             "confidence": {"type": "string", "description": "Evidence confidence, e.g. observed, high, low."},
             "fields": {"type": "object", "description": "Structured extracted facts.", "additionalProperties": True},
@@ -2501,7 +2579,7 @@ TGG_CASE_OBSERVATION_SCHEMA = {
                 ),
             },
         },
-        "required": ["jobNo", "source", "observedAt", "notes", "confidence", "sourceRefs"],
+        "required": ["jobNo", "source", "notes", "confidence", "sourceRefs"],
         "additionalProperties": False,
     },
 }
@@ -2545,11 +2623,36 @@ TGG_CASE_CREATE_SCHEMA = {
             "address": {"type": "string", "description": "Case address."},
             "problem": {"type": "string", "description": "Problem or work description."},
             "source": {"type": "string", "description": "Source, e.g. whatsapp."},
-            "observedAt": {"type": "string", "description": "Observed time in SGT or ISO format."},
+            "priority": {"type": "string", "description": "Operational priority stated by the source."},
+            "contactName": {"type": "string", "description": "Contact name stated by the source."},
+            "contactPhone": {"type": "string", "description": "Contact phone stated by the source."},
+            "work_items": {
+                "type": "array",
+                "items": {"type": "object", "additionalProperties": True},
+                "description": "Opening work items stated by this job sheet.",
+            },
+            "receivedAt": {
+                "type": "integer",
+                "description": (
+                    "Job-sheet receipt timestamp as epoch seconds. When the "
+                    "sheet states a date without a time, use midnight at the "
+                    "start of that date in Asia/Singapore."
+                ),
+            },
+            "dueAt": {
+                "type": "integer",
+                "description": "Due epoch. Runtime overwrites this to receipt + 30 days.",
+            },
+            "evidenceMessageRefs": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "description": "Current-turn message ids supporting THIS case only.",
+            },
             "evidence": {"type": "object", "description": "Evidence used to decide this is new.", "additionalProperties": True},
         },
-        "required": ["zone", "address", "problem", "source"],
-        "additionalProperties": True,
+        "required": ["zone", "address", "problem", "source", "receivedAt", "evidenceMessageRefs"],
+        "additionalProperties": False,
     },
 }
 

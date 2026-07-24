@@ -1,0 +1,899 @@
+{
+  "integration_commit": "2f9a481eff1985c417a3da9953fd6136a1432a20",
+  "mode": "fixture",
+  "operator": {
+    "actions": [
+      {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_ops_ingest",
+          "message": "[Fixture Supervisor] WhatsApp turn bundle (4 messages)\nChat: AMK EE Fixture (120363421424519051@g.us)\n\n1. [1784541600] Fixture Supervisor: URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap. Please create this new case from the job sheet and preserve both supplied work items.\n   source_message_id: gate-a-report\n2. [1784541630] Fixture Worker: AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\n   source_message_id: gate-b-caption\n3. [1784541660] Fixture Worker:\n   source_message_id: gate-b-photo-0704\n4. [1784541690] Fixture Worker:\n   source_message_id: gate-b-photo-1032",
+          "message_id": "gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032",
+          "session_id": "20260724_225026_58620bf9",
+          "session_key": "agent:replay:gate-fixture-1-a8fc843e15:whatsapp:group:120363421424519051@g.us",
+          "source": {
+            "chat_id": "120363421424519051@g.us",
+            "chat_name": "AMK EE Fixture",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "fixture-supervisor",
+            "user_name": "Fixture Supervisor"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260724_225026_58620bf9:gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032"
+      },
+      {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": true,
+          "provider": "openai-direct-primary",
+          "reply": "Christopher here. /help shows available commands.\n\nRecorded:\n\u2022 Created AM/JOB/2607/9901 as URGENT, Block 123 Ang Mo Kio Ave 3 #04-56.\n  \u2013 Replace cracked toilet bi-fold door\n  \u2013 Repair leaking kitchen sink trap\n\n\u2022 AM/JOB/2607/8802: recorded worker completion and 2 photos. Case marked completed.\n  \u2013 Kitchen sink choke cleared",
+          "session_id": "20260724_225026_58620bf9"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 55091,
+        "tokens_output": 1515,
+        "turn_id": "20260724_225026_58620bf9:gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032"
+      },
+      {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_ops_ingest",
+          "message": "[Fixture Supervisor] WhatsApp turn bundle (4 messages)\nChat: AMK EE Fixture (120363421424519051@g.us)\n\n1. [1784541600] Fixture Supervisor: URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap. Please create this new case from the job sheet and preserve both supplied work items.\n   source_message_id: gate-a-report\n2. [1784541630] Fixture Worker: AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\n   source_message_id: gate-b-caption\n3. [1784541660] Fixture Worker:\n   source_message_id: gate-b-photo-0704\n4. [1784541690] Fixture Worker:\n   source_message_id: gate-b-photo-1032",
+          "message_id": "gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032",
+          "session_id": "20260724_225056_b2a338d5",
+          "session_key": "agent:replay:gate-fixture-2-03b0f1a84d:whatsapp:group:120363421424519051@g.us",
+          "source": {
+            "chat_id": "120363421424519051@g.us",
+            "chat_name": "AMK EE Fixture",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "fixture-supervisor",
+            "user_name": "Fixture Supervisor"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260724_225056_b2a338d5:gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032"
+      },
+      {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": true,
+          "provider": "openai-direct-primary",
+          "reply": "Processed.\n\n\u2022 AM/JOB/2607/9901\nExisting case found; no duplicate created. Job sheet recorded against the case.\nWork items preserved:\n1. Replace cracked toilet bi-fold door \u2014 pending\n2. Repair leaking kitchen sink trap \u2014 pending\n\n\u2022 AM/JOB/2607/8802\nCompletion caption and 2 photos held as an unmatched completion item. The only matching case is already completed, so the evidence was not attached to it.\n\nAttention item raised: attn-1",
+          "session_id": "20260724_225056_b2a338d5"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 54767,
+        "tokens_output": 1128,
+        "turn_id": "20260724_225056_b2a338d5:gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032"
+      }
+    ],
+    "attention": [
+      {
+        "context": "Worker reports: \"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\" The only resolved case is already completed; completion evidence must not be attached to it. Evidence refs: gate-b-caption, gate-b-photo-0704, gate-b-photo-1032.",
+        "id": "attn-1",
+        "kind": "unmatched_completion",
+        "severity": "high",
+        "sourceRefs": [
+          "gate-b-caption",
+          "gate-b-photo-0704",
+          "gate-b-photo-1032"
+        ],
+        "title": "Unmatched completion: AM/JOB/2607/8802, Block 880 #07-04 kitchen sink choke"
+      }
+    ],
+    "cases": [
+      {
+        "address": "Block 880 Ang Mo Kio Ave 10 #07-04",
+        "evidenceMessageRefs": [
+          "gate-b-caption",
+          "gate-b-photo-0704",
+          "gate-b-photo-1032"
+        ],
+        "jobNo": "AM/JOB/2607/8802",
+        "observedAt": 1784478460,
+        "state": "completed",
+        "work_items": [
+          {
+            "label": "Kitchen sink choke",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      },
+      {
+        "address": "Block 881 Ang Mo Kio Ave 10 #10-32",
+        "jobNo": "AM/JOB/2607/8803",
+        "state": "open",
+        "work_items": [
+          {
+            "label": "Toilet bi-fold door",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      },
+      {
+        "address": "Block 882 Ang Mo Kio Ave 10 #11-22",
+        "jobNo": "AM/JOB/2607/8804",
+        "state": "open",
+        "work_items": [
+          {
+            "label": "Bedroom window handle",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      },
+      {
+        "address": "Block 123 Ang Mo Kio Ave 3 #04-56",
+        "confidence": "high",
+        "contactName": "Tan Ah Kow",
+        "contactPhone": "91234567",
+        "dueAt": 1787068800,
+        "evidence": {
+          "chat_name": "AMK EE Fixture",
+          "message_text": "URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
+          "sender_name": "Fixture Supervisor"
+        },
+        "evidenceMessageRefs": [
+          "gate-a-report"
+        ],
+        "jobNo": "AM/JOB/2607/9901",
+        "observedAt": 1784541600,
+        "priority": "URGENT",
+        "problem": "URGENT HDB job sheet",
+        "receivedAt": 1784476800,
+        "serviceLine": "maintenance",
+        "source": "whatsapp",
+        "work_items": [
+          {
+            "label": "Replace cracked toilet bi-fold door",
+            "status": "pending"
+          },
+          {
+            "label": "Repair leaking kitchen sink trap",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      }
+    ],
+    "observations": [
+      {
+        "confidence": "high",
+        "fields": {
+          "chat_name": "AMK EE Fixture",
+          "message_text": "AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.",
+          "observed_at": "2026-07-20T00:27:40+08:00",
+          "sender_name": "Fixture Worker",
+          "source_refs": [
+            "gate-b-caption",
+            "gate-b-photo-0704",
+            "gate-b-photo-1032"
+          ],
+          "work_items": [
+            {
+              "evidence_refs": [
+                "gate-b-caption",
+                "gate-b-photo-0704",
+                "gate-b-photo-1032"
+              ],
+              "label": "Kitchen sink choke",
+              "note": "Worker reports kitchen sink choke cleared and job completed; after-photos supplied.",
+              "status": "done"
+            }
+          ]
+        },
+        "jobNo": "AM/JOB/2607/8802",
+        "notes": "Completion report and two follow-up photos. The job number and exact block/unit in the caption match the open case; the reported action maps to the established work item 'Kitchen sink choke'.",
+        "observationId": "obs-1",
+        "observedAt": 1784541690,
+        "source": "whatsapp"
+      },
+      {
+        "chatName": "AMK EE Fixture",
+        "confidence": "high",
+        "fields": {
+          "chat_name": "AMK EE Fixture",
+          "contact_name": "Tan Ah Kow",
+          "contact_phone": "91234567",
+          "message_text": "URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
+          "priority": "URGENT",
+          "sender_name": "Fixture Supervisor",
+          "work_items": [
+            {
+              "evidence_refs": [
+                "gate-a-report"
+              ],
+              "label": "Replace cracked toilet bi-fold door",
+              "status": "pending"
+            },
+            {
+              "evidence_refs": [
+                "gate-a-report"
+              ],
+              "label": "Repair leaking kitchen sink trap",
+              "status": "pending"
+            }
+          ]
+        },
+        "jobNo": "AM/JOB/2607/9901",
+        "messageText": "URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
+        "notes": "Duplicate HDB job sheet received. Existing case already contains the same address, urgency, contact, and both supplied opening work items; no new case created.",
+        "observationId": "obs-2",
+        "observedAt": 1784541600,
+        "senderName": "Fixture Supervisor",
+        "source": "whatsapp",
+        "sourceRefs": [
+          "gate-a-report"
+        ]
+      }
+    ],
+    "requests": [
+      {
+        "at": 1784904626.1396549,
+        "body": {
+          "action_type": "observation",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "job_type": "tgg_ops_ingest",
+            "message": "[Fixture Supervisor] WhatsApp turn bundle (4 messages)\nChat: AMK EE Fixture (120363421424519051@g.us)\n\n1. [1784541600] Fixture Supervisor: URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap. Please create this new case from the job sheet and preserve both supplied work items.\n   source_message_id: gate-a-report\n2. [1784541630] Fixture Worker: AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\n   source_message_id: gate-b-caption\n3. [1784541660] Fixture Worker:\n   source_message_id: gate-b-photo-0704\n4. [1784541690] Fixture Worker:\n   source_message_id: gate-b-photo-1032",
+            "message_id": "gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032",
+            "session_id": "20260724_225026_58620bf9",
+            "session_key": "agent:replay:gate-fixture-1-a8fc843e15:whatsapp:group:120363421424519051@g.us",
+            "source": {
+              "chat_id": "120363421424519051@g.us",
+              "chat_name": "AMK EE Fixture",
+              "chat_topic": null,
+              "chat_type": "group",
+              "platform": "whatsapp",
+              "thread_id": null,
+              "user_id": "fixture-supervisor",
+              "user_name": "Fixture Supervisor"
+            }
+          },
+          "source": "whatsapp",
+          "status": "pending",
+          "tokens_input": 0,
+          "tokens_output": 0,
+          "turn_id": "20260724_225026_58620bf9:gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784904626.558997,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/agent-config",
+        "query": {}
+      },
+      {
+        "at": 1784904636.576576,
+        "body": {
+          "address": "Block 123 Ang Mo Kio Ave 3 #04-56",
+          "confidence": "high",
+          "contactName": "Tan Ah Kow",
+          "contactPhone": "91234567",
+          "dueAt": 1787068800,
+          "evidence": {
+            "chat_name": "AMK EE Fixture",
+            "message_text": "URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
+            "sender_name": "Fixture Supervisor"
+          },
+          "evidenceMessageRefs": [
+            "gate-a-report"
+          ],
+          "jobNo": "AM/JOB/2607/9901",
+          "observedAt": 1784541600,
+          "priority": "URGENT",
+          "problem": "URGENT HDB job sheet",
+          "receivedAt": 1784476800,
+          "serviceLine": "maintenance",
+          "source": "whatsapp",
+          "work_items": [
+            {
+              "label": "Replace cracked toilet bi-fold door",
+              "status": "pending"
+            },
+            {
+              "label": "Repair leaking kitchen sink trap",
+              "status": "pending"
+            }
+          ],
+          "zone": "AMK"
+        },
+        "method": "POST",
+        "path": "/api/operator/cases/create",
+        "query": {}
+      },
+      {
+        "at": 1784904637.742511,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8802",
+        "query": {}
+      },
+      {
+        "at": 1784904638.9067361,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases",
+        "query": {
+          "block": [
+            "880"
+          ],
+          "limit": [
+            "10"
+          ],
+          "search": [
+            "Blk 880 #07-04"
+          ],
+          "unit": [
+            "#07-04"
+          ]
+        }
+      },
+      {
+        "at": 1784904644.4724429,
+        "body": {
+          "confidence": "high",
+          "fields": {
+            "chat_name": "AMK EE Fixture",
+            "message_text": "AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.",
+            "observed_at": "2026-07-20T00:27:40+08:00",
+            "sender_name": "Fixture Worker",
+            "source_refs": [
+              "gate-b-caption",
+              "gate-b-photo-0704",
+              "gate-b-photo-1032"
+            ],
+            "work_items": [
+              {
+                "evidence_refs": [
+                  "gate-b-caption",
+                  "gate-b-photo-0704",
+                  "gate-b-photo-1032"
+                ],
+                "label": "Kitchen sink choke",
+                "note": "Worker reports kitchen sink choke cleared and job completed; after-photos supplied.",
+                "status": "done"
+              }
+            ]
+          },
+          "notes": "Completion report and two follow-up photos. The job number and exact block/unit in the caption match the open case; the reported action maps to the established work item 'Kitchen sink choke'.",
+          "observedAt": 1784541690,
+          "source": "whatsapp"
+        },
+        "method": "POST",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8802/observations",
+        "query": {}
+      },
+      {
+        "at": 1784904645.6319418,
+        "body": {
+          "evidenceMessageRefs": [
+            "gate-b-caption",
+            "gate-b-photo-0704",
+            "gate-b-photo-1032"
+          ],
+          "observedAt": 1784478460,
+          "state": "completed"
+        },
+        "method": "PATCH",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8802/state",
+        "query": {}
+      },
+      {
+        "at": 1784904648.802916,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F9901",
+        "query": {}
+      },
+      {
+        "at": 1784904649.892502,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8802",
+        "query": {}
+      },
+      {
+        "at": 1784904656.146278,
+        "body": {
+          "action_type": "dry-run-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "message_id": "gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032",
+            "model": "gpt-5.6-luna",
+            "never_send_replies": true,
+            "provider": "openai-direct-primary",
+            "reply": "Christopher here. /help shows available commands.\n\nRecorded:\n\u2022 Created AM/JOB/2607/9901 as URGENT, Block 123 Ang Mo Kio Ave 3 #04-56.\n  \u2013 Replace cracked toilet bi-fold door\n  \u2013 Repair leaking kitchen sink trap\n\n\u2022 AM/JOB/2607/8802: recorded worker completion and 2 photos. Case marked completed.\n  \u2013 Kitchen sink choke cleared",
+            "session_id": "20260724_225026_58620bf9"
+          },
+          "source": "whatsapp",
+          "status": "dry-run",
+          "tokens_input": 55091,
+          "tokens_output": 1515,
+          "turn_id": "20260724_225026_58620bf9:gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784904656.565126,
+        "body": {
+          "action_type": "observation",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "job_type": "tgg_ops_ingest",
+            "message": "[Fixture Supervisor] WhatsApp turn bundle (4 messages)\nChat: AMK EE Fixture (120363421424519051@g.us)\n\n1. [1784541600] Fixture Supervisor: URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap. Please create this new case from the job sheet and preserve both supplied work items.\n   source_message_id: gate-a-report\n2. [1784541630] Fixture Worker: AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\n   source_message_id: gate-b-caption\n3. [1784541660] Fixture Worker:\n   source_message_id: gate-b-photo-0704\n4. [1784541690] Fixture Worker:\n   source_message_id: gate-b-photo-1032",
+            "message_id": "gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032",
+            "session_id": "20260724_225056_b2a338d5",
+            "session_key": "agent:replay:gate-fixture-2-03b0f1a84d:whatsapp:group:120363421424519051@g.us",
+            "source": {
+              "chat_id": "120363421424519051@g.us",
+              "chat_name": "AMK EE Fixture",
+              "chat_topic": null,
+              "chat_type": "group",
+              "platform": "whatsapp",
+              "thread_id": null,
+              "user_id": "fixture-supervisor",
+              "user_name": "Fixture Supervisor"
+            }
+          },
+          "source": "whatsapp",
+          "status": "pending",
+          "tokens_input": 0,
+          "tokens_output": 0,
+          "turn_id": "20260724_225056_b2a338d5:gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784904656.5844522,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/agent-config",
+        "query": {}
+      },
+      {
+        "at": 1784904661.661973,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F9901",
+        "query": {}
+      },
+      {
+        "at": 1784904662.83507,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8802",
+        "query": {}
+      },
+      {
+        "at": 1784904663.99705,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases",
+        "query": {
+          "block": [
+            "880"
+          ],
+          "limit": [
+            "10"
+          ],
+          "search": [
+            "Blk 880 Ang Mo Kio Ave 10 #07-04"
+          ],
+          "unit": [
+            "#07-04"
+          ]
+        }
+      },
+      {
+        "at": 1784904670.0898812,
+        "body": {
+          "chatName": "AMK EE Fixture",
+          "confidence": "high",
+          "fields": {
+            "chat_name": "AMK EE Fixture",
+            "contact_name": "Tan Ah Kow",
+            "contact_phone": "91234567",
+            "message_text": "URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
+            "priority": "URGENT",
+            "sender_name": "Fixture Supervisor",
+            "work_items": [
+              {
+                "evidence_refs": [
+                  "gate-a-report"
+                ],
+                "label": "Replace cracked toilet bi-fold door",
+                "status": "pending"
+              },
+              {
+                "evidence_refs": [
+                  "gate-a-report"
+                ],
+                "label": "Repair leaking kitchen sink trap",
+                "status": "pending"
+              }
+            ]
+          },
+          "messageText": "URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
+          "notes": "Duplicate HDB job sheet received. Existing case already contains the same address, urgency, contact, and both supplied opening work items; no new case created.",
+          "observedAt": 1784541600,
+          "senderName": "Fixture Supervisor",
+          "source": "whatsapp",
+          "sourceRefs": [
+            "gate-a-report"
+          ]
+        },
+        "method": "POST",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F9901/observations",
+        "query": {}
+      },
+      {
+        "at": 1784904671.248995,
+        "body": {
+          "context": "Worker reports: \"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\" The only resolved case is already completed; completion evidence must not be attached to it. Evidence refs: gate-b-caption, gate-b-photo-0704, gate-b-photo-1032.",
+          "kind": "unmatched_completion",
+          "severity": "high",
+          "sourceRefs": [
+            "gate-b-caption",
+            "gate-b-photo-0704",
+            "gate-b-photo-1032"
+          ],
+          "title": "Unmatched completion: AM/JOB/2607/8802, Block 880 #07-04 kitchen sink choke"
+        },
+        "method": "POST",
+        "path": "/api/operator/attention-items",
+        "query": {}
+      },
+      {
+        "at": 1784904677.409662,
+        "body": {
+          "action_type": "dry-run-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "message_id": "gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032",
+            "model": "gpt-5.6-luna",
+            "never_send_replies": true,
+            "provider": "openai-direct-primary",
+            "reply": "Processed.\n\n\u2022 AM/JOB/2607/9901\nExisting case found; no duplicate created. Job sheet recorded against the case.\nWork items preserved:\n1. Replace cracked toilet bi-fold door \u2014 pending\n2. Repair leaking kitchen sink trap \u2014 pending\n\n\u2022 AM/JOB/2607/8802\nCompletion caption and 2 photos held as an unmatched completion item. The only matching case is already completed, so the evidence was not attached to it.\n\nAttention item raised: attn-1",
+            "session_id": "20260724_225056_b2a338d5"
+          },
+          "source": "whatsapp",
+          "status": "dry-run",
+          "tokens_input": 54767,
+          "tokens_output": 1128,
+          "turn_id": "20260724_225056_b2a338d5:gate-a-report+gate-b-caption+gate-b-photo-0704+gate-b-photo-1032"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      }
+    ]
+  },
+  "pa_tool_calls": [
+    {
+      "call_id": "call_lJmdQUg3X1rLUaecsjS25vwI",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 1,
+      "input_json": "\"{\\\"jobNo\\\":\\\"AM/JOB/2607/9901\\\",\\\"zone\\\":\\\"AMK\\\",\\\"serviceLine\\\":\\\"maintenance\\\",\\\"address\\\":\\\"Block 123 Ang Mo Kio Ave 3 #04-56\\\",\\\"problem\\\":\\\"URGENT HDB job sheet\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"priority\\\":\\\"URGENT\\\",\\\"contactName\\\":\\\"Tan Ah Kow\\\",\\\"contactPhone\\\":\\\"91234567\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Replace cracked toilet bi-fold door\\\",\\\"status\\\":\\\"pending\\\"},{\\\"label\\\":\\\"Repair leaking kitchen sink trap\\\",\\\"status\\\":\\\"pending\\\"}],\\\"receivedAt\\\":1784476800,\\\"evidenceMessageRefs\\\":[\\\"gate-a-report\\\"],\\\"evidence\\\":{\\\"message_text\\\":\\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\",\\\"sender_name\\\":\\\"Fixture Supervisor\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\"}}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"caseId\\\": 4, \\\"jobNo\\\": \\\"AM/JOB/2607/9901\\\", \\\"created\\\": true}, \\\"status_code\\\": 200}\"",
+      "tool_name": "tgg_case_create",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_YEeuFl2WesoMfiwLBLHyWfVc",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 2,
+      "input_json": "\"{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\"}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\"",
+      "tool_name": "tgg_case_lookup",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_xO5ZSpgYj4CKNfkS50T3zDeW",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 3,
+      "input_json": "\"{\\\"block\\\":\\\"880\\\",\\\"unit\\\":\\\"#07-04\\\",\\\"street\\\":\\\"Ang Mo Kio Ave 10\\\",\\\"limit\\\":10}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": [], \\\"cases\\\": [], \\\"status_code\\\": 200}\"",
+      "tool_name": "tgg_case_search",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_djQVp6FmweFpOoi8OSWN9gyH",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 4,
+      "input_json": "\"{\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"confidence\\\":\\\"high\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"observed_at\\\":\\\"2026-07-20T00:27:40+08:00\\\",\\\"photo_count\\\":2,\\\"media_refs\\\":[\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"],\\\"work_items\\\":[{\\\"label\\\":\\\"Kitchen sink choke\\\",\\\"status\\\":\\\"done\\\",\\\"note\\\":\\\"Worker reports kitchen sink choke cleared and job completed; after-photos supplied.\\\",\\\"evidence_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}]},\\\"justification\\\":{\\\"kind\\\":\\\"identifier_match\\\",\\\"identifier\\\":{\\\"type\\\":\\\"block_unit\\\",\\\"value\\\":\\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\"},\\\"source\\\":\\\"caption\\\"},\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\",\\\"messageText\\\":\\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\",\\\"notes\\\":\\\"Completion report and two follow-up photos. The job number and exact block/unit in the caption match the open case; the reported action maps to the established work item 'Kitchen sink choke'.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"sourceRefs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200, \\\"caseState\\\": \\\"open\\\", \\\"caseStateNote\\\": \\\"current backend state for this case (from the most recent lookup/search result) \\u2014 any state claim must restate THIS value, not conversation memory\\\"}\"",
+      "tool_name": "tgg_case_observation",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_7nNPxq1erMGPCpQrpOGNG1p9",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 5,
+      "input_json": "\"{\\\"evidence_message_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"],\\\"job_no\\\":\\\"AM/JOB/2607/8802\\\",\\\"observed_at\\\":\\\"2026-07-20T00:27:40+08:00\\\",\\\"state\\\":\\\"completed\\\"}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"completed\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"evidenceMessageRefs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"observedAt\\\": 1784478460}, \\\"status_code\\\": 200}\"",
+      "tool_name": "tgg_case_update_state",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_TWdPghDNKOk9sC2Ycl0YFccd",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 6,
+      "input_json": "\"{\\\"jobNo\\\":\\\"AM/JOB/2607/9901\\\"}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/9901\\\", \\\"zone\\\": \\\"AMK\\\", \\\"serviceLine\\\": \\\"maintenance\\\", \\\"address\\\": \\\"Block 123 Ang Mo Kio Ave 3 #04-56\\\", \\\"problem\\\": \\\"URGENT HDB job sheet\\\", \\\"source\\\": \\\"whatsapp\\\", \\\"priority\\\": \\\"URGENT\\\", \\\"contactName\\\": \\\"Tan Ah Kow\\\", \\\"contactPhone\\\": \\\"91234567\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Replace cracked toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\"}, {\\\"label\\\": \\\"Repair leaking kitchen sink trap\\\", \\\"status\\\": \\\"pending\\\"}], \\\"receivedAt\\\": 1784476800, \\\"evidenceMessageRefs\\\": [\\\"gate-a-report\\\"], \\\"evidence\\\": {\\\"message_text\\\": \\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\", \\\"sender_name\\\": \\\"Fixture Supervisor\\\", \\\"chat_name\\\": \\\"AMK EE Fixture\\\"}, \\\"observedAt\\\": 1784541600, \\\"dueAt\\\": 1787068800, \\\"confidence\\\": \\\"high\\\", \\\"observations\\\": []}, \\\"status_code\\\": 200}\"",
+      "tool_name": "tgg_case_lookup",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_xUpYXs8ahHtZvhA61kcQNh1f",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 7,
+      "input_json": "\"{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\"}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"completed\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"evidenceMessageRefs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"observedAt\\\": 1784478460, \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"observed_at\\\": \\\"2026-07-20T00:27:40+08:00\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"done\\\", \\\"note\\\": \\\"Worker reports kitchen sink choke cleared and job completed; after-photos supplied.\\\", \\\"evidence_refs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"]}], \\\"source_refs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"chat_name\\\": \\\"AMK EE Fixture\\\"}, \\\"notes\\\": \\\"Completion report and two follow-up photos. The job number and exact block/unit in the caption match the open case; the reported action maps to the established work item 'Kitchen sink choke'.\\\", \\\"confidence\\\": \\\"high\\\", \\\"observedAt\\\": 1784541690, \\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\"",
+      "tool_name": "tgg_case_lookup",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_VoVRVuFIlB5GjMvHRsEG5yH5",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 8,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_create\\\",\\\"reason\\\":\\\"Created new AMK HDB case AM/JOB/2607/9901 from the supplied job sheet with both opening work items preserved.\\\",\\\"evidence_message_refs\\\":[\\\"gate-a-report\\\"]}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_create\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_UiFuwfzLl0H8OXPToZCF80fP",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 9,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the worker completion report and two supplied photos against the matching open case.\\\",\\\"evidence_message_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_Bg8Gdc9hQBz0Mrvq9trDDf85",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 10,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_update\\\",\\\"reason\\\":\\\"Marked AM/JOB/2607/8802 completed after the worker reported the established kitchen sink choke item cleared.\\\",\\\"evidence_message_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}\"",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_update\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3"
+    },
+    {
+      "call_id": "call_l7KtWn4efPNI4eCzOKEt0hiC",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 11,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/9901\\\"}}\"",
+      "replay_attempt_id": "attempt-95064d68f19f",
+      "replay_run_id": "gate-fixture-2-03b0f1a84d",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/9901\\\", \\\"zone\\\": \\\"AMK\\\", \\\"serviceLine\\\": \\\"maintenance\\\", \\\"address\\\": \\\"Block 123 Ang Mo Kio Ave 3 #04-56\\\", \\\"problem\\\": \\\"URGENT HDB job sheet\\\", \\\"source\\\": \\\"whatsapp\\\", \\\"priority\\\": \\\"URGENT\\\", \\\"contactName\\\": \\\"Tan Ah Kow\\\", \\\"contactPhone\\\": \\\"91234567\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Replace cracked toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\"}, {\\\"label\\\": \\\"Repair leaking kitchen sink trap\\\", \\\"status\\\": \\\"pending\\\"}], \\\"receivedAt\\\": 1784476800, \\\"evidenceMessageRefs\\\": [\\\"gate-a-report\\\"], \\\"evidence\\\": {\\\"message_text\\\": \\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\", \\\"sender_name\\\": \\\"Fixture Supervisor\\\", \\\"chat_name\\\": \\\"AMK EE Fixture\\\"}, \\\"observedAt\\\": 1784541600, \\\"dueAt\\\": 1787068800, \\\"confidence\\\": \\\"high\\\", \\\"observations\\\": []}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_read",
+      "turn_id": "paturn_7b974767530a47f4ac24bf0b00e5c4bd"
+    },
+    {
+      "call_id": "call_q6CZPTmG0YGG7eW9SFS0PPkD",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 12,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\"}}\"",
+      "replay_attempt_id": "attempt-95064d68f19f",
+      "replay_run_id": "gate-fixture-2-03b0f1a84d",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"completed\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"evidenceMessageRefs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"observedAt\\\": 1784478460, \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"observed_at\\\": \\\"2026-07-20T00:27:40+08:00\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"done\\\", \\\"note\\\": \\\"Worker reports kitchen sink choke cleared and job completed; after-photos supplied.\\\", \\\"evidence_refs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"]}], \\\"source_refs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"chat_name\\\": \\\"AMK EE Fixture\\\"}, \\\"notes\\\": \\\"Completion report and two follow-up photos. The job number and exact block/unit in the caption match the open case; the reported action maps to the established work item 'Kitchen sink choke'.\\\", \\\"confidence\\\": \\\"high\\\", \\\"observedAt\\\": 1784541690, \\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_read",
+      "turn_id": "paturn_7b974767530a47f4ac24bf0b00e5c4bd"
+    },
+    {
+      "call_id": "call_Ei6o7eEmYxgY367cc8O3yJJu",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 13,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_search\\\",\\\"payload\\\":{\\\"block\\\":\\\"880\\\",\\\"unit\\\":\\\"#07-04\\\",\\\"street\\\":\\\"Ang Mo Kio Ave 10\\\",\\\"limit\\\":10}}\"",
+      "replay_attempt_id": "attempt-95064d68f19f",
+      "replay_run_id": "gate-fixture-2-03b0f1a84d",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": [], \\\"cases\\\": [], \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_read",
+      "turn_id": "paturn_7b974767530a47f4ac24bf0b00e5c4bd"
+    },
+    {
+      "call_id": "call_WAB7CfPtCyRbK6jsf8uz44S3",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 14,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/9901\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Duplicate HDB job sheet received. Existing case already contains the same address, urgency, contact, and both supplied opening work items; no new case created.\\\",\\\"confidence\\\":\\\"high\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\",\\\"sender_name\\\":\\\"Fixture Supervisor\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"priority\\\":\\\"URGENT\\\",\\\"contact_name\\\":\\\"Tan Ah Kow\\\",\\\"contact_phone\\\":\\\"91234567\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Replace cracked toilet bi-fold door\\\",\\\"status\\\":\\\"pending\\\",\\\"evidence_refs\\\":[\\\"gate-a-report\\\"]},{\\\"label\\\":\\\"Repair leaking kitchen sink trap\\\",\\\"status\\\":\\\"pending\\\",\\\"evidence_refs\\\":[\\\"gate-a-report\\\"]}]},\\\"messageText\\\":\\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\",\\\"senderName\\\":\\\"Fixture Supervisor\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-a-report\\\"]}}\"",
+      "replay_attempt_id": "attempt-95064d68f19f",
+      "replay_run_id": "gate-fixture-2-03b0f1a84d",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-2\\\"}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_write",
+      "turn_id": "paturn_7b974767530a47f4ac24bf0b00e5c4bd"
+    },
+    {
+      "call_id": "call_NrNr9tDpHySrv6FKkG9hcvUt",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 15,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_attention_raise\\\",\\\"payload\\\":{\\\"kind\\\":\\\"unmatched_completion\\\",\\\"title\\\":\\\"Unmatched completion: AM/JOB/2607/8802, Block 880 #07-04 kitchen sink choke\\\",\\\"context\\\":\\\"Worker reports: \\\\\\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\\\\\" The only resolved case is already completed; completion evidence must not be attached to it. Evidence refs: gate-b-caption, gate-b-photo-0704, gate-b-photo-1032.\\\",\\\"severity\\\":\\\"high\\\",\\\"sourceRefs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}}\"",
+      "replay_attempt_id": "attempt-95064d68f19f",
+      "replay_run_id": "gate-fixture-2-03b0f1a84d",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"kind\\\": \\\"unmatched_completion\\\", \\\"title\\\": \\\"Unmatched completion: AM/JOB/2607/8802, Block 880 #07-04 kitchen sink choke\\\", \\\"context\\\": \\\"Worker reports: \\\\\\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\\\\\" The only resolved case is already completed; completion evidence must not be attached to it. Evidence refs: gate-b-caption, gate-b-photo-0704, gate-b-photo-1032.\\\", \\\"severity\\\": \\\"high\\\", \\\"sourceRefs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"id\\\": \\\"attn-1\\\"}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_write",
+      "turn_id": "paturn_7b974767530a47f4ac24bf0b00e5c4bd"
+    },
+    {
+      "call_id": "call_8Ft1ERp2ce6QR3npJpOBTKhL",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 16,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the duplicate AM/JOB/2607/9901 job sheet against the existing case; preserved both supplied work items and did not create a duplicate.\\\",\\\"evidence_message_refs\\\":[\\\"gate-a-report\\\"]}\"",
+      "replay_attempt_id": "attempt-95064d68f19f",
+      "replay_run_id": "gate-fixture-2-03b0f1a84d",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_7b974767530a47f4ac24bf0b00e5c4bd"
+    },
+    {
+      "call_id": "call_ggQNYcYwi7PpzZfcGq9YTHwW",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 17,
+      "input_json": "\"{\\\"event_type\\\":\\\"attention_raised\\\",\\\"reason\\\":\\\"Held completion text and two photos for AM/JOB/2607/8802 because the only matching case is already completed.\\\",\\\"evidence_message_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}\"",
+      "replay_attempt_id": "attempt-95064d68f19f",
+      "replay_run_id": "gate-fixture-2-03b0f1a84d",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"attention_raised\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_7b974767530a47f4ac24bf0b00e5c4bd"
+    }
+  ],
+  "pa_turns": [
+    {
+      "agent_id": "christopher",
+      "chat_id": "120363421424519051@g.us",
+      "completed_at": 1784904656.1678112,
+      "context_window_peak": 15175,
+      "cost_usd": null,
+      "error_json": null,
+      "input_tokens": 15184,
+      "latency_ms": 30082,
+      "message_refs_json": "[\"gate-a-report\", \"gate-b-caption\", \"gate-b-photo-0704\", \"gate-b-photo-1032\"]",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 1515,
+      "provider": "openai-direct-primary",
+      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"Christopher here. /help shows available commands.\\n\\nRecorded:\\n\\u2022 Created AM/JOB/2607/9901 as URGENT, Block 123 Ang Mo Kio Ave 3 #04-56.\\n  \\u2013 Replace cracked toilet bi-fold door\\n  \\u2013 Repair leaking kitchen sink trap\\n\\n\\u2022 AM/JOB/2607/8802: recorded worker completion and 2 photos. Case marked completed.\\n  \\u2013 Kitchen sink choke cleared\", \"messages\": [{\"content\": \"[Fixture Supervisor] WhatsApp turn bundle (4 messages)\\nChat: AMK EE Fixture (120363421424519051@g.us)\\n\\n1. [1784541600] Fixture Supervisor: URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap. Please create this new case from the job sheet and preserve both supplied work items.\\n   source_message_id: gate-a-report\\n2. [1784541630] Fixture Worker: AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\n   source_message_id: gate-b-caption\\n3. [1784541660] Fixture Worker:\\n   source_message_id: gate-b-photo-0704\\n4. [1784541690] Fixture Worker:\\n   source_message_id: gate-b-photo-1032\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3u7oWuq4WrArMelzInFwqTTD6k4UVZ2osJBsFM-deTIBc95uUJmH-vw2z_V_qYPHh4hWkMzgj0icnLpr2VvO4Rp3ZlfmpK1YJYCOKbfIELkXC8NMf-7pgG1XxHfohfWU2OG-IoOIQczoaHTaB_UpyIw_PZkuT_WuC7sOcFl74bPtQFwnm2fHryroWMi9j9ZySVbrz4_KKhA37BZM5-2ybS3sWEQFMKZXpRJ08Hywo9plxF6ZWAIeH9p83pXhj7R7k2dc0XCksgurYXNu7uVewh8j_OvwYJYQtREJ3e35l467tMl0lUnqqdlpyWszkX82oIDHPcIfY5llNnDpgykdi4mD0x9FX0QL-etZ-SW8yB0XNoM-Pa0soeXYcrK-WZBGsyWIygp99ZfQc0bT0T-lGXJhZ5V-vMrBlnMW4SHpSRthWOY41ynfDsrZlmKajrEOGg6jFGjzPc8L5pI1Sqk8zoozOeIYOZOFipM6zZW_6R_c9M0kSOlRZcG0k9ZzDut2kqGesGpc8qBs2nSpvZA4vxWZtshbcE69P62UTOxtF4RGltvaoGhFNOhjIwwAzZTUWVXTB4jmzuRdksuDp5Ag3wsmzgch0VUoAG00RMoQoAzTwI2sc3NLBGY2KvxV4ngUYYRqQ5dLD1P1tjZxCgt7uc6Nk2lH6B8rgHFBZAPtvCS-WuqmkomP0bO4A9YnJjHfwbTVRIWcrmRAwPkdi8F5lu4Imulk4JYip7nUEzpXHq9_OlyTQB0Y7JFnKv9AVC5nCy4XnILHlquleP6dp6FDWot8NZiqOT_DUVCExK4sQ33gwonhFmK_BrxBNOyOyIsqN6QMWfAT4zmdTz540f6-Xja9yrCdqsJQENADRZ_wdzOYs_7bP3FX8M5oTA0s4mCONxUxf0aelC5OtbS5-cj6sxZS8Rbtt5Is57l1l4Ksogv419k4J8a1UPoe1S2xSZHGRvH76TVXqAYn-zGbBQvRRyIBn4STJQZWL62kynDxLnxrLmESsEnHAWNc_CQdBoSGRqeiQ_MYLeIxFgxhG5c6JZ8BoGlHB41IwbXQoGA_2pj2p7PfziDGexC8WQ-SW1hTPlOgbvExhbE56cMYM5f_POOpM92TIdeHXSYGQXz8UbHcT6FsaWEdtFjvt9kBGPRiT2K5_DmNaq0Pp8xC5lac-fmRqC8p_lXRDAf_6KCj5soHT40efIE4eLcbjGzA4Z7JQ5THVKqqhQnLKFRCUSev0iBFjSXWD04xdKoBMWlUyUhNDtqJoZX8eFZLgRTvtosznKfM2XKpavRfTQrM1fFlcUxDJEJGNZCo3CTgfffSau9uCpLnBny4iOa77cYgs4-qx_ahfbN-xexrjKcYnN9r3i37UwobrOxNcy4-IRVBgnNLVzbFqthT_0PP6_SydI9zxVsKi9nZ1TZzhq6P8bn7vXQDJWe638Rbl5hzD2OMiVZ1m89LUeyio7gFGOUms6X4FOIhhs8uadte4s3ZdAONYil0a7_uHAw0xqNKXXbtBdNQ20xaGioWGgPPv2xPCVJCZIOvGtn5_OZ-NMLoIBpr2TJEyb8WVBfsx_xCfdscAQk9oiDD1pZBGVhxeSScO5HkrHPp1WKLz3bgdx4RGsPed34P8EjEZ4fmwxp0D8t0TFoAiEX9mZD7ZMBDUfytEwH4S0Mc186FqAVHqR7i36-9wnNzT0ReAEHaF4B3alsi7DHRHkDIbSPHK73vG3_mgXI-plYh7bFFhk_9CIccKqcVyevdJXrhmTvNYM9fjS1TPpTegR9YalGPUiQCtOMswx0bcV4KroC89GRM2jmHBa4Ng1VgaY4T1EdSerO3ab7PllGEVK-kU5QrvMKqqUWvcnolkmp0OoFJToqds0lDFqcZMcLsCN4_fv2FgwT8oiW9Mi3l3Cw2UgnkhVtoX2UvSbMLFANyqojR_ZVzzbcYhPT8IYBYLWhasjl2sVCUQ-fUemAzpqdT41Oq_NdPyTmWu1_WZrwotP3gHQDo9RRjEdnflvkrYPaG-UMNA_HMPBnwQjL5GsghZGfMRjGzTNZoYYdrm-mh-CgsT02XAIa-lTjfhuStD18OpFBA28goG03xixdV4PiFVgTz8SHR7lVkB5whllNA7i4ZR_CF1BULWNcF_ClCgsFTW4Bvl877y_C5H_cuKvXw-HAnxieoHchCCPMlAE-Yj9QO5PFVaLA5QiEY4KfxE9oU4F_x6KAlzpKE5Y7Z30HAEVLyoDwg2z8vvo0LXsj_W3oujO-6afOEbAxChXvgWavGZ8UR29_5ZmxiD0KkY4fiYErKUE5Ra1fFTkJamp-Krw2iHsC7JgmIvYl7NU68-SmrRmAZfKgKlAnYQUaQu1M81NgIyooiVYzUsKHv5KwyTeAuvh3FeNkSxVDT1KLQXxHVqcx7tEKCBnOpaohVmwR_8mgxTXlrzsAkelg03ZCcp2zZfZRD4vRqnGT63muWQ==\", \"id\": \"rs_0ba6e4aa2df2c4ad016a637bb57f0c819ba276a656e270be01\", \"summary\": [{\"text\": \"**Planning a case creation**\\n\\nI need to break down my tasks. First, I should look up the job, then search by the address or unit\\u2014likely for completed cases. Photo evidence needs handling too. I have references to check for creating details in a specific zone and service line. It looks like I need to calculate timestamps correctly, specifically converting from midnight SGT to epoch time for July 20, 2026. I\\u2019m pondering doing the math without any tools available. It seems risky, but I think I can figure it out!\", \"type\": \"summary_text\"}, {\"text\": \"**Organizing tasks for efficiency**\\n\\nI'm confirming that January 1 at midnight SGT corresponds to December 31 at 16:00 UTC, with the epoch time being 1767196800. If I add 200 days, I get 1784476800, which seems correct. I need to consider creating and looking up cases in parallel, separating the tasks. First, I'll create the case, then look up the job as a second step. It\\u2019s all about maximizing efficiency here!\", \"type\": \"summary_text\"}], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": \"**Planning a case creation**\\n\\nI need to break down my tasks. First, I should look up the job, then search by the address or unit\\u2014likely for completed cases. Photo evidence needs handling too. I have references to check for creating details in a specific zone and service line. It looks like I need to calculate timestamps correctly, specifically converting from midnight SGT to epoch time for July 20, 2026. I\\u2019m pondering doing the math without any tools available. It seems risky, but I think I can figure it out!\\n**Organizing tasks for efficiency**\\n\\nI'm confirming that January 1 at midnight SGT corresponds to December 31 at 16:00 UTC, with the epoch time being 1767196800. If I add 200 days, I get 1784476800, which seems correct. I need to consider creating and looking up cases in parallel, separating the tasks. First, I'll create the case, then look up the job as a second step. It\\u2019s all about maximizing efficiency here!\", \"reasoning_content\": \"**Planning a case creation**\\n\\nI need to break down my tasks. First, I should look up the job, then search by the address or unit\\u2014likely for completed cases. Photo evidence needs handling too. I have references to check for creating details in a specific zone and service line. It looks like I need to calculate timestamps correctly, specifically converting from midnight SGT to epoch time for July 20, 2026. I\\u2019m pondering doing the math without any tools available. It seems risky, but I think I can figure it out!\\n**Organizing tasks for efficiency**\\n\\nI'm confirming that January 1 at midnight SGT corresponds to December 31 at 16:00 UTC, with the epoch time being 1767196800. If I add 200 days, I get 1784476800, which seems correct. I need to consider creating and looking up cases in parallel, separating the tasks. First, I'll create the case, then look up the job as a second step. It\\u2019s all about maximizing efficiency here!\", \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_lJmdQUg3X1rLUaecsjS25vwI\", \"function\": {\"arguments\": \"{\\\"jobNo\\\":\\\"AM/JOB/2607/9901\\\",\\\"zone\\\":\\\"AMK\\\",\\\"serviceLine\\\":\\\"maintenance\\\",\\\"address\\\":\\\"Block 123 Ang Mo Kio Ave 3 #04-56\\\",\\\"problem\\\":\\\"URGENT HDB job sheet\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"priority\\\":\\\"URGENT\\\",\\\"contactName\\\":\\\"Tan Ah Kow\\\",\\\"contactPhone\\\":\\\"91234567\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Replace cracked toilet bi-fold door\\\",\\\"status\\\":\\\"pending\\\"},{\\\"label\\\":\\\"Repair leaking kitchen sink trap\\\",\\\"status\\\":\\\"pending\\\"}],\\\"receivedAt\\\":1784476800,\\\"evidenceMessageRefs\\\":[\\\"gate-a-report\\\"],\\\"evidence\\\":{\\\"message_text\\\":\\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\",\\\"sender_name\\\":\\\"Fixture Supervisor\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\"}}\", \"name\": \"tgg_case_create\"}, \"id\": \"call_lJmdQUg3X1rLUaecsjS25vwI\", \"response_item_id\": \"fc_0ba6e4aa2df2c4ad016a637bbb2ee4819b9f5de6eed361a502\", \"type\": \"function\"}, {\"call_id\": \"call_YEeuFl2WesoMfiwLBLHyWfVc\", \"function\": {\"arguments\": \"{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\"}\", \"name\": \"tgg_case_lookup\"}, \"id\": \"call_YEeuFl2WesoMfiwLBLHyWfVc\", \"response_item_id\": \"fc_0ba6e4aa2df2c4ad016a637bbb2ef8819b8f377d30c849c4d2\", \"type\": \"function\"}, {\"call_id\": \"call_xO5ZSpgYj4CKNfkS50T3zDeW\", \"function\": {\"arguments\": \"{\\\"block\\\":\\\"880\\\",\\\"unit\\\":\\\"#07-04\\\",\\\"street\\\":\\\"Ang Mo Kio Ave 10\\\",\\\"limit\\\":10}\", \"name\": \"tgg_case_search\"}, \"id\": \"call_xO5ZSpgYj4CKNfkS50T3zDeW\", \"response_item_id\": \"fc_0ba6e4aa2df2c4ad016a637bbb2f04819ba0bae2eef9fd5757\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"caseId\\\": 4, \\\"jobNo\\\": \\\"AM/JOB/2607/9901\\\", \\\"created\\\": true}, \\\"status_code\\\": 200}\", \"name\": \"tgg_case_create\", \"role\": \"tool\", \"tool_call_id\": \"call_lJmdQUg3X1rLUaecsjS25vwI\"}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\", \"name\": \"tgg_case_lookup\", \"role\": \"tool\", \"tool_call_id\": \"call_YEeuFl2WesoMfiwLBLHyWfVc\"}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": [], \\\"cases\\\": [], \\\"status_code\\\": 200}\", \"name\": \"tgg_case_search\", \"role\": \"tool\", \"tool_call_id\": \"call_xO5ZSpgYj4CKNfkS50T3zDeW\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3vD-VfyAj_T773PVG9EYJkgy96PjT-Rmn-hKLRjtAw-yB2p9bh1pi9aQi9LIOYPRKXaMerG95zyYntIIIXTteBNKP7RdDBvdvCPwWN60Cz4BDzRKeUTIaVD2j69dwe62zbykSnA0SMGSq-vk_WWg7bSMl2LOpmxk_DIqZPGwjiZ_v4sDM8zF-McZoX1kAueHTl9VU01kxdgz126iDPui2hFHnzc88pInWnlKufA4DiXeRLvLbyVte6tEql9MHkueymFOddM4gQE0AXNUoZDN_fUFINJgHDATdSwc-QgtIN_XqL2lyzl4XeCBQX0Ic5hDYxBDxsRgyJaRr1KKfNdw-zvXPkSh2rpsBY7xL5psWkKrhnT0ddTdsYKFlCAtIYCHg6pechmhW3zgEma6sUzBdIMt3_cqSgrxqgqAMkKHlWLxYNEKIBPC6jL9zuDBSAtM5bkNeYhJM9iwcuaJqE8y9DCgT96gFVY0Q-Et21AWxAUjeoTApeRaxnU0TIJP_Y1s-tBHhuDQlGq-5YpMvM_xVUDR0-6LYsArUYs_51voiRwKO-VTFbw9Y-_YVocAG0jdmEbxniSg8GN3sNeBuMmBli2aEXEiJZFLxAN4K0JGUcFbNU2hVni07JSq8vzUgPEZ6w1krIS2YahM7eZnpVmY5U4K2_kVVG1eg1yv37kN0d4KiEhvWmBZXBU1dyo3dWrW__N3CTBmq3DeZdy_HP1HdC7RiBGdaOst8OQ3q7aJIi57f9nKtOyu0s4XUSPIeoZy3hSm03nZ8tFbRshjIVwR0dtAtEi4-U8IXIl-wX_AtfOwfIB9OTAh1j0UbKWYvBXeQ5fSt8tWHGuC5OgwPVvhzu57k4MH9EEczX-k5uNdosTyR7DeJz4m45K822M9DARhHEG4vSf0JdwcDNbBU4-sbw3QGoX-5Zj8CuuaNaVEPCyLZ5k1pPiZrN8XtszgyLOEV03uK_LS0n7RejCr6OKcGCnWseVKAXtXuDCztyXuWnhWSyPnXodjMRtgeX_XlfKH-u8sArpj_lHlOvG_e5MxGHi-3mSX4Ez2dCjK7d56uhXgbDngm3Uwn5lDucMmsdRb8dST02Pqfrz6vZzJKx10RgExYfuRprIfavylVHXIP8PUoa7VxdzwCsdHQXTNkaPRmz8mJAf2A6oeRvaVkLxEGg7csOUl4mtgXoNuc50uKmUXWIW80MJFW2DVHUCzZ4phHppB_uFqW9uDUbkv3itLX_Tof8yEgjM2Bic0PC91YVnZ_2mbCzukrKyqY29-J-whOTEDgM6VqgEWA_pD5YJNQqRu1uZvtKkvSjSUsNElpqlHxkLNzshexFwIhlvryA7sAEGgZcKmtCYrE8K0zNotU7KPKUtiiD1nqDUj6ggD5zViGs4yinn0c4kgWZfZTo0g-DVvCaQi-dWughyk8Zkt9_LelCNApi-nP_Te8-rlj-UNOaq5COy-3ZQ_zv7TClTcYF-wCufz4i-XpFSK78TNAz3jijICzGKW83OvTRXZUksKY8fGPqc0utXn9PLC6m_hw_67fTZPMv3ygL1relIkXGbSbPTAclhO0vmztcOvzHlrdm7bCXpTQ5-gp9VPvPhO3yfjlTAJjJVdpbLjn4wl73AZ2TV6_BTY6EP60DRRqmNBpliUUetrgHVy5HHPoBWh4Qa2dRBJkJjq0fb5TvRACJZtg==\", \"id\": \"rs_0d3562c7073edc06016a637bbff050819b97c1a5ba9edd9214\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_djQVp6FmweFpOoi8OSWN9gyH\", \"function\": {\"arguments\": \"{\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"confidence\\\":\\\"high\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"observed_at\\\":\\\"2026-07-20T00:27:40+08:00\\\",\\\"photo_count\\\":2,\\\"media_refs\\\":[\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"],\\\"work_items\\\":[{\\\"label\\\":\\\"Kitchen sink choke\\\",\\\"status\\\":\\\"done\\\",\\\"note\\\":\\\"Worker reports kitchen sink choke cleared and job completed; after-photos supplied.\\\",\\\"evidence_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}]},\\\"justification\\\":{\\\"kind\\\":\\\"identifier_match\\\",\\\"identifier\\\":{\\\"type\\\":\\\"block_unit\\\",\\\"value\\\":\\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\"},\\\"source\\\":\\\"caption\\\"},\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\",\\\"messageText\\\":\\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\",\\\"notes\\\":\\\"Completion report and two follow-up photos. The job number and exact block/unit in the caption match the open case; the reported action maps to the established work item 'Kitchen sink choke'.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"sourceRefs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}\", \"name\": \"tgg_case_observation\"}, \"id\": \"call_djQVp6FmweFpOoi8OSWN9gyH\", \"response_item_id\": \"fc_0d3562c7073edc06016a637bc39e30819b86c52e9a9406b17c\", \"type\": \"function\"}, {\"call_id\": \"call_7nNPxq1erMGPCpQrpOGNG1p9\", \"function\": {\"arguments\": \"{\\\"evidence_message_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"],\\\"job_no\\\":\\\"AM/JOB/2607/8802\\\",\\\"observed_at\\\":\\\"2026-07-20T00:27:40+08:00\\\",\\\"state\\\":\\\"completed\\\"}\", \"name\": \"tgg_case_update_state\"}, \"id\": \"call_7nNPxq1erMGPCpQrpOGNG1p9\", \"response_item_id\": \"fc_0d3562c7073edc06016a637bc39e44819baa69caa101a417e4\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200, \\\"caseState\\\": \\\"open\\\", \\\"caseStateNote\\\": \\\"current backend state for this case (from the most recent lookup/search result) \\u2014 any state claim must restate THIS value, not conversation memory\\\"}\", \"name\": \"tgg_case_observation\", \"role\": \"tool\", \"tool_call_id\": \"call_djQVp6FmweFpOoi8OSWN9gyH\"}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"completed\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"evidenceMessageRefs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"observedAt\\\": 1784478460}, \\\"status_code\\\": 200}\", \"name\": \"tgg_case_update_state\", \"role\": \"tool\", \"tool_call_id\": \"call_7nNPxq1erMGPCpQrpOGNG1p9\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3vIEgTuvhINEfHLeRCzPt0H14PpVdXfbvryz-qyeiDsY9LsRvkkIkR6GE_B8n6Xll-ANCJluwQTU0XqbPiT11JmoJHADMg-vFIMiGEEruiftHTstQ_oLUPr8iE586osMcLQq69i5OLCnodHFMfwN_cX3I1OnKsT-4VaEfRKHdJD5q6NIHguVuBuuMJLZlK_qswmoB3ipBxeMthpWPc3kHtzpNeY3S-ZlEZ1HAhzNwgZ1McIRYv-Y1WxdEEl-1XzYBuHrnrylNlI3pDYma4MSMbJ-OIXVuLqCLGV_W2vlxOIZhJZfkv_jcWPot6pUgZJGoLWnEoJVVMTZi-uuu1ss9wJykn0fhnd0Gc0fYiDlJnz21X97AEvyZNP1POIzL619yI0QPfEy1w2xT5UhgqS6a7POYP7utavAlVlGnSRC80A-oyu66tdQZ3h5KenulqS0xCELPYCUIo2A3CD2oE-FmrvNE-cMYC4npByBNW0K_uxItZOmnlInfkdSDCH0paU8Ef9g32XG0E_u0hcQV76wT9FmfolvAfOlc4dp8oriFUd8Gz5U632bBsB3-_s0GZuksaIrNTSHg8XInTnVxAKfCJq2z3Ra56GYW6-flF1Z_CdNrhH6meUQlsud3_c7XJsXjM1tIEyL7J3RdzgNNpSSPIgp0FqZPLGkptUDXnc9gE9r_zE7zZq_Dbmsq7ihSQjogChHWLKEGhxOXwLuapvq-s2c0KeOuUwNmUsNmeyGKHrUPQR_1F-ddfzLGzmGaqaA4Xv6ByESUXzSyHIiIg3Lv9E6YHcrldwl4D1BY96ay4OKvuHbRcrB8_4V6FpWYBRBFvU3vfp0onNCWWuxTFoI9ill8TOVGfOTm_gb4I5WxqRA-1kw5Se0j8U1Ve98Hr2GUrd0a5IGaH7DcC2sNp-5HI5YqiHlfyqtXOlLHh6wWzyfDSvfEFHkEZYM1nUTehU4yszNH2tB3xSyP8GobUC_kZlZAHEefG2C6jO0Pwrrevq23i3GqP5GihGjQMe-n3dEvf63AbaEDktHHx0Jk2l-L8hv3If4GIQcKsNamPz_NcKXk8sq1-jgUBX1Am5m88qgkyfbrGbBZ5An27kdBwXDL9aAJwE3b9OjdDcxlCFDjESAs0=\", \"id\": \"rs_0ec4258dc92ae311016a637bc69ac0819bb8d0204470e2e86d\", \"summary\": [{\"text\": \"**Considering event and verification calls**\\n\\nI\\u2019m thinking about needing event calls. Maybe it's a good idea to verify the lookup after an update; that sounds important. Should I run the lookup and events in parallel? It feels like making sure there\\u2019s an event after every action would be wise. I guess I need to think through how best to integrate these processes to ensure everything works smoothly!\", \"type\": \"summary_text\"}], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": \"**Considering event and verification calls**\\n\\nI\\u2019m thinking about needing event calls. Maybe it's a good idea to verify the lookup after an update; that sounds important. Should I run the lookup and events in parallel? It feels like making sure there\\u2019s an event after every action would be wise. I guess I need to think through how best to integrate these processes to ensure everything works smoothly!\", \"reasoning_content\": \"**Considering event and verification calls**\\n\\nI\\u2019m thinking about needing event calls. Maybe it's a good idea to verify the lookup after an update; that sounds important. Should I run the lookup and events in parallel? It feels like making sure there\\u2019s an event after every action would be wise. I guess I need to think through how best to integrate these processes to ensure everything works smoothly!\", \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_TWdPghDNKOk9sC2Ycl0YFccd\", \"function\": {\"arguments\": \"{\\\"jobNo\\\":\\\"AM/JOB/2607/9901\\\"}\", \"name\": \"tgg_case_lookup\"}, \"id\": \"call_TWdPghDNKOk9sC2Ycl0YFccd\", \"response_item_id\": \"fc_0ec4258dc92ae311016a637bc858f8819b97e246b77ec65d10\", \"type\": \"function\"}, {\"call_id\": \"call_xUpYXs8ahHtZvhA61kcQNh1f\", \"function\": {\"arguments\": \"{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\"}\", \"name\": \"tgg_case_lookup\"}, \"id\": \"call_xUpYXs8ahHtZvhA61kcQNh1f\", \"response_item_id\": \"fc_0ec4258dc92ae311016a637bc85910819b8584641f222feada\", \"type\": \"function\"}, {\"call_id\": \"call_VoVRVuFIlB5GjMvHRsEG5yH5\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_create\\\",\\\"reason\\\":\\\"Created new AMK HDB case AM/JOB/2607/9901 from the supplied job sheet with both opening work items preserved.\\\",\\\"evidence_message_refs\\\":[\\\"gate-a-report\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_VoVRVuFIlB5GjMvHRsEG5yH5\", \"response_item_id\": \"fc_0ec4258dc92ae311016a637bc8591c819b864122c894238a4d\", \"type\": \"function\"}, {\"call_id\": \"call_UiFuwfzLl0H8OXPToZCF80fP\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the worker completion report and two supplied photos against the matching open case.\\\",\\\"evidence_message_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_UiFuwfzLl0H8OXPToZCF80fP\", \"response_item_id\": \"fc_0ec4258dc92ae311016a637bc85928819b930946db0a7c7aa2\", \"type\": \"function\"}, {\"call_id\": \"call_Bg8Gdc9hQBz0Mrvq9trDDf85\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_update\\\",\\\"reason\\\":\\\"Marked AM/JOB/2607/8802 completed after the worker reported the established kitchen sink choke item cleared.\\\",\\\"evidence_message_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_Bg8Gdc9hQBz0Mrvq9trDDf85\", \"response_item_id\": \"fc_0ec4258dc92ae311016a637bc85930819bb8c932dc2c84700a\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/9901\\\", \\\"zone\\\": \\\"AMK\\\", \\\"serviceLine\\\": \\\"maintenance\\\", \\\"address\\\": \\\"Block 123 Ang Mo Kio Ave 3 #04-56\\\", \\\"problem\\\": \\\"URGENT HDB job sheet\\\", \\\"source\\\": \\\"whatsapp\\\", \\\"priority\\\": \\\"URGENT\\\", \\\"contactName\\\": \\\"Tan Ah Kow\\\", \\\"contactPhone\\\": \\\"91234567\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Replace cracked toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\"}, {\\\"label\\\": \\\"Repair leaking kitchen sink trap\\\", \\\"status\\\": \\\"pending\\\"}], \\\"receivedAt\\\": 1784476800, \\\"evidenceMessageRefs\\\": [\\\"gate-a-report\\\"], \\\"evidence\\\": {\\\"message_text\\\": \\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\", \\\"sender_name\\\": \\\"Fixture Supervisor\\\", \\\"chat_name\\\": \\\"AMK EE Fixture\\\"}, \\\"observedAt\\\": 1784541600, \\\"dueAt\\\": 1787068800, \\\"confidence\\\": \\\"high\\\", \\\"observations\\\": []}, \\\"status_code\\\": 200}\", \"name\": \"tgg_case_lookup\", \"role\": \"tool\", \"tool_call_id\": \"call_TWdPghDNKOk9sC2Ycl0YFccd\"}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"completed\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"evidenceMessageRefs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"observedAt\\\": 1784478460, \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"observed_at\\\": \\\"2026-07-20T00:27:40+08:00\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"done\\\", \\\"note\\\": \\\"Worker reports kitchen sink choke cleared and job completed; after-photos supplied.\\\", \\\"evidence_refs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"]}], \\\"source_refs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"chat_name\\\": \\\"AMK EE Fixture\\\"}, \\\"notes\\\": \\\"Completion report and two follow-up photos. The job number and exact block/unit in the caption match the open case; the reported action maps to the established work item 'Kitchen sink choke'.\\\", \\\"confidence\\\": \\\"high\\\", \\\"observedAt\\\": 1784541690, \\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\", \"name\": \"tgg_case_lookup\", \"role\": \"tool\", \"tool_call_id\": \"call_xUpYXs8ahHtZvhA61kcQNh1f\"}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_create\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_VoVRVuFIlB5GjMvHRsEG5yH5\"}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_UiFuwfzLl0H8OXPToZCF80fP\"}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_update\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_Bg8Gdc9hQBz0Mrvq9trDDf85\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"Christopher here. /help shows available commands.\\n\\nRecorded:\\n\\u2022 Created AM/JOB/2607/9901 as URGENT, Block 123 Ang Mo Kio Ave 3 #04-56.\\n  \\u2013 Replace cracked toilet bi-fold door\\n  \\u2013 Repair leaking kitchen sink trap\\n\\n\\u2022 AM/JOB/2607/8802: recorded worker completion and 2 photos. Case marked completed.\\n  \\u2013 Kitchen sink choke cleared\", \"type\": \"output_text\"}], \"id\": \"msg_0c798df260f7f8fd016a637bcf023081999f9213b05cc7c6b9\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"Christopher here. /help shows available commands.\\n\\nRecorded:\\n\\u2022 Created AM/JOB/2607/9901 as URGENT, Block 123 Ang Mo Kio Ave 3 #04-56.\\n  \\u2013 Replace cracked toilet bi-fold door\\n  \\u2013 Repair leaking kitchen sink trap\\n\\n\\u2022 AM/JOB/2607/8802: recorded worker completion and 2 photos. Case marked completed.\\n  \\u2013 Kitchen sink choke cleared\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-7cf26c8c6fd6\", \"replay_run_id\": \"gate-fixture-1-a8fc843e15\"}",
+      "replay_attempt_id": "attempt-7cf26c8c6fd6",
+      "replay_run_id": "gate-fixture-1-a8fc843e15",
+      "session_id": "20260724_225026_58620bf9",
+      "started_at": 1784904626.085165,
+      "turn_id": "paturn_18e48b6d7d00436aa9c14b7230c50be3",
+      "turn_status": "completed"
+    },
+    {
+      "agent_id": "christopher",
+      "chat_id": "120363421424519051@g.us",
+      "completed_at": 1784904677.430122,
+      "context_window_peak": 14560,
+      "cost_usd": null,
+      "error_json": null,
+      "input_tokens": 14569,
+      "latency_ms": 20890,
+      "message_refs_json": "[\"gate-a-report\", \"gate-b-caption\", \"gate-b-photo-0704\", \"gate-b-photo-1032\"]",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 1128,
+      "provider": "openai-direct-primary",
+      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"Processed.\\n\\n\\u2022 AM/JOB/2607/9901\\nExisting case found; no duplicate created. Job sheet recorded against the case.\\nWork items preserved:\\n1. Replace cracked toilet bi-fold door \\u2014 pending\\n2. Repair leaking kitchen sink trap \\u2014 pending\\n\\n\\u2022 AM/JOB/2607/8802\\nCompletion caption and 2 photos held as an unmatched completion item. The only matching case is already completed, so the evidence was not attached to it.\\n\\nAttention item raised: attn-1\", \"messages\": [{\"content\": \"[Fixture Supervisor] WhatsApp turn bundle (4 messages)\\nChat: AMK EE Fixture (120363421424519051@g.us)\\n\\n1. [1784541600] Fixture Supervisor: URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap. Please create this new case from the job sheet and preserve both supplied work items.\\n   source_message_id: gate-a-report\\n2. [1784541630] Fixture Worker: AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\n   source_message_id: gate-b-caption\\n3. [1784541660] Fixture Worker:\\n   source_message_id: gate-b-photo-0704\\n4. [1784541690] Fixture Worker:\\n   source_message_id: gate-b-photo-1032\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3vVcszcKt0kJGHnhrWxmNR-cI8tsa9uF7R_TChh4GklcYBrOifRgeR6yvvi5E25Br6xIkduQr-jTY7Wm6zmoG7n-Ts_KsXjQEJ6Aa6yZ9bA0n1PLnhDBnHOvhDm8Zqj4DMnINz5AhhLB5BrMzs_OCbP1LkkEqCuxlDn8Y_iEoYb1Soo4KLeXZvvTYMU2-Ekd0xCGCtlYU6ZAIGixAxMgyNVc4E9e5mIvJRWGZsflwCb5k9tz3a5d-5jpY_kyDAYuCPjPCw3GiGPZFP7sNoNYMtUAS9ZDjZBey3SkhImFNd3tdOOhXaQO-BXlHZ3_PCDrq9-5pvZ226tTnDGXkHChmn7mguDQQvj6FU-xy9-Rh5HENMyunL0XTKkZL6WGiblN74cNEVXbzf1yzGzuyGYh2dDPpiwYuf1P0MXPv1aJcCgjhMfjnGj07m4iCeKB7nPzsDIb5CgSnL7JFHI5DablROrY3bY5pucFIHPCi3ew5ZvjpPCzGzo2kc2AfTUuljYmGTYCvQmUSMlPWuO6HcfQyIjm-zGUbId0o3-xJUWF4yuEadAm-MdO6jAOi-7hkdoqiila-N2mb50hDTOUjZUpOJqzadfNpcuyCh_JCTCRBmKsNRiyFhbNkMeBRwU4Er2JWgZsvCP91MR5aBySsDp6T3UJ3cimXvJO8CJtAGUvrqni8A6mKIelAgh2VBRxD9wake88SvV8Prq-AftXB3fz1QrUcOL1zUJAjGoIs9ca1XIEtiAZ0jy0HVkXJKir8ect5pzxBrOgVsQe2J5-ov2LkddHMk3lGGYRvHPG9CYcJEbwNnS6xp8e4g1ahzJ_c_I40ktPHqOEbN9bYxtiji0qKdMSyLLoVDqiobUdCRrOqluIFWILdAt78dH8bnNNzmhE5HboJ_scikNAhJO6AsM2XRLUTHoJ3MkT2Or3Iw0nvxEBCsqHPeT5ykc5w-2P3ZjzH91ykIcopIwxTohRR8ExRurLuPS9XJug-Qus2_6LXsE7UuA_lnVfdQ6ojAdj3OoYNVUKJgW0TdOuQ9ej8xj4L_f8RYUdyIoAYx5bzQ-J4cV-pI=\", \"id\": \"rs_0f60efed071de1ed016a637bd320b4819bb4615dd7d3464cb5\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_l7KtWn4efPNI4eCzOKEt0hiC\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/9901\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_l7KtWn4efPNI4eCzOKEt0hiC\", \"response_item_id\": \"fc_0f60efed071de1ed016a637bd55cbc819b81aa96a16b4aeca3\", \"type\": \"function\"}, {\"call_id\": \"call_q6CZPTmG0YGG7eW9SFS0PPkD\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_q6CZPTmG0YGG7eW9SFS0PPkD\", \"response_item_id\": \"fc_0f60efed071de1ed016a637bd55ccc819b97d03599a30be7aa\", \"type\": \"function\"}, {\"call_id\": \"call_Ei6o7eEmYxgY367cc8O3yJJu\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_search\\\",\\\"payload\\\":{\\\"block\\\":\\\"880\\\",\\\"unit\\\":\\\"#07-04\\\",\\\"street\\\":\\\"Ang Mo Kio Ave 10\\\",\\\"limit\\\":10}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_Ei6o7eEmYxgY367cc8O3yJJu\", \"response_item_id\": \"fc_0f60efed071de1ed016a637bd55cd4819b96a9a4ffbd652c7f\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/9901\\\", \\\"zone\\\": \\\"AMK\\\", \\\"serviceLine\\\": \\\"maintenance\\\", \\\"address\\\": \\\"Block 123 Ang Mo Kio Ave 3 #04-56\\\", \\\"problem\\\": \\\"URGENT HDB job sheet\\\", \\\"source\\\": \\\"whatsapp\\\", \\\"priority\\\": \\\"URGENT\\\", \\\"contactName\\\": \\\"Tan Ah Kow\\\", \\\"contactPhone\\\": \\\"91234567\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Replace cracked toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\"}, {\\\"label\\\": \\\"Repair leaking kitchen sink trap\\\", \\\"status\\\": \\\"pending\\\"}], \\\"receivedAt\\\": 1784476800, \\\"evidenceMessageRefs\\\": [\\\"gate-a-report\\\"], \\\"evidence\\\": {\\\"message_text\\\": \\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\", \\\"sender_name\\\": \\\"Fixture Supervisor\\\", \\\"chat_name\\\": \\\"AMK EE Fixture\\\"}, \\\"observedAt\\\": 1784541600, \\\"dueAt\\\": 1787068800, \\\"confidence\\\": \\\"high\\\", \\\"observations\\\": []}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_l7KtWn4efPNI4eCzOKEt0hiC\"}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"completed\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"evidenceMessageRefs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"observedAt\\\": 1784478460, \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"observed_at\\\": \\\"2026-07-20T00:27:40+08:00\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"done\\\", \\\"note\\\": \\\"Worker reports kitchen sink choke cleared and job completed; after-photos supplied.\\\", \\\"evidence_refs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"]}], \\\"source_refs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"chat_name\\\": \\\"AMK EE Fixture\\\"}, \\\"notes\\\": \\\"Completion report and two follow-up photos. The job number and exact block/unit in the caption match the open case; the reported action maps to the established work item 'Kitchen sink choke'.\\\", \\\"confidence\\\": \\\"high\\\", \\\"observedAt\\\": 1784541690, \\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_q6CZPTmG0YGG7eW9SFS0PPkD\"}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": [], \\\"cases\\\": [], \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_Ei6o7eEmYxgY367cc8O3yJJu\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3vdGmYdzLWCuyS_3sJxfQExcfbJQywx-wrnViINT4oHuVSlI-FhYswNjzvmeimN3qoR8SALL2mtZ5P6_onctpfxfmy1jkr1U5HcevyuEE-rD0kQF176SbrUXDcC6s7ji2Cag_DqlkbuL5N-W-s9yK4XNByBD0IMUvAqGiVqMm42L7wJ8C-FAvj_CoM6tl8jAJA7SLbYAjryepaAMS1AjnIxGv6aJJal-5kUETb0Vg0Ft0mX50EsyPi9N9_1yxG5sn4_fCLPkFBpSWtB-jzHHbl9EESlmS0GrKgNOaFAjbsNwF38EDa3ifW8pU3-_5MI-gOFakbhbA--1e9JHp5FomKrpCHJQTFSOWcBhG9sBpnfWC4vhYvrbugX3ZtYFxrLgkgcQZfxrniAl7VgAreGusj996TxP_vSPJG92NIyxjwfIJTTiUpIBWuUuvvXfJDetfge7g2CTJVSJgVOjJY_HbdQZzPA9fClOjxCEx3-IZZIpyvmJMDVNefzgz5Nfuy6av6x_56qL5LgH68wX7gfjkVqp_c8pJHIRMeWItgSTzb6wvdAxp5gu3WXfINdZOuutHkf2VobOHP15tB_IFR0nlpowq28YgufVO0RCYciNXQvmze4xZEXj7IRObTjKTui05P35RUrQzyQHKtvWvdCz7pVf4RYyoaowKG0QYeY9p5WkyGKSmcwudDBCIGMezDLHRvUfu5I6pRDX2_h1ezXavXCDqJa9Efk2sbtasMQ7Zf2h1Zx4Rnq-F64LKdHbpfwUlP5zlgpU5HZitrw6KgE64JlvwZg3sGp7VYMVNwEmcphmTD2o6V6zezwTBnGOta3RV7hO2mzWrXkWN24xYq9niJgGBCZiMVgdO2ce3H6EzinK2xJ88tDee2dsvVnQ4xK7aGAtrNtz1AZ_tJgSnbGHjlQ4f6LiMOupD0l31bwKgHnEZAJVUiY3bVybf89aTd09HRAG_aTGpRAtiqw-ZNTOp6RBEhqct_Em5fPrLlYPKKa7M8ul-5wnZmsjC-Gx8H4C8AWtRpJ_l3WJQIxwMkmi2l2xEwxbzaAVFinmSEyecI4Cru4ffZKyxshyw7e834aXYJfBEAgObugNgWOol98qKkNtwKrfbR8OTn5qpB8-FnGz9b9Yx5bMEoRdbX_ZpTxUpMn07VpFPHCsN7KwoWNpxy2uMGa6bLwd-JlRETEb-iwqfbnzmsMb18S0Uf8BJkc6Las-P8JF61GsoB88GLrwrJDMmKpND6yGINzQnWzjcFaxcY_Fg2kWBqvyfTgDCIOagG58m9KGk6fyz-jQ5n02u09vyJ-3e9j-LnasGHgnga7wqMp-BinC_ldKUciYHqb9msFJ-a8eH8INO-h-YUen5YxRYA8ktHvSUyKgojkuY6LESZ0_Ry40IsxJZ_fgH_npGEVHyYBJRFQXXgJYds284ccExU_0DIIjXi5gluCXSFK5SDrbFlRsxUaMNZX0n8fq-UfE7P04gHAg87vIsBRExoIu01_QrR-G8_QiVDrtjBhVTh77aoZQPNL7UuG4krtrio8qJX2n-XEveVCSjgLkqZdhJ6oSoP_XGcYa1770iu1eVEO875gXBK2GalM7vfsFwMXiT0dPVXqQ1mHmE_hZ7Fsv0RkDfNWFD7vVzW9O0cizW8cmHgliz95sFGVh9qLXRw3fXAjQTiubGTjSyHFGLklvRFtNADMhNek6Mfu9HoxueZ2w49kGEQqdSDx5EwzHcw__GXItssgZ2LQeb8-jNpZEejGtpEw5M-DArfZVKR6P1cHDdrNVX9xoAYRTBmA_0xNUWCCoClHXz2wPQEaQ7hNieSsRt5Ehyq8Ur4hqqy5E7IGjI1BkPx1QddE5_sfmwZ3gxGiPbOAi0nB3obrC50HVbD9wWSoN61L1e1pF_a4Pjk3dRUr_7ITCMeHEjnFTRQInhqlrjQIElY_UhhFhmjCqOO8tT-oOi9DhoFaTCXJy_x1kIRDdjb7GEVFu8W-birRi-81Le07N9Y4t7E0xK_o7mmQXuh_TvfGfVJnzmB2jys9cu4RvNoSro5qtwr6EvTyUA8h9QTGxImWoCTnEwEhfSj_RiRG2UtB6ZkNLqQCEOXd8feEamDZTS0mFLYCsyl4hreFOo5nS0ZbYztklHKrtSzsoabOg31aixya2fpAqD1-XyhTgM6hbi9cW3rhpf1MK3dzF46DOEPH74yBaEKu2A==\", \"id\": \"rs_023d232d57405925016a637bd905ec81988ec0009fcbf86c8e\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_WAB7CfPtCyRbK6jsf8uz44S3\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/9901\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Duplicate HDB job sheet received. Existing case already contains the same address, urgency, contact, and both supplied opening work items; no new case created.\\\",\\\"confidence\\\":\\\"high\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\",\\\"sender_name\\\":\\\"Fixture Supervisor\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"priority\\\":\\\"URGENT\\\",\\\"contact_name\\\":\\\"Tan Ah Kow\\\",\\\"contact_phone\\\":\\\"91234567\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Replace cracked toilet bi-fold door\\\",\\\"status\\\":\\\"pending\\\",\\\"evidence_refs\\\":[\\\"gate-a-report\\\"]},{\\\"label\\\":\\\"Repair leaking kitchen sink trap\\\",\\\"status\\\":\\\"pending\\\",\\\"evidence_refs\\\":[\\\"gate-a-report\\\"]}]},\\\"messageText\\\":\\\"URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.\\\",\\\"senderName\\\":\\\"Fixture Supervisor\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-a-report\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_WAB7CfPtCyRbK6jsf8uz44S3\", \"response_item_id\": \"fc_023d232d57405925016a637bdd6f7881988edaf87a42044a26\", \"type\": \"function\"}, {\"call_id\": \"call_NrNr9tDpHySrv6FKkG9hcvUt\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_attention_raise\\\",\\\"payload\\\":{\\\"kind\\\":\\\"unmatched_completion\\\",\\\"title\\\":\\\"Unmatched completion: AM/JOB/2607/8802, Block 880 #07-04 kitchen sink choke\\\",\\\"context\\\":\\\"Worker reports: \\\\\\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\\\\\" The only resolved case is already completed; completion evidence must not be attached to it. Evidence refs: gate-b-caption, gate-b-photo-0704, gate-b-photo-1032.\\\",\\\"severity\\\":\\\"high\\\",\\\"sourceRefs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_NrNr9tDpHySrv6FKkG9hcvUt\", \"response_item_id\": \"fc_023d232d57405925016a637bdd6f8c8198b9ff2b5eefa292fc\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-2\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_WAB7CfPtCyRbK6jsf8uz44S3\"}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"kind\\\": \\\"unmatched_completion\\\", \\\"title\\\": \\\"Unmatched completion: AM/JOB/2607/8802, Block 880 #07-04 kitchen sink choke\\\", \\\"context\\\": \\\"Worker reports: \\\\\\\"AM/JOB/2607/8802 at Block 880 Ang Mo Kio Ave 10 #07-04: kitchen sink choke cleared, job completed. Photos follow.\\\\\\\" The only resolved case is already completed; completion evidence must not be attached to it. Evidence refs: gate-b-caption, gate-b-photo-0704, gate-b-photo-1032.\\\", \\\"severity\\\": \\\"high\\\", \\\"sourceRefs\\\": [\\\"gate-b-caption\\\", \\\"gate-b-photo-0704\\\", \\\"gate-b-photo-1032\\\"], \\\"id\\\": \\\"attn-1\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_NrNr9tDpHySrv6FKkG9hcvUt\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3vhYr46X5CV0wJqIbTkY8W5wsMO1EtYCJ87uolMPe9nmxSyXkGCSXmE62CQoVpkhYbUvTivmTIVuUyfojIzpgUAXM6EFKgkZUxHNCx-Z5eo7fDB5OvLFWKgt3riJSftJMxMJ8XR9zehoRx03UkS4fepcRpwpEm6fmdRzbzk8P8Nf--HIrZnu-rFvttdUtXojl1sBo4Agi1S9vUSaSRh5LByHDYk8Z_Tv1Zn5ef-jHfuWZQ8vj3YdswbocOaIJrG9CUqcw2gdnl8zIoPHUfMxHCmkxsFwvxVZh_SZA0XCIpHufmlUbhKZhTus43Cl8pXXD3D_UmK2_uE_EniIQipMQuDYpD8D9cXWJLnrXcU9dPCSsu3ndtkzpWANT5DH5FzvPPjG8Q8EuBm4nKz33ygNm2-S6H9QSLJCyjpglFo17_05QmqzlAJJVL1jjWInOu5nERnCglKLlCAVTkAzqtVh93U71iE-tI72tA4GDA7NMY29FBEFm-2FTohIFKm2QqGbMRcLWVTVzQkjzwPqJXB-VgoBuGRsxouwzeTUftbL9v6Ab8WvD6zoZSooE3s8KNeg4PR2ENb2rDCoA7eUAeV2_aKNtAK5Jndbo-oy1NeM3V2kSDLL5BVn-z5-SJGv0ThD5CojOVBvoHvoheDdDldyljZMatAgttiB14NuDKBEJSj2CohLyfIsT_JsKrAcMdMNh4l1fLGPVN5wsMYZarJaQjztyP2lZet4tGtDiC_yetpHWnWjGtRtW2Rn76KOMnuoDLLxcS21bWeB28JVk0cImvMgcTzzwCXnnX2SkwLf-IqXljjeR-Ch5OepbSZnXntIg9ij9ch87ySBLrmv6Chxyh9mNIhHyaVcS5kPfsYMaMbCBIWV7XbeqqCJjkRzaS81_aOIlAPCGm9izIMvPueKIEUgYHsrWFDSC38fq91YHRaqzOBQ0hLVTjnJ27ThXSI6xdy\", \"id\": \"rs_0a59710165343150016a637be06410819bb978795d9ae7a066\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_8Ft1ERp2ce6QR3npJpOBTKhL\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the duplicate AM/JOB/2607/9901 job sheet against the existing case; preserved both supplied work items and did not create a duplicate.\\\",\\\"evidence_message_refs\\\":[\\\"gate-a-report\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_8Ft1ERp2ce6QR3npJpOBTKhL\", \"response_item_id\": \"fc_0a59710165343150016a637be19b60819ba57367ad0599b31f\", \"type\": \"function\"}, {\"call_id\": \"call_ggQNYcYwi7PpzZfcGq9YTHwW\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"attention_raised\\\",\\\"reason\\\":\\\"Held completion text and two photos for AM/JOB/2607/8802 because the only matching case is already completed.\\\",\\\"evidence_message_refs\\\":[\\\"gate-b-caption\\\",\\\"gate-b-photo-0704\\\",\\\"gate-b-photo-1032\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_ggQNYcYwi7PpzZfcGq9YTHwW\", \"response_item_id\": \"fc_0a59710165343150016a637be19b7c819b958c1e4251f98e4f\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_8Ft1ERp2ce6QR3npJpOBTKhL\"}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"attention_raised\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_ggQNYcYwi7PpzZfcGq9YTHwW\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"Processed.\\n\\n\\u2022 AM/JOB/2607/9901\\nExisting case found; no duplicate created. Job sheet recorded against the case.\\nWork items preserved:\\n1. Replace cracked toilet bi-fold door \\u2014 pending\\n2. Repair leaking kitchen sink trap \\u2014 pending\\n\\n\\u2022 AM/JOB/2607/8802\\nCompletion caption and 2 photos held as an unmatched completion item. The only matching case is already completed, so the evidence was not attached to it.\\n\\nAttention item raised: attn-1\", \"type\": \"output_text\"}], \"id\": \"msg_04033c2466c379c3016a637be43688819b83649f9eba52165d\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"Processed.\\n\\n\\u2022 AM/JOB/2607/9901\\nExisting case found; no duplicate created. Job sheet recorded against the case.\\nWork items preserved:\\n1. Replace cracked toilet bi-fold door \\u2014 pending\\n2. Repair leaking kitchen sink trap \\u2014 pending\\n\\n\\u2022 AM/JOB/2607/8802\\nCompletion caption and 2 photos held as an unmatched completion item. The only matching case is already completed, so the evidence was not attached to it.\\n\\nAttention item raised: attn-1\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-95064d68f19f\", \"replay_run_id\": \"gate-fixture-2-03b0f1a84d\"}",
+      "replay_attempt_id": "attempt-95064d68f19f",
+      "replay_run_id": "gate-fixture-2-03b0f1a84d",
+      "session_id": "20260724_225056_b2a338d5",
+      "started_at": 1784904656.539181,
+      "turn_id": "paturn_7b974767530a47f4ac24bf0b00e5c4bd",
+      "turn_status": "completed"
+    }
+  ],
+  "result": [
+    {
+      "pass": 1,
+      "rc": 0
+    },
+    {
+      "pass": 2,
+      "rc": 0
+    }
+  ],
+  "run_root": "/private/tmp/christopher-core2-gate-70991/gate-fixture-1784904625-50e9afa3"
+}

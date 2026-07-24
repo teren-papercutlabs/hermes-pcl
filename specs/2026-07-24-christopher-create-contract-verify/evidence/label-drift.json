@@ -1,0 +1,552 @@
+{
+  "integration_commit": "2f9a481eff1985c417a3da9953fd6136a1432a20",
+  "mode": "fixture",
+  "operator": {
+    "actions": [
+      {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_ops_ingest",
+          "message": "[Fixture Worker] AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\n\n[Current turn source ids]\nsource_message_id: gate-label-1",
+          "message_id": "gate-label-1",
+          "session_id": "20260724_225227_917320b6",
+          "session_key": "agent:replay:gate-fixture-1-4c18ea5bf7:whatsapp:group:120363403845802098@g.us",
+          "source": {
+            "chat_id": "120363403845802098@g.us",
+            "chat_name": "AMK Site Fixture 2",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "fixture-worker",
+            "user_name": "Fixture Worker"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260724_225227_917320b6:gate-label-1"
+      },
+      {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "gate-label-1",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": true,
+          "provider": "openai-direct-primary",
+          "reply": "Recorded against AM/JOB/2607/8803.\n\nBlock 881 Ang Mo Kio Ave 10 #10-32\nTask: Toilet bi-fold door\nStatus: Pending\nUpdate: Crack inspected; replacement pending.",
+          "session_id": "20260724_225227_917320b6"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 50564,
+        "tokens_output": 448,
+        "turn_id": "20260724_225227_917320b6:gate-label-1"
+      },
+      {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_ops_ingest",
+          "message": "[Fixture Worker] AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.\n\n[Current turn source ids]\nsource_message_id: gate-label-2",
+          "message_id": "gate-label-2",
+          "session_id": "20260724_225239_1d51b236",
+          "session_key": "agent:replay:gate-fixture-2-f374062e5d:whatsapp:group:120363403845802098@g.us",
+          "source": {
+            "chat_id": "120363403845802098@g.us",
+            "chat_name": "AMK Site Fixture 2",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "fixture-worker",
+            "user_name": "Fixture Worker"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260724_225239_1d51b236:gate-label-2"
+      },
+      {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "gate-label-2",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": true,
+          "provider": "openai-direct-primary",
+          "reply": "AM/JOB/2607/8803\n\nToilet bi-fold door: replacement pending.\n\nUpdate recorded against the existing case.",
+          "session_id": "20260724_225239_1d51b236"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 51100,
+        "tokens_output": 367,
+        "turn_id": "20260724_225239_1d51b236:gate-label-2"
+      }
+    ],
+    "attention": [],
+    "cases": [
+      {
+        "address": "Block 880 Ang Mo Kio Ave 10 #07-04",
+        "jobNo": "AM/JOB/2607/8802",
+        "state": "open",
+        "work_items": [
+          {
+            "label": "Kitchen sink choke",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      },
+      {
+        "address": "Block 881 Ang Mo Kio Ave 10 #10-32",
+        "jobNo": "AM/JOB/2607/8803",
+        "state": "open",
+        "work_items": [
+          {
+            "label": "Toilet bi-fold door",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      },
+      {
+        "address": "Block 882 Ang Mo Kio Ave 10 #11-22",
+        "jobNo": "AM/JOB/2607/8804",
+        "state": "open",
+        "work_items": [
+          {
+            "label": "Bedroom window handle",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      }
+    ],
+    "observations": [
+      {
+        "chatName": "AMK Site Fixture 2",
+        "confidence": "observed",
+        "fields": {
+          "chat_name": "AMK Site Fixture 2",
+          "message_text": "AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.",
+          "observed_at": "2026-07-24T22:52:00+08:00",
+          "sender_name": "Fixture Worker",
+          "work_items": [
+            {
+              "evidence_refs": [
+                "gate-label-1"
+              ],
+              "label": "Toilet bi-fold door",
+              "note": "Crack inspected; replacement pending.",
+              "status": "pending"
+            }
+          ]
+        },
+        "jobNo": "AM/JOB/2607/8803",
+        "messageText": "AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.",
+        "notes": "Fixture Worker reports: \u201cToilet bi-fold door crack inspected; replacement pending.\u201d The existing toilet bi-fold door task remains pending; crack was inspected and replacement is pending.",
+        "observationId": "obs-1",
+        "observedAt": 1784545200,
+        "senderName": "Fixture Worker",
+        "source": "whatsapp",
+        "sourceRefs": [
+          "gate-label-1"
+        ]
+      },
+      {
+        "chatName": "AMK Site Fixture 2",
+        "confidence": "observed",
+        "fields": {
+          "chat_name": "AMK Site Fixture 2",
+          "message_text": "AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.",
+          "sender_name": "Fixture Worker",
+          "work_items": [
+            {
+              "evidence_refs": [
+                "gate-label-2"
+              ],
+              "label": "Toilet bi-fold door",
+              "note": "Replacement pending.",
+              "status": "pending"
+            }
+          ]
+        },
+        "jobNo": "AM/JOB/2607/8803",
+        "messageText": "AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.",
+        "notes": "Fixture Worker reports: \u201cToilet bi-fold door. replacement pending.\u201d Replacement remains pending for the established toilet bi-fold door task.",
+        "observationId": "obs-2",
+        "observedAt": 1784548800,
+        "senderName": "Fixture Worker",
+        "source": "whatsapp",
+        "sourceRefs": [
+          "gate-label-2"
+        ]
+      }
+    ],
+    "requests": [
+      {
+        "at": 1784904747.7691698,
+        "body": {
+          "action_type": "observation",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "job_type": "tgg_ops_ingest",
+            "message": "[Fixture Worker] AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\n\n[Current turn source ids]\nsource_message_id: gate-label-1",
+            "message_id": "gate-label-1",
+            "session_id": "20260724_225227_917320b6",
+            "session_key": "agent:replay:gate-fixture-1-4c18ea5bf7:whatsapp:group:120363403845802098@g.us",
+            "source": {
+              "chat_id": "120363403845802098@g.us",
+              "chat_name": "AMK Site Fixture 2",
+              "chat_topic": null,
+              "chat_type": "group",
+              "platform": "whatsapp",
+              "thread_id": null,
+              "user_id": "fixture-worker",
+              "user_name": "Fixture Worker"
+            }
+          },
+          "source": "whatsapp",
+          "status": "pending",
+          "tokens_input": 0,
+          "tokens_output": 0,
+          "turn_id": "20260724_225227_917320b6:gate-label-1"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784904748.079168,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/agent-config",
+        "query": {}
+      },
+      {
+        "at": 1784904753.250668,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8803",
+        "query": {}
+      },
+      {
+        "at": 1784904756.058818,
+        "body": {
+          "chatName": "AMK Site Fixture 2",
+          "confidence": "observed",
+          "fields": {
+            "chat_name": "AMK Site Fixture 2",
+            "message_text": "AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.",
+            "observed_at": "2026-07-24T22:52:00+08:00",
+            "sender_name": "Fixture Worker",
+            "work_items": [
+              {
+                "evidence_refs": [
+                  "gate-label-1"
+                ],
+                "label": "Toilet bi-fold door",
+                "note": "Crack inspected; replacement pending.",
+                "status": "pending"
+              }
+            ]
+          },
+          "messageText": "AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.",
+          "notes": "Fixture Worker reports: \u201cToilet bi-fold door crack inspected; replacement pending.\u201d The existing toilet bi-fold door task remains pending; crack was inspected and replacement is pending.",
+          "observedAt": 1784545200,
+          "senderName": "Fixture Worker",
+          "source": "whatsapp",
+          "sourceRefs": [
+            "gate-label-1"
+          ]
+        },
+        "method": "POST",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8803/observations",
+        "query": {}
+      },
+      {
+        "at": 1784904759.541759,
+        "body": {
+          "action_type": "dry-run-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "message_id": "gate-label-1",
+            "model": "gpt-5.6-luna",
+            "never_send_replies": true,
+            "provider": "openai-direct-primary",
+            "reply": "Recorded against AM/JOB/2607/8803.\n\nBlock 881 Ang Mo Kio Ave 10 #10-32\nTask: Toilet bi-fold door\nStatus: Pending\nUpdate: Crack inspected; replacement pending.",
+            "session_id": "20260724_225227_917320b6"
+          },
+          "source": "whatsapp",
+          "status": "dry-run",
+          "tokens_input": 50564,
+          "tokens_output": 448,
+          "turn_id": "20260724_225227_917320b6:gate-label-1"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784904759.8485172,
+        "body": {
+          "action_type": "observation",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "job_type": "tgg_ops_ingest",
+            "message": "[Fixture Worker] AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.\n\n[Current turn source ids]\nsource_message_id: gate-label-2",
+            "message_id": "gate-label-2",
+            "session_id": "20260724_225239_1d51b236",
+            "session_key": "agent:replay:gate-fixture-2-f374062e5d:whatsapp:group:120363403845802098@g.us",
+            "source": {
+              "chat_id": "120363403845802098@g.us",
+              "chat_name": "AMK Site Fixture 2",
+              "chat_topic": null,
+              "chat_type": "group",
+              "platform": "whatsapp",
+              "thread_id": null,
+              "user_id": "fixture-worker",
+              "user_name": "Fixture Worker"
+            }
+          },
+          "source": "whatsapp",
+          "status": "pending",
+          "tokens_input": 0,
+          "tokens_output": 0,
+          "turn_id": "20260724_225239_1d51b236:gate-label-2"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784904759.867747,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/agent-config",
+        "query": {}
+      },
+      {
+        "at": 1784904764.020535,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8803",
+        "query": {}
+      },
+      {
+        "at": 1784904766.483893,
+        "body": {
+          "chatName": "AMK Site Fixture 2",
+          "confidence": "observed",
+          "fields": {
+            "chat_name": "AMK Site Fixture 2",
+            "message_text": "AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.",
+            "sender_name": "Fixture Worker",
+            "work_items": [
+              {
+                "evidence_refs": [
+                  "gate-label-2"
+                ],
+                "label": "Toilet bi-fold door",
+                "note": "Replacement pending.",
+                "status": "pending"
+              }
+            ]
+          },
+          "messageText": "AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.",
+          "notes": "Fixture Worker reports: \u201cToilet bi-fold door. replacement pending.\u201d Replacement remains pending for the established toilet bi-fold door task.",
+          "observedAt": 1784548800,
+          "senderName": "Fixture Worker",
+          "source": "whatsapp",
+          "sourceRefs": [
+            "gate-label-2"
+          ]
+        },
+        "method": "POST",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8803/observations",
+        "query": {}
+      },
+      {
+        "at": 1784904770.219007,
+        "body": {
+          "action_type": "dry-run-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "message_id": "gate-label-2",
+            "model": "gpt-5.6-luna",
+            "never_send_replies": true,
+            "provider": "openai-direct-primary",
+            "reply": "AM/JOB/2607/8803\n\nToilet bi-fold door: replacement pending.\n\nUpdate recorded against the existing case.",
+            "session_id": "20260724_225239_1d51b236"
+          },
+          "source": "whatsapp",
+          "status": "dry-run",
+          "tokens_input": 51100,
+          "tokens_output": 367,
+          "turn_id": "20260724_225239_1d51b236:gate-label-2"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      }
+    ]
+  },
+  "pa_tool_calls": [
+    {
+      "call_id": "call_Jw32KQnTNvwxwkV0R6418V7f",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 1,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8803\\\"}}\"",
+      "replay_attempt_id": "attempt-58e10519abe4",
+      "replay_run_id": "gate-fixture-1-4c18ea5bf7",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8803\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 881 Ang Mo Kio Ave 10 #10-32\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_read",
+      "turn_id": "paturn_387126200643479dbf3e86c3e6a8e6a0"
+    },
+    {
+      "call_id": "call_RHtTARbuyOj3pBEevvCQlmjG",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 2,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8803\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture Worker reports: \\u201cToilet bi-fold door crack inspected; replacement pending.\\u201d The existing toilet bi-fold door task remains pending; crack was inspected and replacement is pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK Site Fixture 2\\\",\\\"observed_at\\\":\\\"2026-07-24T22:52:00+08:00\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Toilet bi-fold door\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Crack inspected; replacement pending.\\\",\\\"evidence_refs\\\":[\\\"gate-label-1\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK Site Fixture 2\\\",\\\"sourceRefs\\\":[\\\"gate-label-1\\\"]}}\"",
+      "replay_attempt_id": "attempt-58e10519abe4",
+      "replay_run_id": "gate-fixture-1-4c18ea5bf7",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_write",
+      "turn_id": "paturn_387126200643479dbf3e86c3e6a8e6a0"
+    },
+    {
+      "call_id": "call_xJRCsGIKul3lKCCfIZJ6YsqE",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 3,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the fixture worker's inspection update and replacement-pending status against AM/JOB/2607/8803.\\\",\\\"evidence_message_refs\\\":[\\\"gate-label-1\\\"]}\"",
+      "replay_attempt_id": "attempt-58e10519abe4",
+      "replay_run_id": "gate-fixture-1-4c18ea5bf7",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_387126200643479dbf3e86c3e6a8e6a0"
+    },
+    {
+      "call_id": "call_7rW3cXJlRIU2nnBRc8kUWkeY",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 4,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8803\\\"}}\"",
+      "replay_attempt_id": "attempt-01e5fdb09301",
+      "replay_run_id": "gate-fixture-2-f374062e5d",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8803\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 881 Ang Mo Kio Ave 10 #10-32\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"notes\\\": \\\"Fixture Worker reports: \\u201cToilet bi-fold door crack inspected; replacement pending.\\u201d The existing toilet bi-fold door task remains pending; crack was inspected and replacement is pending.\\\", \\\"confidence\\\": \\\"observed\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"chat_name\\\": \\\"AMK Site Fixture 2\\\", \\\"observed_at\\\": \\\"2026-07-24T22:52:00+08:00\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\", \\\"note\\\": \\\"Crack inspected; replacement pending.\\\", \\\"evidence_refs\\\": [\\\"gate-label-1\\\"]}]}, \\\"messageText\\\": \\\"AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\\", \\\"senderName\\\": \\\"Fixture Worker\\\", \\\"chatName\\\": \\\"AMK Site Fixture 2\\\", \\\"sourceRefs\\\": [\\\"gate-label-1\\\"], \\\"observedAt\\\": 1784545200, \\\"jobNo\\\": \\\"AM/JOB/2607/8803\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_read",
+      "turn_id": "paturn_9690825256db418b9ddb29e3d79fe848"
+    },
+    {
+      "call_id": "call_OjtgTer0peEIBHiPmqhxcdtK",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 5,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8803\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture Worker reports: \\u201cToilet bi-fold door. replacement pending.\\u201d Replacement remains pending for the established toilet bi-fold door task.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK Site Fixture 2\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Toilet bi-fold door\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Replacement pending.\\\",\\\"evidence_refs\\\":[\\\"gate-label-2\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK Site Fixture 2\\\",\\\"sourceRefs\\\":[\\\"gate-label-2\\\"]}}\"",
+      "replay_attempt_id": "attempt-01e5fdb09301",
+      "replay_run_id": "gate-fixture-2-f374062e5d",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-2\\\"}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_write",
+      "turn_id": "paturn_9690825256db418b9ddb29e3d79fe848"
+    },
+    {
+      "call_id": "call_Xh1Y9ZRNTfQyixVoyp5Ufw3k",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 6,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the worker update that toilet bi-fold door replacement remains pending on AM/JOB/2607/8803.\\\",\\\"evidence_message_refs\\\":[\\\"gate-label-2\\\"]}\"",
+      "replay_attempt_id": "attempt-01e5fdb09301",
+      "replay_run_id": "gate-fixture-2-f374062e5d",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_9690825256db418b9ddb29e3d79fe848"
+    }
+  ],
+  "pa_turns": [
+    {
+      "agent_id": "christopher",
+      "chat_id": "120363403845802098@g.us",
+      "completed_at": 1784904759.562094,
+      "context_window_peak": 12914,
+      "cost_usd": null,
+      "error_json": null,
+      "input_tokens": 12923,
+      "latency_ms": 11820,
+      "message_refs_json": "[\"gate-label-1\"]",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 448,
+      "provider": "openai-direct-primary",
+      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"Recorded against AM/JOB/2607/8803.\\n\\nBlock 881 Ang Mo Kio Ave 10 #10-32\\nTask: Toilet bi-fold door\\nStatus: Pending\\nUpdate: Crack inspected; replacement pending.\", \"messages\": [{\"content\": \"[Fixture Worker] AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\n\\n[Current turn source ids]\\nsource_message_id: gate-label-1\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3wvA6Pie_gwQs6QGTDNp0Gk-6HPA0YRGXbnFVIe4B0qO3ZI5lh-g_M_Rq7ugK-sAI3xb_-vi0TblkKZ_-fqW5YSxL5eK1QAtEHaU1y_4cdzDaIWABs_d9XG_TWY-5mTJC_4LlSSoJpniU3UdRlTr2_YMvFvL2UYjVZOg3DRWKi1vJ9bBQZ_2tI2CLyyNYHrDVEHNfCQfCEpTXai_MT1pb8cMjhhg4J0vqlaHnjPu7oYVp582c8TP_OLgPGvUxJ2UWcTuj7yV6mapjPbCPRiv-tI69sKtIFmb7xsY3BwlqZYbXYh-Jbv9r4sNGP6NhE5haey8MK0OHvhOwwt_ZlbkMBuze1scKgGMGwA0wENi0mLjIz-la3757c_bj4CX8eaK4sNn8JVGpuLMrjoOe6JecDVxxTwETmlaH8kDsXHw92AwnpyVzVWvB7cqkmmPiuXiEdf1rcM87Okesv5FS3OyYFTCQVmAYrIzf3eVFPPiiwslaUI5-jsIVZcDvUVIgkmdm6dCLJ02B-y93unrbIzk9BeCA7mOeFPMvPhxtA_DlnXBSkxPDDU6pgh_nEGUFl8pKtUh41Rd8MVLs82-NnDj8kpHthlsyZmyKs1atPKgqUsqe2KmVp0-8h9VNf0bOCnKVTKSuot3WTg14G8hprq_ouAowObNu-cmOl1oBGtZOzcE1T24FrhAiXW_SCyByBP6BkCFjBjQehoETI7LCvR4Xd-O7YvU7RVpVI3YUz3cLtbXt8nRnuyoNAkvyBx-Lqnz_v6bPZyIal8RP8jDK1SCNL2FbBTDNJnT8SWzhTUlPxCgQ_RLTTqxUZqQ5FNbRjqwpSXMjhp_zAaD3hXsmTenTzvzCMDof-Z4KSMxrxYDfdYOMHFZM133XD69MJZ9LR6vU-0b8tT068QHQVBXSYU2tfNsxp3F1HQ0dsY6MlCQiQIy_2dauAD7A2JdEba2t3p1jdGh-Ki3mZ5iJ_uMA-stVBuppG4OcDzddtx2mbTCY51tM1HRW1M4O_ATqtdUjENa2pVuvSebs2hZ14xwoDPDhJzrQ==\", \"id\": \"rs_0ba730a68fffa2e3016a637c2f11b48198a8d9b9bd8b124409\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_Jw32KQnTNvwxwkV0R6418V7f\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8803\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_Jw32KQnTNvwxwkV0R6418V7f\", \"response_item_id\": \"fc_0ba730a68fffa2e3016a637c2fc41c8198894f4a0d271c1899\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8803\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 881 Ang Mo Kio Ave 10 #10-32\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_Jw32KQnTNvwxwkV0R6418V7f\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3wzk4ABgFxpKugyLeAuaVgVXYLHd76VKGtpr9gTXYq-2bmf7f4p8lVgpOaISk-ahMZbeFqgPpqPuM24ACC7A19WbOZV4pE0lcf4rnkNKkkW3TA-RM61Ws7v8RsTMMyqjpfjYpLR4n5Vf-IG535Rlravz-jE-jWsapBaXXvv-o3xpmEslWmHNqLkKbi4H9rB62fMwBgKSi0_sjymVcsQZRPO1WwYXpQhaMFEH5ny7edYzUIobky5zPcddUerWvlvfwEhvO7rJUL_uvDEAQ4KMUxzIJO9PLYDJMcFIe3kkeacJ-IPQIT8HqfGDzn-TFN6Ywx5mJ5fUBfw4UbkCIgtk8CYEYJfAMJgIM44YAhPzdm40wLybcmDz-vHgRJq0AN44T2QenAtgs7E5PNm-sCJyyM_jv02KVLx_KELLKpQksqzib8VxX9wFxXC6Ma4ELpu3UF4BzRoAgwA4jTwPtUeK5DVXiKfaM2WZcUAk9r3J-fGGG50ySe__WlcxgomI8tpqko3HyJk4AyFJ5mXR-QF2L8YJU58BJ9SCWW0beLtvWb9duzCcyiqwUmxBN7_SBNGMGPf5s8aRvkxAZ3XPYLuRm-j5knLmAe0xYuoVc72E7ZBeXy8Pes00MJL6gEzx2wPOM2vPDH0Vf9tHsAWqjjCjN1hNMu52nyORbEVkePYERUq7_4IsbGFRb83KD6RMcw5ZKEI2zX3IyY24L7_FJVR_r7NLbTT6666klLlKwndyHMMgMdXdpv63iFH6xdb60PljFWSnqWeXRTPAXTXkC31anlUvkJfX7o2wMJJNQh8rDeEyC2RzN0oHajlO66mKZBsR3TIpCqvn36YJghP9y6Mq-W0m4DKluVAJHIV749dpuqh65G4XK5QnI4iqpDJQOSnBLaZQLT81LyORFdFdj95llwl8EbyUasO04yZZA1bIItMNAbLjazMN4vQvhnM7iIDawBhRi7MzlJL9Dp63W6dt7o0t37sKlRW3E_tQcSYQCzM0WgoCs3Ye6k6S3nSNMPSSmXY\", \"id\": \"rs_08cf7f7899a24561016a637c3260888199aed8c7a6a9004f0e\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_RHtTARbuyOj3pBEevvCQlmjG\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8803\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture Worker reports: \\u201cToilet bi-fold door crack inspected; replacement pending.\\u201d The existing toilet bi-fold door task remains pending; crack was inspected and replacement is pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK Site Fixture 2\\\",\\\"observed_at\\\":\\\"2026-07-24T22:52:00+08:00\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Toilet bi-fold door\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Crack inspected; replacement pending.\\\",\\\"evidence_refs\\\":[\\\"gate-label-1\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK Site Fixture 2\\\",\\\"sourceRefs\\\":[\\\"gate-label-1\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_RHtTARbuyOj3pBEevvCQlmjG\", \"response_item_id\": \"fc_08cf7f7899a24561016a637c32e80481999030cc3d70f88ebb\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_RHtTARbuyOj3pBEevvCQlmjG\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_xJRCsGIKul3lKCCfIZJ6YsqE\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the fixture worker's inspection update and replacement-pending status against AM/JOB/2607/8803.\\\",\\\"evidence_message_refs\\\":[\\\"gate-label-1\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_xJRCsGIKul3lKCCfIZJ6YsqE\", \"response_item_id\": \"fc_05fdb973378924af016a637c35403c819885b7abcf8e1d4d82\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_xJRCsGIKul3lKCCfIZJ6YsqE\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"Recorded against AM/JOB/2607/8803.\\n\\nBlock 881 Ang Mo Kio Ave 10 #10-32\\nTask: Toilet bi-fold door\\nStatus: Pending\\nUpdate: Crack inspected; replacement pending.\", \"type\": \"output_text\"}], \"id\": \"msg_06c2c0cea5225060016a637c36ea64819ba1afe4936fb62918\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"Recorded against AM/JOB/2607/8803.\\n\\nBlock 881 Ang Mo Kio Ave 10 #10-32\\nTask: Toilet bi-fold door\\nStatus: Pending\\nUpdate: Crack inspected; replacement pending.\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-58e10519abe4\", \"replay_run_id\": \"gate-fixture-1-4c18ea5bf7\"}",
+      "replay_attempt_id": "attempt-58e10519abe4",
+      "replay_run_id": "gate-fixture-1-4c18ea5bf7",
+      "session_id": "20260724_225227_917320b6",
+      "started_at": 1784904747.74142,
+      "turn_id": "paturn_387126200643479dbf3e86c3e6a8e6a0",
+      "turn_status": "completed"
+    },
+    {
+      "agent_id": "christopher",
+      "chat_id": "120363403845802098@g.us",
+      "completed_at": 1784904770.238933,
+      "context_window_peak": 13090,
+      "cost_usd": null,
+      "error_json": null,
+      "input_tokens": 13099,
+      "latency_ms": 10410,
+      "message_refs_json": "[\"gate-label-2\"]",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 367,
+      "provider": "openai-direct-primary",
+      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"AM/JOB/2607/8803\\n\\nToilet bi-fold door: replacement pending.\\n\\nUpdate recorded against the existing case.\", \"messages\": [{\"content\": \"[Fixture Worker] AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.\\n\\n[Current turn source ids]\\nsource_message_id: gate-label-2\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3w7i1bcoJCKQiQwmS23bm8yhvI3HxCdUne5X-D9akGP2R0wwGGE2szDOhzIB4d9s40Ui1h0d8BCfF0Nwr_CGETZoFpjOJzeZYgCxwsrH7d-ZtSwkN84jDVy2HU1HUNC86ZRpE39A1xJ7S6rGsM6qd4QGrMa4--O-F4rlhbfgV69eDUMZveGyH6V8wbvIdh0Daet9mCgIRF505AMYiJ9lcqUqA4m08WHuljDZD8Vp-l1zsa09t5BfXSqYZJ78eUXhejbFvUYr3BBd01cOQR4YkCOdbLaiWAsmZOHR7DO7ElK9iTmCZLKnzUnIXaxA0J-G6arCckBeCi58-Q8JRhfMFpHnlRGdfdJTv-3vijGGgvctcBIOZpPNye9Q1Srw_itzX77gxvlaFQRLwxIvgpjkCgCd-y4x0K03kaBOpvlADyU5NRJvU1_DslIbOPMWFkWCIkeJ09HD0XGAKGuOOeFcLepsQ8jpI8ds82eMepB44QhkCT3l3Y9-eVgA5auDHOwJhBNYiGIDW02srYrppcke7XFytzQOhJq2NmxGihpPddsevpMdPqTbN3UAOt7aAPmpNQhbsqlfFj3YEzjexzsUONY_b78obw9U-Slv6JFZhkrzSiSxKUnTfFvCw42GK7ZF0VWgpWTMhgXzWyNtncldwK406CJIJuaDb9lpTIgueUSzLFjd8-uv6AfvjOxjqLRNFBS6oHq_Byr82VH9yxJ2YGBJdQF7RKlpjQBAVtxi_4V_6aYn60DdctM5CDKebgVKSltWWbmPZkd4o9I2k1gcWucDf_t1JcBTeMb5abMB9ef5BU3Y0LuQaX9nPm-dP6DC0B0Rxdxz7M8I0IR2JWhzHqxF5w9-MQJu1HzTMVQ1N03xO0Eb7ZBhtz40vAbecDvglDy4VY6MPQU4K-4kxQLM_-R0kpXeILdrdy-8rWrd3b3Ujmy-CbpTApnX8aE-5UXZBBwJ9uFJQ0HOUaPJbJZW9dgZ_k_NFXMJ_ZNE2Rp1fWTR33L3gcP831vHJMDUFtKfb0s4TOO8o6eQS8_NgqFSfhNBQ==\", \"id\": \"rs_0047cba0ccf92e02016a637c39f4b88198aa489196e305bc6e\", \"summary\": [{\"text\": \"**Looking up a case**\\n\\nI need to look up the case and gather some information first. It's important to understand the situation. I'll do a business read to make sure I observe the relevant details accurately. This will help me provide a clear overview and make informed decisions or suggestions based on what I find. I want to ensure that I'm thorough and precise in my approach, so I'll double-check everything!\", \"type\": \"summary_text\"}], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": \"**Looking up a case**\\n\\nI need to look up the case and gather some information first. It's important to understand the situation. I'll do a business read to make sure I observe the relevant details accurately. This will help me provide a clear overview and make informed decisions or suggestions based on what I find. I want to ensure that I'm thorough and precise in my approach, so I'll double-check everything!\", \"reasoning_content\": \"**Looking up a case**\\n\\nI need to look up the case and gather some information first. It's important to understand the situation. I'll do a business read to make sure I observe the relevant details accurately. This will help me provide a clear overview and make informed decisions or suggestions based on what I find. I want to ensure that I'm thorough and precise in my approach, so I'll double-check everything!\", \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_7rW3cXJlRIU2nnBRc8kUWkeY\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8803\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_7rW3cXJlRIU2nnBRc8kUWkeY\", \"response_item_id\": \"fc_0047cba0ccf92e02016a637c3b6ff881989e5804e02bc0456d\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8803\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 881 Ang Mo Kio Ave 10 #10-32\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"notes\\\": \\\"Fixture Worker reports: \\u201cToilet bi-fold door crack inspected; replacement pending.\\u201d The existing toilet bi-fold door task remains pending; crack was inspected and replacement is pending.\\\", \\\"confidence\\\": \\\"observed\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"chat_name\\\": \\\"AMK Site Fixture 2\\\", \\\"observed_at\\\": \\\"2026-07-24T22:52:00+08:00\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Toilet bi-fold door\\\", \\\"status\\\": \\\"pending\\\", \\\"note\\\": \\\"Crack inspected; replacement pending.\\\", \\\"evidence_refs\\\": [\\\"gate-label-1\\\"]}]}, \\\"messageText\\\": \\\"AM/JOB/2607/8803, Block 881 Ang Mo Kio Ave 10 #10-32: Toilet bi-fold door crack inspected; replacement pending.\\\", \\\"senderName\\\": \\\"Fixture Worker\\\", \\\"chatName\\\": \\\"AMK Site Fixture 2\\\", \\\"sourceRefs\\\": [\\\"gate-label-1\\\"], \\\"observedAt\\\": 1784545200, \\\"jobNo\\\": \\\"AM/JOB/2607/8803\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_7rW3cXJlRIU2nnBRc8kUWkeY\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3w-JA8YOHbNcZdTwfW9Sq5aji_isqMKhQLgffDIF0aixDI2UWrGwBTp-HtVkvorWn_rDiTIUgU_GI1hCArBuI5cGqx2K0mmNlFuyXInxclQ1i3fHOk7midqK_Qj0ka_nisfpQJ-dBqoQAhKZJuShTx8841g9k-HabmcFW-OwW5XncWP3iqwoEr_6B_DmnckmD3N2qkjdvL97f7LahPQhDvhgMS_NcyOdGiMJpW3WgFCzhCVsJ6FqQac3jXCZEn2Ia52jIcx2hZemnOHO4VvyH-OtCBM6iWaQSbx91V4vjDDyuSWbUScARerNqoTOgYlLRrVps_UWgmhe1vWvxm9CAtgnUJ4YftKkarWAxrRhnXBYkygV29uEPBgVCKr-ulVjgsCLi7NQy4zNri0nWvwL2hDguSPqlsr3ATrd7CAT4i661tZI3sSDESrA3IJREjG8lFPkqNtU1iDXveXHKYmTbCJkOLIACYMRLjQ40bt6z05lVl_feMY-PFlCejqv6v5kJWy9POykExuCkS4Plle8rIzQWShn1hLTNJZcFRkgd8TgYFQ97elAs8UKEID7ixbIneAAUyUPKmKFyyZ8rJAcRnELGqNwRYG36XYo0JWGuD-_CI5RAk453IurQefy3HOLrZgZzVWou2fUOhNDuU-d0xtjYKFy5wzfcB50mGHZzNHih-ZuHgkUeP_Zwu2Pl7RUiY6Hw-ukZqzsuojrVUWLvjlOQi1_fV4IMs88QTW9E0VL6VA-ySfm1VgUwIOIM8kYTqFwUC4zhjsSQIlzWfCN0BzvQMgShsgyrMpafcqpn7iv8fT-nUZunjJQNmTV0yBzjhxPiUyx9PmLUBaeDFFEUGho1VHOr2EKEJjT6hnsYbnRDMIZdmpgpnXfh5sehEgs_UfiMJhxofP6FsWQSlaMusm8kfbXWap-uyXx8afbDEwJp65Ok6NbNfd6FPVfybeX3eDbU_ym4XETHYO7WfldmeqbEIc3WDg85nGEHJJjCA7q3ZC3VgvaLrmmM5N9kaX7kYJ\", \"id\": \"rs_0a4c6f39bfbec6a7016a637c3d0954819b959c336284d6032b\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_OjtgTer0peEIBHiPmqhxcdtK\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8803\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture Worker reports: \\u201cToilet bi-fold door. replacement pending.\\u201d Replacement remains pending for the established toilet bi-fold door task.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK Site Fixture 2\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Toilet bi-fold door\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Replacement pending.\\\",\\\"evidence_refs\\\":[\\\"gate-label-2\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8803 update: 1) Toilet bi-fold door. replacement pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK Site Fixture 2\\\",\\\"sourceRefs\\\":[\\\"gate-label-2\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_OjtgTer0peEIBHiPmqhxcdtK\", \"response_item_id\": \"fc_0a4c6f39bfbec6a7016a637c3da30c819b9040728d6a21e914\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-2\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_OjtgTer0peEIBHiPmqhxcdtK\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_Xh1Y9ZRNTfQyixVoyp5Ufw3k\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the worker update that toilet bi-fold door replacement remains pending on AM/JOB/2607/8803.\\\",\\\"evidence_message_refs\\\":[\\\"gate-label-2\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_Xh1Y9ZRNTfQyixVoyp5Ufw3k\", \"response_item_id\": \"fc_0c15a89c22e44dd9016a637c3f72b081988e170e4c7a60c31e\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_Xh1Y9ZRNTfQyixVoyp5Ufw3k\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"AM/JOB/2607/8803\\n\\nToilet bi-fold door: replacement pending.\\n\\nUpdate recorded against the existing case.\", \"type\": \"output_text\"}], \"id\": \"msg_0df5e615c6d5b7de016a637c40df0c819b995a4e107b6fb8e5\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"AM/JOB/2607/8803\\n\\nToilet bi-fold door: replacement pending.\\n\\nUpdate recorded against the existing case.\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-01e5fdb09301\", \"replay_run_id\": \"gate-fixture-2-f374062e5d\"}",
+      "replay_attempt_id": "attempt-01e5fdb09301",
+      "replay_run_id": "gate-fixture-2-f374062e5d",
+      "session_id": "20260724_225239_1d51b236",
+      "started_at": 1784904759.8288808,
+      "turn_id": "paturn_9690825256db418b9ddb29e3d79fe848",
+      "turn_status": "completed"
+    }
+  ],
+  "result": [
+    {
+      "pass": 1,
+      "rc": 0
+    },
+    {
+      "pass": 2,
+      "rc": 0
+    }
+  ],
+  "run_root": "/private/tmp/christopher-label2-gate-36667/gate-fixture-1784904746-ceed4092"
+}

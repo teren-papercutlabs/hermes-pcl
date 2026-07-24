@@ -155,15 +155,22 @@ job_briefs:
       `tgg_case_update_state` DO NOT EXIST and must never be called.
 
       '
-    - 'Every tgg_case_observation is bound to the CURRENT turn''s exact WhatsApp/import
-      message ids. Pass those ids in top-level sourceRefs when visible. The runtime supplies
-      the current-turn refs when they are omitted, so never skip a required observation
-      merely because the ids are not shown in the prompt. Never write a placeholder token
-      such as current_turn in sourceRefs — a placeholder is not a message id, and the
-      runtime treats it as omitted; when the real ids are not visible, omit sourceRefs
-      entirely and the runtime binds them. Do not search message history for
-      the current source id; call the observation and let the runtime bind it. Do not put earlier-turn ids in
-      sourceRefs, and do not use fields.evidence_refs as a substitute.
+    - 'Every observation and create write is bound to the exact
+      CURRENT-turn WhatsApp/import message ids that support THAT write. Pass
+      those ids explicitly in top-level sourceRefs for observations and
+      evidenceMessageRefs for creates. Never cite the whole turn when only one
+      message supports the case, never omit the refs, and never write a
+      placeholder such as current_turn. The runtime validates every cited id
+      against the current turn and derives observed_at mechanically from those
+      cited ingress messages; model-supplied observed_at is ignored. On create,
+      pass receivedAt as the job sheet''s stated receipt epoch; when it states
+      only a date, use midnight at the start of that date in Asia/Singapore.
+      Do not search
+      message history for the current source id, do not
+      put earlier-turn ids in sourceRefs, and do not use fields.evidence_refs
+      as a substitute. On create, put priority, contactName, contactPhone, and
+      opening work_items in their explicit top-level fields; operational
+      fields never belong under free-form evidence.
 
       '
     - 'Evidence-attach justification contract: when a tgg_case_observation cites message

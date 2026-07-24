@@ -588,11 +588,14 @@ def _validate(
     assert "never an attach target" in joined
     assert "message_search for the same chat_jid with limit 10" in joined
     assert "LOW confidence" in joined
-    assert "runtime supplies" in joined
-    assert "current-turn refs when they are omitted" in joined
-    # Stage-1 roll-forward (2026-07-20): placeholder sourceRefs ban + the
+    assert "never omit the refs" in joined
+    assert "validates every cited id" in joined
+    assert "derives observed_at mechanically" in joined
+    assert "pass receivedAt as the job sheet's stated receipt epoch" in joined
+    assert "operational fields never belong under free-form evidence" in joined
+    # Create-contract roll-forward (2026-07-24): explicit sourceRefs plus the
     # evidence-attach justification contract with refs-preserving retry.
-    assert "Never write a placeholder token" in joined
+    assert "never write a" in joined
     assert "current_turn" in joined
     assert "Evidence-attach justification contract" in joined
     assert "ATTACH_UNJUSTIFIED" in joined

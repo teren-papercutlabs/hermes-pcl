@@ -1,0 +1,111 @@
+{
+  "contact_fields": {
+    "actual_top_level": {
+      "contactName": "Tan Ah Kow",
+      "contactPhone": "91234567"
+    },
+    "nested_evidence": {
+      "chat_name": "AMK EE Fixture",
+      "message_text": "URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
+      "sender_name": "Fixture Supervisor"
+    },
+    "pass": true
+  },
+  "cross_chat_concurrency": {
+    "management_completed_while_three_sites_active": true,
+    "pass": true,
+    "turn_refs": [
+      [
+        "gate-conc-mgmt"
+      ],
+      [
+        "gate-conc-pg"
+      ],
+      [
+        "gate-conc-amk-1",
+        "gate-conc-amk-2"
+      ],
+      [
+        "gate-conc-sk"
+      ]
+    ]
+  },
+  "due_date": {
+    "actual": 1787068800,
+    "expected": "receipt 2026-07-20 + 30d",
+    "pass": true,
+    "static_plus_7_present": false
+  },
+  "foreign_photos": {
+    "actual_a_refs": [
+      "gate-a-report"
+    ],
+    "actual_b_refs": [
+      "gate-b-caption",
+      "gate-b-photo-0704",
+      "gate-b-photo-1032"
+    ],
+    "expected_a_refs": [
+      "gate-a-report"
+    ],
+    "pass": true
+  },
+  "label_drift": {
+    "actual_labels": [
+      "Toilet bi-fold door",
+      "Toilet bi-fold door"
+    ],
+    "pass": true
+  },
+  "ledger_side_effects": {
+    "known_open": true,
+    "static_current": {
+      "message_kind": "image",
+      "text": "",
+      "timestamp_source": "input.timestamp"
+    }
+  },
+  "observed_at": {
+    "actual_epochs": [
+      1784545200,
+      1784545200
+    ],
+    "expected_epoch": 1784545200,
+    "pass": true
+  },
+  "open_hunt": {
+    "findings": [],
+    "healthy_fields": [
+      "zone",
+      "address",
+      "existing-task canonical label",
+      "cross-chat refs"
+    ],
+    "pass": true
+  },
+  "priority": {
+    "actual": "URGENT",
+    "expected": "urgent",
+    "pass": true
+  },
+  "replay_dedupe": {
+    "pass": true,
+    "persisted_observations": 1,
+    "same_chat_concurrency_pass": true
+  },
+  "work_items": {
+    "actual_create_top_level": [
+      {
+        "label": "Replace cracked toilet bi-fold door",
+        "status": "pending"
+      },
+      {
+        "label": "Repair leaking kitchen sink trap",
+        "status": "pending"
+      }
+    ],
+    "create_path_pass": true,
+    "observation_path_pass": true,
+    "pass": true
+  }
+}
