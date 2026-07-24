@@ -20,3 +20,21 @@ classes report `pass: true`.
 
 The remaining `7 * 86400` match in `store.ts` is a seven-day recent-activity
 lookback, not a due-date fallback, and was deliberately left unchanged.
+
+## Suite and review evidence
+
+- Systems: typecheck clean; **378/378 tests passed**.
+  `evidence/systems-typecheck.txt`, `evidence/systems-tests.txt`
+- Hermes task-focused: **95 passed**; the sole failure is the existing
+  constitution state-claim assertion reproduced on `origin/main` `2f9a481ef`.
+  `evidence/hermes-focused.txt`, `evidence/hermes-origin-known-failure.txt`
+- Hermes full suite: **23,626 passed**. Its 105 failures were grounded by
+  rerunning the exact nodeids: 74 reproduced on `origin/main`; the other 31
+  passed when rerun on this branch outside the contaminated full-order run.
+  No persistent branch-only failure remains.
+  `evidence/hermes-tests.txt`, `evidence/hermes-origin-subset.txt`,
+  `evidence/hermes-transient-rerun.txt`
+- Independent Claude review: **CLEAR** on the two-repository implementation
+  and **CLEAR** on the timestamp/field-stripping follow-up.
+  `evidence/cross-provider-review.md`,
+  `evidence/cross-provider-review-incremental.md`
