@@ -1831,6 +1831,8 @@ def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str
     if source_error:
         return source_error
     fields["source_refs"] = source_refs
+    fields.pop("observed_at", None)
+    fields.pop("observedAt", None)
     # Media attachment is mechanical. Christopher cites source messages; the
     # systems API derives media_refs/photo_count from message_ledger. Strip any
     # model-supplied raw media/photo fields so the LLM cannot silently create
@@ -2108,6 +2110,11 @@ def _bind_observation_source_refs(payload: dict[str, Any]) -> dict[str, Any]:
         fields = dict(fields)
         fields.pop("sourceRefs", None)
         fields.pop("source_refs", None)
+        payload["fields"] = fields
+    if fields is not None:
+        fields = dict(payload["fields"])
+        fields.pop("observed_at", None)
+        fields.pop("observedAt", None)
         payload["fields"] = fields
     source_error = _validate_cited_turn_source_refs(cleaned, "tgg_case_observation")
     if source_error:

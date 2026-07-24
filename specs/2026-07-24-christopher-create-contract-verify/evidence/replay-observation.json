@@ -1,5 +1,5 @@
 {
-  "integration_commit": "2f9a481eff1985c417a3da9953fd6136a1432a20",
+  "integration_commit": "de658b5a28d2f7f5884c9bfc926948877a6bfed0",
   "mode": "fixture",
   "operator": {
     "actions": [
@@ -12,8 +12,8 @@
           "job_type": "tgg_ops_ingest",
           "message": "[Fixture Worker] AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\n\n[Current turn source ids]\nsource_message_id: gate-replay-observation",
           "message_id": "gate-replay-observation",
-          "session_id": "20260724_225412_d2e76e3f",
-          "session_key": "agent:replay:gate-fixture-1-aad4008355:whatsapp:group:120363421424519051@g.us",
+          "session_id": "20260725_032016_5c341180",
+          "session_key": "agent:replay:gate-fixture-1-2636528752:whatsapp:group:120363421424519051@g.us",
           "source": {
             "chat_id": "120363421424519051@g.us",
             "chat_name": "AMK EE Fixture",
@@ -29,7 +29,7 @@
         "status": "pending",
         "tokens_input": 0,
         "tokens_output": 0,
-        "turn_id": "20260724_225412_d2e76e3f:gate-replay-observation"
+        "turn_id": "20260725_032016_5c341180:gate-replay-observation"
       },
       {
         "action_type": "dry-run-reply",
@@ -41,14 +41,14 @@
           "model": "gpt-5.6-luna",
           "never_send_replies": true,
           "provider": "openai-direct-primary",
-          "reply": "Recorded against AM/JOB/2607/8804.\n\nBedroom window handle: inspected; replacement pending.",
-          "session_id": "20260724_225412_d2e76e3f"
+          "reply": "AM/JOB/2607/8804 \u2014 observation recorded.\n\nBedroom window handle: inspected; replacement still pending.",
+          "session_id": "20260725_032016_5c341180"
         },
         "source": "whatsapp",
         "status": "dry-run",
-        "tokens_input": 50602,
-        "tokens_output": 410,
-        "turn_id": "20260724_225412_d2e76e3f:gate-replay-observation"
+        "tokens_input": 50481,
+        "tokens_output": 381,
+        "turn_id": "20260725_032016_5c341180:gate-replay-observation"
       },
       {
         "action_type": "observation",
@@ -59,8 +59,8 @@
           "job_type": "tgg_ops_ingest",
           "message": "[Fixture Worker] AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\n\n[Current turn source ids]\nsource_message_id: gate-replay-observation",
           "message_id": "gate-replay-observation",
-          "session_id": "20260724_225423_e4275f64",
-          "session_key": "agent:replay:gate-fixture-2-542bd2d616:whatsapp:group:120363421424519051@g.us",
+          "session_id": "20260725_032030_65e7e558",
+          "session_key": "agent:replay:gate-fixture-2-4211afc321:whatsapp:group:120363421424519051@g.us",
           "source": {
             "chat_id": "120363421424519051@g.us",
             "chat_name": "AMK EE Fixture",
@@ -76,7 +76,7 @@
         "status": "pending",
         "tokens_input": 0,
         "tokens_output": 0,
-        "turn_id": "20260724_225423_e4275f64:gate-replay-observation"
+        "turn_id": "20260725_032030_65e7e558:gate-replay-observation"
       },
       {
         "action_type": "dry-run-reply",
@@ -88,14 +88,14 @@
           "model": "gpt-5.6-luna",
           "never_send_replies": true,
           "provider": "openai-direct-primary",
-          "reply": "AM/JOB/2607/8804\n\nObservation recorded:\n\u2022 Bedroom window handle inspected\n\u2022 Replacement still pending\n\nCase remains open.",
-          "session_id": "20260724_225423_e4275f64"
+          "reply": "AM/JOB/2607/8804\n\nWorker update recorded:\n\u2022 Bedroom window handle inspected\n\u2022 Replacement still pending\n\nCase remains open.",
+          "session_id": "20260725_032030_65e7e558"
         },
         "source": "whatsapp",
         "status": "dry-run",
-        "tokens_input": 51255,
-        "tokens_output": 412,
-        "turn_id": "20260724_225423_e4275f64:gate-replay-observation"
+        "tokens_input": 51102,
+        "tokens_output": 422,
+        "turn_id": "20260725_032030_65e7e558:gate-replay-observation"
       }
     ],
     "attention": [],
@@ -143,10 +143,7 @@
         "confidence": "observed",
         "fields": {
           "chat_name": "AMK EE Fixture",
-          "media_refs": [],
           "message_text": "AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.",
-          "observed_at": "2026-07-24T22:54:00+08:00",
-          "photo_count": 0,
           "sender_name": "Fixture Worker",
           "work_items": [
             {
@@ -161,7 +158,7 @@
         },
         "jobNo": "AM/JOB/2607/8804",
         "messageText": "AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.",
-        "notes": "Fixture worker reports: bedroom window handle inspected; replacement still pending.",
+        "notes": "Fixture Worker reports: bedroom window handle inspected; replacement still pending.",
         "observationId": "obs-1",
         "observedAt": 1784545200,
         "senderName": "Fixture Worker",
@@ -173,7 +170,7 @@
     ],
     "requests": [
       {
-        "at": 1784904852.363643,
+        "at": 1784920817.0058692,
         "body": {
           "action_type": "observation",
           "agent_id": "christopher",
@@ -183,8 +180,8 @@
             "job_type": "tgg_ops_ingest",
             "message": "[Fixture Worker] AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\n\n[Current turn source ids]\nsource_message_id: gate-replay-observation",
             "message_id": "gate-replay-observation",
-            "session_id": "20260724_225412_d2e76e3f",
-            "session_key": "agent:replay:gate-fixture-1-aad4008355:whatsapp:group:120363421424519051@g.us",
+            "session_id": "20260725_032016_5c341180",
+            "session_key": "agent:replay:gate-fixture-1-2636528752:whatsapp:group:120363421424519051@g.us",
             "source": {
               "chat_id": "120363421424519051@g.us",
               "chat_name": "AMK EE Fixture",
@@ -200,37 +197,34 @@
           "status": "pending",
           "tokens_input": 0,
           "tokens_output": 0,
-          "turn_id": "20260724_225412_d2e76e3f:gate-replay-observation"
+          "turn_id": "20260725_032016_5c341180:gate-replay-observation"
         },
         "method": "POST",
         "path": "/api/operator/agent-actions",
         "query": {}
       },
       {
-        "at": 1784904852.6952589,
+        "at": 1784920817.794127,
         "body": {},
         "method": "GET",
         "path": "/api/operator/agent-config",
         "query": {}
       },
       {
-        "at": 1784904857.34347,
+        "at": 1784920823.775681,
         "body": {},
         "method": "GET",
         "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8804",
         "query": {}
       },
       {
-        "at": 1784904859.784395,
+        "at": 1784920826.7322052,
         "body": {
           "chatName": "AMK EE Fixture",
           "confidence": "observed",
           "fields": {
             "chat_name": "AMK EE Fixture",
-            "media_refs": [],
             "message_text": "AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.",
-            "observed_at": "2026-07-24T22:54:00+08:00",
-            "photo_count": 0,
             "sender_name": "Fixture Worker",
             "work_items": [
               {
@@ -244,7 +238,7 @@
             ]
           },
           "messageText": "AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.",
-          "notes": "Fixture worker reports: bedroom window handle inspected; replacement still pending.",
+          "notes": "Fixture Worker reports: bedroom window handle inspected; replacement still pending.",
           "observedAt": 1784545200,
           "senderName": "Fixture Worker",
           "source": "whatsapp",
@@ -257,7 +251,7 @@
         "query": {}
       },
       {
-        "at": 1784904863.164452,
+        "at": 1784920829.820619,
         "body": {
           "action_type": "dry-run-reply",
           "agent_id": "christopher",
@@ -268,21 +262,21 @@
             "model": "gpt-5.6-luna",
             "never_send_replies": true,
             "provider": "openai-direct-primary",
-            "reply": "Recorded against AM/JOB/2607/8804.\n\nBedroom window handle: inspected; replacement pending.",
-            "session_id": "20260724_225412_d2e76e3f"
+            "reply": "AM/JOB/2607/8804 \u2014 observation recorded.\n\nBedroom window handle: inspected; replacement still pending.",
+            "session_id": "20260725_032016_5c341180"
           },
           "source": "whatsapp",
           "status": "dry-run",
-          "tokens_input": 50602,
-          "tokens_output": 410,
-          "turn_id": "20260724_225412_d2e76e3f:gate-replay-observation"
+          "tokens_input": 50481,
+          "tokens_output": 381,
+          "turn_id": "20260725_032016_5c341180:gate-replay-observation"
         },
         "method": "POST",
         "path": "/api/operator/agent-actions",
         "query": {}
       },
       {
-        "at": 1784904863.5101042,
+        "at": 1784920830.6487339,
         "body": {
           "action_type": "observation",
           "agent_id": "christopher",
@@ -292,8 +286,8 @@
             "job_type": "tgg_ops_ingest",
             "message": "[Fixture Worker] AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\n\n[Current turn source ids]\nsource_message_id: gate-replay-observation",
             "message_id": "gate-replay-observation",
-            "session_id": "20260724_225423_e4275f64",
-            "session_key": "agent:replay:gate-fixture-2-542bd2d616:whatsapp:group:120363421424519051@g.us",
+            "session_id": "20260725_032030_65e7e558",
+            "session_key": "agent:replay:gate-fixture-2-4211afc321:whatsapp:group:120363421424519051@g.us",
             "source": {
               "chat_id": "120363421424519051@g.us",
               "chat_name": "AMK EE Fixture",
@@ -309,28 +303,28 @@
           "status": "pending",
           "tokens_input": 0,
           "tokens_output": 0,
-          "turn_id": "20260724_225423_e4275f64:gate-replay-observation"
+          "turn_id": "20260725_032030_65e7e558:gate-replay-observation"
         },
         "method": "POST",
         "path": "/api/operator/agent-actions",
         "query": {}
       },
       {
-        "at": 1784904863.529448,
+        "at": 1784920830.770946,
         "body": {},
         "method": "GET",
         "path": "/api/operator/agent-config",
         "query": {}
       },
       {
-        "at": 1784904866.3265622,
+        "at": 1784920833.99526,
         "body": {},
         "method": "GET",
         "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8804",
         "query": {}
       },
       {
-        "at": 1784904872.7702441,
+        "at": 1784920837.241259,
         "body": {
           "chatName": "AMK EE Fixture",
           "confidence": "observed",
@@ -338,7 +332,6 @@
             "chat_name": "AMK EE Fixture",
             "media_refs": [],
             "message_text": "AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.",
-            "observed_at": "2026-07-24T22:54:00+08:00",
             "photo_count": 0,
             "sender_name": "Fixture Worker",
             "work_items": [
@@ -353,7 +346,7 @@
             ]
           },
           "messageText": "AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.",
-          "notes": "Fixture worker reports bedroom window handle inspected; replacement remains pending.",
+          "notes": "Fixture Worker reports bedroom window handle inspected; replacement remains pending.",
           "observedAt": 1784545200,
           "senderName": "Fixture Worker",
           "source": "whatsapp",
@@ -366,7 +359,7 @@
         "query": {}
       },
       {
-        "at": 1784904876.46813,
+        "at": 1784920842.360394,
         "body": {
           "action_type": "dry-run-reply",
           "agent_id": "christopher",
@@ -377,14 +370,14 @@
             "model": "gpt-5.6-luna",
             "never_send_replies": true,
             "provider": "openai-direct-primary",
-            "reply": "AM/JOB/2607/8804\n\nObservation recorded:\n\u2022 Bedroom window handle inspected\n\u2022 Replacement still pending\n\nCase remains open.",
-            "session_id": "20260724_225423_e4275f64"
+            "reply": "AM/JOB/2607/8804\n\nWorker update recorded:\n\u2022 Bedroom window handle inspected\n\u2022 Replacement still pending\n\nCase remains open.",
+            "session_id": "20260725_032030_65e7e558"
           },
           "source": "whatsapp",
           "status": "dry-run",
-          "tokens_input": 51255,
-          "tokens_output": 412,
-          "turn_id": "20260724_225423_e4275f64:gate-replay-observation"
+          "tokens_input": 51102,
+          "tokens_output": 422,
+          "turn_id": "20260725_032030_65e7e558:gate-replay-observation"
         },
         "method": "POST",
         "path": "/api/operator/agent-actions",
@@ -394,125 +387,125 @@
   },
   "pa_tool_calls": [
     {
-      "call_id": "call_KiDSwNx50t827e1OMasR4vxL",
+      "call_id": "call_ox3lGPj6sw6N3SpvKvtoGJwg",
       "client_entity_pointer": null,
       "cost_usd": null,
       "duration_ms": null,
       "id": 1,
       "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\"}}\"",
-      "replay_attempt_id": "attempt-44fd1150a891",
-      "replay_run_id": "gate-fixture-1-aad4008355",
+      "replay_attempt_id": "attempt-fac7cc4345ec",
+      "replay_run_id": "gate-fixture-1-2636528752",
       "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 882 Ang Mo Kio Ave 10 #11-22\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\"",
       "tool_name": "pa_business_read",
-      "turn_id": "paturn_318377c0b4674d0abe038b9c985cf401"
+      "turn_id": "paturn_4cb9f6c0251e437fa1fc8fef33962587"
     },
     {
-      "call_id": "call_U3vvOOiRD4pZf6uVNZ9KGJfD",
+      "call_id": "call_bMOI1ekSOYtHtcZCS3HK7Rrf",
       "client_entity_pointer": null,
       "cost_usd": null,
       "duration_ms": null,
       "id": 2,
-      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture worker reports: bedroom window handle inspected; replacement still pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"observed_at\\\":\\\"2026-07-24T22:54:00+08:00\\\",\\\"photo_count\\\":0,\\\"media_refs\\\":[],\\\"work_items\\\":[{\\\"label\\\":\\\"Bedroom window handle\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Inspected; replacement still pending.\\\",\\\"evidence_refs\\\":[\\\"gate-replay-observation\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-replay-observation\\\"]}}\"",
-      "replay_attempt_id": "attempt-44fd1150a891",
-      "replay_run_id": "gate-fixture-1-aad4008355",
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture Worker reports: bedroom window handle inspected; replacement still pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Bedroom window handle\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Inspected; replacement still pending.\\\",\\\"evidence_refs\\\":[\\\"gate-replay-observation\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-replay-observation\\\"]}}\"",
+      "replay_attempt_id": "attempt-fac7cc4345ec",
+      "replay_run_id": "gate-fixture-1-2636528752",
       "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\"",
       "tool_name": "pa_business_write",
-      "turn_id": "paturn_318377c0b4674d0abe038b9c985cf401"
+      "turn_id": "paturn_4cb9f6c0251e437fa1fc8fef33962587"
     },
     {
-      "call_id": "call_Mbog3MSKtDhido1kGwyTa3Vv",
+      "call_id": "call_Bng6qiDcUxLCHaMpDN03lsOu",
       "client_entity_pointer": null,
       "cost_usd": null,
       "duration_ms": null,
       "id": 3,
-      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the fixture worker update against AM/JOB/2607/8804: bedroom window handle inspected and replacement remains pending.\\\",\\\"evidence_message_refs\\\":[\\\"gate-replay-observation\\\"]}\"",
-      "replay_attempt_id": "attempt-44fd1150a891",
-      "replay_run_id": "gate-fixture-1-aad4008355",
+      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the fixture worker update that the bedroom window handle was inspected and replacement remains pending.\\\",\\\"evidence_message_refs\\\":[\\\"gate-replay-observation\\\"]}\"",
+      "replay_attempt_id": "attempt-fac7cc4345ec",
+      "replay_run_id": "gate-fixture-1-2636528752",
       "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
       "tool_name": "record_event",
-      "turn_id": "paturn_318377c0b4674d0abe038b9c985cf401"
+      "turn_id": "paturn_4cb9f6c0251e437fa1fc8fef33962587"
     },
     {
-      "call_id": "call_DxRswhGBQV7aC120YxmwDpgU",
+      "call_id": "call_Duj00R9itmx6Yf1JKy1CVuns",
       "client_entity_pointer": null,
       "cost_usd": null,
       "duration_ms": null,
       "id": 4,
       "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\"}}\"",
-      "replay_attempt_id": "attempt-b82ef805930a",
-      "replay_run_id": "gate-fixture-2-542bd2d616",
-      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 882 Ang Mo Kio Ave 10 #11-22\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"notes\\\": \\\"Fixture worker reports: bedroom window handle inspected; replacement still pending.\\\", \\\"confidence\\\": \\\"observed\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"chat_name\\\": \\\"AMK EE Fixture\\\", \\\"observed_at\\\": \\\"2026-07-24T22:54:00+08:00\\\", \\\"photo_count\\\": 0, \\\"media_refs\\\": [], \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\", \\\"note\\\": \\\"Inspected; replacement still pending.\\\", \\\"evidence_refs\\\": [\\\"gate-replay-observation\\\"]}]}, \\\"messageText\\\": \\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\", \\\"senderName\\\": \\\"Fixture Worker\\\", \\\"chatName\\\": \\\"AMK EE Fixture\\\", \\\"sourceRefs\\\": [\\\"gate-replay-observation\\\"], \\\"observedAt\\\": 1784545200, \\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\"",
+      "replay_attempt_id": "attempt-4de54b785e6e",
+      "replay_run_id": "gate-fixture-2-4211afc321",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 882 Ang Mo Kio Ave 10 #11-22\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"notes\\\": \\\"Fixture Worker reports: bedroom window handle inspected; replacement still pending.\\\", \\\"confidence\\\": \\\"observed\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"chat_name\\\": \\\"AMK EE Fixture\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\", \\\"note\\\": \\\"Inspected; replacement still pending.\\\", \\\"evidence_refs\\\": [\\\"gate-replay-observation\\\"]}]}, \\\"messageText\\\": \\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\", \\\"senderName\\\": \\\"Fixture Worker\\\", \\\"chatName\\\": \\\"AMK EE Fixture\\\", \\\"sourceRefs\\\": [\\\"gate-replay-observation\\\"], \\\"observedAt\\\": 1784545200, \\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\"",
       "tool_name": "pa_business_read",
-      "turn_id": "paturn_8ce7fe14be3d42d9955b0791d1d949ba"
+      "turn_id": "paturn_21fffcd0dc0045b2a8d55944e0a2566d"
     },
     {
-      "call_id": "call_4d7MgUFKOGsDLFGcUVzGsWhP",
+      "call_id": "call_HrI6YLMAtg4W6FLUWY7G24VU",
       "client_entity_pointer": null,
       "cost_usd": null,
       "duration_ms": null,
       "id": 5,
-      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture worker reports bedroom window handle inspected; replacement remains pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"observed_at\\\":\\\"2026-07-24T22:54:00+08:00\\\",\\\"photo_count\\\":0,\\\"media_refs\\\":[],\\\"work_items\\\":[{\\\"label\\\":\\\"Bedroom window handle\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Inspected; replacement still pending.\\\",\\\"evidence_refs\\\":[\\\"gate-replay-observation\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-replay-observation\\\"]}}\"",
-      "replay_attempt_id": "attempt-b82ef805930a",
-      "replay_run_id": "gate-fixture-2-542bd2d616",
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture Worker reports bedroom window handle inspected; replacement remains pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"observed_at\\\":1784545200,\\\"photo_count\\\":0,\\\"media_refs\\\":[],\\\"work_items\\\":[{\\\"label\\\":\\\"Bedroom window handle\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Inspected; replacement still pending.\\\",\\\"evidence_refs\\\":[\\\"gate-replay-observation\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-replay-observation\\\"]}}\"",
+      "replay_attempt_id": "attempt-4de54b785e6e",
+      "replay_run_id": "gate-fixture-2-4211afc321",
       "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\"",
       "tool_name": "pa_business_write",
-      "turn_id": "paturn_8ce7fe14be3d42d9955b0791d1d949ba"
+      "turn_id": "paturn_21fffcd0dc0045b2a8d55944e0a2566d"
     },
     {
-      "call_id": "call_jwAr4bKumdtUnq3QCCqmuiFv",
+      "call_id": "call_GwWbwcmMr9gpGGZGAmgBBFvI",
       "client_entity_pointer": null,
       "cost_usd": null,
       "duration_ms": null,
       "id": 6,
-      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the fixture worker\\u2019s update that the bedroom window handle was inspected and replacement remains pending for AM/JOB/2607/8804.\\\",\\\"evidence_message_refs\\\":[\\\"gate-replay-observation\\\"]}\"",
-      "replay_attempt_id": "attempt-b82ef805930a",
-      "replay_run_id": "gate-fixture-2-542bd2d616",
+      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the worker update that the bedroom window handle was inspected and replacement remains pending on AM/JOB/2607/8804.\\\",\\\"evidence_message_refs\\\":[\\\"gate-replay-observation\\\"]}\"",
+      "replay_attempt_id": "attempt-4de54b785e6e",
+      "replay_run_id": "gate-fixture-2-4211afc321",
       "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
       "tool_name": "record_event",
-      "turn_id": "paturn_8ce7fe14be3d42d9955b0791d1d949ba"
+      "turn_id": "paturn_21fffcd0dc0045b2a8d55944e0a2566d"
     }
   ],
   "pa_turns": [
     {
       "agent_id": "christopher",
       "chat_id": "120363421424519051@g.us",
-      "completed_at": 1784904863.183739,
-      "context_window_peak": 12918,
+      "completed_at": 1784920829.868782,
+      "context_window_peak": 12870,
       "cost_usd": null,
       "error_json": null,
-      "input_tokens": 12927,
-      "latency_ms": 10851,
+      "input_tokens": 12879,
+      "latency_ms": 12939,
       "message_refs_json": "[\"gate-replay-observation\"]",
       "model": "gpt-5.6-luna",
-      "output_tokens": 410,
+      "output_tokens": 381,
       "provider": "openai-direct-primary",
-      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"Recorded against AM/JOB/2607/8804.\\n\\nBedroom window handle: inspected; replacement pending.\", \"messages\": [{\"content\": \"[Fixture Worker] AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\n\\n[Current turn source ids]\\nsource_message_id: gate-replay-observation\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3yY1YnE7bWvktlliNj5CUJ7XmQqYe-c6E8PMuTBXqSzeE4GJfxOQOpHowEm4fdvPv_NF6pK0kvgwcx5SRz1bnUPRksEbkGDzvCumAkWs3T8bKQB72T7Pw0AIUGMB8IiGeNbw53w1r6_HS2t2avJdxyc_7tXsGxVUfeBYfemIcg2qVPcai_GINMdD-icAavSHbT9uztvasALNMbNJ1O08vQzyoVq7EbQrIQ4FbrvNudqT7oJ_nieFJMwNOdqcNV21c8SpyAdETq2UpF7CHP1CpzFq_8OcFvF-G4WqLmsojLPNwb6wpdupr1N79fqK7Gy-gPXGRCKqE00OzQ2D73qwO3Mdf0qfqVo6RHHK62rT87WwKXh3VG0KmCKk0tfmBYnClizQy3PJxR4wZldS4pAoy_OeVWycqSUANX7086Q31X4J5WD8ykPikcriYC1J0HIPGi9lvnBjjyBAofYWhIbPn6Ijp99ittqF978ffBDCf-vjeBWQUt7bcbvLtUHwzyyoYCyKn7pTQdyYTSwlt1rxGelTYsBuNI5MojgCl7zi1HuNE0gv7a-TV0bDvoXFy9iuztIy55Pk6trMqLio0nDT38LxIaP3RazK_rC5wiilxMRrd_fyMUtAQhDJWz5q2KTdzD9sDtBUurv1H7kAgPltL1QzFnCQBz-icNLhpBlnJCXrUIvCVBHZpkTIt2jF6iyS3-eAP-cNyyBp0f2fcZmgeW1geAOoum2MCdFvtfNYaRiw31gwFbFilAB1uanPEvs1xpMi_OuoRj6ZEAOFRwOj1YwoqHtf5xa5U50EQrPCFkuOc7BAlW5Ip7Xi7LjVE5cuKGgY4lOXh3TafAKfiBX4O2t1MEy6egsl2XPmlFMz8WKg-7UykzElqYrtzRS8TWu_X81iUJI-l5Kiwg21IfeiAHhPrN8keDDS_9jeYchPTGyFjfguOpNQCqLJIpdO_gxOPlvXj3lC-TpLb0FIiqVWpiiV6TaQhT52yzMaz8-Y_vtX6PmMIJ5wAkxmneXcrgfO40nEvGe3-6I2QDtwhx1O4FSQg==\", \"id\": \"rs_0b2f2ff0686255c4016a637c974ccc819a8a1b04a9ec31b201\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_KiDSwNx50t827e1OMasR4vxL\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_KiDSwNx50t827e1OMasR4vxL\", \"response_item_id\": \"fc_0b2f2ff0686255c4016a637c97e5c4819aabc6609d6b48faef\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 882 Ang Mo Kio Ave 10 #11-22\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_KiDSwNx50t827e1OMasR4vxL\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3yb1OFthyRNQWLYiU98u_wOkYrctex40OMCZHDygnGwENdjhsjfJYyxO2tIvjQFtt-SHPLafVJ8gCLiByy5npcs5JsTwa_kJ21YI8NbgS2J06O8cHgF6b3bcAV1hT7e1Di4NkApaP4sU-mmXZD57k3M5Rm9jvXk5BVJ2_UTt5CE7RKHQ3zKD9XMagXrDkFc8-DodAwWeh9R8cs7KAvgTTmTuXxlmN-mdKYUKwnPWrtjgnrL2FGzAuvXQ1WKa2v3BlT79pTaWxzrdDK-1JgZPQVCe9YM9cqcSl8BcrOl6plzRjRB9Y9TyJ4cbEn-gE5XDwsqycSkuZ83ZYXhjWoVTo9FnQb7H0PWRdD_BSFAG9uBdPeAgIWjJwLB-Q_5_ULVoZkMxGctiZybtKQ6HwVAO6JP2dDN0rgDpl_sunqxp72QjN4ZOkGM4h_MRqJTn6wT7tDNdoZ9Xl_PL9ZoioraLyexW9CwHnQEKmDm9t4_6pYVE657dP9Q-VuibkAqxRbBX1PeOyF6ugHL72ZGc4PBUVqC72ICSd3lsRVdkWBGQrXP81HHAZNMvjd_rA1wDjA15yuT_R-cpiYmRcsm6NyO_37QIiZof06IXwJxq4yE50uPlkUfOfq0AmETE1Wlgknk-A0Qtv8nFz4060dG6VEKIbwiA8j7ee94k_y8LUM0XOiX5YOriFD50tnm_rjobBINmJkka52vEcg2LZP0u6X3mZKmVu9z0fIrk1Ag2nXSUn-YzN0ttVHw9302FKEvQrLsGk6J-yKkN-H0zQbBHrBmYp0xs8Qaj51Vi4USwOrdQ9pE9GJ7MtGfDksM0KxPUJwGOijCItGaof4M4iSDVyiTYUBCuICanV2yGNh-zpmrhAEsG5_N99IhKJ7scxElZ7C3SGSloyjnnCHylvh5O03Gado8jWJU89rtNf8-TidE00VoJbz3W5HVc144Trv9HdT1li4qtfUhSxvZ0jMdNSFxrh2RUF9SdOXS9YPKZVBf1W0idlct2lrtByGty9MQ-XVG3BtsZnCoKLmP4XQJQeLa831YPlPvulbGPf-tZhWecgeeOWQ=\", \"id\": \"rs_0a64c24aea8a9ebb016a637c9a3cc881989b6780f5c0c715ac\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_U3vvOOiRD4pZf6uVNZ9KGJfD\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture worker reports: bedroom window handle inspected; replacement still pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"observed_at\\\":\\\"2026-07-24T22:54:00+08:00\\\",\\\"photo_count\\\":0,\\\"media_refs\\\":[],\\\"work_items\\\":[{\\\"label\\\":\\\"Bedroom window handle\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Inspected; replacement still pending.\\\",\\\"evidence_refs\\\":[\\\"gate-replay-observation\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-replay-observation\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_U3vvOOiRD4pZf6uVNZ9KGJfD\", \"response_item_id\": \"fc_0a64c24aea8a9ebb016a637c9acca48198a8677705b00968e4\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_U3vvOOiRD4pZf6uVNZ9KGJfD\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_Mbog3MSKtDhido1kGwyTa3Vv\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the fixture worker update against AM/JOB/2607/8804: bedroom window handle inspected and replacement remains pending.\\\",\\\"evidence_message_refs\\\":[\\\"gate-replay-observation\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_Mbog3MSKtDhido1kGwyTa3Vv\", \"response_item_id\": \"fc_05b52de1eb8bbbf7016a637c9cfb5881988934576762a8444e\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_Mbog3MSKtDhido1kGwyTa3Vv\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"Recorded against AM/JOB/2607/8804.\\n\\nBedroom window handle: inspected; replacement pending.\", \"type\": \"output_text\"}], \"id\": \"msg_07d4bb10ad7a9bfb016a637c9e7c408199bba3bc562a89afe3\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"Recorded against AM/JOB/2607/8804.\\n\\nBedroom window handle: inspected; replacement pending.\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-44fd1150a891\", \"replay_run_id\": \"gate-fixture-1-aad4008355\"}",
-      "replay_attempt_id": "attempt-44fd1150a891",
-      "replay_run_id": "gate-fixture-1-aad4008355",
-      "session_id": "20260724_225412_d2e76e3f",
-      "started_at": 1784904852.3320909,
-      "turn_id": "paturn_318377c0b4674d0abe038b9c985cf401",
+      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"AM/JOB/2607/8804 \\u2014 observation recorded.\\n\\nBedroom window handle: inspected; replacement still pending.\", \"messages\": [{\"content\": \"[Fixture Worker] AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\n\\n[Current turn source ids]\\nsource_message_id: gate-replay-observation\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7r2xulu6ZBLwuqgdOt8bYzXzBFqxDBSctYVNSTXYwAmaEu90JxsPajMqnqxgIw6tVDpLe3x3QLd8P-1etvIjvUj_jln6G95I0h-fa4QIpcj7Gi1_1aqdPRrwyWJEEwXkKtstCLfF81My2-o8XhE_EiFwjcDQ-H5tEr8gH5CV_z4FxsSCRXnuX75_lmsULUKZt8QIph0rnyIKLzYfW2A9cJgc2RGqOFzwPU_PRV7gi7rvAXy3RSjdrjktSb3ucddX2oiauA5LuAnqF6Vh-Gg--BiOQw_XaHfBPfUGpSn_g-Z39SDq8Ddp8T5Wa7WeZhXqm7ds4zA7vn7PAazuHQO01UvgvDuzA03-2SvAr8ZDc6Vt315LaKx2VZ3yIKcFNNVvYCi529DB-Nvh0rIMCuQnz5IonqaCrROCvjjvgzBj7d602mc6pQEpBCmv1Y-081AtmzokyWFnOAp2BZF1AnhYTKg75CMrTRADTRigCnHH2FP9Hk8HT6y7L14hUFw5viE5w93kldcoJc0LXmzafX5Cf1edf3ZfwzBeErGECJ5pVTSw6ZJF7l3Rbtwb2z_EIt6yoyYNBCZzCeHg1cb9tFcmIya93qcXmQzxHooSXuv5UbMXKV2EtBlfYruKBWIlluFQ_RlZ3jMhvRp83mCvAXE3yI5rhClZmq-HkBIqt6ap80Fnhb0PGFqX6WQgO10dvT5fi7sjt0x70R_nwWeCprnGjdNWmSj4s3gKxg5ThgdM3zZoQTteo3-JlPVpep7Qdh7jzHL9aORE1tHiTprNcee9gaAFASxT6I4Gt25eEb0sDnxkLCjeCfbu6d6LfTwGOOYg4pIzuL6wCpwhfNxL_UrokUgv22xuN6xxg_4WWESiubhn756SkaPitlHDH0D0m473A943FlIZeWJ6lKod3GrDHjMSm35jfsjkiIQdeCcb0j1AxUJq_S3aM97-vDasJFeiaHrCQnTF8pT9pHXQdbcLbqbmMHsGt2s1nsehUihefYUvn0N6rZ3A5pajwIgjy9FxlBcM7vH5SfU8sb_Db9YRO1H6Q==\", \"id\": \"rs_0240ea26e918cda3016a63baf59148819ba29fdfc337e1429d\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_ox3lGPj6sw6N3SpvKvtoGJwg\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_ox3lGPj6sw6N3SpvKvtoGJwg\", \"response_item_id\": \"fc_0240ea26e918cda3016a63baf61704819baa1beae735f7534d\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 882 Ang Mo Kio Ave 10 #11-22\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_ox3lGPj6sw6N3SpvKvtoGJwg\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7r6mvePfNC4Bqv-S_vFB1CTAvE0H1uGSyTjltrn9_jigVGi5ipWXjB7oKFwiZQ45mxwrTqT7pOhf640PDhcOBTpIPFST6P5axyWYrFJJQT-jSMf6LQkxGy-hGXAX-3W9yW2MvBOVT2HhmWXxONPgu_eShCGmRvVfo3XUTuteE_gs_gQS-oZNM7DvS6gWzAN1tJMZSHhl6Yh3LYzgoGbJij43LUJH59k18qAcr0ISF7p_-A2JIaCGmSsl0C_fEQeIy-t__BAPU3TajP-JZ5vbOZ7q9V22vAriQWWR7Ti0Mh-k-at1riE5DyFRLNvO8dgNKPtRf6oOR4J-zl-JSAF-Q4x5L0MM5YFErZHMo9U0F_DTm4AX4FkDQjeIDIe7l3fcYa5WXImoe2AFOqPio1X6-0poT-0WmG_Wyb-BzvlK8GnJhWx4mVveOil1EU9okvQBbXIPKDY16ln7livevGZfDlWhieQVtOrvOh8kGkULlTgg05NdBuzD936LJdOLTTMNzt0RFQgMh4ssZWhnR_0Ais2tkj0nhSa5IbqqIuRqMxmyH3ILXI-vbcJ0GH7HHQt_F2Bs18fZv6Sy1dhb8Gah5pVurRY2DOR2raaf8uS1ujz_IiwxvVIPp5lhe5AlU_PJxOEcl2oT3zgRqqfUjcgiV_mtatLUO8kkeOeKPdMXi5jcIOXwK50V-kdOP20xMjNfSNVEkeCEdqJtQWwd4BVjoHyrkskBvBf3xkZbP0G6tklyjN1Z5CpqlU26dKcFp_UUnosjdRGDao05JquxIfZRSHrJ4nB1j-EaSXpXxGDX6kXx0dmXzn9JoyzD0TTA1qpJ8h1YUmiEOJHmXSyd15IVxKmlCKzt6LTbZvyBvUfLmV11w06Dmk0c82m9W87xj804Iy7YGy6Zf1wSaduhaH8Gw7u08KOVHm2Y_riF8JLz4oYrqQD9mKAGZOrnSHEJvP0KBdaA24crZdBCTp9Nq05Gg2iE-QxAKgqF5-vord4zcuTF5qkMR8i6pGTdT6VhYXCVXn_GKmIOw0Z4Ct96kdXs-T_k0VhIWQb9YNE70EhF7n8Geup7rTiigwMD3JFoJdOqIe9aaFRUbiTpHh9JVdIuxCjTg==\", \"id\": \"rs_07a2e93fc42fbf65016a63baf8bd80819898815ff4966356f2\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_bMOI1ekSOYtHtcZCS3HK7Rrf\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture Worker reports: bedroom window handle inspected; replacement still pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Bedroom window handle\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Inspected; replacement still pending.\\\",\\\"evidence_refs\\\":[\\\"gate-replay-observation\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-replay-observation\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_bMOI1ekSOYtHtcZCS3HK7Rrf\", \"response_item_id\": \"fc_07a2e93fc42fbf65016a63baf976cc81988f3a345aad73d6ef\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_bMOI1ekSOYtHtcZCS3HK7Rrf\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_Bng6qiDcUxLCHaMpDN03lsOu\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the fixture worker update that the bedroom window handle was inspected and replacement remains pending.\\\",\\\"evidence_message_refs\\\":[\\\"gate-replay-observation\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_Bng6qiDcUxLCHaMpDN03lsOu\", \"response_item_id\": \"fc_0e92e6547c152eca016a63bafbc5fc819a86616d5ccfa48942\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_Bng6qiDcUxLCHaMpDN03lsOu\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"AM/JOB/2607/8804 \\u2014 observation recorded.\\n\\nBedroom window handle: inspected; replacement still pending.\", \"type\": \"output_text\"}], \"id\": \"msg_04b139ae3999ed5a016a63bafd42448198a0f5b0028cb4be85\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"AM/JOB/2607/8804 \\u2014 observation recorded.\\n\\nBedroom window handle: inspected; replacement still pending.\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-fac7cc4345ec\", \"replay_run_id\": \"gate-fixture-1-2636528752\"}",
+      "replay_attempt_id": "attempt-fac7cc4345ec",
+      "replay_run_id": "gate-fixture-1-2636528752",
+      "session_id": "20260725_032016_5c341180",
+      "started_at": 1784920816.928982,
+      "turn_id": "paturn_4cb9f6c0251e437fa1fc8fef33962587",
       "turn_status": "completed"
     },
     {
       "agent_id": "christopher",
       "chat_id": "120363421424519051@g.us",
-      "completed_at": 1784904876.504985,
-      "context_window_peak": 13148,
+      "completed_at": 1784920842.386752,
+      "context_window_peak": 13112,
       "cost_usd": null,
       "error_json": null,
-      "input_tokens": 13157,
-      "latency_ms": 13014,
+      "input_tokens": 13121,
+      "latency_ms": 11779,
       "message_refs_json": "[\"gate-replay-observation\"]",
       "model": "gpt-5.6-luna",
-      "output_tokens": 412,
+      "output_tokens": 422,
       "provider": "openai-direct-primary",
-      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"AM/JOB/2607/8804\\n\\nObservation recorded:\\n\\u2022 Bedroom window handle inspected\\n\\u2022 Replacement still pending\\n\\nCase remains open.\", \"messages\": [{\"content\": \"[Fixture Worker] AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\n\\n[Current turn source ids]\\nsource_message_id: gate-replay-observation\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3yi-d_rp1275lN0_NyH28j3ruFkZjmw-EqJiXkUD8rxdGfYEf75-wlvGfwRmzEbemH-ylfhmH7mzzTYutBzQSubAwGr4o8IIjzTqqyN-zB1HzMe-I6Mn4XIcMGrO5d59vI_6N7h3tew4UlOERb8BMjmeTskQpsXKhKHoUuEiYtHFj7aKRagTWdrg1jhzL-QSOmt6MqY64jBGO7gwjzlnQkR17iH9OAh4xfFIHzmOMMkKBb9wKwQQh_ZzyrqyaXUnpCRG04tVA7jQ2hU15vhBE1V-hK1Rh5HxyDzgic4Cf0U5erSp923-TCCwE9-tDtZ8n304kPkO3HOuGiPPv-q5tCxjup154K7uvf6-lAt8I-pgmFboevU_DMSiMV2jZoaVJRiZ_ufUhMiEGJfMP6ZqwpUxMx0difWBI4gJ0-3sFIAKV4ooW3ZE01j51JnuCEmCa_GH5vSpl9roVgPApC0ku30CNI57jyrvtfvgRo8S_rzZSHMX0GqzAm4Cgl0fcuaoREIlkBdlLFAFgEeWYrqf-TdFkolOmDZzEmr73MuZ8Pf7ftydgyhvXpEicSYLUZW8YAMNtggvhqnK57eDYq5R3iOGxmZLIb_b9cbDE8kw5egW9_tdqZ9ynKOZehDhHjWIh6mRx308OJZYZcwVpW_GjX7AqpUXfmXCPhKDHGH1QllxzthhLj8uV4j-ADjbrpMnXr3fyzl04cdPzjwfyCt35rLD9F_Kg6sy21XwXWDZehheOX7-rtQYS7ReXcsWDjF_lFn7v_pUAlmuXd0hdJe1RXmnJisJJKh8yAvmnJFHnGrmsZ8U86B5b09vobLSC-aA3Smre1AW3N4j-HKGdEbLW4Vht4PHjtqdrC2OYSfkYO0dAL-zrpA8CWPoQ28rduqlXVHwbdLR8tthzN-_dK4sVya135MBdE0Hj7tgDFpv28UEBx5e1gQzdgauUNkbVSFW_8yrwqPfM7GmJu7iMchs1KFcF8LL43A8RTqNjf-YFNXMGfzce-IRqPh6UQLhAbeLc8a\", \"id\": \"rs_07541423bb2bbb43016a637ca16a148199a76d0045048b440f\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_DxRswhGBQV7aC120YxmwDpgU\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_DxRswhGBQV7aC120YxmwDpgU\", \"response_item_id\": \"fc_07541423bb2bbb43016a637ca1fdb0819984d97bad21d9805b\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 882 Ang Mo Kio Ave 10 #11-22\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"notes\\\": \\\"Fixture worker reports: bedroom window handle inspected; replacement still pending.\\\", \\\"confidence\\\": \\\"observed\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"chat_name\\\": \\\"AMK EE Fixture\\\", \\\"observed_at\\\": \\\"2026-07-24T22:54:00+08:00\\\", \\\"photo_count\\\": 0, \\\"media_refs\\\": [], \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\", \\\"note\\\": \\\"Inspected; replacement still pending.\\\", \\\"evidence_refs\\\": [\\\"gate-replay-observation\\\"]}]}, \\\"messageText\\\": \\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\", \\\"senderName\\\": \\\"Fixture Worker\\\", \\\"chatName\\\": \\\"AMK EE Fixture\\\", \\\"sourceRefs\\\": [\\\"gate-replay-observation\\\"], \\\"observedAt\\\": 1784545200, \\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_DxRswhGBQV7aC120YxmwDpgU\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY3yoP6NgbZwgUfEa0C-GQKStev6EUXIPw4a7poVHXdP92mi8alQ-mPVnuKxpBhU6HGsBsz44_bC3lJ6cXlbxONeWg4ucvey7qAJJ-dOtYZXzqo1vPNBKfAXgL83KvQ2ohrcKxKgD0ZHe6weQa4d3bh5V8Yf23l_meiyrcEON9BHW6wMDoTEY6GPEdCPHhVNsdPxLfnqlTFjGLBBFKS9KGZ3lkDuwi2A1lUvbwuMyEcbE5psCgnPencaGd06RQjI7NLEeyDFBD5J0R0PYXqb4cUL9v_iqDlDlO9kzrpXZu9RHIg7TB5Ggp_K8vgOEHEI8JhqAdw8m9cimOA2uCb9hucRa8EVc2nqHrYsF6bluhcO7myeaYc5fVTDM0e1TUmnjOmKQR-DcE0mrBayOSXLIXXJCMCSncZjwRWamZaO5Bq_Gb0NbqjYs7o071-GUPqQs3m253WZSrzJn1ST0wsDg2fGVBARRGyyUl3QVyJjWuCekOErrMIWTtJcGaxcKARVvJGOZRY-4R0qzhAI43OyTstIXHgKteE28m_0B7Sa7BoQxYd_7-4lEOamTYnGF8jUUCObn12ipq2PEahLLu5ZacX70b9q42JPkalI1OOfI1xg35in2fyTFF_WY07MX_M2tQ0CsVNxVA13mehXlIvyFqrwWvC_gtaSx97bYd9OivUxuolGn-8u_AsPdW8042BtSDsZ1AFBWS_yUUO66IX5aHkbJvU3uyDck_CMbKQi4rgKiyXXfqov-YSRQWT8yz6JLY2KsCRb0ZnElmRvNRvTkHQ8GKs_TTnRKpQnbNPfylgg3AGIAmPpLcXm3r5PMi5bcNzd0UeKrlO955lNOTwNeeo5EhPz4HUISIxzt62YeXbiBa5XepD0oeu5Xm4cpy_BUSI2TIVG6sb1nyd4a0XqnSKoNWOp7ZW7EIqFq3scVjBmcdpa94ROxlWIOnWP8ClZoIEAlBysqpAefD_NaM_29RqUrPsPftMgfSuB3Elz2ep5HsDW8mC0OD-zeihIbQkrLYIUy\", \"id\": \"rs_075b502df30683a4016a637ca32988819a85dfaf57b35e289c\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_4d7MgUFKOGsDLFGcUVzGsWhP\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture worker reports bedroom window handle inspected; replacement remains pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"observed_at\\\":\\\"2026-07-24T22:54:00+08:00\\\",\\\"photo_count\\\":0,\\\"media_refs\\\":[],\\\"work_items\\\":[{\\\"label\\\":\\\"Bedroom window handle\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Inspected; replacement still pending.\\\",\\\"evidence_refs\\\":[\\\"gate-replay-observation\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-replay-observation\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_4d7MgUFKOGsDLFGcUVzGsWhP\", \"response_item_id\": \"fc_075b502df30683a4016a637ca44ed4819aad43212855e00a2f\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_4d7MgUFKOGsDLFGcUVzGsWhP\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_jwAr4bKumdtUnq3QCCqmuiFv\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the fixture worker\\u2019s update that the bedroom window handle was inspected and replacement remains pending for AM/JOB/2607/8804.\\\",\\\"evidence_message_refs\\\":[\\\"gate-replay-observation\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_jwAr4bKumdtUnq3QCCqmuiFv\", \"response_item_id\": \"fc_0761d7214842bf17016a637ca9fec0819bae48cc29d8f50735\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_jwAr4bKumdtUnq3QCCqmuiFv\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"AM/JOB/2607/8804\\n\\nObservation recorded:\\n\\u2022 Bedroom window handle inspected\\n\\u2022 Replacement still pending\\n\\nCase remains open.\", \"type\": \"output_text\"}], \"id\": \"msg_090fb5974c5fc61c016a637cabd450819aa695454624f7046e\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"AM/JOB/2607/8804\\n\\nObservation recorded:\\n\\u2022 Bedroom window handle inspected\\n\\u2022 Replacement still pending\\n\\nCase remains open.\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-b82ef805930a\", \"replay_run_id\": \"gate-fixture-2-542bd2d616\"}",
-      "replay_attempt_id": "attempt-b82ef805930a",
-      "replay_run_id": "gate-fixture-2-542bd2d616",
-      "session_id": "20260724_225423_e4275f64",
-      "started_at": 1784904863.490489,
-      "turn_id": "paturn_8ce7fe14be3d42d9955b0791d1d949ba",
+      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"AM/JOB/2607/8804\\n\\nWorker update recorded:\\n\\u2022 Bedroom window handle inspected\\n\\u2022 Replacement still pending\\n\\nCase remains open.\", \"messages\": [{\"content\": \"[Fixture Worker] AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\n\\n[Current turn source ids]\\nsource_message_id: gate-replay-observation\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sBxCG1edwPkdru9xbD3Npjp1zAz4GplzyZ7W_WYiQ53Tk8BLiNRoki3arTyRaOni7V0uO-c4V_4a0Z00SUx0dcH-mBR-ytxdvq8sYo6kC396BPwA8IsGSgzqpzXRXh459VUsEq4FM8goHRC2QS7ZurD7kzaKPDrnOM0hoxu6GmXlzatlvyP7s-_FZ0wQ-FFabq5uVIZ7paQmt9SOzCASAqUgZDKXD3hlmzpxCV6510AMUOSTXpoRb7Kcdk2g1cC5RO8IC4j9D-hJz6oQx8h5hSDMAFjafzHBczCAum9GsSwIuG06E8lV_h1Fu0EG08byRFP9x_WhdSOr4aH-FvYY_I4vDY07iGHgz8M-FA-W9-e3By86JoQhpraei6nFL1Qh4NVdF_ONg4pg6CCEY4VMwWQvDFRSTsQiWZ1NGdq0GTVTp4mH_r5xn2NXz6juTAv36azVMhd2MRDd01vE3eznRDrQhFBC0sU3j1V9KEjlVFVnbdGmJplUNWlXg3OfEFv-AN9EJPO1NaoH_RxP9kenhYz6Aj9ebrasEG65ONqki_pn4BHd-IpPns4E2AbCngS1KRsPXmHARb-eEwiV9DcNXrN0scirUlEXjU2F6WTlM7PvRqUVvkXcY_w8_5pakeUt5mBZe0xhP3_bMnM9_JkWlvthxuoEVt6u281DK9RXbba0rWEkPkabuMwBrepAS5ivx1BpGUDGA5OUvVk_uLJWrVsr5r8VYz3lwXIgp63gp_BT0VoN0BvoeGjeR1QQLnlUYs_3-YIppt9qtcrAgqmh-WSXE8q2QM1SevbTNwOmxbIsB_-jdFmKBi2BE8uyFI0HCyMBvZCzaM5Yt8wa1NnzEBLnvNY4ju4Vu9A9C3H1B7SjdBO8Hzq837ueDEX6oB3G9ez1KKRC0FSBGvtMHyPvuHxF2tPhZfzQ4QR1YJhci2l6gFqtq6-dW-zNzQ0sMWsGdn8OBn70qryvsJWOcyxBsEvTDLsVL1Jr7jHGR6evA_xU4BSoTAZ4X_Cd2X8JzjPufzzKVmx-xi8kj4zhIa321sEw==\", \"id\": \"rs_07c8ef46a33c5109016a63bb00ca2c8199a59d205a486f91ae\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_Duj00R9itmx6Yf1JKy1CVuns\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_Duj00R9itmx6Yf1JKy1CVuns\", \"response_item_id\": \"fc_07c8ef46a33c5109016a63bb01910c8199875abab2d5154702\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 882 Ang Mo Kio Ave 10 #11-22\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": [{\\\"source\\\": \\\"whatsapp\\\", \\\"notes\\\": \\\"Fixture Worker reports: bedroom window handle inspected; replacement still pending.\\\", \\\"confidence\\\": \\\"observed\\\", \\\"fields\\\": {\\\"message_text\\\": \\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\", \\\"sender_name\\\": \\\"Fixture Worker\\\", \\\"chat_name\\\": \\\"AMK EE Fixture\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Bedroom window handle\\\", \\\"status\\\": \\\"pending\\\", \\\"note\\\": \\\"Inspected; replacement still pending.\\\", \\\"evidence_refs\\\": [\\\"gate-replay-observation\\\"]}]}, \\\"messageText\\\": \\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\", \\\"senderName\\\": \\\"Fixture Worker\\\", \\\"chatName\\\": \\\"AMK EE Fixture\\\", \\\"sourceRefs\\\": [\\\"gate-replay-observation\\\"], \\\"observedAt\\\": 1784545200, \\\"jobNo\\\": \\\"AM/JOB/2607/8804\\\", \\\"observationId\\\": \\\"obs-1\\\"}]}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_Duj00R9itmx6Yf1JKy1CVuns\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sF9JO9WiSpTIOPMMouRhMgeJpMVaCHLbTy8kbn-8qLUnsU0fdwtctkqeaj1LLJJ74mgrcfOBeDQX_qpMPo1imdog1O_gRwnVWGMab4SRHaNj2vBzw1iSxWyikf4DG4DXVMELupU5qHeHQhs2GOLICizG-rDYgBJUHFTd04FKIqj5jqjleim0GxCOxjViNbioejVpZgPRUeFfSLS8yUntjETczpy9kC7CiJH3gpD2qRxwLsQ36wqAe7GOwbI5lHoWByjTrdRE8BEe7OYc8Rhf0XvupCX-S_7-Ekeeg3QMM2dQRz4VbOk1cAKkViGZj4pXz7LDIORB8-dVVJvo_pUHnc4sWyaDGb5H4OEj6ZX2uNTyKjOdSm1Gy7pK4S6jZKsTSHMmrHrg83FHQ-iIU-SsUqvCBuApmpKvLBhtLbuWYWdJnVY8ixDmR_zAmdI_5ueH30ECFuVqSH9_4SyLbZVy2j6agwzNrb6A7I_uztXHOLv0uMt3D0Qu-XndPgw5A_sL_9SfYGRcNFuvdBCpXWUkWR38XgYeonl1AKdbXyWqDLkFsfv8R8KXlwsuAjf9SpD7ys1_RlW5Wh5C29j3UEFH783fJ3NUqGV91aX6y0B-d5-iD-q5SRti9YJjDexXLDgImC0egO9vA4LBOAJmH0pIYPEIUn4rfAtLZ7BNt5Gh6i4Rl2bbjHVaEBZDmrlCj9Z8xx-VM-NQOrJc_f15Hn9cefxFvJWGPcIKkS4GZcbUv0OU_y3pven0A3Ep1x0tM5QOdzKK76AMjHKDEyPWjAO7G-k6DnHlZWyMDZmC-A7ygRal0QtltWxNPCUoUmO0V7AQtwxegp5UJdre9uo3TZ23DWoLKMeD2fJ5RAq8mNhIcFOl5Om4DazgIS_kdCYsW49q9v2JW3WrxCD8PG3rLOJhtjTRv_OQhOjgEYsXz2Qrh81qP0vOwTQRy2froCM1yoIIhums04zPeMP0DX0Brl-epjbIYTrP3v8BWeo1oTBrXs6dXiTNo7orUNG42cDelRplxOXfNyYSPXDusAVpSh0h7CbRCKbc4PR39RwbjXp2AdRapb_ONIZ2Mxj3dFdLz9l-h7MSrw4KWOA-AQNYF_wybKYw==\", \"id\": \"rs_07801d0e2f915a7c016a63bb0380dc8199bc38a8b0ce04ced0\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_HrI6YLMAtg4W6FLUWY7G24VU\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8804\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture Worker reports bedroom window handle inspected; replacement remains pending.\\\",\\\"confidence\\\":\\\"observed\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"sender_name\\\":\\\"Fixture Worker\\\",\\\"chat_name\\\":\\\"AMK EE Fixture\\\",\\\"observed_at\\\":1784545200,\\\"photo_count\\\":0,\\\"media_refs\\\":[],\\\"work_items\\\":[{\\\"label\\\":\\\"Bedroom window handle\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Inspected; replacement still pending.\\\",\\\"evidence_refs\\\":[\\\"gate-replay-observation\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8804 at Block 882 Ang Mo Kio Ave 10 #11-22: bedroom window handle inspected; replacement still pending.\\\",\\\"senderName\\\":\\\"Fixture Worker\\\",\\\"chatName\\\":\\\"AMK EE Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-replay-observation\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_HrI6YLMAtg4W6FLUWY7G24VU\", \"response_item_id\": \"fc_07801d0e2f915a7c016a63bb0432548199a4ab87d577394e35\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_HrI6YLMAtg4W6FLUWY7G24VU\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sHDUmIHyIW6AXwqLD26-_X_HGcGOMJpmhpKYZAkF2yiBZOAqCEFsexohbNSkzLEbhTLLcTDWPZInJE3opyBctBp-4KdOM9FglrZ8VT0ZHnU8BgjfB18DtK6gz8B3CRvAdA7u5UGSiUEC7JOu4gtoKkQdgqhUIUftEbpa5OOX1ONHUood2pidbamp_y3CMNbdvwDv4-3KbVIBBnI0mVJvjoAnpc_fQOEFDR0j5TyqL3umZkkfxhayBle9r8yiya5PT7KEWAJj9Dr1SY7E60LOzSt9hBJ-eVMS1JqBlUOKzJkPYTqvNMAyYbu7JbE7OeIOFslAhdDGhzAD25_MEjKzJIWn0hsq1_f9xdSd1npJSTuzp0-U1gGUaXhsMxqzbeII5TTSk--4-uDQRvcP-o4RTlwkoYfb8pFnkbZiFMVsGv3heoYKYLmTj_ntOfofpz4uZ4XYz1ZRT9JuZBA3KtHiOe5GJte498ciT7nFgst8ybgQpq3dul_qnMRopV98tf-6R4yiFiX5-4LvWLnkdfinsj5QYW5hMuWMLlm65tY2LR24cMZiK6FlRuVEBLDiebgLGmacOqk7xzDTzYKfVKw-x1cfgWVJNdSxNA4jLNeUp4leyFZturuxypmee49XyY-IHT0WHYOgDNKos5b3ie_QLbASS4jW8o2ti3EOjDrfbWhhcph8BaqCwD1nnXPlYio0Bjoqi697vMfcEVHhadTxk7BTKmmIyMLYfXkyI30eSd8FtX5OqCnXgD2Gner7IKiZEHgt9uKL0PEvsSG7CLKtzMQKglRhTj2eXiqQrZve1SKtc-Im9C75JOtHhIn9vLNnFgyMdIcHT8larIIrE-9kYhfvSPOBca5SZkbUeDXWJ4LFxKPwThHuQXNoKZskuQ2NIWUhfh7yVqmpya50ODYdqAAQv_QuKPbben86R_bbHFq6m8Ufqc6OegM_P9e026YoNz\", \"id\": \"rs_0bec68be01bb3808016a63bb066910819b8e8f335124d0b246\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_GwWbwcmMr9gpGGZGAmgBBFvI\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded the worker update that the bedroom window handle was inspected and replacement remains pending on AM/JOB/2607/8804.\\\",\\\"evidence_message_refs\\\":[\\\"gate-replay-observation\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_GwWbwcmMr9gpGGZGAmgBBFvI\", \"response_item_id\": \"fc_0bec68be01bb3808016a63bb06e05c819b9a8a435c888def68\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_GwWbwcmMr9gpGGZGAmgBBFvI\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"AM/JOB/2607/8804\\n\\nWorker update recorded:\\n\\u2022 Bedroom window handle inspected\\n\\u2022 Replacement still pending\\n\\nCase remains open.\", \"type\": \"output_text\"}], \"id\": \"msg_0d96ad8e9855981d016a63bb094c188199808e9e14b2270a9a\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"AM/JOB/2607/8804\\n\\nWorker update recorded:\\n\\u2022 Bedroom window handle inspected\\n\\u2022 Replacement still pending\\n\\nCase remains open.\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-4de54b785e6e\", \"replay_run_id\": \"gate-fixture-2-4211afc321\"}",
+      "replay_attempt_id": "attempt-4de54b785e6e",
+      "replay_run_id": "gate-fixture-2-4211afc321",
+      "session_id": "20260725_032030_65e7e558",
+      "started_at": 1784920830.607268,
+      "turn_id": "paturn_21fffcd0dc0045b2a8d55944e0a2566d",
       "turn_status": "completed"
     }
   ],
@@ -526,5 +519,5 @@
       "rc": 0
     }
   ],
-  "run_root": "/private/tmp/christopher-replay3-gate-80250/gate-fixture-1784904851-c8860a29"
+  "run_root": "/private/tmp/christopher-create-contract/gate-fixture-1784920815-af7e41cd"
 }

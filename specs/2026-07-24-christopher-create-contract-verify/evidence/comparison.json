@@ -5,9 +5,8 @@
       "contactPhone": "91234567"
     },
     "nested_evidence": {
-      "chat_name": "AMK EE Fixture",
-      "message_text": "URGENT HDB job sheet. Job No AM/JOB/2607/9901. Receipt date: 20 July 2026. Address: Block 123 Ang Mo Kio Ave 3 #04-56. Contact: Tan Ah Kow, 91234567. Scope: 1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
-      "sender_name": "Fixture Supervisor"
+      "original_scope": "1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
+      "receipt_date": "20 July 2026"
     },
     "pass": true
   },
@@ -22,11 +21,11 @@
         "gate-conc-pg"
       ],
       [
-        "gate-conc-amk-1",
-        "gate-conc-amk-2"
+        "gate-conc-sk"
       ],
       [
-        "gate-conc-sk"
+        "gate-conc-amk-1",
+        "gate-conc-amk-2"
       ]
     ]
   },

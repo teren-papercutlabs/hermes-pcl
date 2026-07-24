@@ -23,6 +23,20 @@ def test_bundle_source_message_timestamps_are_keyed_by_exact_ref():
     }
 
 
+def test_source_message_timestamps_accept_baileys_long_shape():
+    event = SimpleNamespace(
+        message_id="wa-long",
+        timestamp=None,
+        raw_message={
+            "messageId": "wa-long",
+            "timestamp": {"low": 1_784_895_203, "high": 0, "unsigned": True},
+        },
+    )
+    assert GatewayRunner._event_source_message_timestamps(event) == {
+        "wa-long": 1_784_895_203,
+    }
+
+
 def test_source_message_timestamps_are_session_scoped():
     tokens = set_session_vars(
         source_message_refs='["wa-a"]',

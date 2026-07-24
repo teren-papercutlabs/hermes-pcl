@@ -1,0 +1,30 @@
+▶ running pytest with 4 workers, hermetic env, in /Users/pcloffice/pcl/_worktrees/hermes-origin-709f9a23-1784905938
+  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; all credential env vars unset)
+============================= test session starts ==============================
+platform darwin -- Python 3.14.5, pytest-9.0.2, pluggy-1.6.0
+rootdir: /Users/pcloffice/pcl/_worktrees/hermes-origin-709f9a23-1784905938
+configfile: pyproject.toml
+plugins: anyio-4.12.1, xdist-3.8.0, split-0.11.0, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+created: 4/4 workers
+4 workers [1 item]
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________________ test_state_claim_gate_in_both_job_briefs ___________________
+[gw0] darwin -- Python 3.14.5 /Users/pcloffice/pcl/_worktrees/edna-709f9a23-e0e5f7ce/.venv/bin/python
+
+    def test_state_claim_gate_in_both_job_briefs():
+        constitution = load_constitution(CHRISTOPHER_CONSTITUTION)
+        for job_type in ("tgg_ops_ingest", "tgg_management"):
+            instructions = "\n".join(constitution.job_briefs[job_type].instructions)
+>           assert "State assertions restate THIS turn's tool result" in instructions, job_type
+E           AssertionError: tgg_ops_ingest
+E           assert "State assertions restate THIS turn's tool result" in 'Extract source, sender, timestamp, commitments, blockers, and requested actions.\nPreserve original wording for mater...uted_out_of_scope, attention_raised, scope_addition_recorded. Use a new label only when none of these genuinely fit.\n'
+
+tests/test_pa_case_state_echo.py:299: AssertionError
+------------------------------ Captured log setup ------------------------------
+WARNING  tools.registry:registry.py:73 Could not import tool module tools.browser_dialog_tool: No module named 'websockets'
+=========================== short test summary info ============================
+FAILED tests/test_pa_case_state_echo.py::test_state_claim_gate_in_both_job_briefs
+============================== 1 failed in 4.92s ===============================

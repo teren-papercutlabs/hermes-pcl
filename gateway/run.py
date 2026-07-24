@@ -15058,6 +15058,8 @@ class GatewayRunner:
         def epoch(value: Any) -> int | None:
             from datetime import datetime
 
+            if isinstance(value, dict):
+                value = value.get("low") or value.get("value")
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 number = float(value)
                 return int(number / 1000 if number > 10_000_000_000 else number)
