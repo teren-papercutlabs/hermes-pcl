@@ -1999,6 +1999,45 @@ class TestCaseCreateJobNoContract:
         assert parameters["properties"]["receivedAt"]["type"] == "integer"
         assert "receivedAt" not in parameters["required"]
 
+    @pytest.mark.parametrize(
+        "receipt_date",
+        ["20-Jul-2026", "20/07/2026", "Jul 20, 2026", "2026-07-20"],
+    )
+    def test_supported_date_only_formats_normalize_identically(
+        self, monkeypatch, receipt_date
+    ):
+        result, captured = self._create(monkeypatch, {
+            "jobNo": "AM/JOB/2607/9901",
+            "address": "Blk 1 Test St #01-01",
+            "problem": "x",
+            "receiptDate": receipt_date,
+        })
+        assert json.loads(result)["ok"] is True
+        assert captured["receivedAt"] == 1_784_476_800
+        assert captured["dueAt"] == 1_787_068_800
+
+    def test_unparseable_explicit_receipt_date_fails_closed(self, monkeypatch):
+        result, captured = self._create(monkeypatch, {
+            "jobNo": "AM/JOB/2607/9901",
+            "address": "Blk 1 Test St #01-01",
+            "problem": "x",
+            "receivedAt": 1_784_509_200,
+            "receiptDate": "sometime last Monday",
+        })
+        assert "receiptDate must be a date only" in result
+        assert captured == {}
+
+    def test_conflicting_explicit_receipt_dates_fail_closed(self, monkeypatch):
+        result, captured = self._create(monkeypatch, {
+            "jobNo": "AM/JOB/2607/9901",
+            "address": "Blk 1 Test St #01-01",
+            "problem": "x",
+            "receiptDate": "20 July 2026",
+            "evidence": {"receipt_date": "21 July 2026"},
+        })
+        assert "conflicting receiptDate values" in result
+        assert captured == {}
+
     def test_create_without_job_no_bounces(self, monkeypatch):
         """No jobNo + no confirmNoJobNo = corrective error: cases enter the
         ledger only from HDB job sheets (no WA placeholder minting)."""

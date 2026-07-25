@@ -1818,6 +1818,16 @@ _ENGLISH_DATE_ONLY_RE = re.compile(
     re.IGNORECASE,
 )
 _ISO_DATE_ONLY_RE = re.compile(r"^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})$")
+_SEPARATED_DATE_ONLY_RE = re.compile(
+    r"^(?:receipt\s*date\s*:?\s*)?"
+    r"(?P<day>\d{1,2})[-/](?P<month>[A-Za-z]+|\d{1,2})[-/](?P<year>\d{4})$",
+    re.IGNORECASE,
+)
+_MONTH_FIRST_DATE_ONLY_RE = re.compile(
+    r"^(?:receipt\s*date\s*:?\s*)?"
+    r"(?P<month>[A-Za-z]+)\s+(?P<day>\d{1,2}),?\s+(?P<year>\d{4})$",
+    re.IGNORECASE,
+)
 
 
 def _date_only_sgt_epoch(value: Any) -> int | None:
@@ -1825,21 +1835,6 @@ def _date_only_sgt_epoch(value: Any) -> int | None:
     if not isinstance(value, str):
         return None
     text = value.strip()
-    match = _ENGLISH_DATE_ONLY_RE.fullmatch(text)
-    if match:
-        month = _MONTH_NUMBERS.get(match.group("month").lower())
-        if month is None:
-            return None
-        try:
-            parsed = datetime(
-                int(match.group("year")),
-                month,
-                int(match.group("day")),
-                tzinfo=_SGT,
-            )
-        except ValueError:
-            return None
-        return int(parsed.timestamp())
     match = _ISO_DATE_ONLY_RE.fullmatch(text)
     if match:
         try:
@@ -1852,11 +1847,31 @@ def _date_only_sgt_epoch(value: Any) -> int | None:
         except ValueError:
             return None
         return int(parsed.timestamp())
+    match = (
+        _ENGLISH_DATE_ONLY_RE.fullmatch(text)
+        or _SEPARATED_DATE_ONLY_RE.fullmatch(text)
+        or _MONTH_FIRST_DATE_ONLY_RE.fullmatch(text)
+    )
+    if match:
+        raw_month = match.group("month").lower()
+        month = int(raw_month) if raw_month.isdigit() else _MONTH_NUMBERS.get(raw_month)
+        if month is None:
+            return None
+        try:
+            parsed = datetime(
+                int(match.group("year")),
+                month,
+                int(match.group("day")),
+                tzinfo=_SGT,
+            )
+        except ValueError:
+            return None
+        return int(parsed.timestamp())
     return None
 
 
 def _case_receipt_source_values(payload: Mapping[str, Any]) -> Iterable[Any]:
-    """Yield explicit receipt source strings before broader evidence text."""
+    """Yield only explicit receipt source fields, never free-form evidence."""
     for key in ("receiptDate", "receipt_date"):
         if payload.get(key) not in (None, ""):
             yield payload[key]
@@ -1865,13 +1880,6 @@ def _case_receipt_source_values(payload: Mapping[str, Any]) -> Iterable[Any]:
         for key in ("receiptDate", "receipt_date", "job_receipt_date"):
             if evidence.get(key) not in (None, ""):
                 yield evidence[key]
-    received_at = payload.get("receivedAt")
-    if received_at in (None, ""):
-        received_at = payload.get("received_at")
-    if isinstance(received_at, str):
-        yield received_at
-
-
 def _normalise_case_receipt_epoch(payload: Mapping[str, Any]) -> Any:
     """Resolve a case receipt deterministically at the Hermes boundary.
 
@@ -1883,10 +1891,23 @@ def _normalise_case_receipt_epoch(payload: Mapping[str, Any]) -> Any:
     if supplied in (None, ""):
         supplied = payload.get("received_at")
     supplied_epoch = _coerce_observed_at_epoch(supplied)
+    source_epochs: list[int] = []
     for source_value in _case_receipt_source_values(payload):
         normalised = _date_only_sgt_epoch(source_value)
         if normalised is None:
-            continue
+            raise ValueError(
+                "receiptDate must be a date only, for example "
+                "'20 July 2026', '20-Jul-2026', '20/07/2026', "
+                "'Jul 20, 2026', or '2026-07-20'"
+            )
+        source_epochs.append(normalised)
+    if len(set(source_epochs)) > 1:
+        raise ValueError(
+            "conflicting receiptDate values were supplied; retry with the "
+            "single exact date from the cited job sheet"
+        )
+    if source_epochs:
+        normalised = source_epochs[0]
         if isinstance(supplied_epoch, int) and supplied_epoch != normalised:
             logger.warning(
                 "tgg_case_create overriding model receivedAt=%s with "
@@ -1895,6 +1916,10 @@ def _normalise_case_receipt_epoch(payload: Mapping[str, Any]) -> Any:
                 normalised,
             )
         return normalised
+    if isinstance(supplied, str):
+        normalised = _date_only_sgt_epoch(supplied)
+        if normalised is not None:
+            return normalised
     return supplied_epoch
 
 
@@ -1992,7 +2017,10 @@ def _handle_tgg_case_create(args: Mapping[str, Any], **_kwargs: Any) -> str:
     payload.pop("evidence_message_refs", None)
     payload.pop("sourceRefs", None)
     payload.pop("source_refs", None)
-    receipt_timestamp = _normalise_case_receipt_epoch(payload)
+    try:
+        receipt_timestamp = _normalise_case_receipt_epoch(payload)
+    except ValueError as exc:
+        return tool_error(str(exc))
     if not isinstance(receipt_timestamp, int):
         return tool_error(
             "tgg_case_create requires receivedAt as the job-sheet receipt epoch "
@@ -2169,7 +2197,10 @@ def _prepare_case_create_source_refs(payload: Mapping[str, Any]) -> dict[str, An
     source_error = _validate_cited_turn_source_refs(refs, "tgg_case_create")
     if source_error:
         return source_error
-    received_at = _normalise_case_receipt_epoch(prepared)
+    try:
+        received_at = _normalise_case_receipt_epoch(prepared)
+    except ValueError as exc:
+        return tool_error(str(exc))
     if not isinstance(received_at, int):
         return tool_error(
             "tgg_case_create requires receivedAt as the job-sheet receipt epoch "
@@ -2768,7 +2799,8 @@ TGG_CASE_CREATE_SCHEMA = {
                 "description": (
                     "Exact receipt date string from the job sheet when it "
                     "states a date without a time. Hermes treats this source "
-                    "as authoritative and overrides a non-midnight receivedAt."
+                    "as authoritative and overrides a non-midnight receivedAt. "
+                    "Examples: '20 July 2026' or '2026-07-20'."
                 ),
             },
             "dueAt": {
