@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 import os
 import re
 import subprocess
@@ -16,14 +17,17 @@ import urllib.parse
 import urllib.request
 import zipfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 from xml.etree import ElementTree
+from zoneinfo import ZoneInfo
 
 from tools.registry import registry, tool_error, tool_result
 
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
+logger = logging.getLogger(__name__)
 
 ILINKED_READ_OPERATIONS = frozenset(
     {"ilinked_lookup", "ilinked_status", "ilinked_wc_lookup"}
@@ -1786,6 +1790,77 @@ def _coerce_observed_at_epoch(value: Any) -> Any:
     return int(parsed.timestamp())
 
 
+_SGT = ZoneInfo("Asia/Singapore")
+_DATE_ONLY_FORMATS = ("%d %B %Y", "%d %b %Y", "%Y-%m-%d", "%d/%m/%Y")
+_RECEIPT_DATE_RE = re.compile(
+    r"\breceipt\s*date\s*:?\s*"
+    r"(?P<date>\d{1,2}\s+[A-Za-z]+\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4})\b",
+    re.IGNORECASE,
+)
+
+
+def _date_only_sgt_epoch(value: Any) -> int | None:
+    """Return midnight-SGT epoch for a date-only string, otherwise None."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    match = _RECEIPT_DATE_RE.search(text)
+    candidate = match.group("date") if match else text
+    for date_format in _DATE_ONLY_FORMATS:
+        try:
+            parsed = datetime.strptime(candidate, date_format)
+        except ValueError:
+            continue
+        return int(parsed.replace(tzinfo=_SGT).timestamp())
+    return None
+
+
+def _case_receipt_source_values(payload: Mapping[str, Any]) -> Iterable[Any]:
+    """Yield explicit receipt source strings before broader evidence text."""
+    for key in ("receiptDate", "receipt_date"):
+        if payload.get(key) not in (None, ""):
+            yield payload[key]
+    evidence = payload.get("evidence")
+    if isinstance(evidence, Mapping):
+        for key in ("receiptDate", "receipt_date", "job_receipt_date"):
+            if evidence.get(key) not in (None, ""):
+                yield evidence[key]
+        for value in evidence.values():
+            if isinstance(value, str) and _RECEIPT_DATE_RE.search(value):
+                yield value
+    received_at = payload.get("receivedAt")
+    if received_at is None:
+        received_at = payload.get("received_at")
+    if isinstance(received_at, str):
+        yield received_at
+
+
+def _normalise_case_receipt_epoch(payload: Mapping[str, Any]) -> Any:
+    """Resolve a case receipt deterministically at the Hermes boundary.
+
+    A cited date-only source is authoritative over any model-produced epoch:
+    it is always midnight in Asia/Singapore. Without a date-only source, the
+    existing epoch/ISO coercion contract remains unchanged.
+    """
+    supplied = payload.get("receivedAt")
+    if supplied is None:
+        supplied = payload.get("received_at")
+    supplied_epoch = _coerce_observed_at_epoch(supplied)
+    for source_value in _case_receipt_source_values(payload):
+        normalised = _date_only_sgt_epoch(source_value)
+        if normalised is None:
+            continue
+        if isinstance(supplied_epoch, int) and supplied_epoch != normalised:
+            logger.warning(
+                "tgg_case_create overriding model receivedAt=%s with "
+                "date-only receipt midnight SGT=%s",
+                supplied_epoch,
+                normalised,
+            )
+        return normalised
+    return supplied_epoch
+
+
 def _handle_tgg_case_update_state(args: Mapping[str, Any], **_kwargs: Any) -> str:
     job_no = str(args.get("job_no") or args.get("jobNo") or "").strip()
     if not job_no:
@@ -1880,17 +1955,17 @@ def _handle_tgg_case_create(args: Mapping[str, Any], **_kwargs: Any) -> str:
     payload.pop("evidence_message_refs", None)
     payload.pop("sourceRefs", None)
     payload.pop("source_refs", None)
-    receipt_timestamp = _coerce_observed_at_epoch(
-        payload.get("receivedAt") or payload.get("received_at")
-    )
+    receipt_timestamp = _normalise_case_receipt_epoch(payload)
     if not isinstance(receipt_timestamp, int):
         return tool_error(
             "tgg_case_create requires receivedAt as the job-sheet receipt epoch "
-            "seconds. This is distinct from observedAt, which the runtime binds "
-            "from the cited ingress message."
+            "seconds or receiptDate as a date-only source string. This is "
+            "distinct from observedAt, which the runtime binds from the cited "
+            "ingress message."
         )
     payload["receivedAt"] = receipt_timestamp
-    payload.pop("received_at", None)
+    for key in ("received_at", "receiptDate", "receipt_date"):
+        payload.pop(key, None)
     payload["observedAt"] = _observed_at_for_source_refs(source_refs)
     payload["dueAt"] = receipt_timestamp + 30 * 86400
     payload.setdefault("confidence", "high")
@@ -2057,17 +2132,23 @@ def _prepare_case_create_source_refs(payload: Mapping[str, Any]) -> dict[str, An
     source_error = _validate_cited_turn_source_refs(refs, "tgg_case_create")
     if source_error:
         return source_error
-    received_at = _coerce_observed_at_epoch(
-        prepared.get("receivedAt") or prepared.get("received_at")
-    )
+    received_at = _normalise_case_receipt_epoch(prepared)
     if not isinstance(received_at, int):
         return tool_error(
             "tgg_case_create requires receivedAt as the job-sheet receipt epoch "
-            "seconds. This is distinct from observedAt, which the runtime binds "
-            "from the cited ingress message."
+            "seconds or receiptDate as a date-only source string. This is "
+            "distinct from observedAt, which the runtime binds from the cited "
+            "ingress message."
         )
     prepared["evidenceMessageRefs"] = refs
-    for key in ("evidence_message_refs", "sourceRefs", "source_refs", "received_at"):
+    for key in (
+        "evidence_message_refs",
+        "sourceRefs",
+        "source_refs",
+        "received_at",
+        "receiptDate",
+        "receipt_date",
+    ):
         prepared.pop(key, None)
     prepared["receivedAt"] = received_at
     prepared["observedAt"] = _observed_at_for_source_refs(refs)
@@ -2641,9 +2722,16 @@ TGG_CASE_CREATE_SCHEMA = {
             "receivedAt": {
                 "type": "integer",
                 "description": (
-                    "Job-sheet receipt timestamp as epoch seconds. When the "
-                    "sheet states a date without a time, use midnight at the "
-                    "start of that date in Asia/Singapore."
+                    "Job-sheet receipt timestamp as epoch seconds. Optional "
+                    "when receiptDate carries the exact date-only source."
+                ),
+            },
+            "receiptDate": {
+                "type": "string",
+                "description": (
+                    "Exact receipt date string from the job sheet when it "
+                    "states a date without a time. Hermes treats this source "
+                    "as authoritative and overrides a non-midnight receivedAt."
                 ),
             },
             "dueAt": {
@@ -2658,7 +2746,7 @@ TGG_CASE_CREATE_SCHEMA = {
             },
             "evidence": {"type": "object", "description": "Evidence used to decide this is new.", "additionalProperties": True},
         },
-        "required": ["zone", "address", "problem", "source", "receivedAt", "evidenceMessageRefs"],
+        "required": ["zone", "address", "problem", "source", "evidenceMessageRefs"],
         "additionalProperties": False,
     },
 }

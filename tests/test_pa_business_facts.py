@@ -1879,9 +1879,9 @@ class TestCaseCreateJobNoContract:
             '{"wa-create": 1784895200}',
         )
         args = {
-            **args,
             "receivedAt": 1_784_476_800,
             "evidenceMessageRefs": ["wa-create"],
+            **args,
         }
 
         def fake_write(op, payload):
@@ -1917,6 +1917,33 @@ class TestCaseCreateJobNoContract:
         })
         assert "JOB_NO_OMITTED" not in result
         assert "confirmNoJobNo" not in captured
+
+    def test_date_only_receipt_string_normalizes_to_midnight_sgt(self, monkeypatch):
+        result, captured = self._create(monkeypatch, {
+            "jobNo": "AM/JOB/2607/9901",
+            "address": "Blk 1 Test St #01-01",
+            "problem": "x",
+            "receivedAt": None,
+            "receiptDate": "20 July 2026",
+        })
+        assert json.loads(result)["ok"] is True
+        assert captured["receivedAt"] == 1_784_476_800
+        assert captured["dueAt"] == 1_787_068_800
+
+    def test_evidence_date_only_receipt_overrides_model_epoch(
+        self, monkeypatch, caplog
+    ):
+        result, captured = self._create(monkeypatch, {
+            "jobNo": "AM/JOB/2607/9901",
+            "address": "Blk 1 Test St #01-01",
+            "problem": "x",
+            "receivedAt": 1_784_509_200,
+            "evidence": {"receipt_date": "20 July 2026"},
+        })
+        assert json.loads(result)["ok"] is True
+        assert captured["receivedAt"] == 1_784_476_800
+        assert captured["dueAt"] == 1_787_068_800
+        assert "overriding model receivedAt=1784509200" in caplog.text
 
     def test_create_without_job_no_bounces(self, monkeypatch):
         """No jobNo + no confirmNoJobNo = corrective error: cases enter the
