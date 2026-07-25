@@ -5,8 +5,7 @@
       "contactPhone": "91234567"
     },
     "nested_evidence": {
-      "original_scope": "1) Replace cracked toilet bi-fold door. 2) Repair leaking kitchen sink trap.",
-      "receipt_date": "20 July 2026"
+      "source_message_id": "gate-a-report"
     },
     "pass": true
   },
