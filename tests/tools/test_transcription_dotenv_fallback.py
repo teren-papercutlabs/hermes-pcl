@@ -89,8 +89,12 @@ class TestProviderSelectionGate:
 
         with patch.object(tt, "_HAS_FASTER_WHISPER", False), \
              patch.object(tt, "_has_local_command", return_value=False), \
-             patch("tools.xai_http.get_env_value",
-                   return_value="dotenv-secret"):
+             patch(
+                 "tools.xai_http.get_env_value",
+                 side_effect=lambda name, default=None: (
+                     "dotenv-secret" if name == "XAI_API_KEY" else default
+                 ),
+             ):
             assert tt._get_provider({"enabled": True, "provider": "xai"}) == "xai"
 
     def test_auto_detect_sees_dotenv_groq(self):
@@ -226,8 +230,12 @@ class TestEndToEndRegressionGuard:
             response.json.return_value = {"text": "ok"}
             return response
 
-        with patch("tools.xai_http.get_env_value",
-                   return_value="dotenv-secret"), \
+        with patch(
+            "tools.xai_http.get_env_value",
+            side_effect=lambda name, default=None: (
+                "dotenv-secret" if name == "XAI_API_KEY" else default
+            ),
+        ), \
              patch("requests.post", side_effect=fake_post), \
              patch("builtins.open", MagicMock()):
             result = tt._transcribe_xai("/tmp/fake.mp3", "grok-stt")

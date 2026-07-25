@@ -290,6 +290,13 @@ def _finalize_session(session: dict | None, end_reason: str = "tui_close") -> No
     stop_event = session.get("_notif_stop")
     if stop_event is not None:
         stop_event.set()
+        poller_thread = getattr(stop_event, "_thread", None)
+        if (
+            poller_thread is not None
+            and poller_thread is not threading.current_thread()
+            and hasattr(poller_thread, "join")
+        ):
+            poller_thread.join(timeout=1.0)
 
     agent = session.get("agent")
     lock = session.get("history_lock")
@@ -3128,6 +3135,7 @@ def _start_notification_poller(sid: str, session: dict) -> threading.Event:
         daemon=True,
         name=f"hermes-tui-notification-{sid}",
     )
+    stop._thread = t
     t.start()
     return stop
 

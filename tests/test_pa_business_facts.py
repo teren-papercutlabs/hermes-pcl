@@ -51,7 +51,7 @@ class _FakeBusinessHandler(BaseHTTPRequestHandler):
 @pytest.fixture
 def source_refs_context():
     """Bind gateway turn refs on the task-local production surface."""
-    from gateway.session_context import clear_session_vars, set_session_vars
+    from gateway.session_context import set_session_vars
 
     tokens = []
 
@@ -60,7 +60,8 @@ def source_refs_context():
 
     yield bind
     for turn_tokens in reversed(tokens):
-        clear_session_vars(turn_tokens)
+        for token in reversed(turn_tokens):
+            token.var.reset(token)
 
 
 @pytest.fixture

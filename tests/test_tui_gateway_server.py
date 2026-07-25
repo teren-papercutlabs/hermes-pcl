@@ -13,28 +13,39 @@ from tui_gateway import server
 
 
 @pytest.fixture(autouse=True)
-def _stop_tui_notification_watchers():
+def _stop_tui_notification_watchers(monkeypatch):
     """Prevent TUI session pollers from consuming later tests' global events."""
     # Keep the actual registry object: a failure-path test temporarily replaces
     # server._sessions with an exploding mapping, and monkeypatch restores it
     # only after this fixture's teardown runs.
     sessions = server._sessions
+    original_start = server._start_notification_poller
+    started = []
+
+    def tracked_start(*args, **kwargs):
+        stop = original_start(*args, **kwargs)
+        started.append(stop)
+        return stop
+
+    monkeypatch.setattr(server, "_start_notification_poller", tracked_start)
     yield
     for session in list(sessions.values()):
         server._finalize_session(session)
+    for stop in started:
+        stop.set()
+    for stop in started:
+        thread = getattr(stop, "_thread", None)
+        if thread is not None and hasattr(thread, "join"):
+            thread.join(timeout=1.0)
+        if thread is not None and hasattr(thread, "is_alive"):
+            assert not thread.is_alive(), f"TUI notification poller leaked: {thread.name}"
     sessions.clear()
-    # Pollers use a bounded queue timeout, so give every stop signal time to
-    # take effect before another module asserts against the shared queue.
-    deadline = time.monotonic() + 1.0
-    while time.monotonic() < deadline:
-        live = [
-            thread
-            for thread in threading.enumerate()
-            if thread.name.startswith("hermes-tui-notification-")
-        ]
-        if not live:
-            break
-        time.sleep(0.01)
+    leaked = [
+        thread.name
+        for thread in threading.enumerate()
+        if thread.name.startswith("hermes-tui-notification-")
+    ]
+    assert not leaked, f"TUI notification pollers leaked: {leaked}"
 
 
 class _ChunkyStdout:

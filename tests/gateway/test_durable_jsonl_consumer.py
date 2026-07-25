@@ -1579,24 +1579,45 @@ def test_bounded_dry_run_is_read_only_and_predicts_reconciliation(
     selected = inbox.bounded_window(chat_ids=chats, cutoff=cutoff)
 
     def logical_state():
-        with inbox.connect() as conn:
+        conn = inbox.connect()
+        try:
             inbox_rows = [
                 tuple(row)
                 for row in conn.execute(
                     "SELECT * FROM ingress_events ORDER BY seq"
                 )
             ]
-        with sqlite3.connect(state_db) as conn:
+            meta_rows = [
+                tuple(row)
+                for row in conn.execute("SELECT * FROM ingress_meta ORDER BY key")
+            ]
+            delivery_rows = [
+                tuple(row)
+                for row in conn.execute(
+                    "SELECT * FROM reply_deliveries ORDER BY delivery_key"
+                )
+            ]
+        finally:
+            conn.close()
+        conn = sqlite3.connect(state_db)
+        try:
             state_rows = conn.execute(
                 "SELECT * FROM pa_turns ORDER BY turn_id"
             ).fetchall()
-        with sqlite3.connect(case_db) as conn:
+        finally:
+            conn.close()
+        conn = sqlite3.connect(case_db)
+        try:
             case_rows = conn.execute("SELECT * FROM cases ORDER BY id").fetchall()
             audit_rows = conn.execute(
                 "SELECT * FROM ps_audit_log ORDER BY id"
             ).fetchall()
+        finally:
+            conn.close()
         return {
             "inbox_rows": inbox_rows,
+            "meta_rows": meta_rows,
+            "delivery_rows": delivery_rows,
             "inbox_counts": inbox.counts(),
             "selected_statuses": inbox.window_statuses(selected),
             "state_rows": state_rows,

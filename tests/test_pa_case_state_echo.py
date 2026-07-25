@@ -35,13 +35,14 @@ CHRISTOPHER_CONSTITUTION = (
 @pytest.fixture
 def source_refs_context():
     """Bind gateway turn refs on the task-local production surface."""
-    from gateway.session_context import clear_session_vars, set_session_vars
+    from gateway.session_context import set_session_vars
 
     tokens = set_session_vars(
         source_message_refs=json.dumps(["wa-current-1", "wa-current-2"])
     )
     yield
-    clear_session_vars(tokens)
+    for token in reversed(tokens):
+        token.var.reset(token)
 
 
 @pytest.fixture(autouse=True)
