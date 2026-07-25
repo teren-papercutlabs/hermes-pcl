@@ -1,0 +1,123 @@
+Hermes full-suite verification (synchronized CI dependency profile)
+
+branch: worker/e0e5f7ce at 93e829c2f
+command: PATH=<security-keychain-isolation>:$PATH scripts/run_tests.sh tests
+environment preparation: uv sync --locked --extra all --extra dev
+full result: 105 failed, 23626 passed, 173 skipped, 362 warnings in 3:23:47
+
+Failure grounding:
+- The exact 105 nodeids were rerun against origin/main 2f9a481ef with the same synchronized environment and keychain isolation. 74 reproduced on origin/main.
+- The remaining 31 nodeids were rerun on this branch in isolation: 31 passed. They are full-order pollution/flakes, not persistent branch failures.
+- Task-focused suite: 95 passed; the sole failure (`test_state_claim_gate_in_both_job_briefs`) reproduced on origin/main.
+- No persistent branch-only failure remains in the full-suite failure set.
+
+The raw first/full logs are not retained because a pre-isolation attempt caused a host keychain credential value to appear in assertion output. This summary, the exact reproduced and transient nodeid sets below, and the focused/origin receipts preserve the verification result without committing credential-bearing logs.
+
+Origin/main-reproduced failures (74):
+- tests/agent/test_anthropic_adapter.py::TestRunOauthSetupToken::test_returns_none_when_no_creds_found
+- tests/agent/test_anthropic_adapter.py::TestRunOauthSetupToken::test_returns_token_from_credential_files
+- tests/agent/test_anthropic_adapter.py::TestRunOauthSetupToken::test_returns_token_from_env_var
+- tests/cron/test_pa_job_brief.py::test_run_job_selects_pa_brief_and_restricts_toolsets
+- tests/gateway/test_goal_max_turns_config.py::test_gateway_goal_uses_goals_max_turns_from_full_config
+- tests/gateway/test_goal_verdict_send.py::test_goal_verdict_budget_exhausted_sends_pause
+- tests/gateway/test_goal_verdict_send.py::test_goal_verdict_continue_enqueues_continuation
+- tests/gateway/test_goal_verdict_send.py::test_goal_verdict_done_sent_via_adapter_send
+- tests/gateway/test_google_chat.py::TestAuthorizationEmailMatch::test_allowlist_denies_wrong_email
+- tests/gateway/test_google_chat.py::TestAuthorizationEmailMatch::test_allowlist_falls_back_to_resource_name_when_no_email
+- tests/gateway/test_google_chat.py::TestAuthorizationEmailMatch::test_allowlist_matches_when_user_id_is_email
+- tests/gateway/test_google_chat.py::TestEnvConfigLoading::test_missing_project_does_not_enable
+- tests/gateway/test_google_chat.py::TestEnvConfigLoading::test_missing_subscription_does_not_enable
+- tests/gateway/test_google_chat.py::TestPlatformRegistration::test_enum_value
+- tests/gateway/test_session_hygiene.py::test_session_hygiene_default_hard_message_limit_does_not_fire_at_12_messages
+- tests/gateway/test_session_hygiene.py::test_session_hygiene_honors_configurable_hard_message_limit
+- tests/gateway/test_session_hygiene.py::test_session_hygiene_informs_user_when_aux_model_fails_but_recovers
+- tests/gateway/test_session_hygiene.py::test_session_hygiene_messages_stay_in_originating_topic
+- tests/gateway/test_session_hygiene.py::test_session_hygiene_warns_user_when_summary_generation_fails
+- tests/gateway/test_shutdown_forensics.py::TestSpawnAsyncDiagnostic::test_spawns_subprocess_and_writes_output
+- tests/gateway/test_status_command.py::test_first_run_non_slack_home_channel_onboarding_keeps_direct_command
+- tests/gateway/test_status_command.py::test_first_run_slack_home_channel_onboarding_uses_parent_command
+- tests/gateway/test_status_command.py::test_handle_message_discards_stale_result_after_session_invalidation
+- tests/gateway/test_status_command.py::test_handle_message_persists_agent_token_counts
+- tests/gateway/test_status_command.py::test_handle_message_stale_result_keeps_newer_generation_callback
+- tests/gateway/test_telegram_topic_mode.py::test_managed_topic_binding_reuses_restored_session_over_static_lane_session
+- tests/gateway/test_tts_media_routing.py::test_streaming_delivery_routes_non_voice_telegram_ogg_media_tag_to_document_sender
+- tests/gateway/test_tts_media_routing.py::test_streaming_delivery_routes_telegram_flac_media_tag_to_document_sender
+- tests/gateway/test_tts_media_routing.py::test_streaming_delivery_routes_telegram_mp3_media_tag_to_voice_sender
+- tests/gateway/test_vision_memory_leak.py::TestEnrichMessageWithVision::test_clean_description_passes_through
+- tests/gateway/test_vision_memory_leak.py::TestEnrichMessageWithVision::test_fenced_leak_stripped_plugin_header_preserved
+- tests/gateway/test_vision_memory_leak.py::TestEnrichMessageWithVision::test_memory_context_fence_stripped
+- tests/hermes_cli/test_gateway_service.py::TestGatewaySystemServiceRouting::test_systemd_restart_gracefully_restarts_running_service_and_waits
+- tests/hermes_cli/test_gateway_service.py::TestGatewaySystemServiceRouting::test_systemd_restart_recovers_failed_planned_restart
+- tests/hermes_cli/test_gateway_service.py::TestGatewaySystemServiceRouting::test_systemd_restart_reports_start_limit_hit
+- tests/hermes_cli/test_gateway_service.py::TestGatewaySystemServiceRouting::test_systemd_restart_uses_systemd_main_pid_when_pid_file_is_missing
+- tests/hermes_cli/test_gateway_service.py::TestSystemdServiceRefresh::test_systemd_restart_refreshes_outdated_unit
+- tests/hermes_cli/test_gateway_service.py::TestSystemdServiceRefresh::test_systemd_start_refreshes_outdated_unit
+- tests/hermes_cli/test_gateway_wsl.py::TestSupportsSystemdServicesWSL::test_native_linux
+- tests/hermes_cli/test_gateway_wsl.py::TestSupportsSystemdServicesWSL::test_wsl_with_systemd
+- tests/hermes_cli/test_goals.py::TestGoalManager::test_persistence_across_managers
+- tests/hermes_cli/test_goals.py::TestGoalManagerSubgoals::test_subgoals_persist_across_reloads
+- tests/hermes_cli/test_goals.py::TestJudgeParseFailureAutoPause::test_consecutive_parse_failures_persists_across_goalmanager_reloads
+- tests/hermes_cli/test_kanban_cli.py::test_run_slash_missing_required_arg_friendly_error
+- tests/hermes_cli/test_whatsapp_setup_ordering.py::test_existing_pairing_skip_branch_enables_whatsapp
+- tests/run_agent/test_async_httpx_del_neuter.py::TestClientCacheBoundedGrowth::test_same_key_replaces_stale_loop_entry
+- tests/test_live_system_guard_self_test.py::test_systemctl_list_units_passes_through
+- tests/test_live_system_guard_self_test.py::test_systemctl_show_passes_through
+- tests/test_live_system_guard_self_test.py::test_systemctl_status_passes_through
+- tests/test_live_system_guard_self_test.py::test_systemctl_unrelated_unit_passes_through
+- tests/test_pa_case_state_echo.py::test_state_claim_gate_in_both_job_briefs
+- tests/test_pa_compaction_guidance.py::test_christopher_ops_ingest_declares_guidance_not_policy
+- tests/test_pa_constitution.py::test_tgg_management_defaults_to_operator_db_before_ilinked
+- tests/test_tgg_christopher_replay_profile.py::test_replay_preflight_rejects_prod_business_url
+- tests/test_tgg_christopher_replay_profile.py::test_replay_preflight_rejects_sqlite_sidecars
+- tests/test_tui_gateway_server.py::test_browser_manage_connect_default_local_reports_launch_hint
+- tests/test_tui_gateway_server.py::test_load_enabled_toolsets_falls_back_when_tui_env_invalid
+- tests/test_tui_gateway_server.py::test_load_enabled_toolsets_rejects_disabled_mcp_env
+- tests/tools/test_file_read_guards.py::TestFileDedup::test_write_allows_large_file_that_quotes_status_text
+- tests/tools/test_file_read_guards.py::TestFileDedup::test_write_rejects_internal_read_status_text
+- tests/tools/test_file_read_guards.py::TestFileDedup::test_write_rejects_status_text_with_small_framing
+- tests/tools/test_file_read_guards.py::TestWriteInvalidatesDedup::test_write_does_not_invalidate_other_tasks
+- tests/tools/test_file_read_guards.py::TestWriteInvalidatesDedup::test_write_invalidates_all_offsets
+- tests/tools/test_file_read_guards.py::TestWriteInvalidatesDedup::test_write_invalidates_dedup_same_second
+- tests/tools/test_file_staleness.py::TestPatchStaleness::test_patch_warns_on_stale_file
+- tests/tools/test_file_staleness.py::TestStalenessCheck::test_relative_path_uses_live_cwd_for_staleness_tracking
+- tests/tools/test_file_staleness.py::TestStalenessCheck::test_warning_when_file_modified_externally
+- tests/tools/test_file_state_registry.py::FileToolsIntegrationTests::test_net_new_file_no_warning
+- tests/tools/test_file_state_registry.py::FileToolsIntegrationTests::test_sibling_agent_write_surfaces_warning_through_handler
+- tests/tui_gateway/test_goal_command.py::test_goal_clear_removes_active_goal
+- tests/tui_gateway/test_goal_command.py::test_goal_pause_after_set
+- tests/tui_gateway/test_goal_command.py::test_goal_resume_reactivates
+- tests/tui_gateway/test_goal_command.py::test_goal_set_returns_send_with_notice
+- tests/tui_gateway/test_goal_command.py::test_goal_stop_and_done_are_clear_aliases
+
+Full-order transient failures, isolated branch rerun green (31/31):
+- tests/agent/lsp/test_client_e2e.py::test_client_receives_published_errors
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_album_bundle_renders_distinct_quotes_separately
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_album_bundle_renders_shared_quote_once_with_case_refs
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_direct_trigger_closes_replay_turn_immediately
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_ingest_chat_bypasses_require_mention_for_ops_capture
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_replay_bundle_cap_override_custom_value
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_replay_bundle_cap_override_uncapped_matches_live_no_cap
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_replay_bundle_hard_capped_at_ten_messages
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_replay_bundle_still_splits_on_timestamp_gap
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_replay_uses_timestamp_debounce_without_wall_sleep
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_replay_without_any_explicit_window_keeps_legacy_default
+- tests/gateway/test_whatsapp_replay_turn_policy.py::test_replay_without_turn_policy_uses_passive_window_not_legacy_default
+- tests/test_pa_business_facts.py::TestCaseCreateJobNoContract::test_create_without_job_no_bounces
+- tests/test_pa_business_facts.py::TestCaseCreateJobNoContract::test_explicit_job_no_passes_through
+- tests/test_pa_business_facts.py::TestCaseCreateJobNoContract::test_omitted_job_no_with_evidence_token_bounces
+- tests/test_pa_business_facts.py::TestCaseCreateJobNoContract::test_reported_job_no_alias_coerced
+- tests/test_pa_business_facts.py::test_attach_unjustified_error_carries_recovery_guidance
+- tests/test_pa_business_facts.py::test_generic_observation_mixed_placeholder_keeps_real_refs
+- tests/test_pa_business_facts.py::test_generic_observation_real_refs_pass_through_untouched
+- tests/test_pa_case_state_echo.py::test_observation_does_not_override_backend_provided_state
+- tests/test_pa_case_state_echo.py::test_observation_result_echoes_last_known_state
+- tests/test_pa_case_state_echo.py::test_observation_strips_model_supplied_media_and_photo_fields
+- tests/tools/test_async_delegation.py::test_async_executor_workers_are_daemon_threads
+- tests/tools/test_async_delegation.py::test_completion_event_lands_on_shared_queue_with_session_key
+- tests/tools/test_async_delegation.py::test_crashed_runner_produces_error_completion
+- tests/tools/test_async_delegation.py::test_delegate_task_background_detaches_child_from_parent
+- tests/tools/test_async_delegation.py::test_delegate_task_background_routes_async_and_does_not_block
+- tests/tools/test_async_delegation.py::test_interrupt_all_signals_running_children
+- tests/tools/test_async_delegation.py::test_pa_gateway_async_completion_reenters_and_records_pa_turn
+- tests/tools/test_async_delegation.py::test_rich_reinjection_block_is_self_contained
+- tests/tools/test_delegate.py::TestDelegateHeartbeat::test_heartbeat_does_not_trip_idle_stale_while_inside_tool

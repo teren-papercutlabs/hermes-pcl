@@ -1,0 +1,1086 @@
+{
+  "integration_commit": "de658b5a28d2f7f5884c9bfc926948877a6bfed0",
+  "mode": "concurrency",
+  "operator": {
+    "actions": [
+      {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_management",
+          "message": "[Fixture Manager] Synthetic concurrency gate. Reply with exactly MANAGEMENT_OK and do not mutate any case.\n\n[Current turn source ids]\nsource_message_id: gate-conc-mgmt",
+          "message_id": "gate-conc-mgmt",
+          "session_id": "20260725_032046_e53574d6",
+          "session_key": "agent:live-drain:persistent-chat:whatsapp:group:120363409954029949@g.us",
+          "source": {
+            "chat_id": "120363409954029949@g.us",
+            "chat_name": "Management Fixture",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "fixture-manager",
+            "user_name": "Fixture Manager"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260725_032046_e53574d6:gate-conc-mgmt"
+      },
+      {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_ops_ingest",
+          "message": "[Fixture AMK] WhatsApp turn bundle (2 messages)\nChat: AMK Site Fixture (120363421424519051@g.us)\n\n1. [1784541600] Fixture AMK: AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed.\n   source_message_id: gate-conc-amk-1\n2. [1784541630] Fixture AMK: Same AM/JOB/2607/8802 update: no additional scope.\n   source_message_id: gate-conc-amk-2",
+          "message_id": "gate-conc-amk-1+gate-conc-amk-2",
+          "session_id": "20260725_032047_71ce207f",
+          "session_key": "agent:replay:live-drain-eceac6a7e233:whatsapp:group:120363421424519051@g.us",
+          "source": {
+            "chat_id": "120363421424519051@g.us",
+            "chat_name": "AMK Site Fixture",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "fixture-amk",
+            "user_name": "Fixture AMK"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260725_032047_71ce207f:gate-conc-amk-1+gate-conc-amk-2"
+      },
+      {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_ops_ingest",
+          "message": "[Fixture PG] URGENT HDB job sheet. Job No PG/JOB/2607/9902. Receipt date 20 July 2026. Address Block 202 Punggol Field #03-11. Contact Lim Test 92345678. Scope: Repair bedroom window handle.\n\n[Current turn source ids]\nsource_message_id: gate-conc-pg",
+          "message_id": "gate-conc-pg",
+          "session_id": "20260725_032048_ff55a0e7",
+          "session_key": "agent:replay:live-drain-fc3312922357:whatsapp:group:120363403845802098@g.us",
+          "source": {
+            "chat_id": "120363403845802098@g.us",
+            "chat_name": "PG Site Fixture",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "fixture-pg",
+            "user_name": "Fixture PG"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260725_032048_ff55a0e7:gate-conc-pg"
+      },
+      {
+        "action_type": "observation",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "job_type": "tgg_ops_ingest",
+          "message": "[Fixture SK] HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.\n\n[Current turn source ids]\nsource_message_id: gate-conc-sk",
+          "message_id": "gate-conc-sk",
+          "session_id": "20260725_032048_8499f23c",
+          "session_key": "agent:replay:live-drain-0a20257a6777:whatsapp:group:120363423568509280@g.us",
+          "source": {
+            "chat_id": "120363423568509280@g.us",
+            "chat_name": "SK Site Fixture",
+            "chat_topic": null,
+            "chat_type": "group",
+            "platform": "whatsapp",
+            "thread_id": null,
+            "user_id": "fixture-sk",
+            "user_name": "Fixture SK"
+          }
+        },
+        "source": "whatsapp",
+        "status": "pending",
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "turn_id": "20260725_032048_8499f23c:gate-conc-sk"
+      },
+      {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "gate-conc-mgmt",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": false,
+          "provider": "openai-direct-primary",
+          "reply": "MANAGEMENT_OK",
+          "session_id": "20260725_032046_e53574d6"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 26403,
+        "tokens_output": 151,
+        "turn_id": "20260725_032046_e53574d6:gate-conc-mgmt"
+      },
+      {
+        "action_type": "executed-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "delivery": "gateway-return",
+          "message_id": "gate-conc-mgmt",
+          "model": "gpt-5.6-luna",
+          "provider": "openai-direct-primary",
+          "reply": "MANAGEMENT_OK",
+          "session_id": "20260725_032046_e53574d6"
+        },
+        "source": "whatsapp",
+        "status": "executed",
+        "tokens_input": 26403,
+        "tokens_output": 151,
+        "turn_id": "20260725_032046_e53574d6:gate-conc-mgmt"
+      },
+      {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "gate-conc-pg",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": true,
+          "provider": "openai-direct-primary",
+          "reply": "Case created\n\nJob: PG/JOB/2607/9902\nAddress: Block 202 Punggol Field #03-11\nContact: Lim Test, 92345678\nScope: Repair bedroom window handle\nReceipt date: 20 July 2026\nStatus: Pending",
+          "session_id": "20260725_032048_ff55a0e7"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 50718,
+        "tokens_output": 570,
+        "turn_id": "20260725_032048_ff55a0e7:gate-conc-pg"
+      },
+      {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "gate-conc-sk",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": true,
+          "provider": "openai-direct-primary",
+          "reply": "Case created: SK/JOB/2607/9903\n\nAddress: Block 303 Sengkang East Way #06-22\nContact: Goh Test, 93456789\nScope: Replace faulty cistern parts\nStatus: Open",
+          "session_id": "20260725_032048_8499f23c"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 63940,
+        "tokens_output": 759,
+        "turn_id": "20260725_032048_8499f23c:gate-conc-sk"
+      },
+      {
+        "action_type": "dry-run-reply",
+        "agent_id": "christopher",
+        "cost_usd": 0.0,
+        "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+        "payload": {
+          "message_id": "gate-conc-amk-1+gate-conc-amk-2",
+          "model": "gpt-5.6-luna",
+          "never_send_replies": true,
+          "provider": "openai-direct-primary",
+          "reply": "AM/JOB/2607/8802\n\n\u2022 Kitchen sink choke: completed\n\u2022 Additional scope: none\n\u2022 Case state: completed",
+          "session_id": "20260725_032047_71ce207f"
+        },
+        "source": "whatsapp",
+        "status": "dry-run",
+        "tokens_input": 64047,
+        "tokens_output": 617,
+        "turn_id": "20260725_032047_71ce207f:gate-conc-amk-1+gate-conc-amk-2"
+      }
+    ],
+    "attention": [],
+    "cases": [
+      {
+        "address": "Block 880 Ang Mo Kio Ave 10 #07-04",
+        "evidenceMessageRefs": [
+          "gate-conc-amk-1",
+          "gate-conc-amk-2"
+        ],
+        "jobNo": "AM/JOB/2607/8802",
+        "state": "completed",
+        "work_items": [
+          {
+            "label": "Kitchen sink choke",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      },
+      {
+        "address": "Block 881 Ang Mo Kio Ave 10 #10-32",
+        "jobNo": "AM/JOB/2607/8803",
+        "state": "open",
+        "work_items": [
+          {
+            "label": "Toilet bi-fold door",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      },
+      {
+        "address": "Block 882 Ang Mo Kio Ave 10 #11-22",
+        "jobNo": "AM/JOB/2607/8804",
+        "state": "open",
+        "work_items": [
+          {
+            "label": "Bedroom window handle",
+            "status": "pending"
+          }
+        ],
+        "zone": "AMK"
+      },
+      {
+        "address": "Block 202 Punggol Field #03-11",
+        "confidence": "high",
+        "contactName": "Lim Test",
+        "contactPhone": "92345678",
+        "dueAt": 1787068800,
+        "evidence": {
+          "receipt_date": "20 July 2026",
+          "source_message_id": "gate-conc-pg"
+        },
+        "evidenceMessageRefs": [
+          "gate-conc-pg"
+        ],
+        "jobNo": "PG/JOB/2607/9902",
+        "observedAt": 1784541601,
+        "problem": "Repair bedroom window handle.",
+        "receivedAt": 1784476800,
+        "serviceLine": "maintenance",
+        "source": "whatsapp",
+        "work_items": [
+          {
+            "label": "bedroom window handle",
+            "status": "pending"
+          }
+        ],
+        "zone": "Punggol"
+      },
+      {
+        "address": "Block 303 Sengkang East Way #06-22",
+        "confidence": "high",
+        "contactName": "Goh Test",
+        "contactPhone": "93456789",
+        "dueAt": 1787068800,
+        "evidence": {
+          "job_sheet_text": "HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.",
+          "receipt_date": "20 July 2026"
+        },
+        "evidenceMessageRefs": [
+          "gate-conc-sk"
+        ],
+        "jobNo": "SK/JOB/2607/9903",
+        "observedAt": 1784541602,
+        "problem": "Replace faulty cistern parts.",
+        "receivedAt": 1784476800,
+        "serviceLine": "maintenance",
+        "source": "whatsapp",
+        "work_items": [
+          {
+            "evidence_refs": [
+              "gate-conc-sk"
+            ],
+            "label": "faulty cistern parts",
+            "note": "Replace faulty cistern parts.",
+            "status": "pending"
+          }
+        ],
+        "zone": "SK"
+      }
+    ],
+    "observations": [
+      {
+        "chatName": "AMK Site Fixture",
+        "confidence": "high",
+        "fields": {
+          "chat_name": "AMK Site Fixture",
+          "message_text": "AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed. Same AM/JOB/2607/8802 update: no additional scope.",
+          "sender_name": "Fixture AMK",
+          "work_items": [
+            {
+              "evidence_refs": [
+                "gate-conc-amk-1",
+                "gate-conc-amk-2"
+              ],
+              "label": "Kitchen sink choke",
+              "note": "Choke cleared and completed; no additional scope.",
+              "status": "done"
+            }
+          ]
+        },
+        "jobNo": "AM/JOB/2607/8802",
+        "messageText": "AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed. Same AM/JOB/2607/8802 update: no additional scope.",
+        "notes": "Fixture AMK reports: \u201cKitchen sink choke cleared and completed.\u201d Follow-up confirms no additional scope.",
+        "observationId": "obs-1",
+        "observedAt": 1784541630,
+        "senderName": "Fixture AMK",
+        "source": "whatsapp",
+        "sourceRefs": [
+          "gate-conc-amk-1",
+          "gate-conc-amk-2"
+        ]
+      }
+    ],
+    "requests": [
+      {
+        "at": 1784920846.180192,
+        "body": {
+          "action_type": "observation",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "job_type": "tgg_management",
+            "message": "[Fixture Manager] Synthetic concurrency gate. Reply with exactly MANAGEMENT_OK and do not mutate any case.\n\n[Current turn source ids]\nsource_message_id: gate-conc-mgmt",
+            "message_id": "gate-conc-mgmt",
+            "session_id": "20260725_032046_e53574d6",
+            "session_key": "agent:live-drain:persistent-chat:whatsapp:group:120363409954029949@g.us",
+            "source": {
+              "chat_id": "120363409954029949@g.us",
+              "chat_name": "Management Fixture",
+              "chat_topic": null,
+              "chat_type": "group",
+              "platform": "whatsapp",
+              "thread_id": null,
+              "user_id": "fixture-manager",
+              "user_name": "Fixture Manager"
+            }
+          },
+          "source": "whatsapp",
+          "status": "pending",
+          "tokens_input": 0,
+          "tokens_output": 0,
+          "turn_id": "20260725_032046_e53574d6:gate-conc-mgmt"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784920847.145853,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/agent-config",
+        "query": {}
+      },
+      {
+        "at": 1784920847.577151,
+        "body": {
+          "action_type": "observation",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "job_type": "tgg_ops_ingest",
+            "message": "[Fixture AMK] WhatsApp turn bundle (2 messages)\nChat: AMK Site Fixture (120363421424519051@g.us)\n\n1. [1784541600] Fixture AMK: AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed.\n   source_message_id: gate-conc-amk-1\n2. [1784541630] Fixture AMK: Same AM/JOB/2607/8802 update: no additional scope.\n   source_message_id: gate-conc-amk-2",
+            "message_id": "gate-conc-amk-1+gate-conc-amk-2",
+            "session_id": "20260725_032047_71ce207f",
+            "session_key": "agent:replay:live-drain-eceac6a7e233:whatsapp:group:120363421424519051@g.us",
+            "source": {
+              "chat_id": "120363421424519051@g.us",
+              "chat_name": "AMK Site Fixture",
+              "chat_topic": null,
+              "chat_type": "group",
+              "platform": "whatsapp",
+              "thread_id": null,
+              "user_id": "fixture-amk",
+              "user_name": "Fixture AMK"
+            }
+          },
+          "source": "whatsapp",
+          "status": "pending",
+          "tokens_input": 0,
+          "tokens_output": 0,
+          "turn_id": "20260725_032047_71ce207f:gate-conc-amk-1+gate-conc-amk-2"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784920848.165967,
+        "body": {
+          "action_type": "observation",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "job_type": "tgg_ops_ingest",
+            "message": "[Fixture PG] URGENT HDB job sheet. Job No PG/JOB/2607/9902. Receipt date 20 July 2026. Address Block 202 Punggol Field #03-11. Contact Lim Test 92345678. Scope: Repair bedroom window handle.\n\n[Current turn source ids]\nsource_message_id: gate-conc-pg",
+            "message_id": "gate-conc-pg",
+            "session_id": "20260725_032048_ff55a0e7",
+            "session_key": "agent:replay:live-drain-fc3312922357:whatsapp:group:120363403845802098@g.us",
+            "source": {
+              "chat_id": "120363403845802098@g.us",
+              "chat_name": "PG Site Fixture",
+              "chat_topic": null,
+              "chat_type": "group",
+              "platform": "whatsapp",
+              "thread_id": null,
+              "user_id": "fixture-pg",
+              "user_name": "Fixture PG"
+            }
+          },
+          "source": "whatsapp",
+          "status": "pending",
+          "tokens_input": 0,
+          "tokens_output": 0,
+          "turn_id": "20260725_032048_ff55a0e7:gate-conc-pg"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784920848.192734,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/agent-config",
+        "query": {}
+      },
+      {
+        "at": 1784920848.193276,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/agent-config",
+        "query": {}
+      },
+      {
+        "at": 1784920848.81643,
+        "body": {
+          "action_type": "observation",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "job_type": "tgg_ops_ingest",
+            "message": "[Fixture SK] HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.\n\n[Current turn source ids]\nsource_message_id: gate-conc-sk",
+            "message_id": "gate-conc-sk",
+            "session_id": "20260725_032048_8499f23c",
+            "session_key": "agent:replay:live-drain-0a20257a6777:whatsapp:group:120363423568509280@g.us",
+            "source": {
+              "chat_id": "120363423568509280@g.us",
+              "chat_name": "SK Site Fixture",
+              "chat_topic": null,
+              "chat_type": "group",
+              "platform": "whatsapp",
+              "thread_id": null,
+              "user_id": "fixture-sk",
+              "user_name": "Fixture SK"
+            }
+          },
+          "source": "whatsapp",
+          "status": "pending",
+          "tokens_input": 0,
+          "tokens_output": 0,
+          "turn_id": "20260725_032048_8499f23c:gate-conc-sk"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784920848.839581,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/agent-config",
+        "query": {}
+      },
+      {
+        "at": 1784920854.0550468,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8802",
+        "query": {}
+      },
+      {
+        "at": 1784920854.440971,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/PG%2FJOB%2F2607%2F9902",
+        "query": {}
+      },
+      {
+        "at": 1784920854.44413,
+        "body": {},
+        "method": "GET",
+        "path": "/api/operator/cases/SK%2FJOB%2F2607%2F9903",
+        "query": {}
+      },
+      {
+        "at": 1784920857.2720158,
+        "body": {
+          "address": "Block 202 Punggol Field #03-11",
+          "confidence": "high",
+          "contactName": "Lim Test",
+          "contactPhone": "92345678",
+          "dueAt": 1787068800,
+          "evidence": {
+            "receipt_date": "20 July 2026",
+            "source_message_id": "gate-conc-pg"
+          },
+          "evidenceMessageRefs": [
+            "gate-conc-pg"
+          ],
+          "jobNo": "PG/JOB/2607/9902",
+          "observedAt": 1784541601,
+          "problem": "Repair bedroom window handle.",
+          "receivedAt": 1784476800,
+          "serviceLine": "maintenance",
+          "source": "whatsapp",
+          "work_items": [
+            {
+              "label": "bedroom window handle",
+              "status": "pending"
+            }
+          ],
+          "zone": "Punggol"
+        },
+        "method": "POST",
+        "path": "/api/operator/cases/create",
+        "query": {}
+      },
+      {
+        "at": 1784920858.195468,
+        "body": {
+          "chatName": "AMK Site Fixture",
+          "confidence": "high",
+          "fields": {
+            "chat_name": "AMK Site Fixture",
+            "message_text": "AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed. Same AM/JOB/2607/8802 update: no additional scope.",
+            "sender_name": "Fixture AMK",
+            "work_items": [
+              {
+                "evidence_refs": [
+                  "gate-conc-amk-1",
+                  "gate-conc-amk-2"
+                ],
+                "label": "Kitchen sink choke",
+                "note": "Choke cleared and completed; no additional scope.",
+                "status": "done"
+              }
+            ]
+          },
+          "messageText": "AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed. Same AM/JOB/2607/8802 update: no additional scope.",
+          "notes": "Fixture AMK reports: \u201cKitchen sink choke cleared and completed.\u201d Follow-up confirms no additional scope.",
+          "observedAt": 1784541630,
+          "senderName": "Fixture AMK",
+          "source": "whatsapp",
+          "sourceRefs": [
+            "gate-conc-amk-1",
+            "gate-conc-amk-2"
+          ]
+        },
+        "method": "POST",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8802/observations",
+        "query": {}
+      },
+      {
+        "at": 1784920859.079416,
+        "body": {
+          "address": "Block 303 Sengkang East Way #06-22",
+          "confidence": "high",
+          "contactName": "Goh Test",
+          "contactPhone": "93456789",
+          "dueAt": 1787068800,
+          "evidence": {
+            "job_sheet_text": "HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.",
+            "receipt_date": "20 July 2026"
+          },
+          "evidenceMessageRefs": [
+            "gate-conc-sk"
+          ],
+          "jobNo": "SK/JOB/2607/9903",
+          "observedAt": 1784541602,
+          "problem": "Replace faulty cistern parts.",
+          "receivedAt": 1784476800,
+          "serviceLine": "maintenance",
+          "source": "whatsapp",
+          "work_items": [
+            {
+              "evidence_refs": [
+                "gate-conc-sk"
+              ],
+              "label": "faulty cistern parts",
+              "note": "Replace faulty cistern parts.",
+              "status": "pending"
+            }
+          ],
+          "zone": "SK"
+        },
+        "method": "POST",
+        "path": "/api/operator/cases/create",
+        "query": {}
+      },
+      {
+        "at": 1784920859.659075,
+        "body": {
+          "action_type": "dry-run-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "message_id": "gate-conc-mgmt",
+            "model": "gpt-5.6-luna",
+            "never_send_replies": false,
+            "provider": "openai-direct-primary",
+            "reply": "MANAGEMENT_OK",
+            "session_id": "20260725_032046_e53574d6"
+          },
+          "source": "whatsapp",
+          "status": "dry-run",
+          "tokens_input": 26403,
+          "tokens_output": 151,
+          "turn_id": "20260725_032046_e53574d6:gate-conc-mgmt"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784920859.662356,
+        "body": {
+          "action_type": "executed-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "delivery": "gateway-return",
+            "message_id": "gate-conc-mgmt",
+            "model": "gpt-5.6-luna",
+            "provider": "openai-direct-primary",
+            "reply": "MANAGEMENT_OK",
+            "session_id": "20260725_032046_e53574d6"
+          },
+          "source": "whatsapp",
+          "status": "executed",
+          "tokens_input": 26403,
+          "tokens_output": 151,
+          "turn_id": "20260725_032046_e53574d6:gate-conc-mgmt"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784920860.311826,
+        "body": {
+          "evidenceMessageRefs": [
+            "gate-conc-amk-1",
+            "gate-conc-amk-2"
+          ],
+          "state": "completed"
+        },
+        "method": "PATCH",
+        "path": "/api/operator/cases/AM%2FJOB%2F2607%2F8802/state",
+        "query": {}
+      },
+      {
+        "at": 1784920862.378101,
+        "body": {
+          "action_type": "dry-run-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "message_id": "gate-conc-pg",
+            "model": "gpt-5.6-luna",
+            "never_send_replies": true,
+            "provider": "openai-direct-primary",
+            "reply": "Case created\n\nJob: PG/JOB/2607/9902\nAddress: Block 202 Punggol Field #03-11\nContact: Lim Test, 92345678\nScope: Repair bedroom window handle\nReceipt date: 20 July 2026\nStatus: Pending",
+            "session_id": "20260725_032048_ff55a0e7"
+          },
+          "source": "whatsapp",
+          "status": "dry-run",
+          "tokens_input": 50718,
+          "tokens_output": 570,
+          "turn_id": "20260725_032048_ff55a0e7:gate-conc-pg"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784920863.6073039,
+        "body": {
+          "action_type": "dry-run-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "message_id": "gate-conc-sk",
+            "model": "gpt-5.6-luna",
+            "never_send_replies": true,
+            "provider": "openai-direct-primary",
+            "reply": "Case created: SK/JOB/2607/9903\n\nAddress: Block 303 Sengkang East Way #06-22\nContact: Goh Test, 93456789\nScope: Replace faulty cistern parts\nStatus: Open",
+            "session_id": "20260725_032048_8499f23c"
+          },
+          "source": "whatsapp",
+          "status": "dry-run",
+          "tokens_input": 63940,
+          "tokens_output": 759,
+          "turn_id": "20260725_032048_8499f23c:gate-conc-sk"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      },
+      {
+        "at": 1784920868.165496,
+        "body": {
+          "action_type": "dry-run-reply",
+          "agent_id": "christopher",
+          "cost_usd": 0.0,
+          "engagement_id": "c432bb00-3f30-4344-b9b2-b962220cd512",
+          "payload": {
+            "message_id": "gate-conc-amk-1+gate-conc-amk-2",
+            "model": "gpt-5.6-luna",
+            "never_send_replies": true,
+            "provider": "openai-direct-primary",
+            "reply": "AM/JOB/2607/8802\n\n\u2022 Kitchen sink choke: completed\n\u2022 Additional scope: none\n\u2022 Case state: completed",
+            "session_id": "20260725_032047_71ce207f"
+          },
+          "source": "whatsapp",
+          "status": "dry-run",
+          "tokens_input": 64047,
+          "tokens_output": 617,
+          "turn_id": "20260725_032047_71ce207f:gate-conc-amk-1+gate-conc-amk-2"
+        },
+        "method": "POST",
+        "path": "/api/operator/agent-actions",
+        "query": {}
+      }
+    ]
+  },
+  "pa_tool_calls": [
+    {
+      "call_id": "call_aURK5VNNzMEctnthdermSZKy",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 1,
+      "input_json": "\"{\\\"event_type\\\":\\\"management_question_answered\\\",\\\"reason\\\":\\\"Acknowledged the synthetic concurrency gate without mutating any case.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-mgmt\\\"]}\"",
+      "replay_attempt_id": "attempt-bd29ad661d9a",
+      "replay_run_id": "live-drain-724858b56a03",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"management_question_answered\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_e8f3b2bddbd049c9a512a827486df5d4"
+    },
+    {
+      "call_id": "call_Z6nTTq8gIdDZn43UHNtjQ6pP",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 2,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"PG/JOB/2607/9902\\\"}}\"",
+      "replay_attempt_id": "attempt-b2e350be9512",
+      "replay_run_id": "live-drain-fc3312922357",
+      "result_json": "\"{\\\"ok\\\": false, \\\"error\\\": \\\"not found\\\", \\\"status_code\\\": 404}\"",
+      "tool_name": "pa_business_read",
+      "turn_id": "paturn_c19186383ca54e47b5f8ede2015bcca3"
+    },
+    {
+      "call_id": "call_janbtG0dCfgA9Ti38najmg26",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 3,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_create\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"PG/JOB/2607/9902\\\",\\\"zone\\\":\\\"Punggol\\\",\\\"serviceLine\\\":\\\"maintenance\\\",\\\"address\\\":\\\"Block 202 Punggol Field #03-11\\\",\\\"problem\\\":\\\"Repair bedroom window handle.\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"contactName\\\":\\\"Lim Test\\\",\\\"contactPhone\\\":\\\"92345678\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"bedroom window handle\\\",\\\"status\\\":\\\"pending\\\"}],\\\"receivedAt\\\":1784476800,\\\"evidenceMessageRefs\\\":[\\\"gate-conc-pg\\\"],\\\"evidence\\\":{\\\"receipt_date\\\":\\\"20 July 2026\\\",\\\"source_message_id\\\":\\\"gate-conc-pg\\\"}}}\"",
+      "replay_attempt_id": "attempt-b2e350be9512",
+      "replay_run_id": "live-drain-fc3312922357",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"caseId\\\": 4, \\\"jobNo\\\": \\\"PG/JOB/2607/9902\\\", \\\"created\\\": true}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_write",
+      "turn_id": "paturn_c19186383ca54e47b5f8ede2015bcca3"
+    },
+    {
+      "call_id": "call_XrCtLN3w9xiheIpRQORlqYvL",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 4,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_create\\\",\\\"reason\\\":\\\"Created new HDB job sheet case for repair of the bedroom window handle at Block 202 Punggol Field #03-11.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-pg\\\"]}\"",
+      "replay_attempt_id": "attempt-b2e350be9512",
+      "replay_run_id": "live-drain-fc3312922357",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_create\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_c19186383ca54e47b5f8ede2015bcca3"
+    },
+    {
+      "call_id": "call_k0P2GnAVLt7hma0ZZR1cu1GV",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 5,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"SK/JOB/2607/9903\\\"}}\"",
+      "replay_attempt_id": "attempt-08a141eca7f6",
+      "replay_run_id": "live-drain-0a20257a6777",
+      "result_json": "\"{\\\"ok\\\": false, \\\"error\\\": \\\"not found\\\", \\\"status_code\\\": 404}\"",
+      "tool_name": "pa_business_read",
+      "turn_id": "paturn_8500310f99304ae295034da0f50109a7"
+    },
+    {
+      "call_id": "call_GPZhxkZ6PNPIKqcJWyNsFrle",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 6,
+      "input_json": "\"{\\\"jobNo\\\":\\\"SK/JOB/2607/9903\\\",\\\"zone\\\":\\\"SK\\\",\\\"serviceLine\\\":\\\"maintenance\\\",\\\"address\\\":\\\"Block 303 Sengkang East Way #06-22\\\",\\\"problem\\\":\\\"Replace faulty cistern parts.\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"contactName\\\":\\\"Goh Test\\\",\\\"contactPhone\\\":\\\"93456789\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"faulty cistern parts\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Replace faulty cistern parts.\\\",\\\"evidence_refs\\\":[\\\"source_message_id: gate-conc-sk\\\"]}],\\\"receivedAt\\\":1784476800,\\\"evidenceMessageRefs\\\":[\\\"source_message_id: gate-conc-sk\\\"],\\\"evidence\\\":{\\\"receipt_date\\\":\\\"20 July 2026\\\",\\\"job_sheet_text\\\":\\\"HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.\\\"}}\"",
+      "replay_attempt_id": "attempt-08a141eca7f6",
+      "replay_run_id": "live-drain-0a20257a6777",
+      "result_json": "\"{\\\"error\\\": \\\"tgg_case_create source refs are outside the current turn: source_message_id: gate-conc-sk. Retry with only current-turn message ids that support THIS write.\\\"}\"",
+      "tool_name": "tgg_case_create",
+      "turn_id": "paturn_8500310f99304ae295034da0f50109a7"
+    },
+    {
+      "call_id": "call_G6Nat64MqPKERJzfoeWOAC1R",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 7,
+      "input_json": "\"{\\\"address\\\":\\\"Block 303 Sengkang East Way #06-22\\\",\\\"contactName\\\":\\\"Goh Test\\\",\\\"contactPhone\\\":\\\"93456789\\\",\\\"evidence\\\":{\\\"job_sheet_text\\\":\\\"HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.\\\",\\\"receipt_date\\\":\\\"20 July 2026\\\"},\\\"evidenceMessageRefs\\\":[\\\"gate-conc-sk\\\"],\\\"jobNo\\\":\\\"SK/JOB/2607/9903\\\",\\\"problem\\\":\\\"Replace faulty cistern parts.\\\",\\\"receivedAt\\\":1784476800,\\\"serviceLine\\\":\\\"maintenance\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"work_items\\\":[{\\\"evidence_refs\\\":[\\\"gate-conc-sk\\\"],\\\"label\\\":\\\"faulty cistern parts\\\",\\\"note\\\":\\\"Replace faulty cistern parts.\\\",\\\"status\\\":\\\"pending\\\"}],\\\"zone\\\":\\\"SK\\\"}\"",
+      "replay_attempt_id": "attempt-08a141eca7f6",
+      "replay_run_id": "live-drain-0a20257a6777",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"caseId\\\": 5, \\\"jobNo\\\": \\\"SK/JOB/2607/9903\\\", \\\"created\\\": true}, \\\"status_code\\\": 200}\"",
+      "tool_name": "tgg_case_create",
+      "turn_id": "paturn_8500310f99304ae295034da0f50109a7"
+    },
+    {
+      "call_id": "call_I9bwxboZCkYh6CyfC8k2Fu3J",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 8,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_create\\\",\\\"reason\\\":\\\"Created new SK maintenance case from the HDB job sheet for Block 303 Sengkang East Way #06-22, scope to replace faulty cistern parts.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-sk\\\"]}\"",
+      "replay_attempt_id": "attempt-08a141eca7f6",
+      "replay_run_id": "live-drain-0a20257a6777",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_create\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_8500310f99304ae295034da0f50109a7"
+    },
+    {
+      "call_id": "call_HREjMubozzrrf1x7eLpKfWV3",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 9,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\"}}\"",
+      "replay_attempt_id": "attempt-0a8b1c717430",
+      "replay_run_id": "live-drain-eceac6a7e233",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_read",
+      "turn_id": "paturn_cb1ed9d987404a38b70d0e0a67b566eb"
+    },
+    {
+      "call_id": "call_pHFh25stogMIiYjAl9ksEJiK",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 10,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture AMK reports: \\u201cKitchen sink choke cleared and completed.\\u201d Follow-up confirms no additional scope.\\\",\\\"confidence\\\":\\\"high\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed. Same AM/JOB/2607/8802 update: no additional scope.\\\",\\\"sender_name\\\":\\\"Fixture AMK\\\",\\\"chat_name\\\":\\\"AMK Site Fixture\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Kitchen sink choke\\\",\\\"status\\\":\\\"done\\\",\\\"note\\\":\\\"Choke cleared and completed; no additional scope.\\\",\\\"evidence_refs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed. Same AM/JOB/2607/8802 update: no additional scope.\\\",\\\"senderName\\\":\\\"Fixture AMK\\\",\\\"chatName\\\":\\\"AMK Site Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}}\"",
+      "replay_attempt_id": "attempt-0a8b1c717430",
+      "replay_run_id": "live-drain-eceac6a7e233",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_write",
+      "turn_id": "paturn_cb1ed9d987404a38b70d0e0a67b566eb"
+    },
+    {
+      "call_id": "call_O55Sx6NEM4NNxuts9ljGYiwn",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 11,
+      "input_json": "\"{\\\"operation\\\":\\\"tgg_case_update\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\",\\\"state\\\":\\\"completed\\\",\\\"evidenceMessageRefs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}}\"",
+      "replay_attempt_id": "attempt-0a8b1c717430",
+      "replay_run_id": "live-drain-eceac6a7e233",
+      "result_json": "\"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"completed\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"evidenceMessageRefs\\\": [\\\"gate-conc-amk-1\\\", \\\"gate-conc-amk-2\\\"]}, \\\"status_code\\\": 200}\"",
+      "tool_name": "pa_business_write",
+      "turn_id": "paturn_cb1ed9d987404a38b70d0e0a67b566eb"
+    },
+    {
+      "call_id": "call_60s6Iu2kcBIN7OieFXYDa8wD",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 12,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded completion evidence for the established task \\u201cKitchen sink choke\\u201d; follow-up states no additional scope.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}\"",
+      "replay_attempt_id": "attempt-0a8b1c717430",
+      "replay_run_id": "live-drain-eceac6a7e233",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_cb1ed9d987404a38b70d0e0a67b566eb"
+    },
+    {
+      "call_id": "call_kNHBv2hjI9wF2XN1Tt1i6hg5",
+      "client_entity_pointer": null,
+      "cost_usd": null,
+      "duration_ms": null,
+      "id": 13,
+      "input_json": "\"{\\\"event_type\\\":\\\"case_update\\\",\\\"reason\\\":\\\"Marked AM/JOB/2607/8802 completed because the reported kitchen sink choke was cleared and completed with no additional scope.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}\"",
+      "replay_attempt_id": "attempt-0a8b1c717430",
+      "replay_run_id": "live-drain-eceac6a7e233",
+      "result_json": "\"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_update\\\", \\\"source\\\": \\\"agent_recorded\\\"}\"",
+      "tool_name": "record_event",
+      "turn_id": "paturn_cb1ed9d987404a38b70d0e0a67b566eb"
+    }
+  ],
+  "pa_turns": [
+    {
+      "agent_id": "christopher",
+      "chat_id": "120363409954029949@g.us",
+      "completed_at": 1784920859.69189,
+      "context_window_peak": 13295,
+      "cost_usd": null,
+      "error_json": null,
+      "input_tokens": 13298,
+      "latency_ms": 13541,
+      "message_refs_json": "[\"gate-conc-mgmt\"]",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 151,
+      "provider": "openai-direct-primary",
+      "raw_turn_envelope_json": "{\"api_calls\": 2, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"MANAGEMENT_OK\", \"messages\": [{\"content\": \"[Fixture Manager] Synthetic concurrency gate. Reply with exactly MANAGEMENT_OK and do not mutate any case.\\n\\n[Current turn source ids]\\nsource_message_id: gate-conc-mgmt\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sU7laHGWpKrCcA3AjerLsuUopvoMDwUJcMLOTqKKtPVxsGGjta1vvRcX0i3azArg-e34tj45WQpfxklUHvSUNiq7YH3gkk7tB_gJ4zCa2R7lvNdbD7ERDDlmHKkUKL1OgVp6xeDzXclO15bT1t8bzoMNLCYWYXKWTlg9zDK1HM8Mj2pR5PCfY1e12GYoeIAU4nLqRwH2YjG9U0iGRUh5-FaLWRJPFyqAHciZ72Alf5XMeh-8-WoNTb5bc2P54FCqdaf00gEbWWoAXuylVBC2BWuzfq-zIGvZ5ayzN7OtBzb3daG-g6nfWa4aKRvv6QEiHYsGLu2OyLj03ucO0en-smEgSOPq5o-lZByzJEF_R-ziyyPMbs22Bi57Y1klGo-h06Edc1tzQ7w-Wuyzqx1uIN20Pmpp3S-YnOc6eZtiEyjpRrOGW3SVF5jYu1ZQvLWvmabDxXD-09P0kcdjn8BGAQUyfICoKAg1EmDfnfArRBVAHXRwrP0pEks86i7Sqlr13tbYYyIg2b3E8IanlNaIlATTHXODBl_cX20JVVTfpgv8qiRlDFz51VYuC5Km5ubAqWCMp8T8LgoAZUz1zdcCTJU6aM8dPAdL_APPpxCk33HGjtzks7fiULt46p8F4XMB1e7nvu8ft1ZstRKCPXxUkLRpO6CkcVVQZzdBJXlX2RtPhfA-IwW_6hRqSAyGU6ubAxNbA4iQ9dG5lYwgf9ySulm5RGUVWM2-3BWT4v7e9m_69-iQLfNf-hVtmHhFZk5VkP52-Z7c9t7_TP1fmGL0WgS_mlEls1ro8w1vJZol7xPSpozWXMsktbZImEm_eAcNxbXhXaipSy40SKzerxwfJpn9jI5GBX_gZ1c2PeBkcsUaMn0eKwvzayc4FEFZZ9Ythc8tCiwR4q6_lG9Q0QpJOb9tLEtRN7CvPRXaDsLwZIpT6360-dxXHcRL8d8QmZee6egR-et0C8Xb33u_RLVwHAyf3K5xT_Tm-yID7MCSPgYK0JNfbEKD4oyh2twTfVrRNKjIP8o_q8wUlTMzqV52ImZDBOhHE2t3gGshrHEggO3PL_V4uPGlgR67xAoe8qJzcKd4267-tORDtNN2H_sO7oPasT4YqOnU0YYmp3MgCs49FRwhFm9FcLtSS-07rq9Yk7tJopNWviYZ5BT2M6NWxR2RcgeLC5J8MW9LJDNZ-dFeHiTnDa_4KX_lyLcqKS1gHCVe2LvVs-VtQfKvuosX6QKBK3DtcSGobAu_ZF8u63bpW0SM5EAGFg8kBM3YWN0PRV7Cfh3hWsgCmATe7N_9aqtVbSAS8YkyGv3h2XtOaD-s-n5LJGfMPCb8K5gsiNzkl5eLgHOYtNdOVJ-yCVupMrlDm_Tji8SIZr_ncKzjzgdPUBNc1T1dcrQX-vnwVC6kPOBQCj3M1dWIQvcWNeNXiJEdsNvxlmqM_3piVbpeu_9qHs6z2w-0tH2KM8b2okMnI5iWpnja5NbC3WjAe0oPGlMLuZU2LmSx0pT0BxzaqOfnYFqEwty-J2FWohy7o98QtzXsNxgAOydYaDZEdbbJrckw==\", \"id\": \"rs_0b6943f7eec3ffab016a63bb1357b8819a9978dbcb8e5f5c69\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_aURK5VNNzMEctnthdermSZKy\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"management_question_answered\\\",\\\"reason\\\":\\\"Acknowledged the synthetic concurrency gate without mutating any case.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-mgmt\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_aURK5VNNzMEctnthdermSZKy\", \"response_item_id\": \"fc_0b6943f7eec3ffab016a63bb14d760819a85df011e54807d4d\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"management_question_answered\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_aURK5VNNzMEctnthdermSZKy\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"MANAGEMENT_OK\", \"type\": \"output_text\"}], \"id\": \"msg_0050b860bb1421e4016a63bb1763ec819a9d798e9ae03443f0\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"MANAGEMENT_OK\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-bd29ad661d9a\", \"replay_run_id\": \"live-drain-724858b56a03\"}",
+      "replay_attempt_id": "attempt-bd29ad661d9a",
+      "replay_run_id": "live-drain-724858b56a03",
+      "session_id": "20260725_032046_e53574d6",
+      "started_at": 1784920846.150541,
+      "turn_id": "paturn_e8f3b2bddbd049c9a512a827486df5d4",
+      "turn_status": "completed"
+    },
+    {
+      "agent_id": "christopher",
+      "chat_id": "120363403845802098@g.us",
+      "completed_at": 1784920862.407218,
+      "context_window_peak": 12950,
+      "cost_usd": null,
+      "error_json": null,
+      "input_tokens": 12959,
+      "latency_ms": 14271,
+      "message_refs_json": "[\"gate-conc-pg\"]",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 570,
+      "provider": "openai-direct-primary",
+      "raw_turn_envelope_json": "{\"api_calls\": 4, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"Case created\\n\\nJob: PG/JOB/2607/9902\\nAddress: Block 202 Punggol Field #03-11\\nContact: Lim Test, 92345678\\nScope: Repair bedroom window handle\\nReceipt date: 20 July 2026\\nStatus: Pending\", \"messages\": [{\"content\": \"[Fixture PG] URGENT HDB job sheet. Job No PG/JOB/2607/9902. Receipt date 20 July 2026. Address Block 202 Punggol Field #03-11. Contact Lim Test 92345678. Scope: Repair bedroom window handle.\\n\\n[Current turn source ids]\\nsource_message_id: gate-conc-pg\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sVniXeBZ4TUtvZ7axYM5ID2Qxq7dx7YBnd62AbQATyBLyU28lUxGufXkfIQz279A6bQSIBFddebDmzK0adk9bNpvPeYc4lpaPnS7K0pbYs4vWWICN1sxBXRdjMUh-GCqgu6AYlLK3cpeHYnSsGObvy47Q2jALFGeow-Y4ZxSToqnlUgkZsYCh64C_VvfKBzD1sk8bUylzbatY0lFJLQJ9Qvvvs40s93DeP2iIYCW3mp-n604_MBHs3cjm22xFU0w7LvbszQ1IvzSf-Vpc5pKr-jTwQ-JIkVYaaiXVpxr6sAgiHgsCQzbZpRhDbO-wODsMzR5aWcGpGTh1BKYShjZvAuub0UpZ5VXbDvAfS6Q9L8ZagMnoLHg4k_wL3Zt5in0H-X25du7u9X_TC6YGBbHvFpUMk1AUSxjV0DJstSlqK9oqfsW-yzhA3zpRavUU5op5sUBdqg9uylmaVYuJwqVKrYBJAC1zXXQ-IAGKX6q2x6vf7rmVL7aE1Us5TVpb2ChBnFNXHFk7TXin-NM3IrzFhONjSQAJOjQRFv_mlDxhST_c8azncsFuib5NBTUzjljM3riN7wIN62qcwqF9nM7-ZH1YwziKYotFkDREMFxteX2WOBIl2fkXQXuiIORP5iSOreKo2tC-y1997j5XTFbitDMv3h4yJZ7mdX95Io43PMag7on3xGs8PUD4LjRXv5Qzoxx6sXdAHMgaGUM1o7UmhLw6r1WnPmvFtsm8smH5NmA83897JPk5wnvKvS337Hs2S5Xt1pdbhN9y0vdlMz-r6_V0ayzKUAmQ9eEZTZggHETQLZvFzp10OXG9LU16sAYxh5oGVIYepHhTPiar-zxgB40t351VoR0he4n3etq0yMbfyhy6GD_NNFtfksKNEEcTIE2VFd-3NpykQY99BuG0wYKC-U_zn9u1c2WmEKZua-v5l6_qyWeI86sUxzNuQzEnV2hH0eKBG2awOHNtBU1jvkoFvCz2YORTocdltjFHQL2GNCDaU1M0zmtdAEAqnq5h3u-mk2z-ZPCwixum3YkVRKWsQRGsWAPlh4krkKGUu6qBoK8ZMfA6OnYQRb9q5WxGRwtyBzTXT0YPyX8eL8IxtGBvhO4qdZtspCmsE-M-Koi6Mopps-KxRH3x_xCJzthd1jzpbZZTwXN7mkiHa20eS8n45N8BXnm1uXTtFHsN6IZcFN-OAkydGI9ZEMlM-6zhVOqQi_IgX7Pg3oapzJRmAI2SJ6SxSb7gMwMyxGdJgxIQxghQv6s0Bt5jXUFEkgVIxAbjHmRikVuhacns2sAHPGE6ndufZwwqlo0NG-Um6QuV5hTZgaePzEQQwvu9N8eIEk1vWPzt2tG_RMBd2Pi-eYOMSFUjzlJXFK3l3j9-tw9jyNOu0egIrjyqvUtSz1LwPaUcB6Zq9d08MF4HWddK6ALcbEhtzjbOECbMBh019AH_AdUHU28VwkUQaiFNM5mkLbPoHIPaR1YkdotM_PeH4nNrZhpQnvSDT6qqrtRctg7FuRIKqFvad-9voHeuCxIGVdv8QIOsYalcbM3PtBefOA3mn903G6HZqmhRAWct1PlY7-f-s6rrfs7ETUYd0ul1cIcZfnZNu_8gvoiihAiHrv-zEACF_B2WoSBfaSxAVhVQhL7DDdlsXO-3xCsHX2SFCIu-2mbM92_uv1iN9pTPzL1VELV1vjw3djk0QrF2nBHIF8MiIOh8iij-wd8BvFKaDqwCRLqWUrvUXmx9Q6TuHtDjXSgbHooMs47p7lrPQc5EiASrDGye0aYQYqtkb9ruEg6t0PCorepQ55LcGyfarAQNwZ-57CAUEf4UU2qZoY7JN70CtiMnouxWtyOeHeosILIsPq_Chw_5I2Yu71KlAy52P8h3XvfuEXsMqDBTNtQRupNEFDCiQE3Ah3tLpg7yVZmRjKU7WRttuIQflrvqxhQ==\", \"id\": \"rs_07acab871236759e016a63bb1309a4819abf6f00fa99737519\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_Z6nTTq8gIdDZn43UHNtjQ6pP\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"PG/JOB/2607/9902\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_Z6nTTq8gIdDZn43UHNtjQ6pP\", \"response_item_id\": \"fc_07acab871236759e016a63bb159f78819a85b5ba95683787a0\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": false, \\\"error\\\": \\\"not found\\\", \\\"status_code\\\": 404}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_Z6nTTq8gIdDZn43UHNtjQ6pP\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sYBX_cFWAA9t_-w69CZ8QG8A3FO5uIchppgrtv4l79pOtDM2KVSiQKlsunbkUJhqG2Wh9wvG5SJc095iUEWWkH2yCw1NwOyCUyd9BVOHjEEVb26c1JdJlkAqa0J_3Q7GakidMxa2gzXOSQeECLtljAVWZHKUkA1z6lCrFIvsT3bg5YocJuYrgnqv5ervpcPljseO1J2sv06hiPspghWd93LDXV8m5h3bEjLVlGlK7TM6NNqMHaM_7iuhU96AiOupBIMNeJxDTV90-zVxZqTW13y7Rs3pf_gLJ1_CwG9B59VBFe8-T8y6fmJ_7uglLQFFHMnNIIIqW_5wGbcBVLdVJwZ1GJy4MCJo11R4GzwBuAHH-Vc_E1wqSxmTFJUS9hvQxXJqmurHxCN6z4OHgghgRvohiFR8dNsO89-ud_7az2Hs_kzcCap3S5ybjoW3k36W3kKl4VSrh4_iNr9UXslJfqahLhTsHyYbfOZO5koIg9U_nP-BUAP53pXVmIh5SCbq1SU2L9xYyWqUGQGePIu_-JnYH9Xu0BLBuCHpF0RJ4uT-08dDnO5chSB8uzCUta9JlbOTkyhvnx8yjGKZ1UEtjbSRopiNXYiCZJCmlB5dPuVt-GSL6rDJPfHCYg0dWjrstaQ5PMvWd8ayYxyZ_9lZqkKXC04KYXjTE1CDoUnSe7MW4SwLYajxBBmLMKRI23OGtE1hHcmxbIjJOCBphLzVCOVJ5G56crTX5H0iN185wmjmvGEN9wvszvj-dy9zgVUusH13V3EVmhYqQ8xLvJddkPQaYL6n5aUOnHfNlXaKQf3X8PotUtnOW0dlBA09FnOwk44XhAD21v5tgIcj5GowOJs1rnp_6prb0lwNsZ55i_fnxwZ6f-GPcb65RXxPzGOlKocIEcPirfpxNsYc_9kdQrTU1EJRkOUbLj_CkZM3f-mmpKi_2i6SPFBWg1JCYzmr4ODTWw_rS5nBLIhafaUCireABw0hAvrCEDdOuSf1ILi-1s9lvxn3iVKgIPdh76TzAK7JlmIQ4oXSYVowoWjsChfiZ8sJBMR2IG_WGBDzpsCgw37vkScoJsDsrSkncyqKI5p6rTQCjYHwn4IN2iDryFMoo_4fc-LAX3je3PUPz4fQ0sU5Pu2jLxv5m7NKJHPazw\", \"id\": \"rs_02d1764353f0eb22016a63bb177eb0819a9ab2fc5e35a23144\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_janbtG0dCfgA9Ti38najmg26\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_create\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"PG/JOB/2607/9902\\\",\\\"zone\\\":\\\"Punggol\\\",\\\"serviceLine\\\":\\\"maintenance\\\",\\\"address\\\":\\\"Block 202 Punggol Field #03-11\\\",\\\"problem\\\":\\\"Repair bedroom window handle.\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"contactName\\\":\\\"Lim Test\\\",\\\"contactPhone\\\":\\\"92345678\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"bedroom window handle\\\",\\\"status\\\":\\\"pending\\\"}],\\\"receivedAt\\\":1784476800,\\\"evidenceMessageRefs\\\":[\\\"gate-conc-pg\\\"],\\\"evidence\\\":{\\\"receipt_date\\\":\\\"20 July 2026\\\",\\\"source_message_id\\\":\\\"gate-conc-pg\\\"}}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_janbtG0dCfgA9Ti38najmg26\", \"response_item_id\": \"fc_02d1764353f0eb22016a63bb18413c819a8a2d5c59fe0b884f\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"caseId\\\": 4, \\\"jobNo\\\": \\\"PG/JOB/2607/9902\\\", \\\"created\\\": true}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_janbtG0dCfgA9Ti38najmg26\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_XrCtLN3w9xiheIpRQORlqYvL\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_create\\\",\\\"reason\\\":\\\"Created new HDB job sheet case for repair of the bedroom window handle at Block 202 Punggol Field #03-11.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-pg\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_XrCtLN3w9xiheIpRQORlqYvL\", \"response_item_id\": \"fc_0683f98ac6011d4e016a63bb1a7db08198840febd2756187b5\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_create\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_XrCtLN3w9xiheIpRQORlqYvL\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"Case created\\n\\nJob: PG/JOB/2607/9902\\nAddress: Block 202 Punggol Field #03-11\\nContact: Lim Test, 92345678\\nScope: Repair bedroom window handle\\nReceipt date: 20 July 2026\\nStatus: Pending\", \"type\": \"output_text\"}], \"id\": \"msg_0d22f9077708c719016a63bb1d247c8199a1f7468806398ff8\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"Case created\\n\\nJob: PG/JOB/2607/9902\\nAddress: Block 202 Punggol Field #03-11\\nContact: Lim Test, 92345678\\nScope: Repair bedroom window handle\\nReceipt date: 20 July 2026\\nStatus: Pending\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-b2e350be9512\", \"replay_run_id\": \"live-drain-fc3312922357\"}",
+      "replay_attempt_id": "attempt-b2e350be9512",
+      "replay_run_id": "live-drain-fc3312922357",
+      "session_id": "20260725_032048_ff55a0e7",
+      "started_at": 1784920848.1358452,
+      "turn_id": "paturn_c19186383ca54e47b5f8ede2015bcca3",
+      "turn_status": "completed"
+    },
+    {
+      "agent_id": "christopher",
+      "chat_id": "120363423568509280@g.us",
+      "completed_at": 1784920863.630768,
+      "context_window_peak": 13199,
+      "cost_usd": null,
+      "error_json": null,
+      "input_tokens": 13211,
+      "latency_ms": 14837,
+      "message_refs_json": "[\"gate-conc-sk\"]",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 759,
+      "provider": "openai-direct-primary",
+      "raw_turn_envelope_json": "{\"api_calls\": 5, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"Case created: SK/JOB/2607/9903\\n\\nAddress: Block 303 Sengkang East Way #06-22\\nContact: Goh Test, 93456789\\nScope: Replace faulty cistern parts\\nStatus: Open\", \"messages\": [{\"content\": \"[Fixture SK] HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.\\n\\n[Current turn source ids]\\nsource_message_id: gate-conc-sk\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sV8if9JmYZYzNan68L_rIV_SZYorQ0LnDB3JV2gJ9tfkaayIZdix_k6uBqn5eOFuuvyvErHQPDjXXGuI3OGPiluCpLR_fOxt38GpXEpGb55sK5AEc6jn4Gpq_t4auyle1sPWmrziZqjTTHBO8vi3ThSqQD_U7SVRLASFXG2egWbe9zmnK_W30Ixc5hoGLtYxx3hy2DY9ybidnj_2SanjF1RUL-ercUBcHWOKjNeD5MqXc9GCpJqzOwLiQneTR4hRnuUrt81EG-RkWs7pkYEGkOT3k8lFe_f1DiQSH_pQ2yU7-DPCR9SyNV53VEpU1ui0LANw2zPy7GpnE3uKaozrhk2AmbU96Td2uut5a3GXFpayNCXDadbyeaLTnnHVzaglIes7YOUEfCWloHtyiCR0IrHRgg1WVvlZ3YZjtu0PnNntmHX8B21vJAFalSLysjswfrxCbDZH1Vrks7kjIzg1GNmbfAfarpJ5nms2BPGcwa8dzY_-LEXxoUFs_bo0lSyVml7pWJ2Mefe-7m7TAnD-9ZBIAysRaUD_5CKBrMICrqmXpGTzYVPaT32Wh68B8inroUSrsXrEsFLBXNnpyRva6goZEnah0nQU8QM1VBt-Et4DgjCzugKick3q3uljQt5-f0QRJwoOmHrD9qf79tPnxXsGbHv6JLNM0w368xAKP7Iil161szcoEimES0WWd-bsXRB8j78fHXIqXKwGmMp9k_sSlS2XN30vQ62ollQkj3DjzMQArYPyyxguNWxFcgr4kp9ksBhPSZznmcbcg8WeJ366ZPBiyt9okSHvn1cpOTs5as1mRIPPBfuSwSPFg_WvJbJK4KPxmlM9pXhJV-uvRR4gv_4Ql3ZfBFqrtou_A473ED4jvLXE__OHDlcCSrudM2a_zmCD11eCeRADyXNYTMlehpqgxnkP0q2gojH1pbWdM0-F79UGkrjDCFwCzATbN2zyWsvczbmipXsLk6-qk28TEJTRTSaqwL9QaI9aCsS7oqmLBHVhLh0fBjMHpwRvpQt_beCuaTOk5ikbTC14vT8ZntpmIxAq8kUGvh5UGUJTP0k6zy2jjJvmcUBPl3--baovbO5LRPRhaDb4kwI1z0-4VysApsW5j3Z0k-OW-uIBTQQg4pl2I7WzkEHpetqAvJBUJbxQzI9XUrGB3XF2MqlgewPefH8L4GaLPrNOaUG2mPy21zFRE4SL4WPvL28FPjf-Y-bTo09Exza11n091Pu7Rtd2GLrh2EbLaVr7vdfSfVjKBnNdsInmv8U04tSoot1-EEO4Gv4vki8NNxGmBKGcH-I7NaQ6fCGPpzSCudzk4BqYTooISq4ITHrnNhi7PAsnm79p8_4mpo5Ohv-FJurFyJ3baUcsHZWT46Lc5YIP8YDDo2RCsr3OijLxyCxw9QotkXx338odRJXjLbdOQpQHJ-ThgRK6W5AhYoT6Rtjwdi99yRRZTBynMRNpoirW9zOxNjnqh49rpLPgJU1tnhkoYZxho1z9VueDMGGWdPiIda1gQ8zIvF6M0hBl1fvj5nkRXJrt0sbDn_0Z_IPPcBP85m3UefZPaMo7W2VamK58635UwJcAjHa1NNipaFHBnMknFd3bh-2HbuyaJKwkdc-A==\", \"id\": \"rs_0b2cda05d5295fa4016a63bb1389948199bbcf54ed912440e4\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_k0P2GnAVLt7hma0ZZR1cu1GV\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"SK/JOB/2607/9903\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_k0P2GnAVLt7hma0ZZR1cu1GV\", \"response_item_id\": \"fc_0b2cda05d5295fa4016a63bb15b2ec8199957145c246a8169c\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": false, \\\"error\\\": \\\"not found\\\", \\\"status_code\\\": 404}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_k0P2GnAVLt7hma0ZZR1cu1GV\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_GPZhxkZ6PNPIKqcJWyNsFrle\", \"function\": {\"arguments\": \"{\\\"jobNo\\\":\\\"SK/JOB/2607/9903\\\",\\\"zone\\\":\\\"SK\\\",\\\"serviceLine\\\":\\\"maintenance\\\",\\\"address\\\":\\\"Block 303 Sengkang East Way #06-22\\\",\\\"problem\\\":\\\"Replace faulty cistern parts.\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"contactName\\\":\\\"Goh Test\\\",\\\"contactPhone\\\":\\\"93456789\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"faulty cistern parts\\\",\\\"status\\\":\\\"pending\\\",\\\"note\\\":\\\"Replace faulty cistern parts.\\\",\\\"evidence_refs\\\":[\\\"source_message_id: gate-conc-sk\\\"]}],\\\"receivedAt\\\":1784476800,\\\"evidenceMessageRefs\\\":[\\\"source_message_id: gate-conc-sk\\\"],\\\"evidence\\\":{\\\"receipt_date\\\":\\\"20 July 2026\\\",\\\"job_sheet_text\\\":\\\"HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.\\\"}}\", \"name\": \"tgg_case_create\"}, \"id\": \"call_GPZhxkZ6PNPIKqcJWyNsFrle\", \"response_item_id\": \"fc_0974300aa0b7a686016a63bb178a84819a8a39120e71a178c3\", \"type\": \"function\"}]}, {\"content\": \"{\\\"error\\\": \\\"tgg_case_create source refs are outside the current turn: source_message_id: gate-conc-sk. Retry with only current-turn message ids that support THIS write.\\\"}\", \"name\": \"tgg_case_create\", \"role\": \"tool\", \"tool_call_id\": \"call_GPZhxkZ6PNPIKqcJWyNsFrle\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7saEHaMFxU1pW3Xkck691teBfuhEuAl5NHKvqoH4RvSOtoyO6HRHOBSj6BZ6UDU-PQywV1FiubLhD0iWoesXKEe4haiuuP8LcW038-fQdSY5L1L8mb3iSYrXm4iVv6DfnbM4bGqsBcluekiuzrIvKo3Rm1QigJh49F27qaFwMluenudhYGXsTyxWFvAU-oEuLFm5EngfHz-KCGDmaHdwTXoJGPuyyzUoToo2EBPJUCDndNZKUg2hItB97yH9jf6mwE0JhILsec6RqSLoFH2h-WrCuVzasSHRau1kiUTEgHsB4ddd5euE0MmDXLmv7L0gN-eDE39p2jahN090xO-zpOimDFFdQAaxV7ShOUm9rbQ4OTmOwrB5IovT3NmuF9mFTxqJaMWOXrYOpT3yQaUOFevQwx8R2B5rG0WwRFc8pfaQ0OhyeBdNnde34PEW5P_ImEjj6FpwwGJs35Mle-jcpvdvWgN-mmlU_J1SfGQiotPFSIGYHB7CP1iVpjJoaEoj-n6ZjsD66xVONqZFa2SvQdKrqF3RThzgoDxlgjv2TZldtqjUcqTCY-LUHhzwqBkwzj6E-yvPUu1-vx6x8bC1zjVIORKT-WX0uDmH-JaaKIjGceVm6YhR1IBND1lLCEpCOM76oFv8yJzgu3WsWus2OpDXHjNxlHKCtepSYwPuFDnCwA9C-wjgxv_CGlBXrUD_TSQqham51dXo3dUniE5Et6knk9eh7zV7tmmIZ72R170xRkbsBfPownphumDKaqxJyDp6h-8tDnZlxJogFjK5pk_bPRCcUO5eGUw_uMTlahEzsfXPpjzTxgIC2WaFtEBBV3QnSq8bLM7OK3HgLODiBzvfEGJ3h5K3EtnsbsYmaxfJWaArgaMsa42TIIcFnf-0vwHQgIWAs-r2hnlohpegmFTWoyvWHR-xEmpEYSjymMlzPFG5hqX-L9BqOfAThCGQ_CSKE3B97rH-hDP0FekjtUDqfnSwwpzDCP77cyTVfJm3xTGwaW4N0lF6l-_eXdxqsqnq0y7VOnKdYMutoTloFAxwPI6y7JzjQisBS04Zs1qykI=\", \"id\": \"rs_019d5f479cdb7850016a63bb1996a8819898a398e1c449d6a4\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_G6Nat64MqPKERJzfoeWOAC1R\", \"function\": {\"arguments\": \"{\\\"address\\\":\\\"Block 303 Sengkang East Way #06-22\\\",\\\"contactName\\\":\\\"Goh Test\\\",\\\"contactPhone\\\":\\\"93456789\\\",\\\"evidence\\\":{\\\"job_sheet_text\\\":\\\"HDB job sheet. Job No SK/JOB/2607/9903. Receipt date 20 July 2026. Address Block 303 Sengkang East Way #06-22. Contact Goh Test 93456789. Scope: Replace faulty cistern parts.\\\",\\\"receipt_date\\\":\\\"20 July 2026\\\"},\\\"evidenceMessageRefs\\\":[\\\"gate-conc-sk\\\"],\\\"jobNo\\\":\\\"SK/JOB/2607/9903\\\",\\\"problem\\\":\\\"Replace faulty cistern parts.\\\",\\\"receivedAt\\\":1784476800,\\\"serviceLine\\\":\\\"maintenance\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"work_items\\\":[{\\\"evidence_refs\\\":[\\\"gate-conc-sk\\\"],\\\"label\\\":\\\"faulty cistern parts\\\",\\\"note\\\":\\\"Replace faulty cistern parts.\\\",\\\"status\\\":\\\"pending\\\"}],\\\"zone\\\":\\\"SK\\\"}\", \"name\": \"tgg_case_create\"}, \"id\": \"call_G6Nat64MqPKERJzfoeWOAC1R\", \"response_item_id\": \"fc_019d5f479cdb7850016a63bb1a35dc8198be097ea2cca7c708\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"caseId\\\": 5, \\\"jobNo\\\": \\\"SK/JOB/2607/9903\\\", \\\"created\\\": true}, \\\"status_code\\\": 200}\", \"name\": \"tgg_case_create\", \"role\": \"tool\", \"tool_call_id\": \"call_G6Nat64MqPKERJzfoeWOAC1R\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_I9bwxboZCkYh6CyfC8k2Fu3J\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_create\\\",\\\"reason\\\":\\\"Created new SK maintenance case from the HDB job sheet for Block 303 Sengkang East Way #06-22, scope to replace faulty cistern parts.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-sk\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_I9bwxboZCkYh6CyfC8k2Fu3J\", \"response_item_id\": \"fc_0bb60760011e057d016a63bb1c728081989d7930e45ddad6bc\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_create\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_I9bwxboZCkYh6CyfC8k2Fu3J\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"Case created: SK/JOB/2607/9903\\n\\nAddress: Block 303 Sengkang East Way #06-22\\nContact: Goh Test, 93456789\\nScope: Replace faulty cistern parts\\nStatus: Open\", \"type\": \"output_text\"}], \"id\": \"msg_0348a00eeced2408016a63bb1ef6248198970dfa7b5436a7f3\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"Case created: SK/JOB/2607/9903\\n\\nAddress: Block 303 Sengkang East Way #06-22\\nContact: Goh Test, 93456789\\nScope: Replace faulty cistern parts\\nStatus: Open\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-08a141eca7f6\", \"replay_run_id\": \"live-drain-0a20257a6777\"}",
+      "replay_attempt_id": "attempt-08a141eca7f6",
+      "replay_run_id": "live-drain-0a20257a6777",
+      "session_id": "20260725_032048_8499f23c",
+      "started_at": 1784920848.792913,
+      "turn_id": "paturn_8500310f99304ae295034da0f50109a7",
+      "turn_status": "completed"
+    },
+    {
+      "agent_id": "christopher",
+      "chat_id": "120363421424519051@g.us",
+      "completed_at": 1784920868.195912,
+      "context_window_peak": 13275,
+      "cost_usd": null,
+      "error_json": null,
+      "input_tokens": 13287,
+      "latency_ms": 20711,
+      "message_refs_json": "[\"gate-conc-amk-1\", \"gate-conc-amk-2\"]",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 617,
+      "provider": "openai-direct-primary",
+      "raw_turn_envelope_json": "{\"api_calls\": 5, \"completed\": true, \"execution_mode\": \"replay\", \"final_response\": \"AM/JOB/2607/8802\\n\\n\\u2022 Kitchen sink choke: completed\\n\\u2022 Additional scope: none\\n\\u2022 Case state: completed\", \"messages\": [{\"content\": \"[Fixture AMK] WhatsApp turn bundle (2 messages)\\nChat: AMK Site Fixture (120363421424519051@g.us)\\n\\n1. [1784541600] Fixture AMK: AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed.\\n   source_message_id: gate-conc-amk-1\\n2. [1784541630] Fixture AMK: Same AM/JOB/2607/8802 update: no additional scope.\\n   source_message_id: gate-conc-amk-2\", \"role\": \"user\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sUaB2xMe-eWQWZEXbvfZq8X0saxXQh05ged9dM_wmtns7J3Hy1v2w0wI_7T3SwirbZs1SpbCErQrBEcpOHQnqqJd0mbF1fsui1qmsDb1nhR_Qo_Zdjs-tXkjwe2nIjNPU6MFcgCHvxYGwL3WFqojWWShVdZR-HZtbVBH-KokiXpW-Yv7-rynqB2gGZ91ySGAe5hR8sme90jGyp13MOeezs0c094SAfmebGpmPZ-vIOADDrXVACUnDk-_DnKC2HFnHcan8-b7I7CpEqAveWRi_Afv6oJ1e-WCsUMagyne8qBAaWU6e_lBmdXyKKybcqVeNTc2NrKlRuc0VrL3J0MgeCESqa4ffT1p6xnKEkvztLT3aGJW2EK5U4FDombcuSXQbwYYEG62-juBbLYu6MsTf6YEgafeXFztr-Tm2vOTF0itj2iDACOhZLnmgTArGsuH4Ib_qNjr2S5bqMvnBgW3Ml1uju9CEXNJvv3d4b352ffy06kTDQh-wGqxj0g-QJ-DgwLzuTWiM01YSwD4PBJKZMzmh1gzdEbCPMAkMO6Shr93Px1v28LCvroJGDPxtVtzBlZNkbq5QnX9ZETlMpuaKLbQb44azr667Ohj6F4tQD3oVq8zhrTFoF4Q1nJX5qwHJ97KZb9SjyvYihIahdf_GFlcV09JW6Wv61031PRh4TeaXJxJuJPJGz5rs6oViDdyQiiVb4fHbervGLAYwl1rldN2-0pFoZiTxLHticrRLjMYu-8xEkBwyPby8P5b_bz2MyQlS0PvHa_ZBLehfBHKHNa2qwXWRA5tExN16P2Hro_R194234UGUKJ9MNzTi07JElDlMU8lcunbvfYxEZASl1aK1uiSkusRG_FANu3nTvBfCujtm3VsRxx2Ccc_7bnlD6l2-X_WH595vvXj-uAEGzWFIxu_Qr7YIjtoiWtp-Yw5IbOdYeqsVTMmzqW69LUe0iQKbJUmNdKwlESNqHUn6eSIdcQSqRxsXFkEtYWSyVrpmjAfITVmbin8FjwwDKBWaYhI3whSxes1aw_CUw6ohSybIurS-59ircEfPXczyTiMisH-m9xperB7t1RIF8Mwt6\", \"id\": \"rs_07ae20cbcb6761dd016a63bb1328488199a608b06ff35d93a7\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_HREjMubozzrrf1x7eLpKfWV3\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_lookup\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\"}}\", \"name\": \"pa_business_read\"}, \"id\": \"call_HREjMubozzrrf1x7eLpKfWV3\", \"response_item_id\": \"fc_07ae20cbcb6761dd016a63bb147d9481998bd4881bf22a9bcd\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"open\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"observations\\\": []}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_read\", \"role\": \"tool\", \"tool_call_id\": \"call_HREjMubozzrrf1x7eLpKfWV3\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sZjzglmbeGDewvlmYxQ3EDMlLik5Oyz9JGLrTxO3HQ2hzXEg3QwJojLHBbJhUzcdwflsV5KZzzXSsUozVh2pTAglZbnqyykxOHVXivRnG9pL1yXt0hiqKgzBkOi7BlEqWPw8e5b4oapwziiTvzH74Eh-lw2WeyTOGB7eWPfwflN24ypoVXHVI7MI2pPtBtShMljDH1v_NEvCfuLt1FeWRfGFW-FY306nCd5J_GyItujr948lr_hrkjL_NUsVq8CXB8YynzcYPswEiUqanG-hhDecl2LUKPTngTjkJn67b4S8NkNugHbNSqTcRjUQ9uGOZVWFdxTwVFUU8vBU3ot6XGoUe3wNseEkn6DhoUUbCpGo1Xo6ed1cJTcFYTleN_3jk8bDIWmVldGHKDPfP1NXEGJl_OoQfvJTQjKrYu197X35tPwwP6e2dgi-eGobyCbWrKXsIzWlJYQxLmA1fbVSUMXzKVlASlesCaS0EjZACqEQr8gD10XJzJERL8B-G-WopdcDz8FqajEMXiGPBZX5S6Qo2GMbnI_VcMhtVr1nSpp4qjiyoPmTUcxcYHgqDTzTHoqF_a1mhJ7CKfWYM_QJTkWJAJjEAUiLrD0v6mqOWLay_XUsVSsQdxgzUrblG4JaaHWpWeN3ag3ZKG9kugmZWjMFDJF75EiUyYqpVTfiiyDMQVCgvRDH4TdTAcJ5OTpSqnIUMG4sYe5QbxaNvn7yDfLWjQoDuMFXcXHBCk4FuzBUf_5a-WmbOMWtqMQ08tYm-ruARwAOEkHIHYLZ9mWBM1gl1dHN8rxoN2QN5zh3itPQH0QmbPhQfcPaFYjok3L938yhPICQVby9pMquG69iWEdoMQOwK6EltBxbC7zS__UbLbSJlLjzAG3bTjT855OdOrGbYK9gged-hCmE9YgtMU1BXBu9i3zr3XKvktj3_8Pt2YY_b31ss7kE-4kG02GBjNSsdRmSI9XKktJyW2E4venPJ5QJvnMz0hF7wLPiz0660x5WoVPR7PVNKlDbNzcJBrcAezmWabnamZfRPY1R9fMm9MGQXb8PFODiIYbXDDGT_v1umjZ7xlKVJeFQvxcVdCxLtfcbUliDEb5gH6uVFCJHOplc2N4ZqCxZrKbzaGV2TYAzksFkjm68fu6MfSKD0qBaoB6kTsFPCSf5j1Eq2dniOh0CKKq5_hhVIC09whN-cvSxy_3f1qFOM7GODZZqJZzTyKczG_ZLm3uSMiQIG9MQ6hn3d1NepWyycrtOYzZWW9X-QsMfxl4bdgnlv_eVHAAQJqjEF4IY9heJ7exo1vTKR9DmPx7mrL3ggEnj3_b_-Y1kDjkIr88jDNc2a2eqZx\", \"id\": \"rs_0f487fc6e612fe61016a63bb170e80819aa19d5c285dd91417\", \"summary\": [{\"text\": \"**Evaluating observation updates**\\n\\nI need to have observation with exact labels, especially for the work items and media numbers. I should update the state to completed since the scope is clear. I\\u2019m considering whether to use a write function, and if parallel states might work. Maybe the dependency observation isn't needed for state updates. I might need to write sequentially, but I could also explore multi-parallel options since they\\u2019re technically independent. Still, I want to ensure correctness.\", \"type\": \"summary_text\"}], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": \"**Evaluating observation updates**\\n\\nI need to have observation with exact labels, especially for the work items and media numbers. I should update the state to completed since the scope is clear. I\\u2019m considering whether to use a write function, and if parallel states might work. Maybe the dependency observation isn't needed for state updates. I might need to write sequentially, but I could also explore multi-parallel options since they\\u2019re technically independent. Still, I want to ensure correctness.\", \"reasoning_content\": \"**Evaluating observation updates**\\n\\nI need to have observation with exact labels, especially for the work items and media numbers. I should update the state to completed since the scope is clear. I\\u2019m considering whether to use a write function, and if parallel states might work. Maybe the dependency observation isn't needed for state updates. I might need to write sequentially, but I could also explore multi-parallel options since they\\u2019re technically independent. Still, I want to ensure correctness.\", \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_pHFh25stogMIiYjAl9ksEJiK\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_observation\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\",\\\"source\\\":\\\"whatsapp\\\",\\\"notes\\\":\\\"Fixture AMK reports: \\u201cKitchen sink choke cleared and completed.\\u201d Follow-up confirms no additional scope.\\\",\\\"confidence\\\":\\\"high\\\",\\\"fields\\\":{\\\"message_text\\\":\\\"AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed. Same AM/JOB/2607/8802 update: no additional scope.\\\",\\\"sender_name\\\":\\\"Fixture AMK\\\",\\\"chat_name\\\":\\\"AMK Site Fixture\\\",\\\"work_items\\\":[{\\\"label\\\":\\\"Kitchen sink choke\\\",\\\"status\\\":\\\"done\\\",\\\"note\\\":\\\"Choke cleared and completed; no additional scope.\\\",\\\"evidence_refs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}]},\\\"messageText\\\":\\\"AM/JOB/2607/8802 update: Kitchen sink choke cleared and completed. Same AM/JOB/2607/8802 update: no additional scope.\\\",\\\"senderName\\\":\\\"Fixture AMK\\\",\\\"chatName\\\":\\\"AMK Site Fixture\\\",\\\"sourceRefs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_pHFh25stogMIiYjAl9ksEJiK\", \"response_item_id\": \"fc_0f487fc6e612fe61016a63bb190108819abbf25b3b5390e3b8\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"observationId\\\": \\\"obs-1\\\"}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_pHFh25stogMIiYjAl9ksEJiK\"}, {\"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_O55Sx6NEM4NNxuts9ljGYiwn\", \"function\": {\"arguments\": \"{\\\"operation\\\":\\\"tgg_case_update\\\",\\\"payload\\\":{\\\"jobNo\\\":\\\"AM/JOB/2607/8802\\\",\\\"state\\\":\\\"completed\\\",\\\"evidenceMessageRefs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}}\", \"name\": \"pa_business_write\"}, \"id\": \"call_O55Sx6NEM4NNxuts9ljGYiwn\", \"response_item_id\": \"fc_0cf5c78fc2ea4264016a63bb1b46a08199b04ace3141524227\", \"type\": \"function\"}]}, {\"content\": \"{\\\"ok\\\": true, \\\"data\\\": {\\\"jobNo\\\": \\\"AM/JOB/2607/8802\\\", \\\"zone\\\": \\\"AMK\\\", \\\"state\\\": \\\"completed\\\", \\\"address\\\": \\\"Block 880 Ang Mo Kio Ave 10 #07-04\\\", \\\"work_items\\\": [{\\\"label\\\": \\\"Kitchen sink choke\\\", \\\"status\\\": \\\"pending\\\"}], \\\"evidenceMessageRefs\\\": [\\\"gate-conc-amk-1\\\", \\\"gate-conc-amk-2\\\"]}, \\\"status_code\\\": 200}\", \"name\": \"pa_business_write\", \"role\": \"tool\", \"tool_call_id\": \"call_O55Sx6NEM4NNxuts9ljGYiwn\"}, {\"codex_reasoning_items\": [{\"encrypted_content\": \"gAAAAABqY7sgyLgIIsl8quG__3B8n40pXG2EWj7hZ5f4MFW8ez7dEycnFBkQ5Ni6TdQyONNVUzRN8b_dygHrn4s77jfoIKACdFcdr-ZElLZWCStBBVWeSaHMQ27Cl-F4qxLfX5cJ85fZVoDyg0rGKxHvg3vQrTXmiv9Pu-0AjBKrcByqJaSZUUgxbX5rGLDd8zFg65xgUiI-tQ_MLaLMNXjAv5hvLIeg6NSiXK-v3NXfD2SqXNFQWruHqnXP2dgU6A7s2rSpMUKUn8BL2y8GfFFkuR4covQ0Ve5sL_9O5beRQjejPF8unbqvDmH7pkROSZ8DPptF0jcjS1qjz0y5XqWkpna3nYeJJIzpFW7X9yslH6uhltiXZaaTBc5qGYPZkuRKoJNLOCbkmsGDXdGkj1pVo8zfLkHvZ6VlmXjiPTHLLRaessx1hjriJi7lSMni-rZu8kb514_oSyo68UUW6HlNS97vdbure7aRNrglSlr-L7Ki6QeByNR3Dn0fcLHaurtoi-V9J-ZKHTe0baRQ4GqcjPFp6cBbKFl2OZ5_1J7XAUsxb0L7AaphKfUNOWeS9j5VC61FvZ48z9lB9poKuBBvrkjhk4nK0jDQoA7aXRA9c_Pb6WzKH7RtslfEDbV-usA-UUKDVpVT_RHgWEY2LL6VrTeTt_foEsMo-Llr7AAgXXHLTFLVA_ltqiFzvMvgWvEVZV1Sfa5owVtoYBCDMB9pdPZipho8BzDWs9MI-w5FCPcVPK1tSHcwPv4tq-2wp6ZMyq0uVc4ZA6f9USCfWaJ0jedXvDxAC2aRHc8SCJx1ZBwWKeNdgafwO7Ij1716MuVj_m7k0wO25ket4cpNakFRlfRNVdqGeg2vn3-pAPKGcmthC2bXuD9qe0ZqQg-MMes_tifxfjfGVa6BVoi8B70GcvJPYazHVzMD2l0XX1S6PlrJ88KApwN8D-pKRoA7RFxA_sfsvlQLBiNvmE6vX6nPdHDjTfL2VQ==\", \"id\": \"rs_06d1c7e15679040e016a63bb1f42a88198a007e98dde250f69\", \"summary\": [], \"type\": \"reasoning\"}], \"content\": \"\", \"finish_reason\": \"tool_calls\", \"reasoning\": null, \"role\": \"assistant\", \"tool_calls\": [{\"call_id\": \"call_60s6Iu2kcBIN7OieFXYDa8wD\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_observation\\\",\\\"reason\\\":\\\"Recorded completion evidence for the established task \\u201cKitchen sink choke\\u201d; follow-up states no additional scope.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_60s6Iu2kcBIN7OieFXYDa8wD\", \"response_item_id\": \"fc_06d1c7e15679040e016a63bb203fcc819895a22471b1f19b80\", \"type\": \"function\"}, {\"call_id\": \"call_kNHBv2hjI9wF2XN1Tt1i6hg5\", \"function\": {\"arguments\": \"{\\\"event_type\\\":\\\"case_update\\\",\\\"reason\\\":\\\"Marked AM/JOB/2607/8802 completed because the reported kitchen sink choke was cleared and completed with no additional scope.\\\",\\\"evidence_message_refs\\\":[\\\"gate-conc-amk-1\\\",\\\"gate-conc-amk-2\\\"]}\", \"name\": \"record_event\"}, \"id\": \"call_kNHBv2hjI9wF2XN1Tt1i6hg5\", \"response_item_id\": \"fc_06d1c7e15679040e016a63bb203fe08198be0091719fc0984f\", \"type\": \"function\"}]}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_observation\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_60s6Iu2kcBIN7OieFXYDa8wD\"}, {\"content\": \"{\\\"recorded\\\": true, \\\"event_type\\\": \\\"case_update\\\", \\\"source\\\": \\\"agent_recorded\\\"}\", \"name\": \"record_event\", \"role\": \"tool\", \"tool_call_id\": \"call_kNHBv2hjI9wF2XN1Tt1i6hg5\"}, {\"codex_message_items\": [{\"content\": [{\"text\": \"AM/JOB/2607/8802\\n\\n\\u2022 Kitchen sink choke: completed\\n\\u2022 Additional scope: none\\n\\u2022 Case state: completed\", \"type\": \"output_text\"}], \"id\": \"msg_03d86d7faec1b0bb016a63bb23a6b88198ad42254110089778\", \"phase\": \"final_answer\", \"role\": \"assistant\", \"status\": \"completed\", \"type\": \"message\"}], \"content\": \"AM/JOB/2607/8802\\n\\n\\u2022 Kitchen sink choke: completed\\n\\u2022 Additional scope: none\\n\\u2022 Case state: completed\", \"finish_reason\": \"stop\", \"reasoning\": null, \"role\": \"assistant\"}], \"model\": \"gpt-5.6-luna\", \"provider\": \"openai-direct-primary\", \"replay_attempt_id\": \"attempt-0a8b1c717430\", \"replay_run_id\": \"live-drain-eceac6a7e233\"}",
+      "replay_attempt_id": "attempt-0a8b1c717430",
+      "replay_run_id": "live-drain-eceac6a7e233",
+      "session_id": "20260725_032047_71ce207f",
+      "started_at": 1784920847.48471,
+      "turn_id": "paturn_cb1ed9d987404a38b70d0e0a67b566eb",
+      "turn_status": "completed"
+    }
+  ],
+  "result": {
+    "rc": 0,
+    "status": {
+      "active_management_chats": [],
+      "active_site_chats": [],
+      "chat_batch_size": 25,
+      "claim_stale_seconds": 1800,
+      "config_enabled": true,
+      "gate_change_run_id": "fixture-gate",
+      "gate_enabled": true,
+      "gate_generation": 1,
+      "inbox": {
+        "completed": 5
+      },
+      "media_root_bytes": 0,
+      "media_root_count": 0,
+      "media_volume_free_percent": null,
+      "oldest_active_claim": null,
+      "pid": 85696,
+      "processing_enabled": true,
+      "retention_attempts": 0,
+      "retention_batch_size": 25,
+      "retention_bypassed": 5,
+      "retention_complete": 0,
+      "retention_cycle": {
+        "bypassed": 0,
+        "examined": 0,
+        "held": 0,
+        "retained": 0
+      },
+      "retention_failures": 0,
+      "retention_held": 0,
+      "retention_hold": null,
+      "retention_pending": 0,
+      "retention_total": 0,
+      "scheduler_mode": "per-chat-parallel",
+      "site_concurrency": 3,
+      "staged": 5,
+      "startup_recovery": {
+        "completed": 0,
+        "requeued": 0,
+        "total": 0
+      },
+      "state": "running",
+      "state_total": 5,
+      "updated_at": "2026-07-24T19:21:08.219417+00:00",
+      "version": 1
+    }
+  },
+  "run_root": "/private/tmp/christopher-create-contract/gate-concurrency-1784920843-ca851e94"
+}

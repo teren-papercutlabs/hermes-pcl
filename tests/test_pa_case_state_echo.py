@@ -137,6 +137,10 @@ def test_observation_result_echoes_last_known_state(monkeypatch):
         },
     )
     pbt._handle_tgg_case_lookup({"jobNo": "AM/JOB/2601/1018"})
+    monkeypatch.setenv("HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-msg-1"]')
+    monkeypatch.setenv(
+        "HERMES_SESSION_SOURCE_MESSAGE_TIMESTAMPS", '{"wa-msg-1": 1784895201}'
+    )
     raw = pbt._handle_tgg_case_observation(
         {
             "jobNo": "AM/JOB/2601/1018",
@@ -198,6 +202,10 @@ def test_observation_does_not_override_backend_provided_state(monkeypatch):
             }
         },
     )
+    monkeypatch.setenv("HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-msg-4"]')
+    monkeypatch.setenv(
+        "HERMES_SESSION_SOURCE_MESSAGE_TIMESTAMPS", '{"wa-msg-4": 1784895204}'
+    )
     raw = pbt._handle_tgg_case_observation(
         {"jobNo": "AM/JOB/2601/1018", "sourceRefs": ["wa-msg-4"]}
     )
@@ -219,13 +227,17 @@ def test_observation_requires_source_refs_before_backend_write(monkeypatch):
     raw = pbt._handle_tgg_case_observation({"jobNo": "AM/JOB/2601/1018"})
     data = json.loads(raw)
     assert data["error"]
-    assert "sourceRefs" in data["error"]
+    assert "explicit source refs" in data["error"]
     assert calls == []
 
 
-def test_observation_injects_current_turn_source_refs(monkeypatch):
+def test_observation_does_not_inject_whole_turn_source_refs(monkeypatch):
     monkeypatch.setenv(
         "HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-current-1", "wa-current-2"]'
+    )
+    monkeypatch.setenv(
+        "HERMES_SESSION_SOURCE_MESSAGE_TIMESTAMPS",
+        '{"wa-current-1": 1784895201, "wa-current-2": 1784895202}',
     )
     calls = _patch_backend(
         monkeypatch,
@@ -240,14 +252,15 @@ def test_observation_injects_current_turn_source_refs(monkeypatch):
 
     raw = pbt._handle_tgg_case_observation({"jobNo": "AM/JOB/2601/1018"})
 
-    assert json.loads(raw)["ok"] is True
-    assert calls[0][1]["fields"]["source_refs"] == [
-        "wa-current-1",
-        "wa-current-2",
-    ]
+    assert "explicit source refs" in json.loads(raw)["error"]
+    assert calls == []
 
 
 def test_observation_strips_model_supplied_media_and_photo_fields(monkeypatch):
+    monkeypatch.setenv("HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-msg-5"]')
+    monkeypatch.setenv(
+        "HERMES_SESSION_SOURCE_MESSAGE_TIMESTAMPS", '{"wa-msg-5": 1784895205}'
+    )
     calls = _patch_backend(
         monkeypatch,
         {

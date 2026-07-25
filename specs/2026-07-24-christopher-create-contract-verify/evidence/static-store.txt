@@ -1,0 +1,112 @@
+=== due fallback scan ===
+38:export const MAINTENANCE_DUE_DAYS = 30
+39:export const MAINTENANCE_DUE_SECONDS = MAINTENANCE_DUE_DAYS * 86400
+40:const MAINTENANCE_DUE_SECONDS_SQL = String(MAINTENANCE_DUE_SECONDS)
+56:const EFFECTIVE_MAINTENANCE_DUE_SQL = `COALESCE(
+61:    THEN COALESCE(announced_at, job_receipt_date, wa_seen_at, created_at) + ${MAINTENANCE_DUE_SECONDS_SQL}
+298:  const dueAt = r.due_at ?? (service.key === 'maintenance' && receivedAt != null ? receivedAt + MAINTENANCE_DUE_SECONDS : null)
+987:    AND ${EFFECTIVE_MAINTENANCE_DUE_SQL} IS NOT NULL
+988:    AND ${EFFECTIVE_MAINTENANCE_DUE_SQL} < ${nowTs}
+995:  const ageSeconds = `(${nowTs} - ${EFFECTIVE_MAINTENANCE_DUE_SQL})`
+1149:      THEN COALESCE(announced_at, job_receipt_date, wa_seen_at) + ${MAINTENANCE_DUE_SECONDS_SQL}
+1453:           AND coalesce(due_at, coalesce(announced_at, job_receipt_date, wa_seen_at, created_at) + ${MAINTENANCE_DUE_SECONDS_SQL}) < ${nowTs}`,
+5083:      .get(now() - 7 * 86400) as { n: number }
+5383:      input.receivedAt != null ? input.receivedAt + MAINTENANCE_DUE_SECONDS : input.dueAt ?? null,
+=== create contract ===
+1402:    const observedAt = epochSecondsFromBody(body.observedAt ?? body.observed_at ?? fields.observed_at)
+1410:      observedAt,
+1446:    const observedAt = epochSecondsFromBody(body.observedAt ?? body.observed_at)
+1447:    if (next === 'completed' && observedAt == null) {
+1452:        'Completing a case requires observedAt — the epoch moment the work was ' +
+1459:      prior = setCaseState(jobNo, next, { observedAt })
+1480:      after: { state: next, observedAt },
+1510:    const observedAtRaw = body.observedAt ?? body.observed_at
+1511:    let observedAt: number | null = null
+1512:    if (observedAtRaw != null && String(observedAtRaw).trim() !== '') {
+1513:      const parsed = Number(observedAtRaw)
+1515:        return fail(c, 400, 'INVALID_OBSERVED_AT', 'observedAt must be an epoch timestamp (seconds or ms).')
+1518:      observedAt = parsed > 1_000_000_000_000 ? Math.round(parsed / 1000) : Math.round(parsed)
+1554:        observedAt,
+1593:      result = markCaseCompleted({ jobNo, observedAt })
+1618:        observedAt,
+1659:      priority: body.priority ? String(body.priority) : null,
+1665:      contactName: body.contactName ? String(body.contactName) : null,
+1666:      contactPhone: body.contactPhone ? String(body.contactPhone) : null,
+1733:    const receivedAt = epochSecondsFromBody(body.receivedAt ?? body.received_at)
+1734:    const observedAt = epochSecondsFromBody(body.observedAt ?? body.observed_at)
+1736:    const workItems = Array.isArray(body.work_items)
+1738:      : Array.isArray(body.workItems)
+1739:        ? body.workItems
+1746:      priority: optionalString(body.priority) ?? 'normal',
+1751:      contactName: optionalString(body.contactName ?? body.contact_name),
+1752:      contactPhone: optionalString(body.contactPhone ?? body.contact_phone),
+1753:      receivedAt,
+1754:      observedAt,
+1756:      workItems,
+=== idempotency ===
+  observedAt?: number | null
+}): { observationId: number } | null {
+  const c = getCaseRow(input.jobNo)
+  if (!c) return null
+  const ts = now()
+  const fields = observationFieldsObject(input.fields)
+  const state = normalizeLegacyCaseState(c.state)
+  if (state === 'completed' || state === 'closed') {
+    fields.observation_kind = 'post_completion_followup'
+    fields.case_state_at_observation = state
+  }
+  const sourceRefs = normalizeObservationSourceRefs(
+    input.sourceRefs,
+    fields.source_refs,
+    fields.sourceRefs,
+  )
+  const sourceRefKey = sourceRefs.length > 0
+    ? `refs:${JSON.stringify([...sourceRefs].sort())}`
+    : null
+  if (sourceRefKey) {
+    const existing = db()
+      .prepare('SELECT id FROM case_observations WHERE case_id=? AND source_ref=? LIMIT 1')
+      .get(c.id, sourceRefKey) as { id: number } | undefined
+    if (existing) return { observationId: existing.id }
+  }
+  if (sourceRefs.length > 0) {
+    const derived = deriveObservationMediaFromSourceRefs(sourceRefs)
+    fields.source_refs = sourceRefs
+    delete fields.sourceRefs
+    delete fields.mediaRefs
+    delete fields.media_refs
+    delete fields.photoCount
+    delete fields.photo_count
+    fields.media_refs = derived.mediaRefs
+    fields.photo_count = derived.photoCount
+  }
+  const observedAt = input.observedAt ?? ts
+  const result = db()
+    .prepare(
+      `INSERT INTO case_observations
+         (case_id, source, source_ref, observed_at, fields, confidence, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      c.id,
+      input.source,
+      sourceRefKey,
+      observedAt,
+      JSON.stringify(fields),
+      input.confidence ?? null,
+      input.notes ?? null,
+      ts,
+    )
+  db().prepare('UPDATE cases SET updated_at=? WHERE id=?').run(ts, c.id)
+  return { observationId: Number(result.lastInsertRowid) }
+}
+
+interface SubmissionEventRow {
+  id: number
+  submission_type: string
+  submitted_at: number
+  actor: string
+  created_at: number
+}
+
+function toSubmissionEvent(r: SubmissionEventRow): SubmissionEvent {

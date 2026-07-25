@@ -1,0 +1,6 @@
+Hermes full-suite attempt 1 (2026-07-24/25)
+command: scripts/run_tests.sh tests
+result: invalid environment; not accepted as verification
+summary: 196 failed, 22922 passed, 175 skipped, 23 collection errors
+cause: the existing .venv was not synchronized to CI's `.[all,dev]` dependency profile (missing acp, aiohttp, fastapi, websockets, and others). Several failures also read host keychain state, so the raw log was deliberately overwritten rather than committed because it contained a registered credential value in assertion output.
+remediation: `uv sync --locked --extra all --extra dev`; rerun full suite from the synchronized environment.

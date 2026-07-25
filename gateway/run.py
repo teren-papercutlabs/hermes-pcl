@@ -8176,6 +8176,21 @@ class GatewayRunner:
         if _is_shared_multi_user and source.user_name:
             message_text = f"[{source.user_name}] {message_text}"
 
+        # Make the exact current-turn ingress refs visible to the model on
+        # every platform shape. Bundled WhatsApp turns already render
+        # source_message_id lines, but single-message events previously hid
+        # the id in raw metadata while asking the model to cite it.
+        source_message_refs = self._event_source_message_ids(event)
+        if source_message_refs:
+            rendered_refs = "\n".join(
+                f"source_message_id: {ref}" for ref in source_message_refs
+            )
+            if not all(
+                f"source_message_id: {ref}" in message_text
+                for ref in source_message_refs
+            ):
+                message_text = f"{message_text}\n\n[Current turn source ids]\n{rendered_refs}"
+
         # Prepend channel context from history backfill (if any).  This
         # happens after sender-prefix so the prefix only applies to the
         # trigger message, not the backfill block.
@@ -15029,6 +15044,64 @@ class GatewayRunner:
             pass
         return []
 
+    @classmethod
+    def _event_source_message_timestamps(cls, event: Any) -> dict[str, int]:
+        """Return ingress epochs keyed by the exact current-turn message ids."""
+        refs = cls._event_source_message_ids(event)
+        if not refs or event is None:
+            return {}
+        raw = getattr(event, "raw_message", None)
+        messages = raw.get("messages") if isinstance(raw, dict) else None
+        if not isinstance(messages, list):
+            messages = [raw] if isinstance(raw, dict) else []
+
+        def epoch(value: Any) -> int | None:
+            from datetime import datetime
+
+            if isinstance(value, dict):
+                value = value.get("low") or value.get("value")
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                number = float(value)
+                return int(number / 1000 if number > 10_000_000_000 else number)
+            text = str(value or "").strip()
+            if not text:
+                return None
+            try:
+                number = float(text)
+                return int(number / 1000 if number > 10_000_000_000 else number)
+            except ValueError:
+                pass
+            try:
+                parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+                return int(parsed.timestamp()) if parsed.tzinfo is not None else None
+            except ValueError:
+                return None
+
+        result: dict[str, int] = {}
+        for index, message in enumerate(messages):
+            if not isinstance(message, dict):
+                continue
+            ref = str(
+                message.get("messageId")
+                or message.get("message_id")
+                or (refs[index] if index < len(refs) else "")
+            ).strip()
+            timestamp = epoch(
+                message.get("timestamp")
+                or message.get("ingressTimestamp")
+                or message.get("ingress_ts")
+                or message.get("receivedAt")
+                or message.get("_tgg_sgt")
+                or message.get("sgt")
+            )
+            if ref in refs and timestamp is not None:
+                result[ref] = timestamp
+        if len(refs) == 1 and refs[0] not in result:
+            timestamp = epoch(getattr(event, "timestamp", None))
+            if timestamp is not None:
+                result[refs[0]] = timestamp
+        return result
+
     def _set_session_env(self, context: SessionContext, event: Any = None) -> list:
         """Set session context variables for the current async task.
 
@@ -15043,6 +15116,7 @@ class GatewayRunner:
         from gateway.session_context import set_session_vars
 
         source_message_refs = self._event_source_message_ids(event)
+        source_message_timestamps = self._event_source_message_timestamps(event)
         return set_session_vars(
             platform=context.source.platform.value,
             chat_id=context.source.chat_id,
@@ -15053,6 +15127,7 @@ class GatewayRunner:
             session_key=context.session_key,
             session_id=context.session_id,
             source_message_refs=json.dumps(source_message_refs),
+            source_message_timestamps=json.dumps(source_message_timestamps),
         )
 
     def _clear_session_env(self, tokens: list) -> None:

@@ -1,0 +1,112 @@
+
+> systems-papercut-labs@0.1.0 test /Users/pcloffice/pcl/_worktrees/systems-709f9a23
+> vitest run
+
+
+ RUN  v3.2.4 /Users/pcloffice/pcl/_worktrees/systems-709f9a23
+
+(node:6661) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ tests/christopher-turns.test.ts (4 tests) 16ms
+ ✓ tests/tgg-sql-query.test.ts (15 tests) 122ms
+ ✓ tests/tgg-domain.test.ts (33 tests) 62ms
+ ✓ tests/correction-jsonl-ingest.test.ts (7 tests) 169ms
+ ✓ tests/corrections.test.ts (10 tests) 392ms
+ ✓ tests/tgg-display-lang.test.ts (11 tests) 54ms
+ ✓ tests/deploy-manifest.test.ts (1 test) 3ms
+ ✓ tests/tgg-importer.test.ts (4 tests) 450ms
+ ✓ tests/tgg-console-adapter.test.ts (53 tests) 33ms
+ ✓ tests/spine.test.ts (16 tests) 733ms
+ ✓ tests/grounded-correction-contract.test.ts (3 tests) 13ms
+stderr | tests/tgg-submission-events.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/tgg-media-convergence.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/tgg-case-state.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/correction-routes.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/tgg-work-items.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/bobby-api.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/media-backfill-compat.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/tgg-reports.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/tgg-replay-target-provider.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/tgg-candidate-search.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/agent-config.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+ ✓ tests/deploy-preflight.test.ts (3 tests) 10ms
+stderr | tests/tgg-completion-time.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+ ✓ tests/service-token-authority.test.ts (10 tests) 1716ms
+   ✓ review gate > allows one concurrent signed apply and makes the stale peer fail closed  1574ms
+stderr | tests/tgg-case-detail-plane.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/tgg-plane-boundary.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+stderr | tests/tgg-jobno-citation.test.ts
+serveStatic: root path 'web' is not found, are you sure it's correct?
+
+ ✓ tests/tenant-url.test.ts (4 tests) 2ms
+ ✓ tests/tgg-scope-boundary.test.ts (1 test) 2ms
+ ✓ tests/tgg-submission-events.test.ts (15 tests) 1024ms
+ ✓ tests/agent-config.test.ts (12 tests) 565ms
+ ✓ tests/tgg-jobno-citation.test.ts (6 tests) 410ms
+ ✓ tests/tgg-case-state.test.ts (20 tests) 722ms
+ ✓ tests/tgg-completion-time.test.ts (12 tests) 517ms
+ ✓ tests/runtime-data-path.test.ts (2 tests) 2ms
+ ✓ tests/tgg-candidate-search.test.ts (24 tests) 642ms
+ ✓ tests/tgg-reports.test.ts (2 tests) 804ms
+ ✓ tests/media-backfill-compat.test.ts (3 tests) 989ms
+ ✓ tests/bobby-api.test.ts (37 tests) 1075ms
+ ✓ tests/tgg-work-items.test.ts (25 tests) 1077ms
+ ✓ tests/tgg-case-detail-plane.test.ts (9 tests) 928ms
+ ✓ tests/tgg-plane-boundary.test.ts (4 tests) 961ms
+ ✓ tests/tgg-master-seed.test.ts (6 tests) 4287ms
+   ✓ TGG master seed builder > builds a fresh atomic data root from the master without sample cases  705ms
+   ✓ TGG master seed builder > builds capture-only when Christopher is unset; no Christopher materialization  708ms
+   ✓ TGG master seed builder > reconciles a newly-configured Christopher on the already-present restart path  933ms
+   ✓ TGG master seed builder > keeps the already-present restart capture-only when Christopher stays unset  966ms
+   ✓ TGG master seed builder > revokes Christopher when his env line is removed, and reactivates on restore  971ms
+ ✓ tests/tgg-replay-target-provider.test.ts (5 tests) 2759ms
+   ✓ TGG replay target provider > prepares an isolated eval target from a fresh actual baseline and returns a descriptor with no secret values  575ms
+   ✓ TGG replay target provider > allows run-id-tagged replay tool writes only on a prepared eval target and refuses the prod-like root  660ms
+   ✓ TGG replay target provider > allows prod-pilot replay writes only with exact env and active marker, then closes the gate  431ms
+   ✓ TGG replay target provider > promotes and rolls back by swapping SQLite snapshots against a non-prod target  842ms
+ ✓ tests/correction-routes.test.ts (4 tests) 2927ms
+   ✓ generic pa-admin correction boundary > permits only the tenant-bound pa_admin session to read  766ms
+   ✓ generic pa-admin correction boundary > does not let a TGG session cross into another resolved tenant  993ms
+   ✓ generic pa-admin correction boundary > requires both the custom CSRF header and current Origin for mutations  532ms
+   ✓ generic pa-admin correction boundary > rejects forged tenant, actor, quote, sender, and source fields  635ms
+ ✓ tests/tgg-human-passwords.test.ts (5 tests) 6901ms
+   ✓ TGG human password source contract > refuses the production entry before mutation when TGG_OPERATOR_PASSWORD is absent  3129ms
+   ✓ TGG human password source contract > refuses the production entry before mutation when TGG_VIEWER_PASSWORD is absent  1823ms
+   ✓ TGG human password source contract > refuses the production entry before mutation when TGG_PA_ADMIN_PASSWORD is absent  1746ms
+ ✓ tests/tgg-media-convergence.test.ts (12 tests) 13852ms
+   ✓ reconciliation command fixture > inventories dry-run, applies twice with second 0/0, and reverses by manifest  9022ms
+   ✓ reconciliation command fixture > reports a fixed point when distinct messages retain the same file ref  3235ms
+   ✓ reconciliation command fixture > holds multiple exact observation refs for one export zone/hash as ambiguous  1142ms
+
+ Test Files  33 passed (33)
+      Tests  378 passed (378)
+   Start at  03:21:27
+   Duration  16.83s (transform 5.08s, setup 4.63s, collect 44.39s, tests 44.22s, environment 3ms, prepare 5.94s)
