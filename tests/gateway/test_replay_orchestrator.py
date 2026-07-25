@@ -257,32 +257,53 @@ def test_provider_promote_derives_confirmation_from_configured_tenant(monkeypatc
     assert captured["body"]["confirm"] == "SWAP_FINEXIS_TARGET"
 
 
-def test_replay_run_cli_requires_explicit_tenant():
+@pytest.mark.parametrize(
+    ("subcommand", "arguments"),
+    (
+        (
+            "start",
+            (
+                "--plan",
+                "/tmp/plan.json",
+                "--source-data-dir",
+                "/tmp/source",
+                "--target-data-dir",
+                "/tmp/target",
+                "--target-base-url",
+                "http://target.test",
+            ),
+        ),
+        ("verify", ("--manifest", "/tmp/run.json")),
+        (
+            "promote",
+            (
+                "--manifest",
+                "/tmp/run.json",
+                "--prod-data-dir",
+                "/tmp/prod",
+                "--confirm",
+                "ORCHESTRATOR_TGG_TARGET",
+            ),
+        ),
+        ("rollback", ("--manifest", "/tmp/run.json")),
+        (
+            "dirty",
+            ("--manifest", "/tmp/run.json", "--reason", "test"),
+        ),
+        ("status", ("--manifest", "/tmp/run.json")),
+    ),
+)
+def test_replay_run_cli_requires_explicit_tenant_on_every_subcommand(
+    capsys, subcommand, arguments
+):
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
     add_replay_run_parser(subparsers)
 
     with pytest.raises(SystemExit):
-        parser.parse_args(
-            [
-                "replay-run",
-                "verify",
-                "--manifest",
-                "/tmp/run.json",
-            ]
-        )
+        parser.parse_args(["replay-run", subcommand, *arguments])
 
-    args = parser.parse_args(
-        [
-            "replay-run",
-            "verify",
-            "--tenant",
-            "finexis",
-            "--manifest",
-            "/tmp/run.json",
-        ]
-    )
-    assert args.tenant == "finexis"
+    assert "--tenant" in capsys.readouterr().err
 
 
 def test_replay_cli_uses_generic_window_flags_and_explicit_pa_context():

@@ -130,13 +130,16 @@ hermes replay-run rollback \
 Inspect current state:
 
 ```bash
-hermes replay-run status --manifest /path/to/replay-runs/<run-id>/run-manifest.json
+hermes replay-run status \
+  --tenant tgg \
+  --manifest /path/to/replay-runs/<run-id>/run-manifest.json
 ```
 
 Mark an abandoned or suspect run dirty:
 
 ```bash
 hermes replay-run dirty \
+  --tenant tgg \
   --manifest /path/to/replay-runs/<run-id>/run-manifest.json \
   --reason "abandoned after partial replay"
 ```

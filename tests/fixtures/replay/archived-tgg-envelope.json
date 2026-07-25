@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "messageId": "legacy-1",
+      "chatId": "archived-chat",
+      "timestamp": 1748045700,
+      "body": "Archived replay fixture",
+      "_tgg_source_ref": "archived-chat::legacy-1",
+      "_tgg_sgt": "2026-05-24 08:15:00 SGT"
+    }
+  ]
+}

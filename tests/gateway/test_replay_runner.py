@@ -683,8 +683,8 @@ def test_replay_corpus_loads_bridge_message_log_with_explicit_determinism_report
     assert corpus.messages[2]["mediaUrls"] == [str(missing_media)]
     assert corpus.messages[0]["_pa_source_ref"] == "chat::m1"
     assert corpus.messages[0]["_pa_local_time"]
-    assert corpus.messages[0]["_tgg_source_ref"] == "chat::m1"
-    assert corpus.messages[0]["_tgg_sgt"] == corpus.messages[0]["_pa_local_time"]
+    assert "_tgg_source_ref" not in corpus.messages[0]
+    assert "_tgg_sgt" not in corpus.messages[0]
     assert corpus.messages[0]["_hermes_pa_context"] == {
         "tenant": "tgg",
         "agent_id": "christopher",
@@ -730,6 +730,25 @@ def test_replay_corpus_loads_bridge_message_log_with_explicit_determinism_report
         (m["messageId"], m["chatId"], m["body"], m["quotedText"], m["mediaUrls"])
         for m in legacy_messages
     ]
+
+
+def test_replay_corpus_maps_archived_tgg_envelope_to_neutral_pa_keys():
+    fixture = (
+        Path(__file__).parents[1]
+        / "fixtures"
+        / "replay"
+        / "archived-tgg-envelope.json"
+    )
+
+    corpus = ReplayCorpus.from_json_path(fixture)
+
+    assert len(corpus.messages) == 1
+    message = corpus.messages[0]
+    assert message["_pa_source_ref"] == "archived-chat::legacy-1"
+    assert message["_pa_local_time"] == "2026-05-24 08:15:00 SGT"
+    # Loading is additive: archived fields remain available to old consumers.
+    assert message["_tgg_source_ref"] == message["_pa_source_ref"]
+    assert message["_tgg_sgt"] == message["_pa_local_time"]
 
 
 def test_replay_corpus_dedup_reports_skipped_duplicates(tmp_path):

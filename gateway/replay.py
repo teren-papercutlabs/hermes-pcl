@@ -82,6 +82,19 @@ def _coerce_messages(raw: Any) -> list[dict[str, Any]]:
     raise ValueError("replay corpus object must include messages/bridge_messages/events")
 
 
+def _normalize_replay_envelope(message: Mapping[str, Any]) -> dict[str, Any]:
+    """Map archived client-specific replay keys onto the neutral PA envelope."""
+    normalized = dict(message)
+    legacy_aliases = (
+        ("_pa_source_ref", "_tgg_source_ref"),
+        ("_pa_local_time", "_tgg_sgt"),
+    )
+    for neutral_key, legacy_key in legacy_aliases:
+        if neutral_key not in normalized and legacy_key in normalized:
+            normalized[neutral_key] = normalized[legacy_key]
+    return normalized
+
+
 def _message_id(message: Mapping[str, Any]) -> str | None:
     value = message.get("messageId") or message.get("message_id") or message.get("id")
     return str(value) if value is not None and str(value) else None
@@ -239,7 +252,14 @@ class ReplayCorpus:
         source_path: str | None = None,
         source_manifest: Mapping[str, Any] | None = None,
     ) -> "ReplayCorpus":
-        sorted_messages = sorted((dict(m) for m in messages if isinstance(m, Mapping)), key=_bridge_sort_key)
+        sorted_messages = sorted(
+            (
+                _normalize_replay_envelope(m)
+                for m in messages
+                if isinstance(m, Mapping)
+            ),
+            key=_bridge_sort_key,
+        )
         deduped, duplicates = _dedup_bridge_messages(sorted_messages)
         report = _empty_corpus_report()
         report["duplicates_skipped"] = duplicates
@@ -527,10 +547,6 @@ def _bridge_message_from_log_row(
         "fromMe": bool(raw.get("fromMe", False)),
         "_pa_source_ref": source_ref,
         "_pa_local_time": str(row.get("sgt") or ""),
-        # D1-23 (the live WhatsApp renderer) is intentionally outside this
-        # phase. Dual-write its legacy replay keys until that consumer moves.
-        "_tgg_source_ref": source_ref,
-        "_tgg_sgt": str(row.get("sgt") or ""),
         "_hermes_pa_job_type": job_type,
         "_hermes_pa_context": {
             "tenant": tenant,

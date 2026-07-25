@@ -1040,7 +1040,12 @@ class WhatsAppAdapter(BasePlatformAdapter):
             if event.source:
                 sender = event.source.user_name or event.source.user_id or sender
             message_id = event.message_id or raw.get("messageId") or f"message-{index}"
-            timestamp = raw.get("_tgg_sgt") or raw.get("sgt") or raw.get("timestamp")
+            timestamp = (
+                raw.get("_pa_local_time")
+                or raw.get("_tgg_sgt")
+                or raw.get("sgt")
+                or raw.get("timestamp")
+            )
             prefix = f"{index}. "
             if timestamp:
                 prefix += f"[{timestamp}] "

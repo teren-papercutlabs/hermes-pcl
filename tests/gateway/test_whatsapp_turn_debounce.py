@@ -60,6 +60,26 @@ async def test_debounces_same_chat_messages_into_one_turn():
     assert bundled.raw_message["sourceMessageIds"] == ["m1", "m2"]
 
 
+def test_bundle_uses_neutral_replay_time_and_accepts_archived_tgg_alias():
+    adapter = _make_adapter()
+    neutral = _event("120363111@g.us", "neutral", "m1")
+    neutral.raw_message.update(
+        {
+            "_pa_local_time": "neutral-time",
+            "_tgg_sgt": "stale-legacy-time",
+        }
+    )
+    archived = _event("120363111@g.us", "archived", "m2")
+    archived.raw_message.pop("timestamp")
+    archived.raw_message["_tgg_sgt"] = "legacy-time"
+
+    bundled = adapter._build_turn_event([neutral, archived])
+
+    assert "[neutral-time] Sky: neutral" in bundled.text
+    assert "[legacy-time] Sky: archived" in bundled.text
+    assert "stale-legacy-time" not in bundled.text
+
+
 @pytest.mark.asyncio
 async def test_debounce_isolated_by_chat_id():
     adapter = _make_adapter()

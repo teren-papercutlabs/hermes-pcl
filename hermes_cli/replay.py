@@ -386,6 +386,9 @@ def add_replay_run_parser(subparsers) -> argparse.ArgumentParser:
     )
 
     status = commands.add_parser("status", help="print a run manifest")
+    status.add_argument(
+        "--tenant", required=True, help="PA tenant owning the replay run."
+    )
     status.add_argument("--manifest", required=True, help="Path to run-manifest.json.")
 
     parser.set_defaults(func=cmd_replay_run)
