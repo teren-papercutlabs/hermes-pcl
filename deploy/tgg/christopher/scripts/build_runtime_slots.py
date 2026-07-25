@@ -591,7 +591,9 @@ def _validate(
     assert "never omit the refs" in joined
     assert "validates every cited id" in joined
     assert "derives observed_at mechanically" in joined
-    assert "pass receivedAt as the job sheet's stated receipt epoch" in joined
+    assert "exact date-only source string in receiptDate" in joined
+    assert "Do not calculate midnight or dueAt" in joined
+    assert "runtime mechanically normalizes" in joined
     assert "operational fields never belong under free-form evidence" in joined
     # Create-contract roll-forward (2026-07-24): explicit sourceRefs plus the
     # evidence-attach justification contract with refs-preserving retry.

@@ -1923,27 +1923,81 @@ class TestCaseCreateJobNoContract:
             "jobNo": "AM/JOB/2607/9901",
             "address": "Blk 1 Test St #01-01",
             "problem": "x",
-            "receivedAt": None,
             "receiptDate": "20 July 2026",
         })
         assert json.loads(result)["ok"] is True
         assert captured["receivedAt"] == 1_784_476_800
         assert captured["dueAt"] == 1_787_068_800
+        assert "receiptDate" not in captured
 
-    def test_evidence_date_only_receipt_overrides_model_epoch(
-        self, monkeypatch, caplog
+    @pytest.mark.parametrize("model_epoch", [1_784_509_200, 1_784_512_800])
+    def test_evidence_date_only_receipt_overrides_model_epoch_deterministically(
+        self, monkeypatch, caplog, model_epoch
     ):
         result, captured = self._create(monkeypatch, {
             "jobNo": "AM/JOB/2607/9901",
             "address": "Blk 1 Test St #01-01",
             "problem": "x",
-            "receivedAt": 1_784_509_200,
+            "receivedAt": model_epoch,
             "evidence": {"receipt_date": "20 July 2026"},
         })
         assert json.loads(result)["ok"] is True
         assert captured["receivedAt"] == 1_784_476_800
         assert captured["dueAt"] == 1_787_068_800
-        assert "overriding model receivedAt=1784509200" in caplog.text
+        assert f"overriding model receivedAt={model_epoch}" in caplog.text
+
+    def test_unrelated_evidence_text_does_not_override_epoch(self, monkeypatch):
+        result, captured = self._create(monkeypatch, {
+            "jobNo": "AM/JOB/2607/9901",
+            "address": "Blk 1 Test St #01-01",
+            "problem": "x",
+            "receivedAt": 1_784_509_200,
+            "evidence": {
+                "messageText": "Previous case receipt date: 1 June 2026."
+            },
+        })
+        assert json.loads(result)["ok"] is True
+        assert captured["receivedAt"] == 1_784_509_200
+        assert captured["dueAt"] == 1_787_101_200
+
+    def test_generic_create_path_normalizes_and_strips_receipt_source(
+        self, monkeypatch
+    ):
+        import tools.pa_business_tools as pbt
+
+        monkeypatch.setenv("HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-create"]')
+        monkeypatch.setenv(
+            "HERMES_SESSION_SOURCE_MESSAGE_TIMESTAMPS",
+            '{"wa-create": 1784895200}',
+        )
+        prepared = pbt._prepare_case_create_source_refs({
+            "jobNo": "AM/JOB/2607/9901",
+            "receivedAt": 1_784_512_800,
+            "receiptDate": "20 July 2026",
+            "evidenceMessageRefs": ["wa-create"],
+        })
+        assert isinstance(prepared, dict)
+        assert prepared["receivedAt"] == 1_784_476_800
+        assert prepared["dueAt"] == 1_787_068_800
+        assert "receiptDate" not in prepared
+
+    def test_create_requires_epoch_or_date_source(self, monkeypatch):
+        result, captured = self._create(monkeypatch, {
+            "jobNo": "AM/JOB/2607/9901",
+            "address": "Blk 1 Test St #01-01",
+            "problem": "x",
+            "receivedAt": None,
+        })
+        assert "requires receivedAt" in result
+        assert captured == {}
+
+    def test_schema_accepts_receipt_date_without_requiring_received_at(self):
+        import tools.pa_business_tools as pbt
+
+        parameters = pbt.TGG_CASE_CREATE_SCHEMA["parameters"]
+        assert parameters["properties"]["receiptDate"]["type"] == "string"
+        assert parameters["properties"]["receivedAt"]["type"] == "integer"
+        assert "receivedAt" not in parameters["required"]
 
     def test_create_without_job_no_bounces(self, monkeypatch):
         """No jobNo + no confirmNoJobNo = corrective error: cases enter the

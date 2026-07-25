@@ -1791,12 +1791,33 @@ def _coerce_observed_at_epoch(value: Any) -> Any:
 
 
 _SGT = ZoneInfo("Asia/Singapore")
-_DATE_ONLY_FORMATS = ("%d %B %Y", "%d %b %Y", "%Y-%m-%d", "%d/%m/%Y")
-_RECEIPT_DATE_RE = re.compile(
-    r"\breceipt\s*date\s*:?\s*"
-    r"(?P<date>\d{1,2}\s+[A-Za-z]+\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4})\b",
+_MONTH_NUMBERS = {
+    name: month
+    for month, names in enumerate(
+        (
+            (),
+            ("jan", "january"),
+            ("feb", "february"),
+            ("mar", "march"),
+            ("apr", "april"),
+            ("may",),
+            ("jun", "june"),
+            ("jul", "july"),
+            ("aug", "august"),
+            ("sep", "sept", "september"),
+            ("oct", "october"),
+            ("nov", "november"),
+            ("dec", "december"),
+        )
+    )
+    for name in names
+}
+_ENGLISH_DATE_ONLY_RE = re.compile(
+    r"^(?:receipt\s*date\s*:?\s*)?"
+    r"(?P<day>\d{1,2})\s+(?P<month>[A-Za-z]+)\s+(?P<year>\d{4})$",
     re.IGNORECASE,
 )
+_ISO_DATE_ONLY_RE = re.compile(r"^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})$")
 
 
 def _date_only_sgt_epoch(value: Any) -> int | None:
@@ -1804,14 +1825,33 @@ def _date_only_sgt_epoch(value: Any) -> int | None:
     if not isinstance(value, str):
         return None
     text = value.strip()
-    match = _RECEIPT_DATE_RE.search(text)
-    candidate = match.group("date") if match else text
-    for date_format in _DATE_ONLY_FORMATS:
+    match = _ENGLISH_DATE_ONLY_RE.fullmatch(text)
+    if match:
+        month = _MONTH_NUMBERS.get(match.group("month").lower())
+        if month is None:
+            return None
         try:
-            parsed = datetime.strptime(candidate, date_format)
+            parsed = datetime(
+                int(match.group("year")),
+                month,
+                int(match.group("day")),
+                tzinfo=_SGT,
+            )
         except ValueError:
-            continue
-        return int(parsed.replace(tzinfo=_SGT).timestamp())
+            return None
+        return int(parsed.timestamp())
+    match = _ISO_DATE_ONLY_RE.fullmatch(text)
+    if match:
+        try:
+            parsed = datetime(
+                int(match.group("year")),
+                int(match.group("month")),
+                int(match.group("day")),
+                tzinfo=_SGT,
+            )
+        except ValueError:
+            return None
+        return int(parsed.timestamp())
     return None
 
 
@@ -1825,11 +1865,8 @@ def _case_receipt_source_values(payload: Mapping[str, Any]) -> Iterable[Any]:
         for key in ("receiptDate", "receipt_date", "job_receipt_date"):
             if evidence.get(key) not in (None, ""):
                 yield evidence[key]
-        for value in evidence.values():
-            if isinstance(value, str) and _RECEIPT_DATE_RE.search(value):
-                yield value
     received_at = payload.get("receivedAt")
-    if received_at is None:
+    if received_at in (None, ""):
         received_at = payload.get("received_at")
     if isinstance(received_at, str):
         yield received_at
@@ -1843,7 +1880,7 @@ def _normalise_case_receipt_epoch(payload: Mapping[str, Any]) -> Any:
     existing epoch/ISO coercion contract remains unchanged.
     """
     supplied = payload.get("receivedAt")
-    if supplied is None:
+    if supplied in (None, ""):
         supplied = payload.get("received_at")
     supplied_epoch = _coerce_observed_at_epoch(supplied)
     for source_value in _case_receipt_source_values(payload):

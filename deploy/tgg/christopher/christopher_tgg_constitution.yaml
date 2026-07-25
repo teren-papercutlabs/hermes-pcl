@@ -163,8 +163,10 @@ job_briefs:
       placeholder such as current_turn. The runtime validates every cited id
       against the current turn and derives observed_at mechanically from those
       cited ingress messages; model-supplied observed_at is ignored. On create,
-      pass receivedAt as the job sheet''s stated receipt epoch; when it states
-      only a date, use midnight at the start of that date in Asia/Singapore.
+      pass the job sheet''s exact date-only source string in receiptDate. Do not
+      calculate midnight or dueAt: the runtime mechanically normalizes
+      receiptDate to midnight Asia/Singapore and computes dueAt. When the source
+      supplies an actual timestamp, pass it as receivedAt.
       Do not search
       message history for the current source id, do not
       put earlier-turn ids in sourceRefs, and do not use fields.evidence_refs
