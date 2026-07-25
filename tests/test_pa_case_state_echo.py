@@ -32,6 +32,18 @@ CHRISTOPHER_CONSTITUTION = (
 )
 
 
+@pytest.fixture
+def source_refs_context():
+    """Bind gateway turn refs on the task-local production surface."""
+    from gateway.session_context import clear_session_vars, set_session_vars
+
+    tokens = set_session_vars(
+        source_message_refs=json.dumps(["wa-current-1", "wa-current-2"])
+    )
+    yield
+    clear_session_vars(tokens)
+
+
 @pytest.fixture(autouse=True)
 def _clean_state_cache(monkeypatch):
     monkeypatch.delenv("HERMES_PA_BUSINESS_DRY_RUN", raising=False)
@@ -223,10 +235,9 @@ def test_observation_requires_source_refs_before_backend_write(monkeypatch):
     assert calls == []
 
 
-def test_observation_injects_current_turn_source_refs(monkeypatch):
-    monkeypatch.setenv(
-        "HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-current-1", "wa-current-2"]'
-    )
+def test_observation_injects_current_turn_source_refs(
+    monkeypatch, source_refs_context
+):
     calls = _patch_backend(
         monkeypatch,
         {

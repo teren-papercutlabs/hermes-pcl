@@ -3126,6 +3126,7 @@ def _start_notification_poller(sid: str, session: dict) -> threading.Event:
         target=_notification_poller_loop,
         args=(stop, sid, session),
         daemon=True,
+        name=f"hermes-tui-notification-{sid}",
     )
     t.start()
     return stop

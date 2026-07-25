@@ -49,6 +49,21 @@ class _FakeBusinessHandler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
+def source_refs_context():
+    """Bind gateway turn refs on the task-local production surface."""
+    from gateway.session_context import clear_session_vars, set_session_vars
+
+    tokens = []
+
+    def bind(refs):
+        tokens.append(set_session_vars(source_message_refs=json.dumps(refs)))
+
+    yield bind
+    for turn_tokens in reversed(tokens):
+        clear_session_vars(turn_tokens)
+
+
+@pytest.fixture
 def fake_business_endpoint():
     server = ThreadingHTTPServer(("127.0.0.1", 0), _FakeBusinessHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -144,7 +159,9 @@ def test_legacy_operation_name_resolves_to_canonical_when_registry_is_canonical(
     }
 
 
-def test_generic_observation_injects_current_turn_source_refs(monkeypatch):
+def test_generic_observation_injects_current_turn_source_refs(
+    monkeypatch, source_refs_context
+):
     import tools.pa_business_tools as pbt
 
     bridge = load_business_bridge_config(
@@ -161,9 +178,7 @@ def test_generic_observation_injects_current_turn_source_refs(monkeypatch):
         }
     )
     captured = {}
-    monkeypatch.setenv(
-        "HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-current-generic"]'
-    )
+    source_refs_context(["wa-current-generic"])
     monkeypatch.setattr(pbt, "_load_runtime_bridge_config", lambda: bridge)
 
     def fake_execute(_bridge, *, operation, payload):
@@ -220,13 +235,13 @@ def _run_generic_observation(monkeypatch, payload, backend_result=None):
     return result, captured
 
 
-def test_generic_observation_placeholder_source_refs_bind_real_turn_ids(monkeypatch):
+def test_generic_observation_placeholder_source_refs_bind_real_turn_ids(
+    monkeypatch, source_refs_context
+):
     """Literal "current_turn" is a placeholder, not a citable id — the tool
     layer must treat it as omitted and bind the gateway's real turn refs
     (stage-1 backprocess finding 1, 2026-07-20)."""
-    monkeypatch.setenv(
-        "HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-real-1", "wa-real-2"]'
-    )
+    source_refs_context(["wa-real-1", "wa-real-2"])
     _, captured = _run_generic_observation(
         monkeypatch,
         {"jobNo": "AM/JOB/2601/1018", "sourceRefs": ["current_turn"]},
@@ -244,8 +259,10 @@ def test_generic_observation_mixed_placeholder_keeps_real_refs(monkeypatch):
     assert captured["payload"]["sourceRefs"] == ["wa-cited-9"]
 
 
-def test_generic_observation_placeholder_inside_fields_bind_real_turn_ids(monkeypatch):
-    monkeypatch.setenv("HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-real-1"]')
+def test_generic_observation_placeholder_inside_fields_bind_real_turn_ids(
+    monkeypatch, source_refs_context
+):
+    source_refs_context(["wa-real-1"])
     _, captured = _run_generic_observation(
         monkeypatch,
         {
@@ -305,10 +322,12 @@ def test_non_attach_errors_get_no_recovery_field(monkeypatch):
     assert "recovery" not in result
 
 
-def test_direct_observation_placeholder_source_refs_bind_real_turn_ids(monkeypatch):
+def test_direct_observation_placeholder_source_refs_bind_real_turn_ids(
+    monkeypatch, source_refs_context
+):
     import tools.pa_business_tools as pbt
 
-    monkeypatch.setenv("HERMES_SESSION_SOURCE_MESSAGE_REFS", '["wa-real-7"]')
+    source_refs_context(["wa-real-7"])
     captured = {}
     monkeypatch.setattr(pbt, "_load_runtime_bridge_config", _observation_bridge)
 
@@ -981,6 +1000,7 @@ def test_tgg_spreadsheet_gate_refuses_oversized_csv_without_full_read(
     real_stat = Path.stat
 
     class Oversized:
+        st_mode = 0o100644
         st_size = pbt._TGG_SPREADSHEET_MAX_FILE_BYTES + 1
 
     monkeypatch.setattr(

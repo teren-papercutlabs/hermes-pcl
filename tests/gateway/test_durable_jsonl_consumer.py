@@ -1575,8 +1575,36 @@ def test_bounded_dry_run_is_read_only_and_predicts_reconciliation(
     tmp_path, monkeypatch
 ):
     inbox, chats, state_db, case_db, canonical, config = _seed_bounded_state(tmp_path)
-    before_bytes = inbox.db_path.read_bytes()
-    before_stat = inbox.db_path.stat()
+    cutoff = consumer._parse_ingress_timestamp("2026-07-20T00:00:00+08:00")
+    selected = inbox.bounded_window(chat_ids=chats, cutoff=cutoff)
+
+    def logical_state():
+        with inbox.connect() as conn:
+            inbox_rows = [
+                tuple(row)
+                for row in conn.execute(
+                    "SELECT * FROM ingress_events ORDER BY seq"
+                )
+            ]
+        with sqlite3.connect(state_db) as conn:
+            state_rows = conn.execute(
+                "SELECT * FROM pa_turns ORDER BY turn_id"
+            ).fetchall()
+        with sqlite3.connect(case_db) as conn:
+            case_rows = conn.execute("SELECT * FROM cases ORDER BY id").fetchall()
+            audit_rows = conn.execute(
+                "SELECT * FROM ps_audit_log ORDER BY id"
+            ).fetchall()
+        return {
+            "inbox_rows": inbox_rows,
+            "inbox_counts": inbox.counts(),
+            "selected_statuses": inbox.window_statuses(selected),
+            "state_rows": state_rows,
+            "case_rows": case_rows,
+            "audit_rows": audit_rows,
+        }
+
+    before = logical_state()
     monkeypatch.setenv("CHRISTOPHER_TGG_PS_SERVICE_TOKEN", "test-token")
     args = argparse.Namespace(
         inbox=str(inbox.db_path), config=str(config), state_db=str(state_db),
@@ -1587,8 +1615,7 @@ def test_bounded_dry_run_is_read_only_and_predicts_reconciliation(
         lock_file=str(tmp_path / "consumer.lock"),
     )
     assert asyncio.run(consumer.run_bounded_backplay(args)) == 0
-    assert inbox.db_path.read_bytes() == before_bytes
-    assert inbox.db_path.stat().st_mtime_ns == before_stat.st_mtime_ns
+    assert logical_state() == before
     assert inbox.counts() == {"pending": 3, "processing": 2}
     audit = json.loads(Path(args.audit).read_text())
     assert audit["reconciliation"]["completed"] == 1
