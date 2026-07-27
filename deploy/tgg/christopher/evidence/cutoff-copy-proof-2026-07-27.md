@@ -28,9 +28,9 @@ Copied population:
 
 The test cutoff was deliberately set to `4,980`, ten rows below the copied
 maximum, so the real consumer query had a non-empty post-cutoff population to
-prove. This is test data only. Live execution must take a fresh
-`max(seq) WHERE status='pending'` and pass that value; the script contains no
-hardcoded cutoff.
+prove. This is test data only. Live execution must take the backfill-end
+boundary from WB `34186991`'s terminal output and pass that value;
+the script contains no hardcoded cutoff.
 
 ## Mutation result on the copy
 
@@ -43,28 +43,46 @@ cutoff_ingress_pending.py apply
   --run-id <unique-run-id>
   --provenance <authority-and-WB-reference>
   --before-image <new-path>
+  --consumer-lock-file <consumer-singleton-lock>
+  --expect-selected-count <plan-output-selected-count>
   --confirm-apply
 ```
+
+`apply` acquires the same non-blocking singleton lock as the durable consumer.
+It refuses while Christopher's consumer is running, and also refuses if any
+row at/below the cutoff is still `processing`. For tonight, the consumer must
+be stopped before the cutoff and remain stopped through the remaining
+authorized steps; the final flag-flip restart starts it once. This closes the
+read-batch/claim race and prevents an old processing row from reappearing below
+the cutoff after the mutation.
 
 The script does not need to be deployed. From a current `hermes-pcl` checkout,
 the authorized operator can stream it to the host:
 
 ```bash
-CUTOFF="<fresh max(seq) where status='pending'>"
+CUTOFF="<backfill-end seq from WB 34186991 terminal output>"
 RUN_ID="tgg-d1-cutoff-$(date -u +%Y%m%dT%H%M%SZ)"
 SCRIPT="deploy/tgg/christopher/scripts/cutoff_ingress_pending.py"
 INBOX="/home/pclaw/.hermes-christopher-tgg/runtime/capture-inbox.db"
 BEFORE="/home/pclaw/.hermes-christopher-tgg/runtime/backups/${RUN_ID}-before.json"
+LOCK="/home/pclaw/.hermes-christopher-tgg/runtime/capture-consumer.lock"
+
+# With the consumer stopped, run plan first and inspect selected_count.
+ssh tgg-app-1 \
+  "runuser -u pclaw -- python3 - plan --inbox '$INBOX' \
+   --cutoff-seq '$CUTOFF'" < "$SCRIPT"
+EXPECT="<selected_count from that plan output>"
 
 ssh tgg-app-1 \
-  "python3 - apply --inbox '$INBOX' --cutoff-seq '$CUTOFF' \
+  "runuser -u pclaw -- python3 - apply --inbox '$INBOX' --cutoff-seq '$CUTOFF' \
    --run-id '$RUN_ID' \
    --provenance 'teren D1 2026-07-27; WB:227c5ed9-e874-4e14-ac66-b23cceef5ddc' \
-   --before-image '$BEFORE' --confirm-apply" < "$SCRIPT"
+   --before-image '$BEFORE' --consumer-lock-file '$LOCK' \
+   --expect-selected-count '$EXPECT' --confirm-apply" < "$SCRIPT"
 ```
 
-`CUTOFF` must come from the runbook's fresh execution-time read, never from
-this proof or its baseline.
+`CUTOFF` must come from the backfill's own terminal output, never from this
+proof, the inbox's touch-time maximum, or the pre-flight baseline.
 
 Exact predicate:
 
@@ -94,11 +112,17 @@ Measured result:
 Selected/mutated rows: **2,503**. Of those, **3** were the already-known held
 rows. Their `status` became `skipped`, but their `retention_state` remained
 `held`; the cutoff does not clear or repair them. Tonight's separately
-authorized held-row action remains required.
+authorized held-row action remains required. Because the retention alarm only
+counts held rows whose status is pending/processing, the cutoff temporarily
+removes those three rows from that alarm. The explicit three-seq clear must
+therefore run in the same stopped-consumer window before restart; it cannot be
+left for the retention worker to rediscover. It must target seqs
+`4575/4576/4577` directly and verify those rows' `retention_state` values
+directly; retry-journal silence is not proof after the cutoff.
 
 The script wrote a full 2,503-row before-image before changing the copied
 database. Its SHA-256 was
-`cc134db5bd7fc2b2a98b63892c63b9eee721fcd466b4e793ea82d43f424f1624`.
+`de044ae5356338f1332dba91ab5885ddfb57f0a68f97b2c1e2148805407e5d12`.
 The before-image stays in ignored `client-raw/` because it contains client
 message data.
 
@@ -114,11 +138,17 @@ the test cutoff.
 
 ## Reversal proof
 
-`restore --before-image ... --confirm-run-id ... --confirm-restore` restored
-all 2,503 rows using a compare-and-swap guard: a row restores only when it is
-still `skipped` with the exact mutation timestamp. All 4,981
-`(seq,status,retention_state,updated_at)` tuples then matched the pristine
-copied database.
+`restore-audit --run-id ... --consumer-lock-file ... --confirm-restore`
+restored all 2,503 rows using the in-database row audit and a compare-and-swap
+guard: a row restores only when it is still `skipped` with the exact mutation
+timestamp. All columns of all 4,981 `ingress_events` rows then matched the
+pristine copied database. The provenance/audit tables intentionally remain as
+an immutable record of the applied-and-reverted run; reversal restores client
+row state, not the pre-run schema.
 
-The before-image is the row-level reversal mechanism. The authorized-touch
-runbook's whole-database backup remains the stronger rollback for tonight.
+The full before-image is the independent row-level reversal artifact. The
+audit tables can restore the two changed fields even if that file is lost.
+The authorized-touch runbook at
+`/Users/pcloffice/pcl-biz/_agents/edna/specs/2026-07-27-tgg-authorized-touch/runbook.md`
+still requires a whole-database backup first; that remains the strongest
+rollback for tonight.

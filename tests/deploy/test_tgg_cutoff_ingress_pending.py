@@ -1,4 +1,5 @@
 import importlib.util
+import fcntl
 import json
 import sqlite3
 from pathlib import Path
@@ -17,6 +18,7 @@ SPEC.loader.exec_module(cutoff)
 
 
 def _inbox(path: Path) -> Path:
+    (path.parent / "consumer.lock").touch()
     inbox = DurableInbox(path)
     with inbox.connect() as conn:
         for seq in range(1, 8):
@@ -85,6 +87,8 @@ def test_apply_proves_post_cutoff_selection_and_preserves_held_state(tmp_path):
         run_id="tgg-d1-test",
         provenance="WB:227c5ed9 copy test",
         before_image=before_image,
+        consumer_lock_file=tmp_path / "consumer.lock",
+        expected_selected_count=4,
     )
 
     assert result["selected_count"] == 4
@@ -133,10 +137,15 @@ def test_restore_uses_before_image_and_cas(tmp_path):
         run_id="restore-me",
         provenance="WB:227c5ed9 restore test",
         before_image=before_image,
+        consumer_lock_file=tmp_path / "consumer.lock",
+        expected_selected_count=4,
     )
 
     result = cutoff.restore_cutoff(
-        inbox, before_image, confirm_run_id="restore-me"
+        inbox,
+        before_image,
+        confirm_run_id="restore-me",
+        consumer_lock_file=tmp_path / "consumer.lock",
     )
 
     assert result["restored_count"] == 4
@@ -161,9 +170,140 @@ def test_apply_refuses_without_selected_pending_rows(tmp_path):
             run_id="no-op",
             provenance="WB:227c5ed9 no-op test",
             before_image=before_image,
+            consumer_lock_file=tmp_path / "consumer.lock",
+            expected_selected_count=4,
         )
     except cutoff.CutoffError as exc:
         assert "selected zero pending rows" in str(exc)
     else:
         raise AssertionError("zero-row cutoff did not refuse")
     assert not before_image.exists()
+
+
+def test_apply_refuses_while_consumer_lock_is_held(tmp_path):
+    inbox = _inbox(tmp_path / "inbox.db")
+    lock_path = tmp_path / "consumer.lock"
+    lock = lock_path.open("a+", encoding="utf-8")
+    fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        try:
+            cutoff.apply_cutoff(
+                inbox,
+                5,
+                run_id="live-consumer",
+                provenance="WB:227c5ed9 lock test",
+                before_image=tmp_path / "before.json",
+                consumer_lock_file=lock_path,
+                expected_selected_count=4,
+            )
+        except cutoff.CutoffError as exc:
+            assert "consumer is running" in str(exc)
+        else:
+            raise AssertionError("cutoff did not refuse the live consumer lock")
+    finally:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        lock.close()
+
+
+def test_apply_refuses_historical_processing_rows(tmp_path):
+    inbox = _inbox(tmp_path / "inbox.db")
+    with sqlite3.connect(inbox) as conn:
+        conn.execute("UPDATE ingress_events SET status='processing' WHERE seq=1")
+
+    try:
+        cutoff.apply_cutoff(
+            inbox,
+            5,
+            run_id="processing-row",
+            provenance="WB:227c5ed9 processing test",
+            before_image=tmp_path / "before.json",
+            consumer_lock_file=tmp_path / "consumer.lock",
+            expected_selected_count=3,
+        )
+    except cutoff.CutoffError as exc:
+        assert "historical processing rows" in str(exc)
+    else:
+        raise AssertionError("cutoff did not refuse a historical processing row")
+
+
+def test_apply_refuses_missing_lock_and_stale_plan_count(tmp_path):
+    inbox = _inbox(tmp_path / "inbox.db")
+    missing_lock = tmp_path / "mistyped.lock"
+    try:
+        cutoff.apply_cutoff(
+            inbox,
+            5,
+            run_id="missing-lock",
+            provenance="WB:227c5ed9 lock-path test",
+            before_image=tmp_path / "missing-lock-before.json",
+            consumer_lock_file=missing_lock,
+            expected_selected_count=4,
+        )
+    except cutoff.CutoffError as exc:
+        assert "lock file is missing" in str(exc)
+    else:
+        raise AssertionError("cutoff accepted a nonexistent consumer lock")
+    assert not missing_lock.exists()
+
+    try:
+        cutoff.apply_cutoff(
+            inbox,
+            5,
+            run_id="stale-plan",
+            provenance="WB:227c5ed9 count test",
+            before_image=tmp_path / "stale-plan-before.json",
+            consumer_lock_file=tmp_path / "consumer.lock",
+            expected_selected_count=5,
+        )
+    except cutoff.CutoffError as exc:
+        assert "selected-count mismatch" in str(exc)
+    else:
+        raise AssertionError("cutoff accepted a stale plan count")
+
+
+def test_apply_refuses_existing_before_image_without_mutation(tmp_path):
+    inbox = _inbox(tmp_path / "inbox.db")
+    before = _status_rows(inbox)
+    image = tmp_path / "before.json"
+    image.write_text("do not replace", encoding="utf-8")
+
+    try:
+        cutoff.apply_cutoff(
+            inbox,
+            5,
+            run_id="existing-image",
+            provenance="WB:227c5ed9 artifact test",
+            before_image=image,
+            consumer_lock_file=tmp_path / "consumer.lock",
+            expected_selected_count=4,
+        )
+    except cutoff.CutoffError as exc:
+        assert "before-image already exists" in str(exc)
+    else:
+        raise AssertionError("cutoff replaced an existing before-image")
+    assert image.read_text(encoding="utf-8") == "do not replace"
+    assert _status_rows(inbox) == before
+
+
+def test_audit_table_restore_survives_missing_before_image(tmp_path):
+    inbox = _inbox(tmp_path / "inbox.db")
+    before = _status_rows(inbox)
+    before_image = tmp_path / "before.json"
+    lock_path = tmp_path / "consumer.lock"
+    cutoff.apply_cutoff(
+        inbox,
+        5,
+        run_id="audit-restore",
+        provenance="WB:227c5ed9 audit restore test",
+        before_image=before_image,
+        consumer_lock_file=lock_path,
+        expected_selected_count=4,
+    )
+    before_image.unlink()
+
+    result = cutoff.restore_from_audit(
+        inbox, run_id="audit-restore", consumer_lock_file=lock_path
+    )
+
+    assert result["restored_count"] == 4
+    assert _status_rows(inbox) == before
