@@ -38,9 +38,21 @@ for key in ("processing_enabled", "config_enabled", "gate_enabled"):
     assert status[key] is config_enabled, (key, status[key], config_enabled)
 
 retention_held = status.get("retention_held")
+retention_quarantined = status.get("retention_quarantined")
+retention_quarantine_status = status.get("retention_quarantine_status")
 retention_hold = status.get("retention_hold")
+assert config["pa"]["media_retention"]["max_attempts"] == 5
 assert isinstance(retention_held, int) and not isinstance(retention_held, bool), retention_held
 assert retention_held >= 0, retention_held
+assert isinstance(retention_quarantined, int) and not isinstance(retention_quarantined, bool), retention_quarantined
+assert retention_quarantined >= 0, retention_quarantined
+assert isinstance(retention_quarantine_status, dict), retention_quarantine_status
+assert set(retention_quarantine_status) <= {"quarantined"}, retention_quarantine_status
+assert all(isinstance(value, int) and not isinstance(value, bool) and value >= 0
+           for value in retention_quarantine_status.values()), retention_quarantine_status
+assert retention_quarantine_status.get("quarantined", 0) == retention_quarantined, (
+    retention_quarantine_status, retention_quarantined
+)
 has_retention_hold = isinstance(retention_hold, str) and bool(retention_hold.strip())
 if not config_enabled:
     assert state == "standby", (state, "standby")
@@ -331,6 +343,8 @@ print(json.dumps({
     "state": status["state"],
     "state_total": status["state_total"],
     "retention_held": status["retention_held"],
+    "retention_quarantined": status["retention_quarantined"],
+    "retention_quarantine_status": status["retention_quarantine_status"],
     "retention_hold": status["retention_hold"],
 }, sort_keys=True))
 PY

@@ -54,6 +54,7 @@ MEDIA_RETENTION_BLOCK = (
     "    - /var/lib/tgg-capture/whatsapp/media\n"
     "    operation: tgg_media_retention\n"
     "    min_free_percent: 20\n"
+    "    max_attempts: 5\n"
 )
 
 # Chat-scoped inbound allowlist (2026-07-20, teren-ratified; WB 0cd5698b).
@@ -473,6 +474,7 @@ def _validate(
         "source_roots": ["/var/lib/tgg-capture/whatsapp/media"],
         "operation": "tgg_media_retention",
         "min_free_percent": 20,
+        "max_attempts": 5,
     }
     assert config["group_sessions_per_user"] is False
     assert config["platforms"]["whatsapp"]["enabled"] is False

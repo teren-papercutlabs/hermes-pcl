@@ -169,7 +169,8 @@ spec:
         retrievalOperation: tgg_case_media
         retrievalTool: tgg_case_photos
         ordering: retain-and-converge-while-business-pending-before-lane-selection-with-claimed-chat-idempotent-safety-net
-        failureDisposition: retention-held-business-pending-retry-without-lane-death
+        failureDisposition: retry-up-to-max-attempts-then-quarantine-full-envelope-and-failure-history-and-bypass-for-business-processing
+        maxAttempts: 5
         activationBacklogPreflight: all-image-paths-from-current-cursor-must-resolve
         minimumRealVolumeFreePercent: 20
         pathContract: opaque-media-refs-resolved-under-configured-root
@@ -201,6 +202,8 @@ spec:
           - retention_complete
           - retention_bypassed
           - retention_held
+          - retention_quarantined
+          - retention_quarantine_status
           - retention_hold
           - media_root_count
           - media_root_bytes

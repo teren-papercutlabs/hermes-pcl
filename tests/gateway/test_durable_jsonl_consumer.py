@@ -275,7 +275,20 @@ def test_mandatory_media_retry_cap_quarantines_full_event_and_history(tmp_path):
         "mediaUrls": [str(missing)],
         "providerMetadata": {"opaque": ["must", "survive"]},
     })
-    _write_jsonl(source, [raw])
+    source_envelope = {
+        "type": "whatsapp_capture_event",
+        "normalized": raw,
+        "raw": {
+            "message": {
+                "imageMessage": {
+                    "directPath": "/v/t62.7118-24/provider-only",
+                    "mediaKey": "provider-key-must-survive",
+                }
+            },
+            "providerSibling": {"opaque": [1, 2, 3]},
+        },
+    }
+    _write_jsonl(source, [source_envelope])
     cursor = tmp_path / "cursor.json"
     inbox = consumer.DurableInbox(tmp_path / "inbox.db")
     consumer.initialize_cursor(source, cursor, position="start")
@@ -302,8 +315,9 @@ def test_mandatory_media_retry_cap_quarantines_full_event_and_history(tmp_path):
     assert counts["retention_bypassed"] == 1
     with inbox.connect() as conn:
         event = conn.execute(
-            "SELECT raw_json,retention_state,retention_attempts,retention_failures "
-            "FROM ingress_events WHERE message_id='MANDATORY-GIVE-UP'"
+            "SELECT raw_json,source_envelope_json,retention_state,"
+            "retention_attempts,retention_failures FROM ingress_events "
+            "WHERE message_id='MANDATORY-GIVE-UP'"
         ).fetchone()
         quarantine = conn.execute(
             "SELECT raw_json,failure_history_json,status,terminal_error "
@@ -313,11 +327,18 @@ def test_mandatory_media_retry_cap_quarantines_full_event_and_history(tmp_path):
             "SELECT attempt,error FROM media_retention_failures "
             "WHERE ingress_seq=? ORDER BY attempt", (record.seq,)
         ).fetchall()
-    assert tuple(event[1:]) == ("bypassed", 2, 2)
-    assert quarantine["raw_json"] == event["raw_json"]
-    assert json.loads(quarantine["raw_json"])["providerMetadata"] == {
+    assert tuple(event[2:]) == ("bypassed", 2, 2)
+    assert json.loads(event["raw_json"])["providerMetadata"] == {
         "opaque": ["must", "survive"]
     }
+    assert quarantine["raw_json"] == event["source_envelope_json"]
+    preserved_envelope = json.loads(quarantine["raw_json"])
+    assert preserved_envelope == source_envelope
+    assert preserved_envelope["raw"]["message"]["imageMessage"] == {
+        "directPath": "/v/t62.7118-24/provider-only",
+        "mediaKey": "provider-key-must-survive",
+    }
+    assert preserved_envelope["raw"]["providerSibling"] == {"opaque": [1, 2, 3]}
     history = json.loads(quarantine["failure_history_json"])
     assert [entry["attempt"] for entry in history] == [1, 2]
     assert [(row["attempt"], row["error"]) for row in failures] == [
@@ -1029,21 +1050,27 @@ def test_inbox_v1_migration_classifies_existing_retention_queue(tmp_path):
         columns = {
             row[1] for row in migrated.execute("PRAGMA table_info(ingress_events)")
         }
+        migrated_rows = migrated.execute(
+            "SELECT message_id,retention_state,raw_json,source_envelope_json "
+            "FROM ingress_events"
+        ).fetchall()
         states = {
-            row["message_id"]: row["retention_state"]
-            for row in migrated.execute(
-                "SELECT message_id,retention_state FROM ingress_events"
-            )
+            row["message_id"]: row["retention_state"] for row in migrated_rows
+        }
+        envelope_backfill = {
+            row["message_id"]: (row["raw_json"], row["source_envelope_json"])
+            for row in migrated_rows
         }
         schema_version = migrated.execute(
             "SELECT value FROM ingress_meta WHERE key='schema_version'"
         ).fetchone()[0]
     assert {
         "retention_attempts", "retention_state", "retention_last_error",
-        "retention_updated_at",
+        "retention_updated_at", "source_envelope_json",
     } <= columns
     assert states == {"OLD-IMAGE": "pending", "OLD-TEXT": "bypassed"}
-    assert schema_version == "3"
+    assert all(raw_json == source_envelope_json for raw_json, source_envelope_json in envelope_backfill.values())
+    assert schema_version == "4"
 
 
 def test_partial_line_never_advances_cursor(tmp_path):

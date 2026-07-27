@@ -20,6 +20,8 @@ def _status(
     state: str,
     enabled: bool,
     retention_held: int = 0,
+    retention_quarantined: int = 0,
+    retention_quarantine_status: dict[str, int] | None = None,
     retention_hold: str | None = None,
     **overrides: object,
 ) -> dict[str, object]:
@@ -29,6 +31,12 @@ def _status(
         "config_enabled": enabled,
         "gate_enabled": enabled,
         "retention_held": retention_held,
+        "retention_quarantined": retention_quarantined,
+        "retention_quarantine_status": (
+            retention_quarantine_status
+            if retention_quarantine_status is not None
+            else ({"quarantined": retention_quarantined} if retention_quarantined else {})
+        ),
         "retention_hold": retention_hold,
     }
     value.update(overrides)
@@ -39,6 +47,30 @@ def _status(
     ("enabled", "gate_enabled", "status", "expected_ok"),
     [
         pytest.param(True, True, _status(state="running", enabled=True), True, id="running"),
+        pytest.param(
+            True,
+            True,
+            _status(
+                state="running",
+                enabled=True,
+                retention_quarantined=1,
+                retention_quarantine_status={"quarantined": 1},
+            ),
+            True,
+            id="running-with-queryable-quarantine",
+        ),
+        pytest.param(
+            True,
+            True,
+            _status(
+                state="running",
+                enabled=True,
+                retention_quarantined=1,
+                retention_quarantine_status={},
+            ),
+            False,
+            id="quarantine-count-status-must-match",
+        ),
         pytest.param(
             False, False, _status(state="standby", enabled=False), True, id="standby"
         ),
@@ -126,7 +158,12 @@ def test_consumer_status_contract(
     config_path = tmp_path / "config.yaml"
     gate_path = tmp_path / "processing-gate.json"
     status_path = tmp_path / "capture-consumer-status.json"
-    config_path.write_text(yaml.safe_dump({"pa": {"enabled": enabled}}))
+    config_path.write_text(yaml.safe_dump({
+        "pa": {
+            "enabled": enabled,
+            "media_retention": {"max_attempts": 5},
+        }
+    }))
     gate_path.write_text(json.dumps({"enabled": gate_enabled}))
     status_path.write_text(json.dumps(status))
 
@@ -187,6 +224,15 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert not (ROOT / "pa-agent.manifest.json").exists()
 
     spec = yaml.safe_load((DEPLOY_ROOT / "client-agent-deployment.yaml").read_text())
+    media_retention = spec["spec"]["channels"]["whatsapp"]["mediaRetention"]
+    assert media_retention["maxAttempts"] == 5
+    assert media_retention["failureDisposition"] == (
+        "retry-up-to-max-attempts-then-quarantine-full-envelope-and-"
+        "failure-history-and-bypass-for-business-processing"
+    )
+    assert {"retention_quarantined", "retention_quarantine_status"} <= set(
+        spec["spec"]["channels"]["whatsapp"]["consumer"]["statusMediaFields"]
+    )
     manifest_ref = spec["spec"]["deploy"]["manifestRef"]
     assert manifest_ref == "deploy/tgg/christopher/pa-agent.hermes.manifest.json"
 
@@ -215,6 +261,8 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert verify_script.index("exit 34") < main_pid_offset
     assert '"state": status["state"]' in verify_script
     assert '"retention_held": status["retention_held"]' in verify_script
+    assert '"retention_quarantined": status["retention_quarantined"]' in verify_script
+    assert '"retention_quarantine_status": status["retention_quarantine_status"]' in verify_script
     assert '"retention_hold": status["retention_hold"]' in verify_script
 
     manifest = json.loads((ROOT / manifest_ref).read_text())
