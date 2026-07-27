@@ -38,7 +38,7 @@ import yaml
 
 
 CURSOR_VERSION = 1
-INBOX_SCHEMA_VERSION = 2
+INBOX_SCHEMA_VERSION = 3
 
 
 def _parse_ingress_timestamp(value: Any) -> datetime:
@@ -406,6 +406,29 @@ class DurableInbox:
                 );
                 CREATE INDEX IF NOT EXISTS ingress_events_status_seq_idx
                     ON ingress_events(status, seq);
+                CREATE TABLE IF NOT EXISTS media_retention_failures (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ingress_seq INTEGER NOT NULL,
+                    attempt INTEGER NOT NULL,
+                    error TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(ingress_seq, attempt),
+                    FOREIGN KEY(ingress_seq) REFERENCES ingress_events(seq)
+                );
+                CREATE TABLE IF NOT EXISTS media_retention_quarantine (
+                    ingress_seq INTEGER PRIMARY KEY,
+                    message_id TEXT NOT NULL UNIQUE,
+                    chat_id TEXT NOT NULL,
+                    raw_json TEXT NOT NULL,
+                    failure_history_json TEXT NOT NULL,
+                    terminal_error TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'quarantined'
+                        CHECK (status IN ('quarantined')),
+                    quarantined_at TEXT NOT NULL,
+                    FOREIGN KEY(ingress_seq) REFERENCES ingress_events(seq)
+                );
+                CREATE INDEX IF NOT EXISTS media_retention_quarantine_status_idx
+                    ON media_retention_quarantine(status, quarantined_at);
                 """
             )
             # Existing consumer DBs predate durable provider-outcome detail.
@@ -1063,8 +1086,10 @@ class DurableInbox:
     def retention_result(self, record: InboxRecord) -> dict[str, Any] | None:
         with self.connect() as conn:
             row = conn.execute(
-                "SELECT retention_state,retained_media_count "
-                "FROM ingress_events WHERE seq=?",
+                "SELECT e.retention_state,e.retained_media_count,"
+                "q.status AS quarantine_status FROM ingress_events e "
+                "LEFT JOIN media_retention_quarantine q ON q.ingress_seq=e.seq "
+                "WHERE e.seq=?",
                 (record.seq,),
             ).fetchone()
         if row is None:
@@ -1077,6 +1102,7 @@ class DurableInbox:
             "bytes": 0,
             "operation": state == "complete",
             "durable": True,
+            "quarantined": row["quarantine_status"] == "quarantined",
         }
 
     def record_retention(
@@ -1087,19 +1113,77 @@ class DurableInbox:
         bypassed: bool = False,
         refusal: str | None = None,
         error: str | None = None,
-    ) -> None:
+        retry_cap: int | None = None,
+    ) -> dict[str, Any]:
+        """Persist one attempt and atomically give up after the configured cap.
+
+        Retryable mandatory-media failures retain an append-only failure history.
+        At the cap the full raw event and that history are copied to quarantine,
+        while the inbox row becomes ``bypassed`` so FIFO business processing can
+        continue without deleting or rewriting the original event.
+        """
         now = _utc_now()
         with self.connect() as conn:
             if error is not None:
+                cap = max(1, int(retry_cap or 1))
+                conn.execute("BEGIN IMMEDIATE")
+                row = conn.execute(
+                    "SELECT message_id,chat_id,raw_json,retention_state,"
+                    "retention_attempts FROM ingress_events WHERE seq=?",
+                    (record.seq,),
+                ).fetchone()
+                if row is None:
+                    raise ConsumerError(f"inbox record {record.seq} disappeared")
+                if str(row["retention_state"]) in {"complete", "bypassed"}:
+                    conn.commit()
+                    return {"quarantined": False, "durable": True}
+                attempt = int(row["retention_attempts"] or 0) + 1
+                failure = (error or "retention failed")[:2000]
                 conn.execute(
-                    "UPDATE ingress_events SET retention_state='held',"
-                    "retention_attempts=retention_attempts+1,"
-                    "retention_failures=retention_failures+1,"
+                    "INSERT INTO media_retention_failures("
+                    "ingress_seq,attempt,error,created_at) VALUES(?,?,?,?)",
+                    (record.seq, attempt, failure, now),
+                )
+                quarantined = attempt >= cap
+                state = "bypassed" if quarantined else "held"
+                changed = conn.execute(
+                    "UPDATE ingress_events SET retention_state=?,"
+                    "retention_attempts=?,retention_failures=retention_failures+1,"
                     "retention_last_error=?,retention_updated_at=? "
                     "WHERE seq=? AND retention_state IN ('pending','held')",
-                    ((error or "retention failed")[:2000], now, record.seq),
-                )
-                return
+                    (state, attempt, failure, now, record.seq),
+                ).rowcount
+                if changed != 1:
+                    raise ConsumerError(
+                        f"inbox record {record.seq} could not record retention failure"
+                    )
+                if quarantined:
+                    history = [
+                        dict(history_row)
+                        for history_row in conn.execute(
+                            "SELECT attempt,error,created_at FROM "
+                            "media_retention_failures WHERE ingress_seq=? ORDER BY attempt",
+                            (record.seq,),
+                        ).fetchall()
+                    ]
+                    conn.execute(
+                        "INSERT INTO media_retention_quarantine("
+                        "ingress_seq,message_id,chat_id,raw_json,"
+                        "failure_history_json,terminal_error,status,quarantined_at) "
+                        "VALUES(?,?,?,?,?,?,'quarantined',?) "
+                        "ON CONFLICT(ingress_seq) DO NOTHING",
+                        (
+                            record.seq,
+                            str(row["message_id"]),
+                            str(row["chat_id"]),
+                            str(row["raw_json"]),
+                            json.dumps(history, sort_keys=True, separators=(",", ":")),
+                            failure,
+                            now,
+                        ),
+                    )
+                conn.commit()
+                return {"quarantined": quarantined, "attempt": attempt, "retry_cap": cap}
             state = "bypassed" if bypassed else "complete"
             changed = conn.execute(
                 "UPDATE ingress_events SET retention_state=?,"
@@ -1123,6 +1207,7 @@ class DurableInbox:
                     raise ConsumerError(
                         f"inbox record {record.seq} could not record retention outcome"
                     )
+        return {"quarantined": False}
 
     def retention_counts(self) -> dict[str, int]:
         with self.connect() as conn:
@@ -1138,6 +1223,10 @@ class DurableInbox:
                 "AND retention_state='held' THEN 1 ELSE 0 END),0) "
                 "FROM ingress_events"
             ).fetchone()
+            quarantine_row = conn.execute(
+                "SELECT COUNT(*) FROM media_retention_quarantine "
+                "WHERE status='quarantined'"
+            ).fetchone()
         return {
             "retention_total": int(row[0]),
             "retention_failures": int(row[1]),
@@ -1146,7 +1235,17 @@ class DurableInbox:
             "retention_complete": int(row[4]),
             "retention_bypassed": int(row[5]),
             "retention_held": int(row[6]),
+            "retention_quarantined": int(quarantine_row[0]),
         }
+
+    def retention_quarantine_status(self) -> dict[str, int]:
+        """Queryable terminal give-up population by durable status."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT status,COUNT(*) AS n FROM media_retention_quarantine "
+                "GROUP BY status"
+            ).fetchall()
+        return {str(row["status"]): int(row["n"]) for row in rows}
 
     def retention_last_error(self) -> str | None:
         """Newest unresolved retention hold, independent across chat lanes."""
@@ -1304,6 +1403,7 @@ def _retention_config(config_path: Path) -> dict[str, Any] | None:
         "operation": operation,
         "ref_prefix": ref_prefix,
         "min_free_percent": float(raw.get("min_free_percent", 20)),
+        "max_attempts": max(1, int(raw.get("max_attempts", 5))),
     }
 
 
@@ -1346,6 +1446,7 @@ def _retention_status(
     return {
         **inbox.retention_counts(),
         **_media_root_metrics(config_path, inspect=inspect_media),
+        "retention_quarantine_status": inbox.retention_quarantine_status(),
         "retention_hold": inbox.retention_last_error(),
     }
 
@@ -1679,7 +1780,23 @@ def ensure_record_media_retained(
             "reason": str(exc),
         }
     except MediaRetentionError as exc:
-        inbox.record_retention(record, error=f"media-retention-retry: {exc}")
+        config = _retention_config(config_path)
+        retry_cap = int(config["max_attempts"]) if config is not None else 5
+        outcome = inbox.record_retention(
+            record,
+            error=f"media-retention-retry: {exc}",
+            retry_cap=retry_cap,
+        )
+        if outcome.get("quarantined"):
+            return {
+                "retained": 0,
+                "bytes": 0,
+                "operation": False,
+                "quarantined": True,
+                "reason": str(exc),
+                "attempt": int(outcome["attempt"]),
+                "retry_cap": int(outcome["retry_cap"]),
+            }
         raise
     inbox.record_retention(
         record,
