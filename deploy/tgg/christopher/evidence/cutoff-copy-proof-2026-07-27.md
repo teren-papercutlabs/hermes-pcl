@@ -1,6 +1,6 @@
 # Christopher inbox cutoff — copied-store proof
 
-**WB:** `227c5ed9-e874-4e14-ac66-b23cceef5ddc`  
+**WB:** `227c5ed9-e874-4e14-ac66-b23cceef5ddc`
 **Live host effect:** none. No database mutation, deploy, restart, or service-state
 change was performed on `tgg-app-1`.
 
