@@ -64,6 +64,9 @@ The same result holds for PcL's 05:00 operating-day boundary. The defect remains
 latent because the deployed code is still single-attempt, but it was not
 actively leaking in today's observed 112-event population.
 
+Final source-only verification at 12:55 SGT widened that same population to
+126 captured media events: 0 had an empty `mediaUrls`, still **0.0%**.
+
 ## Mandatory-retention consequence
 
 The three 24-Jul notify failures are the three current mandatory-media holds.

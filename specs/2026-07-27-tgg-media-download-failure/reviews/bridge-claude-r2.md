@@ -1,0 +1,28 @@
+# External Review — claude
+
+**Prompt:** Re-review prior BLOCKED WhatsApp media recovery change at latest branch head. Verify original blocker/gaps only: updateMediaMessage routes through guarded+audited inbound-media-retry allowed under val...
+
+---
+
+## Verdict: CLEAR — original blocker closed; remaining items are non-blocking defects
+
+Read-only source review at `9ad0eb7`. I did not run the suite and cannot recompute the `deploy/source-integrity.json` sha256 values; `structural.test.mjs:139-142` enforces them, so that part is only as good as an actual test run.
+
+### Verified against the re-review contract
+
+- **Guarded + audited retry.** `bridge.js:186` routes reupload through `guardedTransport.updateInboundMedia`; `guarded-transport.js:188-241` records an fsynced `inbound-media-retry` decision (`authorization: 'capture-protocol-recovery'`) *before* `socket().updateMediaMessage`, records exactly one result row on both paths, and an audit-write failure throws before the stanza (`createOutboundAudit.recordDecision` → `OutboundAuditUnavailableError`; test at `guarded-transport.test.mjs:206-238`).
+- **Allowed under valid `off`, fail-closed on malformed policy.** `allowed: policy?.valid === true` with the deny thrown *after* the decision row, so the refusal is durable. Both directions are tested (`guarded-transport.test.mjs:145-204`, `:242-283`).
+- **Raw calls structurally blocked.** `updateMediaMessage` added to `rawMutationPatterns` (`structural.test.mjs:12`) plus the positive assertion that it exists in `guarded-transport.js` only (`:31`).
+- **Detector recognizes it.** `KNOWN_MUTATION_CLASSES`, `expectedDecision`, `authorityForDecision`, `policyAuthorityMatch`, `leaseValid` all branch on `inbound-media-retry`, and the deny-witness success check is correctly narrowed to `outbound-send` (`post-flip-detector.js:364`) so an inbound retry from a witness JID is no longer scored as an outbound send. Covered by `post-flip-detector.test.mjs:373-411`.
+- **One stanza per item.** `reuploadAttempted` is set before the call and gates `canReupload` (`media-download.js:157,201`); asserted by `media-download.test.mjs:125-143` (2 downloads / 1 reupload).
+- **One overall deadline.** `deadlineAt`/`remainingMs()` clamp download, reupload, and backoff (`Math.min(timeoutMs, remainingMs())`, bounded `sleep`), the post-deadline iteration breaks instead of re-invoking `download`, and the wall-clock bound is asserted (`media-download.test.mjs:167-190`).
+- **No leakage.** `mediaFailureDisposition` emits only `category`/`statusCode`/`attempts`; no URL or upstream message reaches the event, the `media_unavailable` line, or evidence. Prior #8 (uncancellable stanza / late in-place mutation) is now documented in `README.md`.
+
+### Remaining contract defects (none blocking)
+
+1. **Guard-layer errors are laundered into upstream media dispositions in the durable ledger.** `classifyError` reads `error.statusCode`, and the guard's typed errors all carry HTTP-shaped ones: `TrustPolicyDeniedError.statusCode = 403` → `category: 'media_reference', statusCode: 403`; `TransportUnavailableError`/`OutboundAuditUnavailableError` = 503 → `'transient', 503`; `TransportOutcomeUnknownError` = 202 → `'permanent', statusCode: 202`, which is not an upstream media status at all. So a *local* policy refusal or audit outage is persisted in `events.jsonl` as "expired media reference, HTTP 403" / "CDN 5xx" — exactly the discrimination prior finding #4 existed to provide. Also costs a wasted extra download attempt in the 403 case. Fix: carry a distinct non-HTTP code for reupload-phase local refusals (or only derive `statusCode` from download-phase errors and tag `phase: 'reupload'`).
+2. **`finiteIntegerSetting` treats set-but-empty as 0.** `Number('') === 0` and `Number(' ') === 0`, so `WHATSAPP_MEDIA_RETRY_BASE_MS=` yields `0` backoff rather than the documented 500 default. The new test only uses `{min:1,max:5}`, where 0 happens to be rejected, so it doesn't cover this. Add a `String(value).trim() === ''` → fallback guard.
+3. **The ledger contract is still only grep-enforced (prior gap #5 open).** Nothing exercises `enqueueMessages` with a hung/failing download to assert the capture row is appended *with* `mediaFailure` and that later messages in the same batch still capture. `structural.test.mjs:67-70` matches source literals (`mediaFailure,`, `category: failure.category`) which pass on any code shape, and `media-download.test.mjs:192-217` tests `downloadMediaForCapture` in isolation. `bridge-http.test.mjs:94` already injects a socket via `__setBridgeSocketForTests`; an enqueue-level test is cheap.
+4. **Local persist failure is reported as a media failure.** In `materializeInboundMedia`, `persist(outcome.buffer)` (`mkdirSync`/`writeFileSync`) runs inside the `try`, so an `EACCES`/`ENOSPC` on the cache dir is recorded as `category: 'permanent', statusCode: null, attempts: 1` — indistinguishable from a permanent upstream refusal, even though the download succeeded. Move `persist` outside the try or give it its own category.
+5. **Detector behavior for the fail-closed row is incidental and untested.** A denied `inbound-media-retry` row (policy invalid) trips `outbound-decision-policy-authority-mismatch` once per affected message because `policyAuthorityMatch` requires `policy.valid === true`. Red is defensible (`active-rung-policy-invalid` already fires), but there is no explicit branch or test pinning it, so a later refactor could flip it either way.
+6. **`deploy/env.example` still omits the four `WHATSAPP_MEDIA_*` knobs** (README table added; prior #7 named both files). `env.example` is not in the integrity manifest, so this is a free edit.
