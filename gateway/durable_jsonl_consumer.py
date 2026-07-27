@@ -39,7 +39,7 @@ import yaml
 
 
 CURSOR_VERSION = 1
-INBOX_SCHEMA_VERSION = 3
+INBOX_SCHEMA_VERSION = 4
 
 
 def _parse_ingress_timestamp(value: Any) -> datetime:
@@ -409,6 +409,7 @@ class DurableInbox:
                     start_offset INTEGER NOT NULL,
                     end_offset INTEGER NOT NULL,
                     raw_json TEXT NOT NULL,
+                    source_envelope_json TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'pending'
                         CHECK (status IN ('pending','processing','completed','skipped','failed')),
                     attempts INTEGER NOT NULL DEFAULT 0,
@@ -460,6 +461,14 @@ class DurableInbox:
             ingress_columns = {
                 str(row[1]) for row in conn.execute("PRAGMA table_info(ingress_events)")
             }
+            if "source_envelope_json" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN source_envelope_json TEXT"
+                )
+                conn.execute(
+                    "UPDATE ingress_events SET source_envelope_json=raw_json "
+                    "WHERE source_envelope_json IS NULL"
+                )
             if "retained_media_count" not in ingress_columns:
                 conn.execute(
                     "ALTER TABLE ingress_events ADD COLUMN retained_media_count "
@@ -553,7 +562,7 @@ class DurableInbox:
         if cursor.offset > stat.st_size:
             raise ConsumerError("source JSONL truncated below committed cursor")
 
-        staged: list[tuple[int, int, dict[str, Any]]] = []
+        staged: list[tuple[int, int, dict[str, Any], dict[str, Any]]] = []
         last_message_id = cursor.last_message_id
         with source.open("rb") as handle:
             handle.seek(cursor.offset)
@@ -576,7 +585,7 @@ class DurableInbox:
                 if declared_document_mime and len(item.get("mediaUrls") or []) == 1:
                     item["mediaMimes"] = [declared_document_mime]
                 message_id = str(item["messageId"])
-                staged.append((start, end, item))
+                staged.append((start, end, item, decoded))
                 last_message_id = message_id
 
         if not staged:
@@ -585,14 +594,14 @@ class DurableInbox:
         now = _utc_now()
         with self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            for start, end, item in staged:
+            for start, end, item, source_envelope in staged:
                 conn.execute(
                     """
                     INSERT INTO ingress_events(
                         message_id,chat_id,source_device,source_inode,
-                        start_offset,end_offset,raw_json,status,retention_state,
-                        retention_updated_at,created_at,updated_at
-                    ) VALUES(?,?,?,?,?,?,?,'pending',?,?,?,?)
+                        start_offset,end_offset,raw_json,source_envelope_json,
+                        status,retention_state,retention_updated_at,created_at,updated_at
+                    ) VALUES(?,?,?,?,?,?,?,?,'pending',?,?,?,?)
                     ON CONFLICT(message_id) DO NOTHING
                     """,
                     (
@@ -603,6 +612,7 @@ class DurableInbox:
                         start,
                         end,
                         json.dumps(item, sort_keys=True, separators=(",", ":")),
+                        json.dumps(source_envelope, sort_keys=True, separators=(",", ":")),
                         _initial_retention_state(item),
                         now,
                         now,
@@ -1160,8 +1170,8 @@ class DurableInbox:
                 cap = max(1, int(retry_cap or 1))
                 conn.execute("BEGIN IMMEDIATE")
                 row = conn.execute(
-                    "SELECT message_id,chat_id,raw_json,retention_state,"
-                    "retention_attempts FROM ingress_events WHERE seq=?",
+                    "SELECT message_id,chat_id,raw_json,source_envelope_json,"
+                    "retention_state,retention_attempts FROM ingress_events WHERE seq=?",
                     (record.seq,),
                 ).fetchone()
                 if row is None:
@@ -1208,7 +1218,7 @@ class DurableInbox:
                             record.seq,
                             str(row["message_id"]),
                             str(row["chat_id"]),
-                            str(row["raw_json"]),
+                            str(row["source_envelope_json"] or row["raw_json"]),
                             json.dumps(history, sort_keys=True, separators=(",", ":")),
                             failure,
                             now,

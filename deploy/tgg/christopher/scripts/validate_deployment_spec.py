@@ -146,8 +146,10 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
             "with-claimed-chat-idempotent-safety-net"
         ),
         "failureDisposition": (
-            "retention-held-business-pending-retry-without-lane-death"
+            "retry-up-to-max-attempts-then-quarantine-full-envelope-and-"
+            "failure-history-and-bypass-for-business-processing"
         ),
+        "maxAttempts": 5,
         "activationBacklogPreflight": "all-image-paths-from-current-cursor-must-resolve",
         "minimumRealVolumeFreePercent": 20,
         "pathContract": "opaque-media-refs-resolved-under-configured-root",
@@ -170,6 +172,8 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         "retention_complete",
         "retention_bypassed",
         "retention_held",
+        "retention_quarantined",
+        "retention_quarantine_status",
         "retention_hold",
         "media_root_count",
         "media_root_bytes",
@@ -239,6 +243,7 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
             "source_roots": ["/var/lib/tgg-capture/whatsapp/media"],
             "operation": "tgg_media_retention",
             "min_free_percent": 20,
+            "max_attempts": 5,
         }:
             raise RuntimeError(f"slot {slot} media-retention config drifted")
         if config["platforms"]["whatsapp"]["enabled"] is not False:
