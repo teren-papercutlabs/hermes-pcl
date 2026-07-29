@@ -33,6 +33,9 @@ class MatchResult:
     kind: str
     task_id: str | None = None
     event_id: int | None = None
+    match_method: str | None = None
+    reason: str | None = None
+    candidate_task_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -57,10 +60,49 @@ class SweepResult:
     """Summary of a workflow intake sweep."""
 
     processed: int = 0
+    event_ids: tuple[int, ...] = ()
+    matched_ids: tuple[int, ...] = ()
+    created_ids: tuple[int, ...] = ()
+    buffered_ids: tuple[int, ...] = ()
+    unmatched_ids: tuple[int, ...] = ()
+    ambiguous_ids: tuple[int, ...] = ()
+    superseded_ids: tuple[int, ...] = ()
+    needs_review_ids: tuple[int, ...] = ()
+
+    @property
+    def counts(self) -> dict[str, int]:
+        """Return stable per-class counts for callers that do not need ids."""
+
+        return {
+            "processed": self.processed,
+            "matched": len(self.matched_ids),
+            "created": len(self.created_ids),
+            "buffered": len(self.buffered_ids),
+            "unmatched": len(self.unmatched_ids),
+            "ambiguous": len(self.ambiguous_ids),
+            "superseded": len(self.superseded_ids),
+            "needs_review": len(self.needs_review_ids),
+        }
 
 
 def _now() -> int:
     return int(time.time())
+
+
+DONE_RETENTION_SECONDS = 14 * 24 * 60 * 60
+_TERMINAL_EVENT_STATUSES = frozenset(
+    {
+        "matched",
+        "applied",
+        "ambiguous",
+        "superseded",
+        "needs_review",
+        "routed_out",
+    }
+)
+_MATCH_KINDS = frozenset(
+    {"matched", "create", "buffered", "unmatched", "ambiguous", "superseded", "needs_review"}
+)
 
 
 def _json(value: Any) -> str | None:
@@ -377,6 +419,12 @@ def create_instance(
         elif _wait_only_step(first):
             park(conn, task_id, first_key, list(first.get("waits") or []))
         _assert_invariant(conn, task_id)
+        _rematch_held_events(
+            conn,
+            task_id=task_id,
+            now=_now(),
+            exclude_event_id=source_event_id,
+        )
         return task_id
 
 
@@ -725,6 +773,12 @@ def advance(conn, task_id, *, to_step, event_id) -> None:
                     f"cannot advance workflow task from status {task['status']!r}"
                 )
         _assert_invariant(conn, task_id)
+    _rematch_held_events(
+        conn,
+        task_id=task_id,
+        now=_now(),
+        exclude_event_id=event_id,
+    )
 
 
 def context(conn, task_id: str) -> dict:
@@ -805,22 +859,770 @@ def exception(conn, task_id: str, reason: str) -> None:
         _assert_invariant(conn, task_id)
 
 
-def match_event(conn, event_id) -> MatchResult:
-    """Deterministic correlator implementation lands in the correlator unit."""
+def _event_data(event: sqlite3.Row) -> tuple[dict, dict]:
+    """Return the structured correlation and payload portions of an event."""
 
-    raise NotImplementedError
+    corr = _load_json(event["corr"], {})
+    payload = _load_json(event["payload"], {})
+    if not isinstance(corr, dict):
+        corr = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    return corr, payload
+
+
+def _read_value(values: dict, field: Any) -> tuple[bool, Any]:
+    """Read a declared field, accepting direct and dotted object paths."""
+
+    if not isinstance(field, str) or not field:
+        return False, None
+    if field in values:
+        return True, values[field]
+    current: Any = values
+    for part in field.split("."):
+        if not isinstance(current, dict) or part not in current:
+            return False, None
+        current = current[part]
+    return True, current
+
+
+def _usable(value: Any) -> bool:
+    return value is not None and value != ""
+
+
+def _declared_fields(spec: dict, name: str) -> list[str]:
+    """Normalize ordered template fields without adding template semantics."""
+
+    values = _workflow_spec(spec).get(name) or []
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, list):
+        return []
+    fields: list[str] = []
+    for value in values:
+        if isinstance(value, str) and value:
+            fields.append(value)
+        elif isinstance(value, dict):
+            field = value.get("field", value.get("key", value.get("name")))
+            if isinstance(field, str) and field:
+                fields.append(field)
+    return fields
+
+
+def _correlation_fields(spec: dict) -> list[str]:
+    return _declared_fields(spec, "correlation_keys")
+
+
+def _disambiguator_fields(spec: dict) -> list[str]:
+    return _declared_fields(spec, "disambiguators")
+
+
+def _event_value(corr: dict, payload: dict, field: str) -> tuple[bool, Any]:
+    """Correlation is authoritative, with payload as the declared fallback."""
+
+    found, value = _read_value(corr, field)
+    if found and _usable(value):
+        return True, value
+    found, value = _read_value(payload, field)
+    return found and _usable(value), value
+
+
+def _wait_types(wait: dict) -> tuple[str, ...]:
+    types = wait.get("types") or []
+    if isinstance(types, str):
+        return (types,)
+    if isinstance(types, list):
+        return tuple(value for value in types if isinstance(value, str))
+    return ()
+
+
+def _event_matches_wait(event: sqlite3.Row, wait: dict) -> bool:
+    kind = wait.get("kind")
+    if kind == "event":
+        return event["source"] != "timer" and event["event_type"] in _wait_types(wait)
+    if kind == "timer":
+        if event["source"] != "timer":
+            return False
+        action = wait.get("action")
+        return action in (None, event["event_type"])
+    return False
+
+
+def _declared_event_types(spec: dict) -> set[str]:
+    declared: set[str] = set()
+    for step in _steps(spec):
+        for wait in step.get("waits") or []:
+            if not isinstance(wait, dict):
+                continue
+            if wait.get("kind") == "event":
+                declared.update(_wait_types(wait))
+            elif wait.get("kind") == "timer" and isinstance(wait.get("action"), str):
+                declared.add(wait["action"])
+    return declared
+
+
+def _declared_wait_step_indexes(spec: dict, event: sqlite3.Row) -> list[int]:
+    indexes: list[int] = []
+    for index, step in enumerate(_steps(spec)):
+        if any(
+            isinstance(wait, dict) and _event_matches_wait(event, wait)
+            for wait in (step.get("waits") or [])
+        ):
+            indexes.append(index)
+    return indexes
+
+
+def _current_compatible(
+    conn: sqlite3.Connection,
+    task_id: str,
+    step_key: str,
+    event: sqlite3.Row,
+    spec: dict,
+) -> bool:
+    """Return whether the current step has an armed compatible wait."""
+
+    rows = conn.execute(
+        "SELECT * FROM wf_wait WHERE task_id = ? AND step_key = ? AND status = 'armed' ORDER BY id",
+        (task_id, step_key),
+    ).fetchall()
+    waits = [wait for wait in (_step(spec, step_key).get("waits") or []) if isinstance(wait, dict)]
+    for row in rows:
+        for wait in waits:
+            if wait.get("kind") != row["kind"]:
+                continue
+            if wait.get("kind") == "event":
+                row_types = _load_json(row["event_types"], []) or []
+                if event["event_type"] not in row_types or event["event_type"] not in _wait_types(wait):
+                    continue
+            elif event["source"] != "timer":
+                continue
+            if wait.get("kind") == "timer" and wait.get("action") not in (None, event["event_type"]):
+                continue
+            if wait.get("schema") is not None and row["schema_ref"] != wait.get("schema"):
+                continue
+            return True
+    return False
+
+
+def _candidate_key_hits(
+    conn: sqlite3.Connection,
+    event: sqlite3.Row,
+    *,
+    include_done: bool = True,
+) -> list[dict]:
+    """Find candidates using each template's strongest declared key only."""
+
+    corr, payload = _event_data(event)
+    rows = conn.execute(
+        "SELECT * FROM wf_instance ORDER BY task_id"
+    ).fetchall()
+    hits: list[dict] = []
+    for instance in rows:
+        if not include_done and instance["state"] == "done":
+            continue
+        spec = _load_template(conn, instance["template_id"])
+        instance_corr = _load_json(instance["corr"], {}) or {}
+        if not isinstance(instance_corr, dict):
+            instance_corr = {}
+        for rank, field in enumerate(_correlation_fields(spec)):
+            event_has_value, event_value = _event_value(corr, payload, field)
+            instance_has_value, instance_value = _read_value(instance_corr, field)
+            if event_has_value and instance_has_value and event_value == instance_value:
+                hits.append(
+                    {
+                        "instance": instance,
+                        "spec": spec,
+                        "rank": rank,
+                        "field": field,
+                    }
+                )
+                break
+
+    if not hits:
+        return []
+    strongest = min(hit["rank"] for hit in hits)
+    # The key rank is part of the template contract. A weaker key must never
+    # rescue a candidate after a stronger key produced a hit.
+    return [hit for hit in hits if hit["rank"] == strongest]
+
+
+def _create_on_types(spec: dict) -> set[str]:
+    values = _workflow_spec(spec).get("create_on") or []
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, list):
+        return set()
+    result: set[str] = set()
+    for value in values:
+        if isinstance(value, str):
+            result.add(value)
+        elif isinstance(value, dict):
+            event_type = value.get("event_type", value.get("type"))
+            if isinstance(event_type, str):
+                result.add(event_type)
+    return result
+
+
+def _is_create_event(spec: dict, event_type: str | None) -> bool:
+    return event_type is not None and event_type in _create_on_types(spec)
+
+
+def _template_id_from_event(corr: dict, payload: dict) -> str | None:
+    for values in (corr, payload):
+        for field in ("template_id", "workflow_template_id"):
+            found, value = _read_value(values, field)
+            if found and isinstance(value, str) and value:
+                return value
+    return None
+
+
+def _entity_key_for_event(spec: dict, event: sqlite3.Row) -> str:
+    corr, payload = _event_data(event)
+    entity = _workflow_spec(spec).get("entity")
+    if isinstance(entity, dict):
+        entity = entity.get("key", entity.get("field", entity.get("name")))
+    if isinstance(entity, str):
+        found, value = _event_value(corr, payload, entity)
+        if found:
+            return str(value)
+    for field in _correlation_fields(spec):
+        found, value = _event_value(corr, payload, field)
+        if found:
+            return str(value)
+    found, value = _event_value(corr, payload, "entity_key")
+    if found:
+        return str(value)
+    return str(event["external_id"] or f"event-{event['id']}")
+
+
+def _all_template_rows(conn: sqlite3.Connection) -> list[tuple[str, dict]]:
+    rows = conn.execute(
+        "SELECT slug, version, spec FROM wf_template ORDER BY slug, version"
+    ).fetchall()
+    result: list[tuple[str, dict]] = []
+    for row in rows:
+        template_id = f"{row['slug']}@{int(row['version'])}"
+        spec = _load_json(row["spec"], None)
+        if isinstance(spec, dict):
+            result.append((template_id, spec))
+    return result
+
+
+def _event_has_any_declared_key(conn: sqlite3.Connection, event: sqlite3.Row) -> bool:
+    corr, payload = _event_data(event)
+    for _template_id, spec in _all_template_rows(conn):
+        for field in _correlation_fields(spec):
+            found, _value = _event_value(corr, payload, field)
+            if found:
+                return True
+    return False
+
+
+def _event_is_declared(conn: sqlite3.Connection, event: sqlite3.Row) -> bool:
+    for _template_id, spec in _all_template_rows(conn):
+        if event["event_type"] in _declared_event_types(spec):
+            return True
+        if _is_create_event(spec, event["event_type"]):
+            return True
+    return False
+
+
+def _record_match(
+    conn: sqlite3.Connection,
+    event_id: int,
+    kind: str,
+    task_id: str | None = None,
+    *,
+    method: str = "deterministic",
+    reason: str | None = None,
+    candidates: tuple[str, ...] = (),
+    status_override: str | None = None,
+) -> MatchResult:
+    if kind not in _MATCH_KINDS:
+        raise ValueError(f"invalid workflow match kind: {kind}")
+    status = status_override or ("matched" if kind in {"matched", "create"} else kind)
+    conn.execute(
+        """
+        UPDATE wf_event
+           SET status = ?, matched_task_id = ?, match_method = ?
+         WHERE id = ?
+        """,
+        (status, task_id, method, int(event_id)),
+    )
+    return MatchResult(
+        kind=kind,
+        task_id=task_id,
+        event_id=int(event_id),
+        match_method=method,
+        reason=reason,
+        candidate_task_ids=tuple(candidates),
+    )
+
+
+def _result_for_terminal_event(event: sqlite3.Row) -> MatchResult:
+    status = event["status"]
+    task_id = event["matched_task_id"]
+    method = event["match_method"]
+    if status == "matched":
+        kind = "create" if method == "deterministic:create" else "matched"
+    elif status == "applied":
+        kind = "matched"
+    elif status == "routed_out":
+        kind = "unmatched"
+    else:
+        kind = status
+    return MatchResult(
+        kind=kind,
+        task_id=task_id,
+        event_id=int(event["id"]),
+        match_method=method,
+    )
+
+
+def _disambiguate(
+    event: sqlite3.Row,
+    candidates: list[dict],
+) -> list[dict]:
+    if len(candidates) <= 1:
+        return candidates
+    corr, payload = _event_data(event)
+    fields: list[str] = []
+    for candidate in candidates:
+        for field in _disambiguator_fields(candidate["spec"]):
+            if field not in fields:
+                fields.append(field)
+    narrowed = list(candidates)
+    for field in fields:
+        found, event_value = _event_value(corr, payload, field)
+        if not found:
+            continue
+        matching: list[dict] = []
+        for candidate in narrowed:
+            if field not in _disambiguator_fields(candidate["spec"]):
+                matching.append(candidate)
+                continue
+            vars_value = _load_json(candidate["instance"]["vars"], {}) or {}
+            if not isinstance(vars_value, dict):
+                continue
+            has_value, value = _read_value(vars_value, field)
+            if has_value and value == event_value:
+                matching.append(candidate)
+        if matching:
+            narrowed = matching
+        else:
+            # A declared field that contradicts every candidate cannot select
+            # one. Keep the ambiguity visible instead of guessing.
+            return []
+        if len(narrowed) == 1:
+            break
+    return narrowed
+
+
+def _contradicts_recorded_vars(event: sqlite3.Row, instance: sqlite3.Row) -> bool:
+    corr, payload = _event_data(event)
+    values = _load_json(instance["vars"], {}) or {}
+    if not isinstance(values, dict):
+        return False
+    for source in (corr, payload):
+        for field, event_value in source.items():
+            if field not in values:
+                continue
+            if values[field] != event_value:
+                return True
+    return False
+
+
+def _mutation_event(event: sqlite3.Row) -> bool:
+    corr, payload = _event_data(event)
+    merged = {**corr, **payload}
+    for marker in ("mutation", "mutates", "is_mutation"):
+        if merged.get(marker) is True:
+            return True
+    value = merged.get("operation", merged.get("action"))
+    if isinstance(value, str) and value.lower() in {"update", "mutate", "delete", "cancel"}:
+        return True
+    event_type = event["event_type"]
+    return isinstance(event_type, str) and event_type.lower() in {
+        "update", "updated", "mutation", "mutated", "delete", "deleted", "cancel", "cancelled",
+    }
+
+
+def _done_within_retention(conn: sqlite3.Connection, task_id: str, now: int) -> bool:
+    row = conn.execute(
+        "SELECT completed_at FROM tasks WHERE id = ?", (task_id,)
+    ).fetchone()
+    if row is None or row["completed_at"] is None:
+        return False
+    return int(row["completed_at"]) >= int(now) - DONE_RETENTION_SECONDS
+
+
+def _match_position(
+    conn: sqlite3.Connection,
+    event: sqlite3.Row,
+    candidate: dict,
+    now: int,
+) -> str | None:
+    """Return current, future, past, or None for a keyed candidate."""
+
+    instance = candidate["instance"]
+    spec = candidate["spec"]
+    current_key = instance["task_id"] and _task(conn, instance["task_id"])["current_step_key"]
+    if not current_key:
+        return None
+    try:
+        current_index = next(i for i, step in enumerate(_steps(spec)) if step["key"] == current_key)
+    except StopIteration:
+        return None
+    if instance["state"] != "done" and _current_compatible(
+        conn, instance["task_id"], str(current_key), event, spec
+    ):
+        return "current"
+    indexes = _declared_wait_step_indexes(spec, event)
+    if not indexes:
+        return None
+    if instance["state"] == "done":
+        return "done"
+    if any(index > current_index for index in indexes):
+        return "future"
+    if any(index < current_index for index in indexes):
+        return "past"
+    return None
+
+
+def _rematch_held_events(
+    conn: sqlite3.Connection,
+    *,
+    task_id: str | None = None,
+    now: int | None = None,
+    exclude_event_id: int | None = None,
+) -> None:
+    """Bounded, non-applying re-match used by instance creation and advance."""
+
+    now = _now() if now is None else int(now)
+    cutoff = now - DONE_RETENTION_SECONDS
+    params: list[Any] = [cutoff]
+    query = (
+        "SELECT * FROM wf_event WHERE created_at >= ? "
+        "AND status IN ('unmatched', 'buffered')"
+    )
+    if exclude_event_id is not None:
+        query += " AND id != ?"
+        params.append(int(exclude_event_id))
+    query += " ORDER BY id"
+    for event in conn.execute(query, params).fetchall():
+        # A held create event is retried by the intake/sweep path, not from
+        # another create, which keeps instance creation non-recursive.
+        if any(
+            _is_create_event(spec, event["event_type"])
+            for _template_id, spec in _all_template_rows(conn)
+        ):
+            continue
+        if task_id is not None:
+            hits = _candidate_key_hits(conn, event)
+            if not any(hit["instance"]["task_id"] == task_id for hit in hits):
+                continue
+        match_event(conn, int(event["id"]))
+
+
+def match_event(conn, event_id) -> MatchResult:
+    """Classify one event without applying it to a workflow instance."""
+
+    with kanban_db.write_txn(conn):
+        event = conn.execute(
+            "SELECT * FROM wf_event WHERE id = ?", (int(event_id),)
+        ).fetchone()
+        if event is None:
+            raise KeyError(f"unknown workflow event: {event_id}")
+        if event["status"] in _TERMINAL_EVENT_STATUSES:
+            return _result_for_terminal_event(event)
+
+        now = _now()
+        hits = _candidate_key_hits(conn, event)
+        # A create event only births an instance when no usable live candidate
+        # exists. Done rows inside retention are a late-event record, except
+        # for a create signal, which is a new-instance check.
+        create_templates: list[tuple[str, dict]] = []
+        event_template_id = None
+        corr, payload = _event_data(event)
+        event_template_id = _template_id_from_event(corr, payload)
+        for template_id, spec in _all_template_rows(conn):
+            if not _is_create_event(spec, event["event_type"]):
+                continue
+            if event_template_id is None or event_template_id == template_id:
+                create_templates.append((template_id, spec))
+
+        live_hits = [
+            hit
+            for hit in hits
+            if hit["instance"]["state"] != "done"
+            or _done_within_retention(conn, hit["instance"]["task_id"], now)
+        ]
+        create_only_done = bool(hits) and not any(
+            hit["instance"]["state"] != "done" for hit in hits
+        )
+        if (not live_hits or create_only_done) and create_templates:
+            if len(create_templates) > 1:
+                return _record_match(
+                    conn,
+                    int(event_id),
+                    "ambiguous",
+                    candidates=tuple(template_id for template_id, _spec in create_templates),
+                    reason="multiple create templates accept the event",
+                )
+            template_id, spec = create_templates[0]
+            entity_key = _entity_key_for_event(spec, event)
+            existing_entity = conn.execute(
+                "SELECT task_id FROM wf_instance WHERE entity_key = ?",
+                (entity_key,),
+            ).fetchone()
+            if existing_entity is not None:
+                entity_key = f"{entity_key}#{int(event_id)}"
+            task_id = create_instance(
+                conn,
+                template_id=template_id,
+                entity_key=entity_key,
+                corr=corr,
+                vars=payload,
+                source_event_id=int(event_id),
+            )
+            return _record_match(
+                conn,
+                int(event_id),
+                "create",
+                task_id,
+                method="deterministic:create",
+                reason="event type declared in create_on",
+            )
+
+        if not hits:
+            declared_key = _event_has_any_declared_key(conn, event)
+            declared_event = _event_is_declared(conn, event)
+            status = "unmatched"
+            if not declared_key and not declared_event:
+                status = "routed_out"
+            return _record_match(
+                conn,
+                int(event_id),
+                "unmatched",
+                method="deterministic",
+                reason=(
+                    "event type is outside registered declarations"
+                    if status == "routed_out"
+                    else "no instance matched declared correlation values"
+                ),
+                status_override=status,
+            )
+
+        # Current-step compatibility is the only path that can yield a
+        # matched event. A weaker correlation key never reaches this branch
+        # after a stronger key produced any hit.
+        current = []
+        for hit in live_hits:
+            task_id = hit["instance"]["task_id"]
+            task = _task(conn, task_id)
+            if _match_position(conn, event, hit, now) == "current":
+                current.append({**hit, "task": task})
+        if current:
+            narrowed = _disambiguate(event, current)
+            if len(narrowed) == 1:
+                task_id = narrowed[0]["instance"]["task_id"]
+                return _record_match(conn, int(event_id), "matched", task_id)
+            return _record_match(
+                conn,
+                int(event_id),
+                "ambiguous",
+                candidates=tuple(item["instance"]["task_id"] for item in current),
+                reason="more than one compatible current-step candidate",
+            )
+
+        positioned: list[tuple[dict, str]] = []
+        for hit in live_hits:
+            position = _match_position(conn, event, hit, now)
+            if position in {"future", "past", "done"}:
+                positioned.append((hit, position))
+
+        if len(positioned) > 1:
+            return _record_match(
+                conn,
+                int(event_id),
+                "ambiguous",
+                candidates=tuple(item["instance"]["task_id"] for item, _ in positioned),
+                reason="more than one non-current candidate remains",
+            )
+        if len(positioned) == 1:
+            hit, position = positioned[0]
+            task_id = hit["instance"]["task_id"]
+            if position == "future":
+                return _record_match(
+                    conn,
+                    int(event_id),
+                    "buffered",
+                    task_id,
+                    reason="event is declared by a future template step",
+                )
+            if position == "done":
+                if _contradicts_recorded_vars(event, hit["instance"]) or _mutation_event(event):
+                    return _record_match(
+                        conn,
+                        int(event_id),
+                        "needs_review",
+                        task_id,
+                        reason="late event contradicts or mutates recorded state",
+                    )
+                return _record_match(
+                    conn,
+                    int(event_id),
+                    "superseded",
+                    task_id,
+                    reason="late event correlated within done retention",
+                )
+            if _contradicts_recorded_vars(event, hit["instance"]):
+                return _record_match(
+                    conn,
+                    int(event_id),
+                    "needs_review",
+                    task_id,
+                    reason="past event contradicts recorded state",
+                )
+            return _record_match(
+                conn,
+                int(event_id),
+                "superseded",
+                task_id,
+                reason="event belongs to a past template step",
+            )
+
+        # A keyed candidate with no compatible declared step is retained as an
+        # unmatched event. It is still visible and can be reconsidered by the
+        # bounded sweep if the instance advances later.
+        return _record_match(
+            conn,
+            int(event_id),
+            "unmatched",
+            method="deterministic",
+            reason="correlation matched but no compatible template step exists",
+        )
 
 
 def fire_due_timers(conn, now: int) -> list[int]:
-    """Timer watcher implementation lands in the correlator unit."""
+    """Insert one deterministic synthetic event for each due armed timer."""
 
-    raise NotImplementedError
+    created: list[int] = []
+    with kanban_db.write_txn(conn):
+        rows = conn.execute(
+            """
+            SELECT w.*, i.template_id
+              FROM wf_wait w
+              JOIN wf_instance i ON i.task_id = w.task_id
+             WHERE w.kind = 'timer'
+               AND w.status = 'armed'
+               AND w.timer_at IS NOT NULL
+               AND w.timer_at <= ?
+             ORDER BY w.id
+            """,
+            (int(now),),
+        ).fetchall()
+        for wait in rows:
+            spec = _load_template(conn, wait["template_id"])
+            timer_specs = [
+                item
+                for item in (_step(spec, wait["step_key"]).get("waits") or [])
+                if isinstance(item, dict) and item.get("kind") == "timer"
+            ]
+            timer_spec = next(
+                (
+                    item
+                    for item in timer_specs
+                    if item.get("action") == wait["timer_action"]
+                ),
+                timer_specs[0] if timer_specs else {},
+            )
+            limit = timer_spec.get("max_fires", 1)
+            try:
+                limit = int(limit)
+            except (TypeError, ValueError):
+                limit = 1
+            if limit < 1 or int(wait["fires_used"] or 0) >= limit:
+                continue
+
+            # A timer row has one due point. A successful prior insertion is
+            # the idempotency marker even when the wait allows more than one
+            # fire; a later fire requires the template to re-arm a new row.
+            if int(wait["fires_used"] or 0) > 0:
+                continue
+            next_fire = int(wait["fires_used"] or 0) + 1
+            external_id = f"wf:{wait['task_id']}:{wait['step_key']}:{wait['id']}:{next_fire}"
+            existing = conn.execute(
+                "SELECT id FROM wf_event WHERE source = 'timer' AND external_id = ?",
+                (external_id,),
+            ).fetchone()
+            if existing is not None:
+                continue
+            event_id = ingest_event(
+                conn,
+                source="timer",
+                external_id=external_id,
+                payload={"wait_id": int(wait["id"]), "fire": next_fire},
+                corr={"task_id": wait["task_id"], "step_key": wait["step_key"]},
+                event_type=wait["timer_action"],
+            )
+            if event_id is None:
+                continue
+            updated = conn.execute(
+                """
+                UPDATE wf_wait
+                   SET fires_used = fires_used + 1
+                 WHERE id = ? AND status = 'armed' AND fires_used = ?
+                """,
+                (int(wait["id"]), int(wait["fires_used"] or 0)),
+            )
+            if updated.rowcount != 1:
+                continue
+            created.append(int(event_id))
+    return created
 
 
 def sweep(conn, now: int) -> SweepResult:
-    """Intake sweep implementation lands in the correlator unit."""
+    """Re-drive bounded intake rows without applying any workflow event."""
 
-    raise NotImplementedError
+    cutoff = int(now) - DONE_RETENTION_SECONDS
+    event_ids = [
+        int(row["id"])
+        for row in conn.execute(
+            """
+            SELECT id
+              FROM wf_event
+             WHERE created_at >= ?
+               AND status IN ('received', 'classified', 'unmatched', 'buffered')
+             ORDER BY id
+            """,
+            (cutoff,),
+        ).fetchall()
+    ]
+    buckets: dict[str, list[int]] = {
+        "matched": [],
+        "create": [],
+        "buffered": [],
+        "unmatched": [],
+        "ambiguous": [],
+        "superseded": [],
+        "needs_review": [],
+    }
+    for event_id in event_ids:
+        result = match_event(conn, event_id)
+        if result.kind in buckets:
+            buckets[result.kind].append(event_id)
+    return SweepResult(
+        processed=len(event_ids),
+        event_ids=tuple(event_ids),
+        matched_ids=tuple(buckets["matched"]),
+        created_ids=tuple(buckets["create"]),
+        buffered_ids=tuple(buckets["buffered"]),
+        unmatched_ids=tuple(buckets["unmatched"]),
+        ambiguous_ids=tuple(buckets["ambiguous"]),
+        superseded_ids=tuple(buckets["superseded"]),
+        needs_review_ids=tuple(buckets["needs_review"]),
+    )
 
 
 __all__ = [
