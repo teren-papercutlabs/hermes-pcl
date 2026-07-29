@@ -17,15 +17,14 @@ from hermes_cli import wf_engine
 TABLES = {
     "wf_template": {
         "columns": [
-            ("template_id", "TEXT", 0, None),
             ("slug", "TEXT", 1, None),
             ("version", "INTEGER", 1, None),
             ("content_hash", "TEXT", 1, None),
             ("spec", "TEXT", 1, None),
             ("created_at", "INTEGER", 1, None),
         ],
-        "pk": ["template_id"],
-        "unique": [{"slug", "version"}],
+        "pk": ["slug", "version"],
+        "unique": [],
         "foreign_keys": [],
     },
     "wf_instance": {
@@ -168,8 +167,8 @@ def test_schema_is_exact_and_reopen_is_idempotent(tmp_path):
             ] == expected["foreign_keys"]
         conn.execute(
             "INSERT INTO wf_template "
-            "(template_id, slug, version, content_hash, spec, created_at) "
-            "VALUES ('alpha@1', 'alpha', 1, 'hash', '{}', 1)"
+            "(slug, version, content_hash, spec, created_at) "
+            "VALUES ('alpha', 1, 'hash', '{}', 1)"
         )
     finally:
         conn.close()
@@ -214,11 +213,11 @@ def test_register_template_hashes_canonical_content_and_versions(tmp_path):
         assert independent == ("beta@1", 1)
         assert conn.execute("SELECT COUNT(*) FROM wf_template").fetchone()[0] == 3
         stored = conn.execute(
-            "SELECT template_id, version, content_hash, spec, created_at "
-            "FROM wf_template WHERE template_id='alpha@1'"
+            "SELECT slug, version, content_hash, spec, created_at "
+            "FROM wf_template WHERE slug='alpha' AND version=1"
         ).fetchone()
         assert tuple(stored[:4]) == (
-            "alpha@1",
+            "alpha",
             1,
             expected_hash,
             expected_json,

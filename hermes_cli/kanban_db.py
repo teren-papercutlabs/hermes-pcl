@@ -870,13 +870,12 @@ CREATE TABLE IF NOT EXISTS kanban_notify_subs (
 -- Workflow engine tables. These are additive to the kanban chassis; the
 -- engine owns their lifecycle and keeps workflow state separate from tasks.
 CREATE TABLE IF NOT EXISTS wf_template (
-    template_id  TEXT PRIMARY KEY,
     slug         TEXT NOT NULL,
     version      INTEGER NOT NULL,
     content_hash TEXT NOT NULL,
     spec         TEXT NOT NULL,
     created_at   INTEGER NOT NULL,
-    UNIQUE (slug, version)
+    PRIMARY KEY (slug, version)
 );
 
 CREATE TABLE IF NOT EXISTS wf_instance (

@@ -62,7 +62,7 @@ def register_template(conn: sqlite3.Connection, spec: dict) -> tuple[str, int]:
     with kanban_db.write_txn(conn):
         newest = conn.execute(
             """
-            SELECT template_id, version, content_hash
+            SELECT slug, version, content_hash
             FROM wf_template
             WHERE slug = ?
             ORDER BY version DESC
@@ -71,17 +71,17 @@ def register_template(conn: sqlite3.Connection, spec: dict) -> tuple[str, int]:
             (slug,),
         ).fetchone()
         if newest is not None and newest[2] == content_hash:
-            return newest[0], int(newest[1])
+            return f"{slug}@{int(newest[1])}", int(newest[1])
 
         version = 1 if newest is None else int(newest[1]) + 1
         template_id = f"{slug}@{version}"
         conn.execute(
             """
             INSERT INTO wf_template (
-                template_id, slug, version, content_hash, spec, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                slug, version, content_hash, spec, created_at
+            ) VALUES (?, ?, ?, ?, ?)
             """,
-            (template_id, slug, version, content_hash, canonical_spec, int(time.time())),
+            (slug, version, content_hash, canonical_spec, int(time.time())),
         )
         return template_id, version
 
