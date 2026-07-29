@@ -1265,6 +1265,23 @@ def write_txn(conn: sqlite3.Connection):
     task + recording an event, etc.).  A claim CAS inside this context is
     atomic -- at most one concurrent writer can succeed.
     """
+    # Engine operations compose the existing kanban mutations (for example,
+    # ``create_task`` followed by ``block_task``) inside one outer write.  A
+    # second BEGIN is illegal in SQLite, so nested calls use a savepoint while
+    # preserving the old BEGIN IMMEDIATE/COMMIT behavior for top-level calls.
+    if conn.in_transaction:
+        savepoint = f"kanban_txn_{id(conn):x}_{secrets.token_hex(4)}"
+        conn.execute(f"SAVEPOINT {savepoint}")
+        try:
+            yield conn
+        except Exception:
+            conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+            conn.execute(f"RELEASE SAVEPOINT {savepoint}")
+            raise
+        else:
+            conn.execute(f"RELEASE SAVEPOINT {savepoint}")
+        return
+
     conn.execute("BEGIN IMMEDIATE")
     try:
         yield conn
