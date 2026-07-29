@@ -145,6 +145,46 @@ def _load_template(conn: sqlite3.Connection, template_id: str) -> dict:
     return spec
 
 
+def _live_step_mode(
+    conn: sqlite3.Connection,
+    template_id: str,
+    step_key: str,
+    pinned_step: dict,
+) -> dict:
+    """Overlay only the live posture dial onto a pinned structural step."""
+
+    slug, pinned_version = _template_parts(template_id)
+    latest = conn.execute(
+        """
+        SELECT version, spec
+          FROM wf_template
+         WHERE slug = ?
+         ORDER BY version DESC
+         LIMIT 1
+        """,
+        (slug,),
+    ).fetchone()
+    if latest is None or int(latest["version"]) == pinned_version:
+        return pinned_step
+
+    latest_spec = _load_json(latest["spec"], None)
+    if not isinstance(latest_spec, dict):
+        return pinned_step
+    try:
+        latest_step = _step(latest_spec, step_key)
+    except KeyError:
+        # A stable step key is required for a posture overlay. If a later
+        # family version removes it, the instance keeps its pinned structure
+        # and its pinned mode rather than borrowing a different step.
+        return pinned_step
+
+    if "mode" not in latest_step:
+        return pinned_step
+    live_step = dict(pinned_step)
+    live_step["mode"] = latest_step["mode"]
+    return live_step
+
+
 def _workflow_spec(spec: dict) -> dict:
     nested = spec.get("workflow")
     if isinstance(nested, dict):
@@ -802,6 +842,12 @@ def context(conn, task_id: str) -> dict:
     instance = _instance(conn, task_id)
     spec = _load_template(conn, instance["template_id"])
     step = _step(spec, task["current_step_key"])
+    step = _live_step_mode(
+        conn,
+        instance["template_id"],
+        task["current_step_key"],
+        step,
+    )
     return {
         "task_id": task_id,
         "template_id": instance["template_id"],

@@ -109,6 +109,86 @@ def test_create_retry_dedupes_by_entity_and_preserves_initial_invariant(tmp_path
         conn.close()
 
 
+def test_context_pins_structure_but_reads_live_mode(tmp_path):
+    conn = _conn(tmp_path)
+    try:
+        version_one = {
+            "id": "posture-flow",
+            "steps": [
+                {
+                    "key": "start",
+                    "mode": "propose",
+                    "turn": {"brief": "version-one"},
+                    "actions": ["version-one-action"],
+                    "waits": [
+                        {
+                            "kind": "event",
+                            "types": ["version-one-event"],
+                            "schema": "version-one-schema",
+                            "advance_to": "finish-one",
+                        }
+                    ],
+                    "advance_to": "finish-one",
+                },
+                {"key": "finish-one"},
+            ],
+        }
+        pinned_template, _ = wf_engine.register_template(conn, version_one)
+        task_id = wf_engine.create_instance(
+            conn,
+            template_id=pinned_template,
+            entity_key="posture-entity",
+            corr={},
+            vars={},
+            source_event_id=None,
+        )
+
+        version_two = {
+            "id": "posture-flow",
+            "steps": [
+                {
+                    "key": "start",
+                    "mode": "auto",
+                    "turn": {"brief": "version-two"},
+                    "actions": ["version-two-action"],
+                    "waits": [
+                        {
+                            "kind": "event",
+                            "types": ["version-two-event"],
+                            "schema": "version-two-schema",
+                            "advance_to": "finish-two",
+                        }
+                    ],
+                    "advance_to": "finish-two",
+                },
+                {"key": "finish-two"},
+            ],
+        }
+        latest_template, _ = wf_engine.register_template(conn, version_two)
+
+        context = wf_engine.context(conn, task_id)
+
+        assert latest_template == "posture-flow@2"
+        assert context["template_id"] == pinned_template == "posture-flow@1"
+        assert context["step"] == {
+            "key": "start",
+            "mode": "auto",
+            "turn": {"brief": "version-one"},
+            "actions": ["version-one-action"],
+            "waits": [
+                {
+                    "kind": "event",
+                    "types": ["version-one-event"],
+                    "schema": "version-one-schema",
+                    "advance_to": "finish-one",
+                }
+            ],
+            "advance_to": "finish-one",
+        }
+    finally:
+        conn.close()
+
+
 def test_assert_invariant_covers_every_frozen_pair(tmp_path):
     conn, _template_id, task_id = _instance(tmp_path)
     try:
