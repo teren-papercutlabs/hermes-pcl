@@ -867,6 +867,95 @@ CREATE TABLE IF NOT EXISTS kanban_notify_subs (
     PRIMARY KEY (task_id, platform, chat_id, thread_id)
 );
 
+-- Workflow engine tables. These are additive to the kanban chassis; the
+-- engine owns their lifecycle and keeps workflow state separate from tasks.
+CREATE TABLE IF NOT EXISTS wf_template (
+    template_id  TEXT PRIMARY KEY,
+    slug         TEXT NOT NULL,
+    version      INTEGER NOT NULL,
+    content_hash TEXT NOT NULL,
+    spec         TEXT NOT NULL,
+    created_at   INTEGER NOT NULL,
+    UNIQUE (slug, version)
+);
+
+CREATE TABLE IF NOT EXISTS wf_instance (
+    task_id          TEXT PRIMARY KEY REFERENCES tasks(id),
+    entity_key       TEXT NOT NULL,
+    template_id      TEXT NOT NULL,
+    template_version INTEGER NOT NULL,
+    corr             TEXT NOT NULL,
+    vars             TEXT,
+    state            TEXT NOT NULL,
+    parked_since     INTEGER,
+    UNIQUE (entity_key)
+);
+
+CREATE TABLE IF NOT EXISTS wf_wait (
+    id           INTEGER PRIMARY KEY,
+    task_id      TEXT NOT NULL,
+    step_key     TEXT NOT NULL,
+    kind         TEXT NOT NULL,
+    event_types  TEXT,
+    schema_ref   TEXT,
+    timer_at     INTEGER,
+    timer_action TEXT,
+    fires_used   INTEGER DEFAULT 0,
+    resume_token TEXT,
+    status       TEXT NOT NULL,
+    created_at   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS wf_event (
+    id               INTEGER PRIMARY KEY,
+    source           TEXT NOT NULL,
+    external_id      TEXT,
+    event_type       TEXT,
+    payload          TEXT,
+    corr             TEXT,
+    status           TEXT NOT NULL,
+    matched_task_id  TEXT,
+    match_method     TEXT,
+    match_confidence REAL,
+    created_at       INTEGER NOT NULL,
+    applied_at       INTEGER,
+    UNIQUE (source, external_id)
+);
+
+CREATE TABLE IF NOT EXISTS wf_transition (
+    task_id    TEXT NOT NULL,
+    step_key   TEXT NOT NULL,
+    to_step    TEXT NOT NULL,
+    event_id   INTEGER NOT NULL REFERENCES wf_event(id),
+    applied_at INTEGER NOT NULL,
+    PRIMARY KEY (task_id, step_key, event_id)
+);
+
+CREATE TABLE IF NOT EXISTS wf_approval (
+    id           INTEGER PRIMARY KEY,
+    task_id      TEXT NOT NULL,
+    step_key     TEXT NOT NULL,
+    action       TEXT NOT NULL,
+    payload      TEXT NOT NULL,
+    status       TEXT NOT NULL,
+    decided_by   TEXT,
+    decided_at   INTEGER,
+    decision_diff TEXT,
+    resume_token TEXT NOT NULL,
+    created_at   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS wf_outbox (
+    id         INTEGER PRIMARY KEY,
+    task_id    TEXT,
+    action     TEXT NOT NULL,
+    payload    TEXT NOT NULL,
+    status     TEXT NOT NULL,
+    attempts   INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    sent_at    INTEGER
+);
+
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee_status ON tasks(assignee, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_status          ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_tenant          ON tasks(tenant);
