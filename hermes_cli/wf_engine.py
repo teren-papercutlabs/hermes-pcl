@@ -90,6 +90,7 @@ def _now() -> int:
 
 
 DONE_RETENTION_SECONDS = 14 * 24 * 60 * 60
+SWEEP_AGE_PROMOTION_BATCH_SIZE = 256
 _TERMINAL_EVENT_STATUSES = frozenset(
     {
         "matched",
@@ -650,6 +651,20 @@ def apply_event(conn, event_id, task_id, *, expected_step: str) -> ApplyResult:
                 reason="no compatible armed wait",
             )
         wait_row, wait_spec = matched
+        if not _typed_payload_is_valid(event, wait_row["schema_ref"]):
+            _record_match(
+                conn,
+                int(event_id),
+                "needs_review",
+                task_id,
+                reason="payload is not an object for the declared typed wait",
+            )
+            return ApplyResult(
+                kind="needs_review",
+                task_id=task_id,
+                event_id=int(event_id),
+                reason="payload is not an object for the declared typed wait",
+            )
         step_spec = _step(spec, expected_step)
         to_step = wait_spec.get("advance_to") or step_spec.get("advance_to")
         if not to_step:
@@ -862,13 +877,36 @@ def exception(conn, task_id: str, reason: str) -> None:
 def _event_data(event: sqlite3.Row) -> tuple[dict, dict]:
     """Return the structured correlation and payload portions of an event."""
 
-    corr = _load_json(event["corr"], {})
-    payload = _load_json(event["payload"], {})
+    try:
+        corr = _load_json(event["corr"], {})
+    except (TypeError, json.JSONDecodeError):
+        corr = {}
+    try:
+        payload = _load_json(event["payload"], {})
+    except (TypeError, json.JSONDecodeError):
+        payload = {}
     if not isinstance(corr, dict):
         corr = {}
     if not isinstance(payload, dict):
         payload = {}
     return corr, payload
+
+
+def _typed_payload_is_valid(event: sqlite3.Row, schema_ref: str | None) -> bool:
+    """Validate the deterministic structural floor for a declared payload.
+
+    Schema names are tenant-owned references, so the engine deliberately does
+    not infer their field-level shape.  It can and must still reject a value
+    which cannot be the object payload every typed event wait consumes.
+    """
+
+    if schema_ref is None:
+        return True
+    try:
+        payload = _load_json(event["payload"], None)
+    except (TypeError, json.JSONDecodeError):
+        return False
+    return isinstance(payload, dict)
 
 
 def _read_value(values: dict, field: Any) -> tuple[bool, Any]:
@@ -1112,8 +1150,8 @@ def _event_has_any_declared_key(conn: sqlite3.Connection, event: sqlite3.Row) ->
     corr, payload = _event_data(event)
     for _template_id, spec in _all_template_rows(conn):
         for field in _correlation_fields(spec):
-            found, _value = _event_value(corr, payload, field)
-            if found:
+            found, value = _event_value(corr, payload, field)
+            if found and _usable(value):
                 return True
     return False
 
@@ -1426,6 +1464,23 @@ def match_event(conn, event_id) -> MatchResult:
             narrowed = _disambiguate(event, current)
             if len(narrowed) == 1:
                 task_id = narrowed[0]["instance"]["task_id"]
+                matched_wait = _event_wait(
+                    conn,
+                    task_id,
+                    str(narrowed[0]["task"]["current_step_key"]),
+                    event,
+                    narrowed[0]["spec"],
+                )
+                if matched_wait is not None and not _typed_payload_is_valid(
+                    event, matched_wait[0]["schema_ref"]
+                ):
+                    return _record_match(
+                        conn,
+                        int(event_id),
+                        "needs_review",
+                        task_id,
+                        reason="payload is not an object for the declared typed wait",
+                    )
                 return _record_match(conn, int(event_id), "matched", task_id)
             return _record_match(
                 conn,
@@ -1599,6 +1654,20 @@ def sweep(conn, now: int) -> SweepResult:
             (cutoff,),
         ).fetchall()
     ]
+    # The active re-match window is deliberately bounded.  Once an event has
+    # been held as an unmatched declared event beyond that window, keep it
+    # visible by promoting it rather than attempting an unbounded re-match.
+    aged_rows = conn.execute(
+        """
+        SELECT *
+          FROM wf_event
+         WHERE created_at < ?
+           AND status = 'unmatched'
+         ORDER BY id
+         LIMIT ?
+        """,
+        (cutoff, SWEEP_AGE_PROMOTION_BATCH_SIZE),
+    ).fetchall()
     buckets: dict[str, list[int]] = {
         "matched": [],
         "create": [],
@@ -1608,7 +1677,28 @@ def sweep(conn, now: int) -> SweepResult:
         "superseded": [],
         "needs_review": [],
     }
+    with kanban_db.write_txn(conn):
+        for event in aged_rows:
+            # routed_out is terminal and absent from this query.  A declared
+            # type alone is not enough: the dead-letter path is for events
+            # that also carry a usable template-declared correlation value.
+            if not (
+                _event_is_declared(conn, event)
+                and _event_has_any_declared_key(conn, event)
+            ):
+                continue
+            event_id = int(event["id"])
+            _record_match(
+                conn,
+                event_id,
+                "needs_review",
+                reason="declared unmatched event exceeded the intake window",
+            )
+            event_ids.append(event_id)
+            buckets["needs_review"].append(event_id)
     for event_id in event_ids:
+        if event_id in buckets["needs_review"]:
+            continue
         result = match_event(conn, event_id)
         if result.kind in buckets:
             buckets[result.kind].append(event_id)
