@@ -53,7 +53,9 @@
   function templatesFrom(board) {
     return asArray(first(board && board.templates, first(board && board.template_versions, []))).map(function (item) {
       var spec = item.spec || item.workflow || {};
-      var steps = asArray(first(item.steps, first(spec.steps, [])));
+      // U3 calls these "stages"; older and richer hosts may expose the full
+      // template as "steps". Keep the collection-boundary response intact.
+      var steps = asArray(first(item.steps, first(item.stages, first(spec.steps, []))));
       return Object.assign({}, item, { steps: steps, _key: templateKey(item), _label: templateLabel(item) });
     });
   }
@@ -317,14 +319,15 @@
 
   function TimelineRow(props) {
     var row = props.row || {};
-    var timestamp = first(row.created_at, first(row.occurred_at, row.timestamp));
+    var event = row.event || {};
+    var timestamp = first(row.applied_at, first(event.applied_at, first(event.created_at, first(row.created_at, first(row.occurred_at, row.timestamp)))));
     return h("li", { className: "hermes-workflow-timeline-row" },
       h("div", { className: "hermes-workflow-timeline-dot" }),
       h("div", { className: "hermes-workflow-timeline-body" },
         h("div", { className: "hermes-workflow-timeline-heading" },
           h("strong", null, String(first(row.to_step, first(row.step_key, first(row.state, "Transition"))))),
           timestamp ? h("time", { dateTime: timestamp, title: new Date(timestamp).toISOString() }, sdk.utils && sdk.utils.isoTimeAgo ? sdk.utils.isoTimeAgo(timestamp) : timestamp) : null),
-        h("p", { className: "hermes-workflow-muted" }, String(first(row.summary, first(row.event_type, first(row.from_step ? row.from_step + " to " + row.to_step : "State changed", "State changed")))))));
+        h("p", { className: "hermes-workflow-muted" }, String(first(row.summary, first(event.event_type, first(row.event_type, first(row.from_step ? row.from_step + " to " + row.to_step : "State changed", "State changed"))))))));
   }
 
   function DetailDrawer(props) {
