@@ -29,6 +29,7 @@ from hermes_cli.pa_credentials import (
     SignedHandoffUrlSigner,
     UnsafeProbeError,
     validate_handoff_url,
+    load_runtime_credentials,
 )
 
 
@@ -149,10 +150,18 @@ def test_probe_contract_is_first_class_and_unsafe_fails_closed():
     contract = ProbeContract(30, True, "non-destructive local read")
     assert contract.cadence_seconds == 30
     assert contract.non_destructive is True
+    object_contract = ProbeContract(
+        30,
+        True,
+        {"operation": "local-read", "must_not": ["mutate", "invalidate"]},
+    )
+    assert object_contract.safety_contract["operation"] == "local-read"
     with pytest.raises(UnsafeProbeError):
         ProbeContract(30, False, "mutates a session")
     with pytest.raises(UnsafeProbeError):
         ProbeContract(0, True, "read only")
+    with pytest.raises(UnsafeProbeError):
+        ProbeContract(30, True, {})
 
 
 def test_bearer_jwt_is_local_and_auto_completes():
@@ -352,7 +361,8 @@ def test_watcher_loads_json_file_and_missing_file_disables_cleanly(
         source.write_text(
             json.dumps(
                 {
-                    "credentials": [
+                    "ok": True,
+                    "data": [
                         {
                             "id": "row-1",
                             "driver_key": "bearer-jwt",
@@ -361,7 +371,10 @@ def test_watcher_loads_json_file_and_missing_file_disables_cleanly(
                             "expires_at": "2026-10-29T00:00:00Z",
                             "probe_cadence_seconds": 5,
                             "probe_non_destructive": True,
-                            "probe_safety_contract": "local read only",
+                            "probe_safety_contract": {
+                                "operation": "local-read",
+                                "must_not": ["mutate", "invalidate"],
+                            },
                         }
                     ]
                 }
@@ -375,6 +388,87 @@ def test_watcher_loads_json_file_and_missing_file_disables_cleanly(
         assert "opaque-only" not in json.dumps(loaded.credentials[0].public_dict())
 
     asyncio.run(run())
+
+
+def test_runtime_loader_rejects_non_success_or_unexpected_envelopes(
+    tmp_path: Path,
+):
+    cases = (
+        [],
+        {"ok": False, "data": []},
+        {"ok": True},
+        {"ok": True, "data": {}},
+        {"ok": True, "data": [], "unexpected": "field"},
+        {"credentials": []},
+    )
+    for index, payload in enumerate(cases):
+        source = tmp_path / f"invalid-{index}.json"
+        source.write_text(json.dumps(payload), encoding="utf-8")
+        with pytest.raises(CredentialContractError):
+            load_runtime_credentials(source)
+
+
+def test_exact_runtime_export_envelope_preserves_metadata_and_watches(
+    tmp_path: Path,
+    monkeypatch,
+):
+    source = tmp_path / "runtime-export.json"
+    token = _jwt(datetime(2026, 10, 29, tzinfo=UTC))
+    source.write_text(
+        json.dumps(
+            {
+                "ok": True,
+                "data": [
+                    {
+                        "id": "row-1",
+                        "tenant_slug": "tenant-a",
+                        "agent_slug": "runtime-agent",
+                        "credential_slug": "primary",
+                        "driver_key": "bearer-jwt",
+                        "material_mode": "by-value",
+                        "material_envelope": token,
+                        "expires_at": "2026-10-29T00:00:00Z",
+                        "reauth_state": "requested",
+                        "reauth_requested_at": "2026-10-28T23:55:00Z",
+                        "last_transition_at": "2026-10-28T23:55:01Z",
+                        "escalation_policy": {"channel": "operator", "priority": "high"},
+                        "timeout_policy": {"seconds": 17},
+                        "timeout_after_seconds": 999,
+                        "probe_cadence_seconds": 300,
+                        "probe_non_destructive": True,
+                        "probe_safety_contract": {
+                            "operation": "local-read",
+                            "must_not": ["mutate", "invalidate"],
+                        },
+                        "last_probe_at": "2026-10-29T00:00:00Z",
+                        "last_probe_status": "stale",
+                    }
+                ],
+                "meta": {"source": "synthetic-export"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PA_CREDENTIALS_FILE", str(source))
+    watcher = CredentialWatcher.from_environment(
+        clock=lambda: datetime(2026, 10, 29, 0, 6, tzinfo=UTC)
+    )
+    record = watcher.credentials[0]
+    assert record.reauth_requested_at == datetime(2026, 10, 28, 23, 55, tzinfo=UTC)
+    assert record.last_transition_at == datetime(2026, 10, 28, 23, 55, 1, tzinfo=UTC)
+    assert record.last_probe_at == datetime(2026, 10, 29, tzinfo=UTC)
+    assert record.last_probe_status == "stale"
+    assert record.escalation_policy == {"channel": "operator", "priority": "high"}
+    assert record.timeout_policy == {"seconds": 17}
+    assert record.timeout_after_seconds == 17
+    public = record.public_dict()
+    assert public["last_probe_status"] == "stale"
+    assert public["timeout_policy"] == {"seconds": 17}
+    assert token not in json.dumps(public)
+
+    asyncio.run(watcher.run_once())
+    assert record.reauth_state is ReauthState.COMPLETED
+    assert record.last_probe_status == "expired"
 
 
 def test_start_stop_owns_task_without_leak():

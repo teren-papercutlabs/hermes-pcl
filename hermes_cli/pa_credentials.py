@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Mapping, Protocol, Sequence
+from typing import Any, Awaitable, Callable, Mapping, Protocol, Sequence, TypeAlias
 from urllib.parse import urlparse
 
 
@@ -166,6 +166,58 @@ def _parse_datetime(value: Any, *, field_name: str) -> datetime | None:
     return parsed.astimezone(UTC)
 
 
+PolicyMetadata: TypeAlias = Mapping[str, Any] | str
+
+
+def _parse_policy(value: Any, *, field_name: str) -> PolicyMetadata | None:
+    """Keep exported policy metadata typed instead of silently discarding it."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, Mapping):
+        if not value:
+            raise CredentialContractError(f"{field_name} must not be empty")
+        try:
+            json.dumps(value)
+        except (TypeError, ValueError) as exc:
+            raise CredentialContractError(
+                f"{field_name} must be JSON serializable"
+            ) from exc
+        return dict(value)
+    if isinstance(value, str) and value.strip():
+        return value
+    raise CredentialContractError(
+        f"{field_name} must be a non-empty object or string"
+    )
+
+
+def _timeout_seconds(
+    timeout_policy: PolicyMetadata | None, row: Mapping[str, Any]
+) -> float:
+    """Resolve timeout policy seconds before legacy row-level fallback."""
+    if isinstance(timeout_policy, Mapping):
+        for key in ("seconds", "timeout_seconds", "timeout_after_seconds"):
+            if key in timeout_policy:
+                value = timeout_policy[key]
+                try:
+                    seconds = float(value)
+                except (TypeError, ValueError) as exc:
+                    raise CredentialContractError(
+                        f"timeout_policy.{key} must be numeric"
+                    ) from exc
+                if seconds <= 0:
+                    raise CredentialContractError(
+                        f"timeout_policy.{key} must be positive"
+                    )
+                return seconds
+    try:
+        seconds = float(row.get("timeout_after_seconds", 600.0))
+    except (TypeError, ValueError) as exc:
+        raise CredentialContractError("timeout_after_seconds must be numeric") from exc
+    if seconds <= 0:
+        raise CredentialContractError("timeout_after_seconds must be positive")
+    return seconds
+
+
 def _material_from_row(row: Mapping[str, Any]) -> CredentialMaterial:
     nested = row.get("material")
     if nested is not None:
@@ -219,7 +271,11 @@ class CredentialRecord:
     urgency: str = "standard"
     principal_id: str = "operator"
     agent_pubkey: str = ""
+    escalation_policy: PolicyMetadata | None = None
+    timeout_policy: PolicyMetadata | None = None
     timeout_after_seconds: float = 600.0
+    reauth_requested_at: datetime | None = None
+    last_transition_at: datetime | None = None
     last_probe_at: datetime | None = None
     last_probe_status: str | None = None
     _state_machine: ReauthStateMachine = field(init=False, repr=False)
@@ -254,6 +310,12 @@ class CredentialRecord:
             safety_contract=safety_contract,
         )
         state = ReauthState(row.get("reauth_state", ReauthState.REQUESTED.value))
+        escalation_policy = _parse_policy(
+            row.get("escalation_policy"), field_name="escalation_policy"
+        )
+        timeout_policy = _parse_policy(
+            row.get("timeout_policy"), field_name="timeout_policy"
+        )
         return cls(
             credential_id=str(row.get("id", row.get("credential_id", ""))),
             driver_key=str(row.get("driver_key", "")),
@@ -273,7 +335,23 @@ class CredentialRecord:
             urgency=str(row.get("urgency", "standard")),
             principal_id=str(row.get("principal_id", "operator")),
             agent_pubkey=str(row.get("agent_pubkey", "")),
-            timeout_after_seconds=float(row.get("timeout_after_seconds", 600.0)),
+            escalation_policy=escalation_policy,
+            timeout_policy=timeout_policy,
+            timeout_after_seconds=_timeout_seconds(timeout_policy, row),
+            reauth_requested_at=_parse_datetime(
+                row.get("reauth_requested_at"), field_name="reauth_requested_at"
+            ),
+            last_transition_at=_parse_datetime(
+                row.get("last_transition_at"), field_name="last_transition_at"
+            ),
+            last_probe_at=_parse_datetime(
+                row.get("last_probe_at"), field_name="last_probe_at"
+            ),
+            last_probe_status=(
+                str(row["last_probe_status"])
+                if row.get("last_probe_status") is not None
+                else None
+            ),
         )
 
     def transition(self, target: ReauthState) -> ReauthState:
@@ -307,6 +385,18 @@ class CredentialRecord:
                 if self.reauth_deadline_at
                 else None
             ),
+            "reauth_requested_at": (
+                self.reauth_requested_at.isoformat()
+                if self.reauth_requested_at
+                else None
+            ),
+            "last_transition_at": (
+                self.last_transition_at.isoformat()
+                if self.last_transition_at
+                else None
+            ),
+            "escalation_policy": self.escalation_policy,
+            "timeout_policy": self.timeout_policy,
             "probe_cadence_seconds": self.probe_contract.cadence_seconds,
             "probe_non_destructive": self.probe_contract.non_destructive,
             "probe_safety_contract": self.probe_contract.safety_contract,
@@ -323,7 +413,7 @@ class CredentialRecord:
 class ProbeContract:
     cadence_seconds: float
     non_destructive: bool
-    safety_contract: str
+    safety_contract: Mapping[str, Any] | str
 
     def __post_init__(self) -> None:
         try:
@@ -334,7 +424,16 @@ class ProbeContract:
             raise UnsafeProbeError("probe cadence must be positive")
         if self.non_destructive is not True:
             raise UnsafeProbeError("probe must explicitly declare non-destructive safety")
-        if not isinstance(self.safety_contract, str) or not self.safety_contract.strip():
+        if isinstance(self.safety_contract, Mapping):
+            if not self.safety_contract:
+                raise UnsafeProbeError("probe safety contract is required")
+            try:
+                json.dumps(self.safety_contract)
+            except (TypeError, ValueError) as exc:
+                raise UnsafeProbeError(
+                    "probe safety contract must be JSON serializable"
+                ) from exc
+        elif not isinstance(self.safety_contract, str) or not self.safety_contract.strip():
             raise UnsafeProbeError("probe safety contract is required")
         object.__setattr__(self, "cadence_seconds", cadence)
 
@@ -621,13 +720,23 @@ async def _invoke_hook(hook: Callable[..., Any] | None, *args: Any) -> None:
 
 
 def load_runtime_credentials(path: str | os.PathLike[str]) -> list[CredentialRecord]:
-    """Load exported runtime rows without exposing their opaque material."""
+    """Load the strict ``{ok: true, data: [...]}`` export envelope."""
     source = Path(path)
     with source.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
-    rows = payload.get("credentials") if isinstance(payload, Mapping) else payload
-    if not isinstance(rows, list):
-        raise CredentialContractError("credential export must be a list or credentials object")
+    if not isinstance(payload, Mapping):
+        raise CredentialContractError("credential export must be a JSON envelope")
+    if payload.get("ok") is False:
+        raise CredentialContractError("credential export returned ok=false")
+    if payload.get("ok") is not True:
+        raise CredentialContractError("credential export envelope must set ok=true")
+    if set(payload) - {"ok", "data", "meta"}:
+        raise CredentialContractError("credential export envelope has unexpected fields")
+    if "meta" in payload and not isinstance(payload["meta"], Mapping):
+        raise CredentialContractError("credential export envelope meta must be an object")
+    if "data" not in payload or not isinstance(payload["data"], list):
+        raise CredentialContractError("credential export envelope data must be a list")
+    rows = payload["data"]
     return [CredentialRecord.from_row(row) for row in rows]
 
 
