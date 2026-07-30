@@ -16,6 +16,7 @@ from hermes_cli.pa_credentials import (
     CarbonAuthResponse,
     CarbonAuthV1Client,
     CredentialContractError,
+    CredentialDriver,
     CredentialRecord,
     CredentialWatcher,
     DriverRegistry,
@@ -24,6 +25,8 @@ from hermes_cli.pa_credentials import (
     InvalidHandoffUrlError,
     InvalidTransitionError,
     ProbeContract,
+    ProbeResult,
+    ReauthResult,
     ReauthState,
     ReauthStateMachine,
     SignedHandoffUrlSigner,
@@ -76,8 +79,9 @@ def _record(
 def test_reauth_state_machine_allows_only_contract_transitions():
     machine = ReauthStateMachine()
     assert machine.transition(ReauthState.PENDING_HUMAN) is ReauthState.PENDING_HUMAN
-    with pytest.raises(InvalidTransitionError):
-        ReauthStateMachine().transition(ReauthState.COMPLETED)
+    # A driver can complete directly only after it has supplied fresh expiry
+    # evidence.  The watcher enforces that evidence; the state graph permits it.
+    assert ReauthStateMachine().transition(ReauthState.COMPLETED) is ReauthState.COMPLETED
     assert machine.transition(ReauthState.COMPLETED) is ReauthState.COMPLETED
     with pytest.raises(InvalidTransitionError):
         machine.transition(ReauthState.TIMED_OUT)
@@ -164,7 +168,7 @@ def test_probe_contract_is_first_class_and_unsafe_fails_closed():
         ProbeContract(30, True, {})
 
 
-def test_bearer_jwt_is_local_and_auto_completes():
+def test_bearer_jwt_is_local_and_unrenewable_expiry_escalates():
     async def run():
         driver = BearerJwtDriver()
         record = _record()
@@ -174,13 +178,20 @@ def test_bearer_jwt_is_local_and_auto_completes():
         )
         assert result.healthy is True
         assert result.expires_at == EXPIRY
-        assert (await driver.begin_reauth(record)).state is ReauthState.COMPLETED
+
+        escalated: list[str] = []
         watcher = CredentialWatcher(
             [record],
             clock=lambda: datetime(2026, 10, 30, tzinfo=UTC),
+            on_escalation=lambda row, result: escalated.append(row.credential_id),
         )
         await watcher.run_once()
-        assert record.reauth_state is ReauthState.COMPLETED
+
+        # A local expiry parser has no renewal mechanism.  It must not claim
+        # success merely because no human handoff is available.
+        assert record.reauth_state is not ReauthState.COMPLETED
+        assert record.last_probe_status == "expired"
+        assert escalated == [record.credential_id]
 
     asyncio.run(run())
 
@@ -252,11 +263,22 @@ def test_handoff_urls_are_canonical_and_reject_unsafe_hosts():
         "http://auth.papercut-labs.com/handoff/request-1",
         "http://127.0.0.1:6080/vnc.html",
         "https://auth.papercut-labs.com/novnc/request-1",
+        "https://auth.papercut-labs.com/handoff/request-1",
+        "https://auth.papercut-labs.com/handoff/request-1?sig=",
+        "https://auth.papercut-labs.com/handoff/request-1?token=",
+        "https://auth.papercut-labs.com:8443/handoff/request-1?sig=abc",
+        "https://evil@auth.papercut-labs.com/handoff/request-1?sig=abc",
         "https://agents.papercut-labs.com/carbon-auth/start/request-1",
         "https://other.example/handoff/request-1",
     ):
         with pytest.raises(InvalidHandoffUrlError):
             validate_handoff_url(url)
+
+
+def test_credential_driver_has_no_sync_refresh_contract():
+    # Re-auth must be an async lifecycle; introducing refresh() re-opens the
+    # synchronous human-in-loop path this watcher replaced.
+    assert not hasattr(CredentialDriver, "refresh")
 
 
 def test_signer_wraps_injected_signer_and_enforces_host():
@@ -269,6 +291,113 @@ def test_signer_wraps_injected_signer_and_enforces_host():
         bad = SignedHandoffUrlSigner(lambda _: "https://runtime.ts.net/handoff/request-1")
         with pytest.raises(InvalidHandoffUrlError):
             await bad.sign(request)
+
+    asyncio.run(run())
+
+
+def test_pending_human_is_committed_only_after_carbon_request_and_sign():
+    async def run():
+        now = datetime(2026, 10, 30, tzinfo=UTC)
+        record = _record(
+            driver_key="human-browser-session",
+            material=ByReferenceMaterial("host-1", "profile/runtime"),
+        )
+
+        class CarbonFails:
+            async def request(self, request):
+                raise CredentialContractError("synthetic Carbon Auth outage")
+
+        class Signer:
+            async def sign(self, request):
+                return "https://auth.papercut-labs.com/handoff/request-1?sig=abc"
+
+        watcher = CredentialWatcher(
+            [record],
+            carbon_auth=CarbonFails(),
+            handoff_signer=Signer(),
+            clock=lambda: now,
+        )
+        await watcher.run_once()
+        assert record.reauth_state is ReauthState.REQUESTED
+        assert record.reauth_request_id is None
+        assert record.reauth_deadline_at is None
+
+        class Carbon:
+            async def request(self, request):
+                return CarbonAuthResponse("request-1", "https://agents.invalid/start/request-1")
+
+        class SignerFails:
+            async def sign(self, request):
+                raise InvalidHandoffUrlError("synthetic signer failure")
+
+        record = _record(
+            driver_key="human-browser-session",
+            material=ByReferenceMaterial("host-1", "profile/runtime"),
+        )
+        watcher = CredentialWatcher(
+            [record],
+            carbon_auth=Carbon(),
+            handoff_signer=SignerFails(),
+            clock=lambda: now,
+        )
+        await watcher.run_once()
+        assert record.reauth_state is ReauthState.REQUESTED
+        assert record.reauth_request_id is None
+        assert record.reauth_deadline_at is None
+
+    asyncio.run(run())
+
+
+def test_pending_human_completes_only_when_the_next_probe_is_healthy():
+    async def run():
+        current = [datetime(2026, 10, 30, tzinfo=UTC)]
+        healthy = [False]
+        handoffs: list[str | None] = []
+
+        class Driver(CredentialDriver):
+            key = "controlled-human"
+            probe_contract = ProbeContract(1, True, "synthetic local read")
+
+            async def probe(self, material, *, now):
+                return ProbeResult(
+                    healthy=healthy[0],
+                    needs_reauth=not healthy[0],
+                    status="healthy" if healthy[0] else "human-required",
+                )
+
+            async def begin_reauth(self, record):
+                return ReauthResult(ReauthState.PENDING_HUMAN)
+
+        class Carbon:
+            async def request(self, request):
+                return CarbonAuthResponse("request-1", "https://agents.invalid/start/request-1")
+
+        class Signer:
+            async def sign(self, request):
+                return "https://auth.papercut-labs.com/handoff/request-1?sig=abc"
+
+        record = _record(
+            driver_key="controlled-human",
+            material=ByReferenceMaterial("host-1", "profile/runtime"),
+            cadence=1,
+        )
+        watcher = CredentialWatcher(
+            [record],
+            drivers=DriverRegistry([Driver()]),
+            carbon_auth=Carbon(),
+            handoff_signer=Signer(),
+            on_escalation=lambda row, result: handoffs.append(result.handoff_url),
+            clock=lambda: current[0],
+        )
+        await watcher.run_once()
+        assert record.reauth_state is ReauthState.PENDING_HUMAN
+        assert record.reauth_request_id == "request-1"
+        assert handoffs == ["https://auth.papercut-labs.com/handoff/request-1?sig=abc"]
+
+        healthy[0] = True
+        current[0] += timedelta(seconds=1)
+        await watcher.run_once()
+        assert record.reauth_state is ReauthState.COMPLETED
 
     asyncio.run(run())
 
@@ -316,7 +445,9 @@ def test_human_expiry_calls_carbon_signer_and_escalates_then_times_out():
         assert record.reauth_state is ReauthState.PENDING_HUMAN
         assert requests[0].as_payload()["principal_id"] == "operator"
         assert escalations == [("credential-1", "https://auth.papercut-labs.com/handoff/request-1?sig=abc")]
-        current[0] = record.reauth_deadline_at + timedelta(seconds=1)
+        # The driver's 30-second rate floor wins over this row's 1-second
+        # cadence, so timeout is observed on the first eligible probe after it.
+        current[0] = record.reauth_deadline_at + timedelta(seconds=30)
         await watcher.run_once()
         assert record.reauth_state is ReauthState.TIMED_OUT
         assert timeouts == ["credential-1"]
@@ -343,6 +474,60 @@ def test_unsafe_driver_probe_escalates_without_calling_probe():
         await watcher.run_once()
         assert record.last_probe_status == "unsafe"
         assert escalated == ["credential-1"]
+
+    asyncio.run(run())
+
+
+def test_due_uses_the_maximum_of_row_and_driver_cadence():
+    now = datetime(2026, 10, 30, tzinfo=UTC)
+
+    class SlowDriver(CredentialDriver):
+        key = "slow"
+        probe_contract = ProbeContract(60, True, "synthetic local read")
+
+        async def probe(self, material, *, now):
+            return ProbeResult(healthy=True, status="healthy")
+
+        async def begin_reauth(self, record):
+            raise AssertionError("healthy credential must not reauthenticate")
+
+    record = _record(driver_key="slow", cadence=1)
+    driver = SlowDriver()
+    watcher = CredentialWatcher([record], drivers=DriverRegistry([driver]))
+    record.last_probe_at = now - timedelta(seconds=59)
+    assert watcher._due(record, now, driver) is False
+    record.last_probe_at = now - timedelta(seconds=60)
+    assert watcher._due(record, now, driver) is True
+
+
+def test_one_bad_row_cannot_stop_other_credential_probes():
+    async def run():
+        now = datetime(2026, 10, 30, tzinfo=UTC)
+
+        class HealthyDriver(CredentialDriver):
+            key = "healthy"
+            probe_contract = ProbeContract(1, True, "synthetic local read")
+
+            async def probe(self, material, *, now):
+                return ProbeResult(healthy=True, status="healthy")
+
+            async def begin_reauth(self, record):
+                raise AssertionError("healthy credential must not reauthenticate")
+
+        bad = _record(material=ByValueMaterial("not-a-jwt"))
+        good = _record(driver_key="healthy")
+        good.credential_id = "credential-2"
+        failures: list[str] = []
+        watcher = CredentialWatcher(
+            [bad, good],
+            drivers=DriverRegistry([BearerJwtDriver(), HealthyDriver()]),
+            on_escalation=lambda row, result: failures.append(row.credential_id),
+            clock=lambda: now,
+        )
+        await watcher.run_once()
+        assert good.last_probe_at == now
+        assert good.last_probe_status == "healthy"
+        assert bad.credential_id in failures
 
     asyncio.run(run())
 
@@ -450,8 +635,10 @@ def test_exact_runtime_export_envelope_preserves_metadata_and_watches(
         encoding="utf-8",
     )
     monkeypatch.setenv("PA_CREDENTIALS_FILE", str(source))
+    escalated: list[str] = []
     watcher = CredentialWatcher.from_environment(
-        clock=lambda: datetime(2026, 10, 29, 0, 6, tzinfo=UTC)
+        clock=lambda: datetime(2026, 10, 29, 0, 6, tzinfo=UTC),
+        on_escalation=lambda row, result: escalated.append(row.credential_id),
     )
     record = watcher.credentials[0]
     assert record.reauth_requested_at == datetime(2026, 10, 28, 23, 55, tzinfo=UTC)
@@ -467,8 +654,9 @@ def test_exact_runtime_export_envelope_preserves_metadata_and_watches(
     assert token not in json.dumps(public)
 
     asyncio.run(watcher.run_once())
-    assert record.reauth_state is ReauthState.COMPLETED
+    assert record.reauth_state is not ReauthState.COMPLETED
     assert record.last_probe_status == "expired"
+    assert escalated == ["row-1"]
 
 
 def test_start_stop_owns_task_without_leak():
@@ -491,13 +679,46 @@ def test_start_stop_owns_task_without_leak():
     asyncio.run(run())
 
 
-def test_gateway_wiring_starts_and_stops_watcher(monkeypatch):
-    # GatewayRunner imports optional platform dependencies at module import
-    # time.  Keep this focused wiring assertion runnable in the minimal test
-    # environment while checking both lifecycle call sites in the real file.
-    source = Path("gateway/run.py").read_text(encoding="utf-8")
-    assert "await self._start_pa_credentials_watcher()" in source
-    assert "await self._stop_pa_credentials_watcher()" in source
-    assert "create_pa_credentials_watcher" in source
-    assert "await watcher.start()" in source
-    assert "await watcher.stop()" in source
+def test_gateway_start_path_injects_configured_pa_adapters(monkeypatch):
+    # This invokes GatewayRunner's actual lifecycle method.  The adapter
+    # constructors are replaced before it runs, so the test cannot touch
+    # Carbon Auth or any client surface.
+    pytest.importorskip("httpx")
+    gateway_run = pytest.importorskip("gateway.run")
+    import hermes_cli.pa_credentials as credentials
+
+    captured: dict[str, object] = {}
+    carbon = object()
+    signer = object()
+
+    class Watcher:
+        started = False
+
+        async def start(self):
+            self.started = True
+            return None
+
+    watcher = Watcher()
+
+    def create(**kwargs):
+        captured.update(kwargs)
+        return watcher
+
+    monkeypatch.setattr(credentials, "CarbonAuthV1Client", lambda: carbon)
+    monkeypatch.setattr(
+        credentials,
+        "configured_handoff_signer_from_environment",
+        lambda: signer,
+    )
+    monkeypatch.setattr(credentials, "create_pa_credentials_watcher", create)
+
+    runner = gateway_run.GatewayRunner.__new__(gateway_run.GatewayRunner)
+    runner._background_tasks = set()
+    asyncio.run(runner._start_pa_credentials_watcher())
+
+    assert watcher.started is True
+    assert runner._pa_credentials_watcher is watcher
+    assert captured["carbon_auth"] is carbon
+    assert captured["handoff_signer"] is signer
+    assert callable(captured["on_escalation"])
+    assert callable(captured["on_timeout"])
