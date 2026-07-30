@@ -17,7 +17,9 @@ Environment variables:
 
 import asyncio
 import email as email_lib
+import hashlib
 import imaplib
+import inspect
 import logging
 import os
 import re
@@ -31,8 +33,9 @@ from email.mime.base import MIMEBase
 from email.utils import formatdate
 from email import encoders
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from hermes_constants import get_hermes_home
 from gateway.platforms.base import (
     BasePlatformAdapter,
     MessageEvent,
@@ -61,6 +64,7 @@ _AUTOMATED_HEADERS = {
 
 # Gmail-safe max length per email body
 MAX_MESSAGE_LENGTH = 50_000
+_THREAD_CONTEXT_MAX = 1000
 
 # Supported image extensions for inline detection
 _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -268,8 +272,18 @@ class EmailAdapter(BasePlatformAdapter):
         self._seen_uids_max: int = 2000   # cap to prevent unbounded memory growth
         self._poll_task: Optional[asyncio.Task] = None
 
-        # Map chat_id (sender email) -> last subject + message-id for threading
+        # Inbound message id -> thread context. A separate sender index is kept
+        # only for legacy sends without an explicit reply anchor.
         self._thread_context: Dict[str, Dict[str, str]] = {}
+        self._sender_latest_thread: Dict[str, str] = {}
+        self._thread_context_max = _THREAD_CONTEXT_MAX
+
+        # An application embedding the gateway can inject its workflow ledger
+        # writer here without coupling the email adapter to the workflow engine.
+        callback = extra.get("workflow_ingress_callback")
+        self._workflow_ingress_callback: Optional[Callable[[Dict[str, str]], Any]] = (
+            callback if callable(callback) else None
+        )
 
         logger.info("[Email] Adapter initialized for %s", self._address)
 
@@ -292,6 +306,89 @@ class EmailAdapter(BasePlatformAdapter):
         except (ValueError, TypeError):
             # Fallback: just clear old entries if sort fails
             self._seen_uids = set(list(self._seen_uids)[-self._seen_uids_max // 2:])
+
+    @staticmethod
+    def _external_message_id(msg_data: Dict[str, Any]) -> str:
+        """Return a stable external id even for malformed RFC messages."""
+        message_id = str(msg_data.get("message_id") or "").strip()
+        if message_id:
+            return message_id
+        stable_fields = (
+            str(msg_data.get("sender_addr") or ""),
+            str(msg_data.get("subject") or ""),
+            str(msg_data.get("date") or ""),
+            str(msg_data.get("in_reply_to") or ""),
+            str(msg_data.get("references") or ""),
+            str(msg_data.get("body") or ""),
+        )
+        digest = hashlib.sha256("\x1f".join(stable_fields).encode("utf-8")).hexdigest()
+        return f"email-{digest}"
+
+    def _persist_workflow_body(self, external_id: str, body: str) -> str:
+        """Persist the inbound body under the active Hermes profile."""
+        body_dir = get_hermes_home() / "workflow" / "ingress" / "bodies"
+        body_dir.mkdir(parents=True, exist_ok=True)
+        body_digest = hashlib.sha256(external_id.encode("utf-8")).hexdigest()
+        body_path = body_dir / f"{body_digest}.txt"
+        body_path.write_text(body, encoding="utf-8")
+        return str(body_path)
+
+    async def _record_workflow_ingress(self, msg_data: Dict[str, Any]) -> str:
+        """Persist an inbound body and synchronously hand its reference to a ledger."""
+        external_id = self._external_message_id(msg_data)
+        body_ref = self._persist_workflow_body(external_id, str(msg_data.get("body") or ""))
+        if self._workflow_ingress_callback is None:
+            return external_id
+
+        envelope = {
+            "external_id": external_id,
+            "sender": str(msg_data.get("sender_addr") or ""),
+            "subject": str(msg_data.get("subject") or ""),
+            "date": str(msg_data.get("date") or ""),
+            "in_reply_to": str(msg_data.get("in_reply_to") or ""),
+            "references": str(msg_data.get("references") or ""),
+            "body_ref": body_ref,
+        }
+        try:
+            result = self._workflow_ingress_callback(envelope)
+            if inspect.isawaitable(result):
+                await result
+        except Exception:
+            logger.exception("[Email] Workflow ingress callback failed for %s", external_id)
+            raise
+        return external_id
+
+    def _store_thread_context(self, sender_addr: str, context: Dict[str, str]) -> None:
+        """Store a context per inbound message with deterministic FIFO eviction."""
+        message_id = context["message_id"]
+        self._thread_context.pop(message_id, None)
+        self._thread_context[message_id] = context
+        self._sender_latest_thread[sender_addr] = message_id
+        while len(self._thread_context) > self._thread_context_max:
+            oldest_message_id = next(iter(self._thread_context))
+            evicted = self._thread_context.pop(oldest_message_id)
+            if self._sender_latest_thread.get(evicted["sender_addr"]) == oldest_message_id:
+                self._sender_latest_thread.pop(evicted["sender_addr"], None)
+
+    def _resolve_thread_context(
+        self,
+        to_addr: str,
+        reply_to_msg_id: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Resolve an explicit reply id first; sender-latest is compatibility only."""
+        if reply_to_msg_id:
+            return self._thread_context.get(reply_to_msg_id, {})
+        latest_message_id = self._sender_latest_thread.get(to_addr)
+        return self._thread_context.get(latest_message_id, {}) if latest_message_id else {}
+
+    @staticmethod
+    def _thread_references(context: Dict[str, str], reply_to_msg_id: Optional[str]) -> str:
+        """Preserve the inbound chain and append the message we are answering."""
+        original_msg_id = reply_to_msg_id or context.get("message_id", "")
+        if not original_msg_id:
+            return ""
+        references = context.get("references", "").strip()
+        return f"{references} {original_msg_id}".strip() if references else original_msg_id
 
     async def connect(self) -> bool:
         """Connect to the IMAP server and start polling for new messages."""
@@ -400,6 +497,7 @@ class EmailAdapter(BasePlatformAdapter):
                     subject = _decode_header_value(msg.get("Subject", "(no subject)"))
                     message_id = msg.get("Message-ID", "")
                     in_reply_to = msg.get("In-Reply-To", "")
+                    references = msg.get("References", "")
                     # Skip automated/noreply senders before any processing
                     msg_headers = dict(msg.items())
                     if _is_automated_sender(sender_addr, msg_headers):
@@ -415,6 +513,7 @@ class EmailAdapter(BasePlatformAdapter):
                         "subject": subject,
                         "message_id": message_id,
                         "in_reply_to": in_reply_to,
+                        "references": references,
                         "body": body,
                         "attachments": attachments,
                         "date": msg.get("Date", ""),
@@ -453,6 +552,11 @@ class EmailAdapter(BasePlatformAdapter):
                 logger.debug("[Email] Dropping non-allowlisted sender at dispatch: %s", sender_addr)
                 return
 
+        # Ledger persistence is intentionally before both context mutation and
+        # conversational handling. If the ledger callback fails, raising here
+        # leaves the message unhandled rather than creating an unledgered turn.
+        external_id = await self._record_workflow_ingress(msg_data)
+
         subject = msg_data["subject"]
         body = msg_data["body"].strip()
         attachments = msg_data["attachments"]
@@ -473,11 +577,14 @@ class EmailAdapter(BasePlatformAdapter):
             if att["type"] == "image":
                 msg_type = MessageType.PHOTO
 
-        # Store thread context for reply threading
-        self._thread_context[sender_addr] = {
+        # Store thread context for reply threading only after the ingress
+        # ledger has accepted the message.
+        self._store_thread_context(sender_addr, {
+            "sender_addr": sender_addr,
             "subject": subject,
-            "message_id": msg_data["message_id"],
-        }
+            "message_id": external_id,
+            "references": str(msg_data.get("references") or ""),
+        })
 
         source = self.build_source(
             chat_id=sender_addr,
@@ -491,7 +598,7 @@ class EmailAdapter(BasePlatformAdapter):
             text=text or "(empty email)",
             message_type=msg_type,
             source=source,
-            message_id=msg_data["message_id"],
+            message_id=external_id,
             media_urls=media_urls,
             media_types=media_types,
             reply_to_message_id=msg_data["in_reply_to"] or None,
@@ -529,8 +636,9 @@ class EmailAdapter(BasePlatformAdapter):
         msg["From"] = self._address
         msg["To"] = to_addr
 
-        # Thread context for reply
-        ctx = self._thread_context.get(to_addr, {})
+        # An explicit reply anchor is the only safe concurrent path. Sender
+        # latest is retained solely for callers that provide no anchor.
+        ctx = self._resolve_thread_context(to_addr, reply_to_msg_id)
         subject = ctx.get("subject", "Hermes Agent")
         if not subject.startswith("Re:"):
             subject = f"Re: {subject}"
@@ -540,7 +648,7 @@ class EmailAdapter(BasePlatformAdapter):
         original_msg_id = reply_to_msg_id or ctx.get("message_id")
         if original_msg_id:
             msg["In-Reply-To"] = original_msg_id
-            msg["References"] = original_msg_id
+            msg["References"] = self._thread_references(ctx, reply_to_msg_id)
 
         msg["Date"] = formatdate(localtime=True)
         msg_id = f"<hermes-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
@@ -571,11 +679,12 @@ class EmailAdapter(BasePlatformAdapter):
         image_url: str,
         caption: Optional[str] = None,
         reply_to: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
         """Send an image URL as part of an email body."""
         text = caption or ""
         text += f"\n\nImage: {image_url}"
-        return await self.send(chat_id, text.strip(), reply_to)
+        return await self.send(chat_id, text.strip(), reply_to, metadata)
 
     async def send_multiple_images(
         self,
@@ -583,6 +692,7 @@ class EmailAdapter(BasePlatformAdapter):
         images: List[Tuple[str, str]],
         metadata: Optional[Dict[str, Any]] = None,
         human_delay: float = 0.0,
+        reply_to: Optional[str] = None,
     ) -> None:
         """Send a batch of images as a single email with multiple MIME attachments.
 
@@ -624,32 +734,36 @@ class EmailAdapter(BasePlatformAdapter):
                 chat_id,
                 body,
                 local_paths,
+                reply_to,
             )
         except Exception as e:
             logger.error("[Email] Multi-image send failed, falling back: %s", e, exc_info=True)
-            await super().send_multiple_images(chat_id, images, metadata, human_delay)
+            await super().send_multiple_images(
+                chat_id, images, metadata, human_delay, reply_to=reply_to
+            )
 
     def _send_email_with_attachments(
         self,
         to_addr: str,
         body: str,
         file_paths: List[str],
+        reply_to_msg_id: Optional[str] = None,
     ) -> str:
         """Send an email with multiple file attachments via SMTP."""
         msg = MIMEMultipart()
         msg["From"] = self._address
         msg["To"] = to_addr
 
-        ctx = self._thread_context.get(to_addr, {})
+        ctx = self._resolve_thread_context(to_addr, reply_to_msg_id)
         subject = ctx.get("subject", "Hermes Agent")
         if not subject.startswith("Re:"):
             subject = f"Re: {subject}"
         msg["Subject"] = subject
 
-        original_msg_id = ctx.get("message_id")
+        original_msg_id = reply_to_msg_id or ctx.get("message_id")
         if original_msg_id:
             msg["In-Reply-To"] = original_msg_id
-            msg["References"] = original_msg_id
+            msg["References"] = self._thread_references(ctx, reply_to_msg_id)
 
         msg["Date"] = formatdate(localtime=True)
         msg_id = f"<hermes-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
@@ -703,6 +817,7 @@ class EmailAdapter(BasePlatformAdapter):
                 caption or "",
                 file_path,
                 file_name,
+                reply_to,
             )
             return SendResult(success=True, message_id=message_id)
         except Exception as e:
@@ -715,22 +830,23 @@ class EmailAdapter(BasePlatformAdapter):
         body: str,
         file_path: str,
         file_name: Optional[str] = None,
+        reply_to_msg_id: Optional[str] = None,
     ) -> str:
         """Send an email with a file attachment via SMTP."""
         msg = MIMEMultipart()
         msg["From"] = self._address
         msg["To"] = to_addr
 
-        ctx = self._thread_context.get(to_addr, {})
+        ctx = self._resolve_thread_context(to_addr, reply_to_msg_id)
         subject = ctx.get("subject", "Hermes Agent")
         if not subject.startswith("Re:"):
             subject = f"Re: {subject}"
         msg["Subject"] = subject
 
-        original_msg_id = ctx.get("message_id")
+        original_msg_id = reply_to_msg_id or ctx.get("message_id")
         if original_msg_id:
             msg["In-Reply-To"] = original_msg_id
-            msg["References"] = original_msg_id
+            msg["References"] = self._thread_references(ctx, reply_to_msg_id)
 
         msg["Date"] = formatdate(localtime=True)
         msg_id = f"<hermes-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
@@ -764,7 +880,7 @@ class EmailAdapter(BasePlatformAdapter):
 
     async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:
         """Return basic info about the email chat."""
-        ctx = self._thread_context.get(chat_id, {})
+        ctx = self._resolve_thread_context(chat_id)
         return {
             "name": chat_id,
             "type": "dm",
