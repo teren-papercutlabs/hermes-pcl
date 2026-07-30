@@ -6621,6 +6621,24 @@ class GatewayRunner:
                     pass
             raise
 
+    def _ingest_email_workflow_event(self, envelope: Dict[str, Any]) -> None:
+        """Durably ledger an allowed inbound email before chat handling."""
+        from hermes_cli import kanban_db, wf_engine
+
+        board = os.environ.get("HERMES_KANBAN_BOARD", "workflow").strip() or "workflow"
+        conn = kanban_db.connect(board=board)
+        try:
+            wf_engine.ingest_event(
+                conn,
+                source="email",
+                external_id=envelope["external_id"],
+                payload=envelope,
+                corr={},
+                event_type=None,
+            )
+        finally:
+            conn.close()
+
     def _create_adapter(
         self, 
         platform: Platform, 
@@ -6741,7 +6759,10 @@ class GatewayRunner:
             if not check_email_requirements():
                 logger.warning("Email: EMAIL_ADDRESS, EMAIL_PASSWORD, EMAIL_IMAP_HOST, or EMAIL_SMTP_HOST not set")
                 return None
-            return EmailAdapter(config)
+            return EmailAdapter(
+                config,
+                workflow_ingress_callback=self._ingest_email_workflow_event,
+            )
 
         elif platform == Platform.SMS:
             from gateway.platforms.sms import SmsAdapter, check_sms_requirements
