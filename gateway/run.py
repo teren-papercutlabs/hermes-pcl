@@ -2098,14 +2098,28 @@ class GatewayRunner:
     async def _start_pa_credentials_watcher(self) -> None:
         """Start the optional PA credential watcher from the exported rows."""
         try:
-            from hermes_cli.pa_credentials import create_pa_credentials_watcher
+            from hermes_cli.pa_credentials import (
+                CarbonAuthV1Client,
+                create_pa_credentials_watcher,
+                configured_handoff_signer_from_environment,
+            )
 
-            watcher = create_pa_credentials_watcher()
+            # Carbon Auth v1 stays behind the runtime credential file: merely
+            # starting a gateway never sends a request.  A human-required row
+            # reaches it only after its safe probe fails.  The signer is a
+            # configured bridge wrapped by the canonical signed-url validator;
+            # no raw browser URL can enter this path.
+            watcher = create_pa_credentials_watcher(
+                carbon_auth=CarbonAuthV1Client(),
+                handoff_signer=configured_handoff_signer_from_environment(),
+                on_escalation=self._on_pa_credential_escalation,
+                on_timeout=self._on_pa_credential_timeout,
+            )
             task = await watcher.start()
             self._pa_credentials_watcher = watcher
             if task is not None:
                 self._background_tasks.add(task)
-                task.add_done_callback(self._background_tasks.discard)
+                task.add_done_callback(self._on_pa_credentials_watcher_done)
                 logger.info("PA credential watcher started")
             else:
                 logger.debug("PA credential watcher disabled or has no rows")
@@ -2114,6 +2128,38 @@ class GatewayRunner:
             # adapters from starting.  The export path is checked on the next
             # gateway start after the row is corrected.
             logger.error("PA credential watcher failed to start: %s", exc)
+
+    async def _on_pa_credential_escalation(self, record, result) -> None:
+        """Make a credential escalation observable without logging its URL."""
+        logger.error(
+            "PA credential re-auth needs operator action: credential=%s state=%s request=%s",
+            record.credential_id,
+            record.reauth_state.value,
+            result.request_id or record.reauth_request_id or "unavailable",
+        )
+
+    async def _on_pa_credential_timeout(self, record) -> None:
+        logger.error(
+            "PA credential re-auth timed out: credential=%s request=%s",
+            record.credential_id,
+            record.reauth_request_id or "unavailable",
+        )
+
+    def _on_pa_credentials_watcher_done(self, task) -> None:
+        """Retrieve unexpected watcher failures at their source, loudly."""
+        self._background_tasks.discard(task)
+        if task.cancelled():
+            return
+        try:
+            error = task.exception()
+        except asyncio.CancelledError:
+            return
+        if error is not None:
+            logger.error(
+                "PA credential watcher task died: %s",
+                error,
+                exc_info=(type(error), error, error.__traceback__),
+            )
 
     async def _stop_pa_credentials_watcher(self) -> None:
         """Stop the optional PA credential watcher before generic task cleanup."""

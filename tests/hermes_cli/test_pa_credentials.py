@@ -504,6 +504,16 @@ def test_one_bad_row_cannot_stop_other_credential_probes():
     async def run():
         now = datetime(2026, 10, 30, tzinfo=UTC)
 
+        class BadResultDriver(CredentialDriver):
+            key = "bad-result"
+            probe_contract = ProbeContract(1, True, "synthetic local read")
+
+            async def probe(self, material, *, now):
+                return object()
+
+            async def begin_reauth(self, record):
+                raise AssertionError("malformed probe result must fail before re-auth")
+
         class HealthyDriver(CredentialDriver):
             key = "healthy"
             probe_contract = ProbeContract(1, True, "synthetic local read")
@@ -514,19 +524,20 @@ def test_one_bad_row_cannot_stop_other_credential_probes():
             async def begin_reauth(self, record):
                 raise AssertionError("healthy credential must not reauthenticate")
 
-        bad = _record(material=ByValueMaterial("not-a-jwt"))
+        bad = _record(driver_key="bad-result")
         good = _record(driver_key="healthy")
         good.credential_id = "credential-2"
         failures: list[str] = []
         watcher = CredentialWatcher(
             [bad, good],
-            drivers=DriverRegistry([BearerJwtDriver(), HealthyDriver()]),
+            drivers=DriverRegistry([BadResultDriver(), HealthyDriver()]),
             on_escalation=lambda row, result: failures.append(row.credential_id),
             clock=lambda: now,
         )
         await watcher.run_once()
         assert good.last_probe_at == now
         assert good.last_probe_status == "healthy"
+        assert bad.last_probe_status == "error"
         assert bad.credential_id in failures
 
     asyncio.run(run())

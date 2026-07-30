@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import importlib
 import inspect
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -21,12 +23,13 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping, Protocol, Sequence, TypeAlias
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 
 UTC = timezone.utc
 CANONICAL_HANDOFF_HOST = "auth.papercut-labs.com"
 CARBON_AUTH_BASE = "https://agents.papercut-labs.com"
+logger = logging.getLogger(__name__)
 
 
 class CredentialContractError(ValueError):
@@ -53,7 +56,9 @@ class ReauthState(str, Enum):
 
 
 _LEGAL_TRANSITIONS: dict[ReauthState, frozenset[ReauthState]] = {
-    ReauthState.REQUESTED: frozenset({ReauthState.PENDING_HUMAN}),
+    ReauthState.REQUESTED: frozenset(
+        {ReauthState.PENDING_HUMAN, ReauthState.COMPLETED}
+    ),
     ReauthState.PENDING_HUMAN: frozenset(
         {ReauthState.COMPLETED, ReauthState.TIMED_OUT}
     ),
@@ -354,23 +359,22 @@ class CredentialRecord:
             ),
         )
 
-    def transition(self, target: ReauthState) -> ReauthState:
+    def transition(
+        self, target: ReauthState, *, now: datetime | None = None
+    ) -> ReauthState:
         state = self._state_machine.transition(target)
         self.reauth_state = state
+        self.last_transition_at = (now or datetime.now(UTC)).astimezone(UTC)
         return state
 
-    def complete_auto(self) -> ReauthState:
-        """Complete the bearer degenerate case without a human handoff."""
-        if self.reauth_state not in {
-            ReauthState.REQUESTED,
-            ReauthState.COMPLETED,
-        }:
-            raise InvalidTransitionError(
-                f"cannot auto-complete from {self.reauth_state.value}"
-            )
-        self.reauth_state = ReauthState.COMPLETED
-        self._state_machine.state = ReauthState.COMPLETED
-        return self.reauth_state
+    def complete_auto(self, *, now: datetime | None = None) -> ReauthState:
+        """Record a *proved* automatic renewal.
+
+        Drivers may use this only after they have replaced the credential with
+        valid future material and the caller has confirmed it.  A local expiry
+        read is not a renewal and must not silently close the human path.
+        """
+        return self.transition(ReauthState.COMPLETED, now=now)
 
     def public_dict(self) -> dict[str, Any]:
         """Return metadata safe for logs, receipts, and status surfaces."""
@@ -525,7 +529,10 @@ class BearerJwtDriver(CredentialDriver):
         )
 
     async def begin_reauth(self, record: CredentialRecord) -> ReauthResult:
-        return ReauthResult(ReauthState.COMPLETED)
+        # This driver deliberately has no refresh method and never mutates the
+        # opaque token.  An expired token therefore needs the signed human
+        # handoff path; reporting COMPLETED here would permanently mask it.
+        return ReauthResult(ReauthState.PENDING_HUMAN)
 
 
 class HumanBrowserSessionDriver(CredentialDriver):
@@ -649,9 +656,9 @@ class CarbonAuthV1Client:
         response = await raw if inspect.isawaitable(raw) else raw
         if not isinstance(response, Mapping):
             raise CredentialContractError("Carbon Auth response must be an object")
-        if response.get("ok") is False:
-            raise CredentialContractError("Carbon Auth request was rejected")
-        data = response.get("data", response)
+        if response.get("ok") is not True:
+            raise CredentialContractError("Carbon Auth response must set ok=true")
+        data = response.get("data")
         if not isinstance(data, Mapping):
             raise CredentialContractError("Carbon Auth response data must be an object")
         request_id = data.get("request_id")
@@ -679,12 +686,26 @@ def validate_handoff_url(url: str) -> str:
     if not isinstance(url, str) or not url:
         raise InvalidHandoffUrlError("handoff URL is required")
     parsed = urlparse(url)
-    if parsed.scheme != "https" or parsed.hostname != CANONICAL_HANDOFF_HOST:
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != CANONICAL_HANDOFF_HOST
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
         raise InvalidHandoffUrlError(
             "handoff URL must use https://auth.papercut-labs.com/"
         )
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise InvalidHandoffUrlError("handoff URL has an invalid port") from exc
+    if port not in (None, 443):
+        raise InvalidHandoffUrlError("handoff URL must use the default HTTPS port")
     if not parsed.path or parsed.path == "/":
         raise InvalidHandoffUrlError("handoff URL must include a signed path")
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    if not any(query.get(key, [""])[0] for key in ("sig", "token")):
+        raise InvalidHandoffUrlError("handoff URL must include sig or token")
     if "novnc" in f"{parsed.path}?{parsed.query}".lower():
         raise InvalidHandoffUrlError("raw browser handoff URLs are not accepted")
     return url
@@ -707,6 +728,37 @@ class SignedHandoffUrlSigner:
         return validate_handoff_url(value)
 
 
+def configured_handoff_signer_from_environment() -> HandoffUrlSigner | None:
+    """Load the deployed signing bridge without inventing an unsigned URL.
+
+    ``PA_CREDENTIALS_HANDOFF_SIGNER`` names a callable as
+    ``package.module:attribute``.  The callable receives
+    :class:`HandoffSigningRequest` and must return the canonical signed URL.
+    It is wrapped by :class:`SignedHandoffUrlSigner`, so a bridge cannot turn
+    into an unvalidated relay.  With no configured bridge, callers receive
+    ``None`` and human re-auth fails closed rather than emitting a raw URL.
+    """
+    spec = os.getenv("PA_CREDENTIALS_HANDOFF_SIGNER", "").strip()
+    if not spec:
+        return None
+    module_name, separator, attribute = spec.partition(":")
+    if not module_name or not separator or not attribute:
+        raise CredentialContractError(
+            "PA_CREDENTIALS_HANDOFF_SIGNER must be package.module:callable"
+        )
+    try:
+        candidate = getattr(importlib.import_module(module_name), attribute)
+    except (ImportError, AttributeError) as exc:
+        raise CredentialContractError(
+            "PA_CREDENTIALS_HANDOFF_SIGNER could not load its signing bridge"
+        ) from exc
+    if not callable(candidate):
+        raise CredentialContractError(
+            "PA_CREDENTIALS_HANDOFF_SIGNER must resolve to a callable"
+        )
+    return SignedHandoffUrlSigner(candidate)
+
+
 EscalationHook = Callable[[CredentialRecord, ReauthResult], Awaitable[None] | None]
 TimeoutHook = Callable[[CredentialRecord], Awaitable[None] | None]
 
@@ -714,9 +766,14 @@ TimeoutHook = Callable[[CredentialRecord], Awaitable[None] | None]
 async def _invoke_hook(hook: Callable[..., Any] | None, *args: Any) -> None:
     if hook is None:
         return
-    result = hook(*args)
-    if inspect.isawaitable(result):
-        await result
+    try:
+        result = hook(*args)
+        if inspect.isawaitable(result):
+            await result
+    except Exception:
+        # Hooks notify an external owner; they are never allowed to turn one
+        # row's delivery failure into a dead watcher for every credential.
+        logger.exception("PA credential lifecycle hook failed")
 
 
 def load_runtime_credentials(path: str | os.PathLike[str]) -> list[CredentialRecord]:
@@ -802,41 +859,91 @@ class CredentialWatcher:
             await task
 
     async def _run(self) -> None:
-        while True:
-            await self.run_once()
-            if self._stop_event is not None and self._stop_event.is_set():
-                return
-            await self.sleep(self.interval_seconds)
+        try:
+            while True:
+                await self.run_once()
+                if self._stop_event is not None and self._stop_event.is_set():
+                    return
+                await self.sleep(self.interval_seconds)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # ``run_once`` isolates rows.  Reaching this branch means the
+            # watcher itself is broken, which must be visible immediately.
+            logger.exception("PA credential watcher loop died")
+            raise
 
-    def _due(self, record: CredentialRecord, now: datetime) -> bool:
+    def _cadence_seconds(
+        self, record: CredentialRecord, driver: CredentialDriver
+    ) -> float:
+        """Honor both contracts; rows may slow probes down, never speed them up."""
+        record.probe_contract.validate()
+        driver.probe_contract.validate()
+        return max(
+            record.probe_contract.cadence_seconds,
+            driver.probe_contract.cadence_seconds,
+        )
+
+    def _due(
+        self, record: CredentialRecord, now: datetime, driver: CredentialDriver
+    ) -> bool:
         if record.last_probe_at is None:
             return True
-        return (now - record.last_probe_at).total_seconds() >= record.probe_contract.cadence_seconds
+        return (
+            now - record.last_probe_at
+        ).total_seconds() >= self._cadence_seconds(record, driver)
 
     async def run_once(self) -> None:
         now = self.clock().astimezone(UTC)
         for record in self.credentials:
-            if not self._due(record, now):
-                continue
-            driver = self.drivers.get(record.driver_key)
+            probe_completed = False
             try:
-                record.probe_contract.validate()
-                driver.probe_contract.validate()
+                driver = self.drivers.get(record.driver_key)
+                if not self._due(record, now, driver):
+                    continue
                 result = await driver.probe(record.material, now=now)
-            except UnsafeProbeError:
+                record.last_probe_at = now
+                record.last_probe_status = result.status
+                probe_completed = True
+                if result.expires_at is not None:
+                    record.expires_at = result.expires_at.astimezone(UTC)
+                if result.healthy and not result.needs_reauth:
+                    if record.reauth_state == ReauthState.PENDING_HUMAN:
+                        record.transition(ReauthState.COMPLETED, now=now)
+                    continue
+                await self._handle_reauth(record, driver, now)
+            except UnsafeProbeError as exc:
                 record.last_probe_at = now
                 record.last_probe_status = "unsafe"
+                logger.error(
+                    "PA credential probe rejected for %s: %s",
+                    record.credential_id,
+                    exc,
+                )
                 await _invoke_hook(
                     self.on_escalation,
                     record,
                     ReauthResult(record.reauth_state),
                 )
                 continue
-            record.last_probe_at = now
-            record.last_probe_status = result.status
-            if result.healthy and not result.needs_reauth:
+            except Exception as exc:
+                # One malformed driver result, row, or unavailable adapter
+                # must not kill monitoring for every other credential.
+                if not probe_completed:
+                    record.last_probe_at = now
+                    record.last_probe_status = "error"
+                logger.error(
+                    "PA credential row %s failed; continuing other rows: %s",
+                    record.credential_id,
+                    exc,
+                    exc_info=True,
+                )
+                await _invoke_hook(
+                    self.on_escalation,
+                    record,
+                    ReauthResult(record.reauth_state),
+                )
                 continue
-            await self._handle_reauth(record, driver, now)
 
     async def _handle_reauth(
         self,
@@ -846,7 +953,7 @@ class CredentialWatcher:
     ) -> None:
         if record.reauth_state == ReauthState.PENDING_HUMAN:
             if record.reauth_deadline_at and now >= record.reauth_deadline_at:
-                record.transition(ReauthState.TIMED_OUT)
+                record.transition(ReauthState.TIMED_OUT, now=now)
                 await _invoke_hook(self.on_timeout, record)
             return
         if record.reauth_state in {
@@ -857,12 +964,25 @@ class CredentialWatcher:
 
         result = await driver.begin_reauth(record)
         if result.state == ReauthState.COMPLETED:
-            record.complete_auto()
+            # A driver may only report automatic completion if it returned
+            # future expiry evidence; this prevents expired bearers from
+            # disappearing behind a nominal "completed" state.
+            renewed = await driver.probe(record.material, now=now)
+            if (
+                not renewed.healthy
+                or renewed.needs_reauth
+                or renewed.expires_at is None
+                or renewed.expires_at <= now
+            ):
+                raise CredentialContractError(
+                    "driver reported automatic re-auth without valid future material"
+                )
+            record.expires_at = renewed.expires_at.astimezone(UTC)
+            record.complete_auto(now=now)
             return
         if result.state != ReauthState.PENDING_HUMAN:
             raise CredentialContractError("driver returned an invalid re-auth state")
 
-        record.transition(ReauthState.PENDING_HUMAN)
         if self.carbon_auth is None or self.handoff_signer is None:
             raise CredentialContractError(
                 "human re-auth requires Carbon Auth and handoff signer adapters"
@@ -883,6 +1003,9 @@ class CredentialWatcher:
                 credential_id=record.credential_id,
             )
         )
+        # The state becomes pending only after both external handoff steps
+        # have succeeded.  A retryable request/sign failure leaves it armed.
+        record.transition(ReauthState.PENDING_HUMAN, now=now)
         record.reauth_request_id = response.request_id
         record.reauth_deadline_at = now + timedelta(
             seconds=record.timeout_after_seconds
@@ -899,7 +1022,16 @@ class CredentialWatcher:
 
 
 def create_pa_credentials_watcher(**kwargs: Any) -> CredentialWatcher:
-    """Build the watcher from the exported runtime file, if configured."""
+    """Build the watcher from the exported runtime file, if configured.
+
+    The configured signer is intentionally opt-in.  When it is absent a
+    human-required row fails closed at its own re-auth attempt rather than
+    leaking a raw browser URL or taking down the watcher.
+    """
+    if "handoff_signer" not in kwargs:
+        kwargs["handoff_signer"] = configured_handoff_signer_from_environment()
+    if kwargs.get("handoff_signer") is not None and "carbon_auth" not in kwargs:
+        kwargs["carbon_auth"] = CarbonAuthV1Client()
     return CredentialWatcher.from_environment(**kwargs)
 
 
@@ -928,6 +1060,7 @@ __all__ = [
     "ReauthStateMachine",
     "SignedHandoffUrlSigner",
     "UnsafeProbeError",
+    "configured_handoff_signer_from_environment",
     "create_pa_credentials_watcher",
     "load_runtime_credentials",
     "validate_handoff_url",
