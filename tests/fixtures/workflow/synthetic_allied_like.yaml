@@ -1,0 +1,96 @@
+workflow:
+  id: synthetic-freight-loop
+  entity: shipment_job
+  correlation_keys:
+    - container_no
+    - job_no
+    - booking_ref
+  disambiguators:
+    - customer
+    - vessel
+    - direction
+  create_on:
+    - type: trucking_instruction
+      brief: synthetic_mail_ingest
+  steps:
+    - key: ingest
+      mode: propose
+      turn:
+        brief: ingest the trucking instruction
+      advance_to: await_pickup
+
+    - key: await_pickup
+      mode: auto
+      waits:
+        - kind: event
+          types:
+            - pickup_advice
+          schema: pickup_advice_v1
+          advance_to: create_job
+        - kind: timer
+          after: 72h
+          action: chase
+          max_fires: 3
+          then: escalate
+
+    - key: create_job
+      mode: propose
+      turn:
+        brief: create the shipment job
+      actions:
+        - job_create
+        - sheet_log
+      advance_to: await_container
+
+    - key: await_container
+      mode: manual
+      waits:
+        - kind: event
+          types:
+            - container_assigned
+          schema: container_assigned_v1
+          advance_to: notify_customer
+
+    - key: notify_customer
+      mode: propose
+      turn:
+        brief: notify the customer
+      actions:
+        - customer_email
+      advance_to: await_vgm
+
+    - key: await_vgm
+      mode: auto
+      waits:
+        - kind: event
+          types:
+            - vgm_reply
+          schema: vgm_reply_v1
+          advance_to: await_gatein
+        - kind: timer
+          after: 24h
+          action: chase
+          max_fires: 2
+          then: escalate
+
+    - key: await_gatein
+      mode: auto
+      waits:
+        - kind: event
+          types:
+            - gate_in
+          schema: gate_in_v1
+          advance_to: invoice
+
+    - key: invoice
+      mode: propose
+      turn:
+        brief: prepare and send the invoice
+      actions:
+        - charges_add
+        - invoice_generate
+        - invoice_email
+      advance_to: done
+
+    - key: done
+      mode: auto
