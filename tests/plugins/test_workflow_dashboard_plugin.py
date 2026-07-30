@@ -5,6 +5,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import sqlite3
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -97,10 +99,14 @@ def test_board_is_collection_bound_and_excludes_archived(workflow_env, monkeypat
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["board"] == "workflow"
-    assert [stage["key"] for stage in data["templates"][0]["stages"]] == ["received", "review", "done"]
+    assert [stage["key"] for stage in data["templates"][0]["steps"]] == ["received", "review", "done"]
+    assert data["templates"][0]["steps"][0]["advance_to"] == "review"
+    assert data["templates"][0]["steps"][1]["waits"][0]["advance_to"] == "done"
     card_ids = {card["task_id"] for card in data["cards"]}
     assert task_id in card_ids and len(card_ids) == 2
-    assert data["stage_counts"]["received"] == 2
+    assert data["templates"][0]["stage_counts"]["received"] == 2
+    assert data["templates"][0]["columns"][0]["count"] == 2
+    assert all("current_step_key" in card for card in data["cards"])
     assert sum("SELECT i.task_id" in statement for statement in traces) == 1
 
 
@@ -123,6 +129,8 @@ def test_timeline_is_ordered_and_does_not_expose_event_payload(workflow_env):
     timeline = response.json()
     assert timeline["instance"]["task_id"] == task_id
     assert timeline["transitions"][-1]["event_id"] == event_id
+    assert timeline["transitions"][-1]["event"]["event_type"] == "reply"
+    assert timeline["transitions"][-1]["event"]["applied_at"] is not None
     assert [row["applied_at"] for row in timeline["transitions"]] == sorted(
         row["applied_at"] for row in timeline["transitions"]
     )
@@ -145,10 +153,13 @@ def test_actions_return_safe_approval_and_candidate_summaries(workflow_env):
     data = client.get("/api/plugins/workflow/actions").json()
     assert data["approvals"][0]["approval_id"] == approval_id
     assert "resume_token" not in json.dumps(data)
-    assert "private body" not in json.dumps(data)
+    assert data["approvals"][0]["payload"]["body"] == "private body"
     assert "cap-token" not in json.dumps(data)
     assert '"secret"' not in json.dumps(data)
     assert any(item["event_id"] == event_id for item in data["events"])
+    review = next(item for item in data["events"] if item["event_id"] == event_id)
+    assert review["event_summary"]["event_type"] is None
+    assert review["event_summary"]["payload_shape"]["kind"] == "object"
     assert task_id
     assert token
 
@@ -162,6 +173,7 @@ def test_actions_delegate_and_replay_is_conflict_without_second_outbox(workflow_
 
     def wrapped(*args, **kwargs):
         called["yes"] = True
+        called["kwargs"] = kwargs
         return original(*args, **kwargs)
 
     monkeypatch.setattr(module.wf_engine, "decide_approval", wrapped)
@@ -203,6 +215,7 @@ def test_action_validation_not_found_and_resolve_delegation(workflow_env, monkey
 
     def wrapped(*args, **kwargs):
         called["yes"] = True
+        called["kwargs"] = kwargs
         return original(*args, **kwargs)
 
     monkeypatch.setattr(module.wf_engine, "resolve_event", wrapped)
@@ -212,3 +225,106 @@ def test_action_validation_not_found_and_resolve_delegation(workflow_env, monkey
     )
     assert response.status_code == 409  # not a deterministic candidate
     assert called["yes"] is True
+    assert called["kwargs"]["decided_by"] == "tester"
+
+
+def test_mutations_ignore_board_query_parameter(workflow_env):
+    client, conn, _module = workflow_env
+    template_id, _ = wf_engine.register_template(conn, _spec())
+    _task_id, approval_id, token = _approval(conn, template_id, "thread-fixed-board")
+    response = client.post(
+        f"/api/plugins/workflow/action/approvals/{approval_id}?board=other",
+        json={"decision": "approved", "decided_by": "tester", "token": token},
+    )
+    assert response.status_code == 200, response.text
+
+
+def test_board_counts_are_scoped_to_each_template(workflow_env):
+    client, conn, _module = workflow_env
+    first_template, _ = wf_engine.register_template(conn, _spec())
+    second_template, _ = wf_engine.register_template(conn, {
+        "id": "other-flow",
+        "steps": [
+            {"key": "received", "label": "Other received", "advance_to": "done"},
+            {"key": "done", "label": "Other done"},
+        ],
+    })
+    _instance(conn, first_template, "first-template")
+    _instance(conn, second_template, "second-template")
+
+    board = client.get("/api/plugins/workflow/board").json()
+    templates = {item["template_id"]: item for item in board["templates"]}
+    assert templates["mail-flow@1"]["stage_counts"]["received"] == 1
+    assert templates["other-flow@1"]["stage_counts"]["received"] == 1
+    assert board["template_stage_counts"]["mail-flow@1"]["received"] == 1
+    assert board["template_stage_counts"]["other-flow@1"]["received"] == 1
+
+
+def _run_bundle_contract(board: dict, actions: dict) -> dict:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is required for the dashboard bundle contract")
+    bundle = Path(__file__).resolve().parents[2] / "plugins/workflow/dashboard/dist/index.js"
+    script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const window = {
+  __HERMES_PLUGIN_SDK__: {
+    React: { createElement() { return null; } },
+    hooks: {}, components: {}, flow: {}, utils: {},
+  },
+  __HERMES_PLUGINS__: { register() {} },
+};
+vm.runInNewContext(fs.readFileSync(process.argv[1], "utf8"), { window });
+const helpers = window.__HERMES_WORKFLOW_DASHBOARD__;
+process.stdout.write(JSON.stringify(helpers.dashboardContractModel(JSON.parse(process.argv[2]), JSON.parse(process.argv[3]))));
+"""
+    result = subprocess.run(
+        [node, "-e", script, str(bundle), json.dumps(board), json.dumps(actions)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(result.stdout)
+
+
+def test_real_api_json_executes_bundle_board_graph_and_action_contract(workflow_env):
+    client, conn, _module = workflow_env
+    template_id, _ = wf_engine.register_template(conn, _spec())
+    _instance(conn, template_id, "thread-contract")
+    _task_id, _approval_id, _token = _approval(conn, template_id, "thread-contract-approval")
+    event_id = wf_engine.ingest_event(
+        conn,
+        source="email",
+        external_id="contract-review",
+        payload={"body": "must not render", "kind": "reply"},
+        corr={"thread": "thread-contract"},
+        event_type="reply",
+    )
+    conn.execute("UPDATE wf_event SET status = 'needs_review' WHERE id = ?", (event_id,))
+
+    board = client.get("/api/plugins/workflow/board").json()
+    actions = client.get("/api/plugins/workflow/actions").json()
+    rendered = _run_bundle_contract(board, actions)
+    assert rendered["templates"][0]["columns"]
+    assert sum(column["count"] for column in rendered["templates"][0]["columns"]) > 0
+    assert {edge["source"] + "->" + edge["target"] for edge in rendered["templates"][0]["edges"]} == {
+        "received->review",
+        "review->done",
+    }
+    assert rendered["approvals"][0]["payload"]["body"] == "private body"
+    assert rendered["events"][0]["event_summary"]["correlation_values"] == {"thread": "thread-contract"}
+    assert "must not render" not in json.dumps(rendered)
+
+
+def test_bundle_uses_api_stage_shape_timestamp_nesting_and_operator_identity():
+    source = (Path(__file__).resolve().parents[2] / "plugins/workflow/dashboard/dist/index.js").read_text()
+    assert "function templateRenderModel" in source
+    assert "var steps = asArray(item.steps)" in source
+    assert "advance_to" in source and "waits" in source
+    assert "function dateFromTimestamp" in source
+    assert "numeric * 1000" in source
+    assert "var event = row.event || {}" in source
+    assert "Operator identity" in source
+    assert 'decided_by: "dashboard"' not in source
+    assert "item.stages" not in source

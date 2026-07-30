@@ -53,6 +53,11 @@
 .hermes-workflow-action-header { align-items: flex-start; }
 .hermes-workflow-action-header strong { font-size: .85rem; }
 .hermes-workflow-action-summary { font-size: .82rem; line-height: 1.45; margin-top: .65rem !important; }
+.hermes-workflow-event-summary,
+.hermes-workflow-operator { display: grid; gap: .35rem; margin-top: .75rem; }
+.hermes-workflow-event-summary { background: color-mix(in srgb, var(--muted) 20%, transparent); border-radius: .45rem; padding: .55rem; }
+.hermes-workflow-event-summary p { margin: 0 !important; overflow-wrap: anywhere; }
+.hermes-workflow-approval-payload { margin: .75rem 0 0; max-height: 12rem; overflow: auto; white-space: pre-wrap; }
 .hermes-workflow-action-footer { justify-content: flex-start; flex-wrap: wrap; margin-top: .8rem; }
 .hermes-workflow-candidates { display: grid; gap: .4rem; margin-top: .75rem; }
 .hermes-workflow-candidate { align-items: center; border-top: 1px solid var(--workflow-border); display: flex; gap: .6rem; justify-content: space-between; padding-top: .45rem; }

@@ -1,9 +1,10 @@
 """Workflow dashboard API.
 
 The dashboard is a read model over the workflow tables in the kanban
-database.  It deliberately exposes summaries rather than workflow payloads:
-the worker and engine own the sensitive material.  Mutations are delegated to
-``hermes_cli.wf_engine`` so the dashboard cannot create a second state machine.
+database.  It exposes assembled action payloads and safe event shapes while
+never returning bearer capabilities or inbound bodies.  Mutations are
+delegated to ``hermes_cli.wf_engine`` so the dashboard cannot create a second
+state machine.
 
 The enclosing dashboard mounts this router below ``/api/plugins/workflow``
 after applying its normal session-token middleware.
@@ -25,6 +26,15 @@ router = APIRouter()
 DEFAULT_WORKFLOW_BOARD = "workflow"
 _BLOCKED_STATES = frozenset({"parked", "pending_approval", "needs_review", "exception"})
 _APPROVAL_DECISIONS = frozenset({"approved", "edited_approved", "rejected"})
+_SENSITIVE_PAYLOAD_KEYS = frozenset(
+    {
+        "approval_token",
+        "capability_token",
+        "resume_token",
+        "secret",
+        "token",
+    }
+)
 
 
 def _resolve_board(board: str | None) -> str:
@@ -56,6 +66,24 @@ def _json_object(value: str | None, *, default: Any) -> Any:
         return default
 
 
+def _safe_payload(value: Any, *, _parse_serialized: bool = True) -> Any:
+    """Return assembled action data without bearer capabilities."""
+
+    if _parse_serialized and isinstance(value, str):
+        value = _json_object(value, default=None)
+    if isinstance(value, dict):
+        safe: dict[str, Any] = {}
+        for key, item in value.items():
+            normalized = str(key).strip().lower().replace("-", "_")
+            if normalized in _SENSITIVE_PAYLOAD_KEYS or normalized.endswith("_token"):
+                continue
+            safe[str(key)] = _safe_payload(item, _parse_serialized=False)
+        return safe
+    if isinstance(value, list):
+        return [_safe_payload(item, _parse_serialized=False) for item in value]
+    return value
+
+
 def _workflow_steps(spec_text: str | None) -> list[dict[str, Any]]:
     spec = _json_object(spec_text, default={})
     if not isinstance(spec, dict):
@@ -66,6 +94,40 @@ def _workflow_steps(spec_text: str | None) -> list[dict[str, Any]]:
     steps = spec.get("steps")
     if not isinstance(steps, list):
         return []
+
+    def safe_target(value: Any) -> str | list[str] | None:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, list):
+            targets = [target for item in value if (target := safe_target(item))]
+            return targets or None
+        if isinstance(value, dict):
+            for key in ("key", "step_key", "target"):
+                target = safe_target(value.get(key))
+                if target:
+                    return target
+        return None
+
+    def safe_wait(raw_wait: Any) -> dict[str, Any] | None:
+        if not isinstance(raw_wait, dict):
+            return None
+        wait: dict[str, Any] = {}
+        kind = raw_wait.get("kind")
+        if isinstance(kind, str) and kind.strip():
+            wait["kind"] = kind.strip()
+        types = raw_wait.get("types")
+        if isinstance(types, list):
+            wait["types"] = [item.strip() for item in types if isinstance(item, str) and item.strip()]
+        schema_ref = raw_wait.get("schema_ref", raw_wait.get("schema"))
+        if isinstance(schema_ref, str) and schema_ref.strip():
+            wait["schema_ref"] = schema_ref.strip()
+        target = safe_target(raw_wait.get("advance_to"))
+        if target is None:
+            target = safe_target(raw_wait.get("target_step_key"))
+        if target is not None:
+            wait["advance_to"] = target
+        return wait
+
     result: list[dict[str, Any]] = []
     for position, raw_step in enumerate(steps):
         if not isinstance(raw_step, dict):
@@ -73,11 +135,25 @@ def _workflow_steps(spec_text: str | None) -> list[dict[str, Any]]:
         key = raw_step.get("key")
         if not isinstance(key, str) or not key:
             continue
-        result.append({
+        step: dict[str, Any] = {
             "key": key,
             "label": str(raw_step.get("label") or raw_step.get("name") or key),
-            "order": position,
-        })
+            "order": (
+                int(raw_step.get("order", position))
+                if isinstance(raw_step.get("order", position), int)
+                else position
+            ),
+        }
+        advance_to = safe_target(raw_step.get("advance_to"))
+        if advance_to is not None:
+            step["advance_to"] = advance_to
+        reject_to = safe_target(raw_step.get("reject_to"))
+        if reject_to is not None:
+            step["reject_to"] = reject_to
+        waits = [wait for raw_wait in (raw_step.get("waits") or []) if (wait := safe_wait(raw_wait))]
+        if waits:
+            step["waits"] = waits
+        result.append(step)
     return result
 
 
@@ -106,24 +182,77 @@ def _instance_identity(row: sqlite3.Row) -> dict[str, Any]:
 
 def _safe_instance(row: sqlite3.Row) -> dict[str, Any]:
     value = _instance_identity(row)
+    value["current_step_key"] = row["current_step_key"]
     value["badges"] = _state_badges(str(row["state"]))
     return value
 
 
-def _payload_summary(value: str | None) -> dict[str, Any]:
-    """Describe approval payload shape without returning any values."""
+def _payload_summary(value: Any) -> dict[str, Any]:
+    """Describe a payload shape without returning its values."""
 
-    payload = _json_object(value, default=None)
+    payload = _safe_payload(_json_object(value, default=None) if isinstance(value, str) else value)
     if isinstance(payload, dict):
         return {
             "kind": "object",
             "field_count": len(payload),
+            "fields": sorted(str(key) for key in payload),
         }
     if isinstance(payload, list):
         return {"kind": "array", "item_count": len(payload)}
     if payload is None:
         return {"kind": "unknown"}
     return {"kind": type(payload).__name__}
+
+
+def _safe_correlation(value: Any) -> dict[str, Any]:
+    correlation = _json_object(value, default={}) if isinstance(value, str) else value
+    if not isinstance(correlation, dict):
+        return {}
+    safe = _safe_payload(correlation)
+    return safe if isinstance(safe, dict) else {}
+
+
+def _template_columns(
+    rows: list[sqlite3.Row],
+    template_id: str,
+    steps: list[dict[str, Any]],
+    *,
+    now: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
+    """Build columns and counts from only one template's instances."""
+
+    matching_rows = [row for row in rows if row["template_id"] == template_id]
+    cards_by_stage: dict[str, list[dict[str, Any]]] = {}
+    stage_counts: dict[str, int] = {step["key"]: 0 for step in steps}
+    for row in matching_rows:
+        stage_started_at = row["stage_started_at"] or row["created_at"]
+        elapsed = max(0, now - int(stage_started_at)) if stage_started_at is not None else None
+        card = _safe_instance(row)
+        card["time_in_stage"] = elapsed
+        card["stage_started_at"] = stage_started_at
+        stage = str(row["current_step_key"] or "")
+        cards_by_stage.setdefault(stage, []).append(card)
+        stage_counts[stage] = stage_counts.get(stage, 0) + 1
+
+    ordered_steps = list(sorted(steps, key=lambda item: (item["order"], item["key"])))
+    for key in sorted(set(cards_by_stage) - {step["key"] for step in ordered_steps}):
+        ordered_steps.append({"key": key, "label": key, "order": len(ordered_steps)})
+        stage_counts.setdefault(key, 0)
+    columns = [
+        {
+            "key": step["key"],
+            "label": step["label"],
+            "order": step["order"],
+            "count": stage_counts.get(step["key"], 0),
+            "cards": cards_by_stage.get(step["key"], []),
+        }
+        for step in ordered_steps
+    ]
+    return (
+        columns,
+        [card for cards in cards_by_stage.values() for card in cards],
+        stage_counts,
+    )
 
 
 def _card_query(conn: sqlite3.Connection) -> list[sqlite3.Row]:
@@ -163,27 +292,28 @@ def _template_query(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 def _board_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     now = int(time.time())
     template_rows = _template_query(conn)
+    rows = _card_query(conn)
     templates: list[dict[str, Any]] = []
-    stages: dict[str, dict[str, Any]] = {}
 
     for row in template_rows:
         template_id = f"{row['slug']}@{int(row['version'])}"
-        template_stages = _workflow_steps(row["spec"])
+        steps = _workflow_steps(row["spec"])
+        columns, template_cards, template_counts = _template_columns(
+            rows,
+            template_id,
+            steps,
+            now=now,
+        )
         templates.append({
             "template_id": template_id,
             "template_version": int(row["version"]),
-            "stages": template_stages,
+            "steps": steps,
+            "columns": columns,
+            "stage_counts": template_counts,
+            "cards": template_cards,
         })
-        for stage in template_stages:
-            # A shared step key is one column across template versions.  Keep
-            # the first declared order and label, making the board deterministic
-            # when multiple workflow families are installed.
-            stages.setdefault(stage["key"], stage)
 
-    rows = _card_query(conn)
-    cards: list[dict[str, Any]] = []
-    cards_by_stage: dict[str, list[dict[str, Any]]] = {}
-    stage_counts: dict[str, int] = {key: 0 for key in stages}
+    cards = []
     for row in rows:
         stage_started_at = row["stage_started_at"] or row["created_at"]
         elapsed = max(0, now - int(stage_started_at)) if stage_started_at is not None else None
@@ -191,33 +321,32 @@ def _board_payload(conn: sqlite3.Connection) -> dict[str, Any]:
         card["time_in_stage"] = elapsed
         card["stage_started_at"] = stage_started_at
         cards.append(card)
-        stage = str(row["current_step_key"] or "")
-        cards_by_stage.setdefault(stage, []).append(card)
-        stage_counts[stage] = stage_counts.get(stage, 0) + 1
 
-    # Preserve template order, then expose a deterministic fallback column for
-    # a malformed/forward-compatible instance step not present in a template.
-    ordered_stages = sorted(stages.values(), key=lambda item: (item["order"], item["key"]))
-    for key in sorted(set(cards_by_stage) - set(stages)):
-        ordered_stages.append({"key": key, "label": key, "order": len(ordered_stages)})
-        stage_counts.setdefault(key, 0)
-
-    columns = []
-    for stage in ordered_stages:
-        key = stage["key"]
-        columns.append({
-            "key": key,
-            "label": stage["label"],
-            "order": stage["order"],
-            "count": stage_counts.get(key, 0),
-            "cards": cards_by_stage.get(key, []),
-        })
+    template_stage_counts = {
+        template["template_id"]: template["stage_counts"] for template in templates
+    }
+    # Root columns are retained for hosts that render the board without a
+    # template picker.  The interactive UI uses each template's scoped columns.
+    columns = [
+        {**column, "template_id": template["template_id"]}
+        for template in templates
+        for column in template["columns"]
+    ]
+    # Keep the legacy root map usable for hosts that render the flattened
+    # columns, but make the template-scoped map authoritative for the actual
+    # template picker.  A shared step key is therefore only aggregated at this
+    # compatibility boundary; template entries never read a sibling count.
+    root_counts: dict[str, int] = {}
+    for template in templates:
+        for key, count in template["stage_counts"].items():
+            root_counts[key] = root_counts.get(key, 0) + count
     return {
         "board": DEFAULT_WORKFLOW_BOARD,
         "templates": templates,
         "columns": columns,
         "cards": cards,
-        "stage_counts": stage_counts,
+        "stage_counts": root_counts,
+        "template_stage_counts": template_stage_counts,
     }
 
 
@@ -357,6 +486,19 @@ def _candidate_summaries(conn: sqlite3.Connection, task_ids: tuple[str, ...]) ->
     return [_safe_instance(row) for row in rows]
 
 
+def _event_summary(row: sqlite3.Row) -> dict[str, Any]:
+    """Expose event context without exposing the inbound body."""
+
+    correlation = _safe_correlation(row["corr"])
+    return {
+        "event_type": row["event_type"],
+        "source": row["source"],
+        "correlation": correlation,
+        "correlation_values": correlation,
+        "payload_shape": _payload_summary(row["payload"]),
+    }
+
+
 @router.get("/actions")
 def get_actions(board: str | None = Query(default=None)) -> dict[str, Any]:
     conn = _conn(board)
@@ -376,7 +518,7 @@ def get_actions(board: str | None = Query(default=None)) -> dict[str, Any]:
         events = conn.execute(
             """
             SELECT e.id, e.source, e.event_type, e.status, e.match_method,
-                   e.created_at, e.applied_at
+                   e.payload, e.corr, e.created_at, e.applied_at
               FROM wf_event AS e
              WHERE e.status IN ('needs_review', 'ambiguous')
              ORDER BY e.created_at, e.id
@@ -394,6 +536,7 @@ def get_actions(board: str | None = Query(default=None)) -> dict[str, Any]:
                 "action": row["action"],
                 "status": row["status"],
                 "created_at": row["created_at"],
+                "payload": _safe_payload(row["payload"]),
                 "payload_summary": _payload_summary(row["payload"]),
             })
         event_items = []
@@ -406,6 +549,7 @@ def get_actions(board: str | None = Query(default=None)) -> dict[str, Any]:
                 "event_type": row["event_type"],
                 "status": row["status"],
                 "created_at": row["created_at"],
+                "event_summary": _event_summary(row),
                 "candidates": _candidate_summaries(conn, candidate_ids),
             })
         return {"approvals": approval_items, "events": event_items}
@@ -414,10 +558,10 @@ def get_actions(board: str | None = Query(default=None)) -> dict[str, Any]:
 
 
 @router.post("/action/events/{event_id}/resolve")
-async def resolve_event_action(event_id: str, request: Request, board: str | None = Query(default=None)) -> dict[str, Any]:
+async def resolve_event_action(event_id: str, request: Request) -> dict[str, Any]:
     event_id_int = _path_id(event_id, "event_id")
     body = await _request_object(request)
-    conn = _conn(board)
+    conn = _conn()
     try:
         task_id = body.get("task_id")
         if task_id is not None and (not isinstance(task_id, str) or not task_id.strip()):
@@ -428,6 +572,7 @@ async def resolve_event_action(event_id: str, request: Request, board: str | Non
                 conn,
                 event_id_int,
                 task_id.strip() if isinstance(task_id, str) else None,
+                decided_by=decided_by,
             )
         except Exception as exc:
             _raise_engine_error(exc)
@@ -445,10 +590,10 @@ async def resolve_event_action(event_id: str, request: Request, board: str | Non
 
 
 @router.post("/action/approvals/{approval_id}")
-async def decide_approval_action(approval_id: str, request: Request, board: str | None = Query(default=None)) -> dict[str, Any]:
+async def decide_approval_action(approval_id: str, request: Request) -> dict[str, Any]:
     approval_id_int = _path_id(approval_id, "approval_id")
     body = await _request_object(request)
-    conn = _conn(board)
+    conn = _conn()
     try:
         decision = _required_text(body, "decision")
         if decision not in _APPROVAL_DECISIONS:

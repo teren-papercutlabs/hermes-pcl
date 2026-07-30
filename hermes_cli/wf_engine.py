@@ -1249,6 +1249,7 @@ def resolve_event(
     task_id: str | None = None,
     *,
     selected_task_id: str | None = None,
+    decided_by: str | None = None,
 ) -> MatchResult:
     """Resolve an ambiguous/review event with a candidate or an explicit neither."""
 
@@ -1269,7 +1270,11 @@ def resolve_event(
             source="human_resolution",
             external_id=resolution_external_id,
             event_type="human_resolution",
-            payload={"event_id": int(event_id), "decision": "match" if task_id else "neither"},
+            payload={
+                "event_id": int(event_id),
+                "decision": "match" if task_id else "neither",
+                "decided_by": decided_by,
+            },
             corr={"event_id": int(event_id), "task_id": task_id} if task_id else {"event_id": int(event_id)},
         )
         if resolution_id is None:

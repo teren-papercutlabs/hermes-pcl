@@ -52,8 +52,7 @@
 
   function templatesFrom(board) {
     return asArray(first(board && board.templates, first(board && board.template_versions, []))).map(function (item) {
-      var spec = item.spec || item.workflow || {};
-      var steps = asArray(first(item.steps, first(spec.steps, [])));
+      var steps = asArray(item.steps);
       return Object.assign({}, item, { steps: steps, _key: templateKey(item), _label: templateLabel(item) });
     });
   }
@@ -85,6 +84,10 @@
   function stageSteps(template) {
     return asArray(template && template.steps).map(function (step, index) {
       return Object.assign({}, step, { _key: stepKey(step), _label: stepLabel(step), _index: index });
+    }).sort(function (left, right) {
+      return Number(first(left.order, left._index)) - Number(first(right.order, right._index));
+    }).map(function (step, index) {
+      return Object.assign({}, step, { _index: index });
     });
   }
 
@@ -93,7 +96,16 @@
   }
 
   function stageStartedAt(instance) {
-    return first(instance.parked_since, first(instance.stage_started_at, first(instance.stage_entered_at, first(instance.time_in_stage_since, first(instance.entered_at, null)))));
+    return first(instance.stage_started_at, first(instance.stage_entered_at, first(instance.time_in_stage_since, first(instance.entered_at, first(instance.parked_since, null)))));
+  }
+
+  function dateFromTimestamp(value) {
+    if (value === undefined || value === null || value === "") return null;
+    var numeric = Number(value);
+    var date = typeof value === "number" || (typeof value === "string" && /^[0-9]+(?:\.[0-9]+)?$/.test(value))
+      ? new Date(numeric * 1000)
+      : new Date(value);
+    return isNaN(date.getTime()) ? null : date;
   }
 
   function durationLabel(seconds) {
@@ -111,13 +123,16 @@
     if (instance.time_in_stage_seconds !== undefined) return durationLabel(instance.time_in_stage_seconds);
     var started = stageStartedAt(instance);
     if (!started) return "time unavailable";
+    if ((typeof started === "number" || /^[0-9]+(?:\.[0-9]+)?$/.test(String(started))) && sdk.utils && sdk.utils.timeAgo) {
+      return sdk.utils.timeAgo(Number(started));
+    }
     if (sdk.utils && sdk.utils.isoTimeAgo) return sdk.utils.isoTimeAgo(started);
     return "in stage";
   }
 
   function exactTime(instance) {
-    var started = stageStartedAt(instance);
-    return started ? new Date(started).toISOString() : "Stage entry time unavailable";
+    var date = dateFromTimestamp(stageStartedAt(instance));
+    return date ? date.toISOString() : "Stage entry time unavailable";
   }
 
   function badgeKeys(instance) {
@@ -137,7 +152,9 @@
   }
 
   function stageCounts(board, template, instances) {
-    var source = first(board && board.stage_counts, first(board && board.counts, first(board && board.per_stage_counts, {})));
+    var source = first(template && template.stage_counts, first(template && template.counts, null));
+    if (source === null) source = first(board && board.template_stage_counts && board.template_stage_counts[templateKey(template)], null);
+    if (source === null) source = first(board && board.stage_counts, first(board && board.counts, first(board && board.per_stage_counts, {})));
     var result = {};
     if (Array.isArray(source)) {
       source.forEach(function (item) {
@@ -227,17 +244,15 @@
   }
 
   function BoardView(props) {
-    var stages = stageSteps(props.template);
-    var cards = props.instances.filter(function (instance) { return instanceTemplateKey(instance) === templateKey(props.template); });
-    var counts = stageCounts(props.board, props.template, props.allInstances);
-    if (!stages.length) return h(EmptyState, { title: "No stages in this template.", detail: "The template has no published stage definition." });
+    var model = templateRenderModel(props.board, props.template, props.allInstances);
+    if (!model.stages.length) return h(EmptyState, { title: "No stages in this template.", detail: "The template has no published stage definition." });
     return h("div", { className: "hermes-workflow-board" },
-      h("div", { className: "hermes-workflow-columns", role: "list" }, stages.map(function (stage) {
+      h("div", { className: "hermes-workflow-columns", role: "list" }, model.columns.map(function (column) {
         return h(StageColumn, {
-          key: stage._key,
-          stage: stage,
-          count: counts[stage._key] || 0,
-          cards: cards.filter(function (instance) { return currentStep(instance) === stage._key; }),
+          key: column.stage._key,
+          stage: column.stage,
+          count: column.count,
+          cards: column.cards,
           onOpen: props.onOpen,
         });
       })));
@@ -245,6 +260,12 @@
 
   function graphEdges(steps) {
     var edges = [];
+    function keyFor(step) { return first(step && step._key, stepKey(step || {})); }
+    function targetFor(value) {
+      if (typeof value === "string") return value;
+      if (!value || typeof value !== "object") return null;
+      return first(value.step_key, first(value.key, first(value.target, null)));
+    }
     function add(source, target, label) {
       if (!source || !target || source === target) return;
       var id = String(source) + "->" + String(target) + ":" + String(label || "");
@@ -255,14 +276,33 @@
     steps.forEach(function (step) {
       var advance = first(step.advance_to, first(step.advanceTo, null));
       listify(advance).forEach(function (target) {
-        add(step._key, typeof target === "object" ? first(target.step_key, first(target.key, target.target)) : target, "advance");
+        add(keyFor(step), targetFor(target), "advance");
+      });
+      listify(first(step.reject_to, first(step.rejectTo, null))).forEach(function (target) {
+        add(keyFor(step), targetFor(target), "reject");
       });
       listify(first(step.waits, first(step.wait, []))).forEach(function (wait) {
         var target = first(wait.advance_to, first(wait.advanceTo, first(wait.target_step_key, first(wait.step_key, wait.target))));
-        add(step._key, typeof target === "object" ? first(target.step_key, first(target.key, target.target)) : target, "wait");
+        listify(target).forEach(function (waitTarget) { add(keyFor(step), targetFor(waitTarget), "wait"); });
       });
     });
-    return edges;
+      return edges;
+  }
+
+  function templateRenderModel(board, template, instances) {
+    var stages = stageSteps(template);
+    var scoped = asArray(instances).filter(function (instance) {
+      return instanceTemplateKey(instance) === templateKey(template);
+    });
+    var counts = stageCounts(board, template, instances);
+    var columns = stages.map(function (stage) {
+      return {
+        stage: stage,
+        count: counts[stage._key] || 0,
+        cards: scoped.filter(function (instance) { return currentStep(instance) === stage._key; }),
+      };
+    });
+    return { stages: stages, counts: counts, columns: columns, edges: graphEdges(stages) };
   }
 
   function StageNode(props) {
@@ -276,14 +316,13 @@
   }
 
   function GraphView(props) {
-    var stages = stageSteps(props.template);
-    var counts = stageCounts(props.board, props.template, props.allInstances);
-    var nodes = stages.map(function (stage) {
+    var model = templateRenderModel(props.board, props.template, props.allInstances);
+    var nodes = model.stages.map(function (stage) {
       return {
         id: stage._key,
         type: "workflowStage",
         position: { x: stage._index * 250, y: 100 + (stage._index % 2) * 45 },
-        data: { label: stage._label, count: counts[stage._key] || 0 },
+        data: { label: stage._label, count: model.counts[stage._key] || 0 },
         draggable: false,
         selectable: false,
       };
@@ -291,7 +330,7 @@
     if (!flow.ReactFlow) return h(EmptyState, { title: "Stage graph unavailable.", detail: "The dashboard host did not provide the graph renderer." });
     var graph = h(flow.ReactFlow, {
       nodes: nodes,
-      edges: graphEdges(stages),
+      edges: model.edges,
       nodeTypes: { workflowStage: StageNode },
       fitView: true,
       fitViewOptions: { padding: 0.2 },
@@ -317,14 +356,23 @@
 
   function TimelineRow(props) {
     var row = props.row || {};
-    var timestamp = first(row.created_at, first(row.occurred_at, row.timestamp));
+    var event = row.event || {};
+    var timestamp = first(row.applied_at, first(event.applied_at, first(event.created_at, first(row.created_at, first(row.occurred_at, row.timestamp)))));
+    var timestampDate = dateFromTimestamp(timestamp);
+    var description = first(row.summary, first(event.event_type, first(row.event_type, row.from_step ? row.from_step + " to " + row.to_step : "State changed")));
+    var timeNode = timestampDate ? h("time", {
+      dateTime: timestampDate.toISOString(),
+      title: timestampDate.toISOString(),
+    }, (typeof timestamp === "number" || /^[0-9]+(?:\.[0-9]+)?$/.test(String(timestamp))) && sdk.utils && sdk.utils.timeAgo
+      ? sdk.utils.timeAgo(Number(timestamp))
+      : sdk.utils && sdk.utils.isoTimeAgo ? sdk.utils.isoTimeAgo(timestamp) : timestamp) : null;
     return h("li", { className: "hermes-workflow-timeline-row" },
       h("div", { className: "hermes-workflow-timeline-dot" }),
       h("div", { className: "hermes-workflow-timeline-body" },
         h("div", { className: "hermes-workflow-timeline-heading" },
           h("strong", null, String(first(row.to_step, first(row.step_key, first(row.state, "Transition"))))),
-          timestamp ? h("time", { dateTime: timestamp, title: new Date(timestamp).toISOString() }, sdk.utils && sdk.utils.isoTimeAgo ? sdk.utils.isoTimeAgo(timestamp) : timestamp) : null),
-        h("p", { className: "hermes-workflow-muted" }, String(first(row.summary, first(row.event_type, first(row.from_step ? row.from_step + " to " + row.to_step : "State changed", "State changed")))))));
+          timeNode),
+        h("p", { className: "hermes-workflow-muted" }, String(description))));
   }
 
   function DetailDrawer(props) {
@@ -353,11 +401,19 @@
     var eventId = first(item.event_id, first(item.id, ""));
     var entity = first(item.entity_key, first(item.entity_ref, first(item.task_id, "Unknown entity")));
     var candidates = asArray(first(item.candidates, first(item.candidate_summaries, [])));
+    var summary = item.event_summary || {};
+    var correlation = first(summary.correlation_values, first(summary.correlation, {}));
+    var payloadShape = summary.payload_shape || {};
     return h("div", { className: "hermes-workflow-action-card" },
       h("div", { className: "hermes-workflow-action-header" },
         h("div", null, h("strong", null, "Needs review"), h("p", { className: "hermes-workflow-muted" }, String(entity))),
         h(Badge, { variant: "warning" }, "Review")),
       item.summary ? h("p", { className: "hermes-workflow-action-summary" }, String(item.summary)) : null,
+      h("div", { className: "hermes-workflow-event-summary" },
+        h("strong", null, "Event context"),
+        h("p", { className: "hermes-workflow-muted" }, "Type: " + String(first(summary.event_type, first(item.event_type, "unknown")))),
+        h("p", { className: "hermes-workflow-muted" }, "Correlation: " + JSON.stringify(correlation)),
+        h("p", { className: "hermes-workflow-muted" }, "Payload: " + String(first(payloadShape.kind, "unknown")) + " (" + String(first(payloadShape.field_count, first(payloadShape.item_count, 0))) + " fields/items)")),
       candidates.length ? h("div", { className: "hermes-workflow-candidates" }, candidates.map(function (candidate, index) {
         var taskId = first(candidate.task_id, first(candidate.id, null));
         return h("div", { className: "hermes-workflow-candidate", key: taskId || index },
@@ -382,14 +438,16 @@
     var item = props.item;
     var approvalId = first(item.approval_id, first(item.id, ""));
     var identityLabel = String(first(item.entity_key, first(item.entity_ref, first(item.task_id, "Workflow action"))));
-    var initial = first(item.payload, first(item.proposed_payload, {}));
+    var initial = item.payload;
+    var initialText = JSON.stringify(initial === undefined ? null : initial, null, 2);
     var [editing, setEditing] = hooks.useState(false);
-    var [payload, setPayload] = hooks.useState(JSON.stringify(initial || {}, null, 2));
+    var [payload, setPayload] = hooks.useState(initialText);
     var [token, setToken] = hooks.useState("");
     var [error, setError] = hooks.useState("");
     var submit = function (decision) {
       setError("");
-      var body = { decision: decision, decided_by: "dashboard", token: token };
+      var body = { decision: decision, decided_by: String(props.operator || "").trim(), token: token };
+      if (!body.decided_by) { setError("Operator identity is required."); return; }
       if (!token.trim()) { setError("Authorization is required."); return; }
       if (decision === "edited_approved") {
         var parsed = parseObject(payload);
@@ -405,6 +463,7 @@
           h("p", { className: "hermes-workflow-muted" }, identityLabel)),
         h(Badge, { variant: "secondary" }, "Approval")),
       item.summary ? h("p", { className: "hermes-workflow-action-summary" }, String(item.summary)) : null,
+      h("pre", { className: "hermes-workflow-json hermes-workflow-approval-payload" }, initialText),
       editing ? h("div", { className: "hermes-workflow-editor" },
         h(Label, { htmlFor: "workflow-payload-" + approvalId }, "Edited object"),
         h("textarea", { id: "workflow-payload-" + approvalId, value: payload, onChange: function (event) { setPayload(event.target.value); }, rows: 7, spellCheck: false, className: "hermes-workflow-json" })) : null,
@@ -423,14 +482,16 @@
     var reviews = actionList(props.actions, ["needs_review", "review", "ambiguous", "events"]);
     var [busy, setBusy] = hooks.useState(false);
     var [error, setError] = hooks.useState("");
+    var [operator, setOperator] = hooks.useState("");
     var refresh = function (work) {
       setBusy(true); setError("");
       return work().then(function () { return props.onChanged(); }).catch(function (err) { setError(safeError(err)); }).finally(function () { setBusy(false); });
     };
     var resolve = function (eventId, taskId) {
+      if (!operator.trim()) { setError("Operator identity is required."); return Promise.resolve(); }
       return refresh(function () { return sdk.fetchJSON(API + "/action/events/" + encodeURIComponent(eventId) + "/resolve", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task_id: taskId, decided_by: "dashboard" }),
+        body: JSON.stringify({ task_id: taskId, decided_by: operator.trim() }),
       }); });
     };
     var submit = function (approvalId, body) {
@@ -443,10 +504,13 @@
       h(EmptyState, { title: "Nothing needs attention.", detail: "Review and approval actions will appear here." }));
     return h("section", { className: "hermes-workflow-actions" },
       h("div", { className: "hermes-workflow-section-heading" }, h("h2", null, "Action queue"), h("span", { className: "hermes-workflow-muted" }, String(approvals.length + reviews.length) + " open")),
+      h("div", { className: "hermes-workflow-operator" },
+        h(Label, { htmlFor: "workflow-operator" }, "Operator identity"),
+        h(Input, { id: "workflow-operator", value: operator, onChange: function (event) { setOperator(event.target.value); }, autoComplete: "name", placeholder: "Enter your name" })),
       error ? h("p", { className: "hermes-workflow-error", role: "alert" }, error) : null,
       h("div", { className: "hermes-workflow-action-grid" },
         reviews.map(function (item, index) { return h(ReviewAction, { key: item.event_id || item.id || index, item: item, busy: busy, onResolve: resolve }); }),
-        approvals.map(function (item, index) { return h(ApprovalAction, { key: item.approval_id || item.id || index, item: item, busy: busy, onSubmit: submit }); })));
+        approvals.map(function (item, index) { return h(ApprovalAction, { key: item.approval_id || item.id || index, item: item, busy: busy, operator: operator, onSubmit: submit }); })));
   }
 
   function TemplatePicker(props) {
@@ -502,5 +566,36 @@
       taskId ? h(DetailDrawer, { taskId: taskId, timeline: timeline, loading: timelineLoading, error: timelineError, onClose: closeDetail }) : null);
   }
 
+  // The host renders through the helpers below.  Keeping this small pure
+  // surface available also lets the API/UI contract test execute the exact
+  // normalization used by BoardView and GraphView against real API JSON.
+  function dashboardContractModel(board, actions) {
+    var templates = templatesFrom(board || {});
+    var instances = instancesFrom(board || {});
+    return {
+      templates: templates.map(function (template) {
+        var model = templateRenderModel(board || {}, template, instances);
+        return {
+          key: template._key,
+          columns: model.columns.map(function (column) {
+            return { key: column.stage._key, label: column.stage._label, count: column.count, cards: column.cards };
+          }),
+          edges: model.edges,
+        };
+      }),
+      approvals: actionList(actions || {}, ["approvals", "pending_approvals"]),
+      events: actionList(actions || {}, ["needs_review", "review", "ambiguous", "events"]),
+    };
+  }
+
+  window.__HERMES_WORKFLOW_DASHBOARD__ = {
+    dashboardContractModel: dashboardContractModel,
+    dateFromTimestamp: dateFromTimestamp,
+    graphEdges: graphEdges,
+    stageCounts: stageCounts,
+    stageSteps: stageSteps,
+    templateRenderModel: templateRenderModel,
+    templatesFrom: templatesFrom,
+  };
   window.__HERMES_PLUGINS__.register("workflow", WorkflowPage);
 })();
