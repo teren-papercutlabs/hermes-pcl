@@ -586,6 +586,24 @@ def _invalidate_waits(conn: sqlite3.Connection, task_id: str) -> None:
     )
 
 
+def _invalidate_approvals(conn: sqlite3.Connection, task_id: str) -> None:
+    """Remove every still-live approval capability for a task.
+
+    Approval links are bearer capabilities just like wait links.  Keeping one
+    alive after a stage has moved would let an old screen act on a successor
+    stage, so expiry is deliberately broad rather than tied to one approval.
+    """
+
+    conn.execute(
+        """
+        UPDATE wf_approval
+           SET resume_token = ?
+         WHERE task_id = ? AND status = 'pending' AND resume_token IS NOT NULL
+        """,
+        (secrets.token_urlsafe(32), task_id),
+    )
+
+
 def park(conn, task_id, step_key, waits: list[dict]) -> None:
     """Atomically replace the current waits and block the task."""
 
@@ -722,6 +740,7 @@ def apply_event(conn, event_id, task_id, *, expected_step: str) -> ApplyResult:
                 int(event_id),
                 "needs_review",
                 task_id,
+                method=event["match_method"] or "deterministic",
                 reason="payload is not an object for the declared typed wait",
             )
             return ApplyResult(
@@ -768,6 +787,7 @@ def apply_event(conn, event_id, task_id, *, expected_step: str) -> ApplyResult:
             """,
             (int(wait_row["id"]), task_id, expected_step),
         )
+        _invalidate_approvals(conn, task_id)
         conn.execute(
             """
             UPDATE wf_event
@@ -855,6 +875,7 @@ def _advance(
             expected_run_id=expected_run_id,
         )
         instance = _instance(conn, task_id)
+        leaving_parked_state = instance["state"] in {"parked", "pending_approval"}
         spec = _load_template(conn, instance["template_id"])
         current_step = task["current_step_key"]
         if not current_step:
@@ -876,6 +897,9 @@ def _advance(
         ).fetchone()
         if duplicate is not None:
             return
+        if leaving_parked_state:
+            _invalidate_waits(conn, task_id)
+            _invalidate_approvals(conn, task_id)
         if not _cas_step(conn, task_id, str(current_step), str(to_step)):
             raise WorkflowConflictError(f"workflow stage changed: {task_id}")
         conn.execute(
@@ -1106,6 +1130,315 @@ def exception(
         )
         _block_if_needed(conn, task_id, str(reason))
         _assert_invariant(conn, task_id)
+
+
+def _extraction_schema(extraction_brief: Any) -> str | None:
+    if isinstance(extraction_brief, str):
+        return extraction_brief
+    if isinstance(extraction_brief, dict):
+        schema = extraction_brief.get("schema", extraction_brief.get("schema_ref"))
+        if schema is None or isinstance(schema, str):
+            return schema
+    raise ValueError("extraction brief must name a schema")
+
+
+def _validate_extraction(
+    validator_or_registry: Any,
+    schema_ref: str | None,
+    payload: dict,
+) -> bool:
+    """Run an injected schema validator without giving schema ownership to us."""
+
+    validator = validator_or_registry
+    if not callable(validator):
+        getter = getattr(validator_or_registry, "get", None)
+        validator = getter(schema_ref) if callable(getter) else None
+    if not callable(validator):
+        return False
+    try:
+        try:
+            verdict = validator(schema_ref, payload)
+        except TypeError:
+            # A registry normally stores one-argument validators; the direct
+            # callable form commonly receives (schema_ref, payload).
+            verdict = validator(payload)
+    except Exception:
+        return False
+    return verdict is not False
+
+
+def extract_event(
+    conn,
+    event_id: int,
+    extraction_brief: dict | str,
+    extractor,
+    schema_validator,
+) -> MatchResult:
+    """Extract typed fields from a ledgered event, then deterministically match.
+
+    The extractor is intentionally given only the event record and the
+    template-declared brief.  Candidate instances are never part of this
+    boundary, and this function does not construct an argv or model prompt.
+    """
+
+    with kanban_db.write_txn(conn):
+        event = conn.execute("SELECT * FROM wf_event WHERE id = ?", (int(event_id),)).fetchone()
+        if event is None:
+            raise KeyError(f"unknown workflow event: {event_id}")
+        if event["status"] in _TERMINAL_EVENT_STATUSES:
+            return _result_for_terminal_event(event)
+        try:
+            schema_ref = _extraction_schema(extraction_brief)
+            event_view = {
+                "id": int(event["id"]),
+                "source": event["source"],
+                "external_id": event["external_id"],
+                "event_type": event["event_type"],
+                "payload": _load_json(event["payload"], None),
+                "corr": _load_json(event["corr"], None),
+            }
+            extracted = extractor(extraction_brief, event_view)
+            if not isinstance(extracted, dict):
+                raise ValueError("extractor result is not an object")
+            payload = extracted.get("payload")
+            corr = extracted.get("corr")
+            event_type = extracted.get("event_type", event["event_type"])
+            if not isinstance(payload, dict) or not isinstance(corr, dict):
+                raise ValueError("extractor result requires object payload and corr")
+            if event_type is not None and not isinstance(event_type, str):
+                raise ValueError("extractor event_type must be a string or null")
+            if not _validate_extraction(schema_validator, schema_ref, payload):
+                raise ValueError("extracted payload did not validate")
+        except Exception as exc:
+            return _record_match(
+                conn,
+                int(event_id),
+                "needs_review",
+                reason=f"extraction failed: {exc}",
+            )
+
+        conn.execute(
+            """
+            UPDATE wf_event
+               SET event_type = ?, payload = ?, corr = ?, status = 'classified'
+             WHERE id = ?
+            """,
+            (event_type, _json(payload), _json(corr), int(event_id)),
+        )
+    return match_event(conn, int(event_id))
+
+
+def _review_candidate_ids(conn: sqlite3.Connection, event: sqlite3.Row) -> tuple[str, ...]:
+    """Recompute the only task ids a human is allowed to select."""
+
+    ids: set[str] = set()
+    for hit in _candidate_key_hits(conn, event):
+        task_id = str(hit["instance"]["task_id"])
+        position = _match_position(conn, event, hit, _now())
+        if position in {"current", "future", "past", "done"}:
+            ids.add(task_id)
+    matched_task_id = event["matched_task_id"]
+    if matched_task_id and matched_task_id in ids:
+        ids.add(str(matched_task_id))
+    return tuple(sorted(ids))
+
+
+def resolve_event(
+    conn,
+    event_id: int,
+    task_id: str | None = None,
+    *,
+    selected_task_id: str | None = None,
+) -> MatchResult:
+    """Resolve an ambiguous/review event with a candidate or an explicit neither."""
+
+    if selected_task_id is not None:
+        if task_id is not None and task_id != selected_task_id:
+            raise ValueError("conflicting human-selected task ids")
+        task_id = selected_task_id
+    with kanban_db.write_txn(conn):
+        event = conn.execute("SELECT * FROM wf_event WHERE id = ?", (int(event_id),)).fetchone()
+        if event is None:
+            raise KeyError(f"unknown workflow event: {event_id}")
+        if event["status"] not in {"ambiguous", "needs_review"}:
+            raise WorkflowConflictError("workflow event is not awaiting human resolution")
+        candidates = _review_candidate_ids(conn, event)
+        resolution_external_id = f"event:{int(event_id)}:{task_id if task_id is not None else 'neither'}"
+        resolution_id = ingest_event(
+            conn,
+            source="human_resolution",
+            external_id=resolution_external_id,
+            event_type="human_resolution",
+            payload={"event_id": int(event_id), "decision": "match" if task_id else "neither"},
+            corr={"event_id": int(event_id), "task_id": task_id} if task_id else {"event_id": int(event_id)},
+        )
+        if resolution_id is None:
+            raise WorkflowConflictError("human resolution was already recorded")
+        if task_id is None:
+            return _record_match(
+                conn, int(event_id), "unmatched", method="human",
+                reason="human selected neither candidate", status_override="routed_out",
+            )
+        if task_id not in candidates:
+            raise WorkflowConflictError("human-selected task is not a deterministic candidate")
+        _record_match(conn, int(event_id), "matched", task_id, method="human")
+
+        task = _task(conn, task_id)
+        instance = _instance(conn, task_id)
+        spec = _load_template(conn, instance["template_id"])
+        current_step = str(task["current_step_key"])
+        can_apply = _current_compatible(conn, task_id, current_step, event, spec)
+
+    # Applying retains the original event as the transition cause.  The
+    # resolution event above remains the durable record of the human choice.
+    if can_apply:
+        applied = apply_event(conn, int(event_id), task_id, expected_step=current_step)
+        if applied.kind == "applied":
+            return MatchResult("matched", task_id, int(event_id), "human")
+    return MatchResult("matched", task_id, int(event_id), "human", candidate_task_ids=candidates)
+
+
+def resolve_human_review(conn, event_id: int, task_id: str | None = None) -> MatchResult:
+    """Compatibility spelling for :func:`resolve_event`."""
+
+    return resolve_event(conn, event_id, task_id)
+
+
+def _json_pointer(part: str) -> str:
+    return part.replace("~", "~0").replace("/", "~1")
+
+
+def _json_diff(before: Any, after: Any, path: str = "") -> list[dict]:
+    """Produce a small, canonical JSON-Patch-style difference."""
+
+    if isinstance(before, dict) and isinstance(after, dict):
+        result: list[dict] = []
+        for key in sorted(set(before) | set(after)):
+            child = f"{path}/{_json_pointer(str(key))}"
+            if key not in before:
+                result.append({"op": "add", "path": child, "value": after[key]})
+            elif key not in after:
+                result.append({"op": "remove", "path": child})
+            else:
+                result.extend(_json_diff(before[key], after[key], child))
+        return result
+    if before != after:
+        return [{"op": "replace", "path": path or "/", "value": after}]
+    return []
+
+
+def _approval_target(step: dict, decision: str) -> str | None:
+    """Read declared approval edges while retaining a terse template form."""
+
+    if decision == "rejected":
+        keys = ("reject_to", "rejected_to", "on_rejected")
+    else:
+        keys = ("approve_to", "approved_to", "on_approved", "advance_to")
+    nested = step.get("approval")
+    sources = (step, nested) if isinstance(nested, dict) else (step,)
+    for source in sources:
+        for key in keys:
+            value = source.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return None
+
+
+def decide_approval(
+    conn,
+    approval_id: int,
+    resume_token: str,
+    decision: str,
+    *,
+    decided_by: str,
+    payload: dict | None = None,
+) -> int | None:
+    """Consume one approval capability and deterministically continue its step.
+
+    ``None`` is the benign replay/stale-token result.  A successful call
+    returns the durable approval event id.
+    """
+
+    if decision not in {"approved", "edited_approved", "rejected"}:
+        raise ValueError("approval decision must be approved, edited_approved, or rejected")
+    with kanban_db.write_txn(conn):
+        approval = conn.execute("SELECT * FROM wf_approval WHERE id = ?", (int(approval_id),)).fetchone()
+        if approval is None:
+            raise KeyError(f"unknown workflow approval: {approval_id}")
+        if approval["status"] != "pending" or approval["resume_token"] != resume_token:
+            return None
+        original_payload = _load_json(approval["payload"], None)
+        if not isinstance(original_payload, dict):
+            raise WorkflowConflictError("stored approval payload is not an object")
+        if decision == "edited_approved":
+            if not isinstance(payload, dict):
+                raise ValueError("edited approval requires an object payload")
+            approved_payload = payload
+            decision_diff = _json(_json_diff(original_payload, approved_payload))
+        else:
+            if payload is not None:
+                raise ValueError("only edited approval may provide a payload")
+            approved_payload = original_payload
+            decision_diff = None
+        updated = conn.execute(
+            """
+            UPDATE wf_approval
+               SET status = ?, decided_by = ?, decided_at = ?, decision_diff = ?, resume_token = ?
+             WHERE id = ? AND status = 'pending' AND resume_token = ?
+            """,
+            (
+                decision, str(decided_by), _now(), decision_diff,
+                secrets.token_urlsafe(32), int(approval_id), resume_token,
+            ),
+        )
+        if updated.rowcount != 1:
+            return None
+        event_id = ingest_event(
+            conn,
+            source="approval",
+            external_id=f"approval:{int(approval_id)}:{resume_token}",
+            event_type=decision,
+            payload={"approval_id": int(approval_id), "decision": decision, "payload": approved_payload},
+            corr={"task_id": approval["task_id"], "step_key": approval["step_key"]},
+        )
+        if event_id is None:
+            raise WorkflowConflictError("approval decision event already exists")
+        if decision != "rejected":
+            conn.execute(
+                """
+                INSERT INTO wf_outbox (task_id, action, payload, status, created_at)
+                VALUES (?, ?, ?, 'queued', ?)
+                """,
+                (approval["task_id"], approval["action"], _json(approved_payload), _now()),
+            )
+        instance = _instance(conn, approval["task_id"])
+        spec = _load_template(conn, instance["template_id"])
+        step = _step(spec, approval["step_key"])
+        target = _approval_target(step, decision)
+        if target is None:
+            if decision == "rejected":
+                _invalidate_waits(conn, approval["task_id"])
+                _invalidate_approvals(conn, approval["task_id"])
+                exception(conn, approval["task_id"], "approval rejected")
+                return int(event_id)
+            raise WorkflowConflictError("approval step has no declared approved edge")
+        _step(spec, target)
+        _advance(
+            conn,
+            approval["task_id"],
+            to_step=target,
+            event_id=int(event_id),
+            expected_step=approval["step_key"],
+            expected_run_id=None,
+            enforce_declared_target=False,
+        )
+        return int(event_id)
+
+
+def resolve_approval(conn, approval_id: int, resume_token: str, decision: str, **kwargs) -> int | None:
+    """Compatibility spelling for :func:`decide_approval`."""
+
+    return decide_approval(conn, approval_id, resume_token, decision, **kwargs)
 
 
 def _event_data(event: sqlite3.Row) -> tuple[dict, dict]:
@@ -1959,7 +2292,9 @@ __all__ = [
     "apply_event",
     "context",
     "create_instance",
+    "decide_approval",
     "exception",
+    "extract_event",
     "fire_due_timers",
     "ingest_event",
     "match_event",
@@ -1967,5 +2302,8 @@ __all__ = [
     "propose",
     "register_template",
     "review",
+    "resolve_approval",
+    "resolve_event",
+    "resolve_human_review",
     "sweep",
 ]
