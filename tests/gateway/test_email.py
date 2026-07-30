@@ -13,6 +13,7 @@ Covers:
 """
 
 import os
+import stat
 import tempfile
 import unittest
 from email.mime.text import MIMEText
@@ -702,7 +703,7 @@ class TestThreadContext(unittest.TestCase):
 class TestWorkflowIngress(unittest.TestCase):
     """Email ingress must be ledgered before conversational handling."""
 
-    def _make_adapter(self, callback=None):
+    def _make_adapter(self, callback=None, extra=None):
         from gateway.config import PlatformConfig
         with patch.dict(os.environ, {
             "EMAIL_ADDRESS": "hermes@test.com",
@@ -711,9 +712,12 @@ class TestWorkflowIngress(unittest.TestCase):
             "EMAIL_SMTP_HOST": "smtp.test.com",
         }):
             from gateway.platforms.email import EmailAdapter
+            config_extra = dict(extra or {})
+            if callback:
+                config_extra["workflow_ingress_callback"] = callback
             return EmailAdapter(PlatformConfig(
                 enabled=True,
-                extra={"workflow_ingress_callback": callback} if callback else {},
+                extra=config_extra,
             ))
 
     @staticmethod
@@ -792,6 +796,61 @@ class TestWorkflowIngress(unittest.TestCase):
             asyncio.run(adapter._dispatch_message(self._message_data()))
 
         handler.assert_awaited_once()
+
+    def test_no_callback_does_not_persist_workflow_body(self):
+        import asyncio
+        adapter = self._make_adapter()
+        adapter.handle_message = AsyncMock()
+
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "gateway.platforms.email.get_hermes_home", return_value=Path(tmpdir)
+        ):
+            asyncio.run(adapter._dispatch_message(self._message_data()))
+            body_dir = Path(tmpdir) / "workflow" / "ingress" / "bodies"
+            self.assertFalse(body_dir.exists())
+
+    def test_reused_message_id_cannot_replace_prior_body(self):
+        import asyncio
+        envelopes = []
+
+        async def callback(envelope):
+            envelopes.append(envelope)
+
+        adapter = self._make_adapter(callback)
+        adapter.handle_message = AsyncMock()
+        first = self._message_data()
+        second = self._message_data()
+        second["body"] = "replacement body"
+
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "gateway.platforms.email.get_hermes_home", return_value=Path(tmpdir)
+        ):
+            asyncio.run(adapter._dispatch_message(first))
+            first_ref = Path(envelopes[0]["body_ref"])
+            asyncio.run(adapter._dispatch_message(second))
+            second_ref = Path(envelopes[1]["body_ref"])
+
+            self.assertNotEqual(first_ref, second_ref)
+            self.assertEqual(first_ref.read_text(encoding="utf-8"), first["body"])
+            self.assertEqual(second_ref.read_text(encoding="utf-8"), second["body"])
+            self.assertEqual(stat.S_IMODE(first_ref.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(second_ref.stat().st_mode), 0o600)
+
+    def test_workflow_body_size_limit_fails_closed(self):
+        import asyncio
+        adapter = self._make_adapter(
+            callback=AsyncMock(),
+            extra={"workflow_ingress_max_body_bytes": 4},
+        )
+        adapter.handle_message = AsyncMock()
+
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "gateway.platforms.email.get_hermes_home", return_value=Path(tmpdir)
+        ):
+            with self.assertRaisesRegex(ValueError, "exceeds the configured maximum"):
+                asyncio.run(adapter._dispatch_message(self._message_data()))
+            body_dir = Path(tmpdir) / "workflow" / "ingress" / "bodies"
+            self.assertFalse(body_dir.exists() and any(body_dir.iterdir()))
 
     def test_missing_message_id_uses_deterministic_external_id(self):
         import asyncio
@@ -970,8 +1029,8 @@ class TestConnectDisconnect(unittest.TestCase):
 
             self.assertTrue(result)
             self.assertTrue(adapter._running)
-            # Should have skipped existing messages
-            self.assertEqual(len(adapter._seen_uids), 3)
+            # Connection testing must not acknowledge or hide existing mail.
+            self.assertEqual(adapter._seen_uids, set())
             # Cleanup
             adapter._running = False
             if adapter._poll_task:
@@ -1031,6 +1090,15 @@ class TestFetchNewMessages(unittest.TestCase):
             adapter = EmailAdapter(PlatformConfig(enabled=True))
         return adapter
 
+    @staticmethod
+    def _message_data(message_id):
+        return {
+            "uid": b"20", "sender_addr": "user@test.com", "sender_name": "User",
+            "subject": "Ingress subject", "message_id": message_id,
+            "in_reply_to": "", "references": "", "body": "body",
+            "attachments": [], "date": "Tue, 1 Jan 2030 00:00:00 +0000",
+        }
+
     def test_fetch_skips_seen_uids(self):
         """Already-seen UIDs should not be fetched again."""
         adapter = self._make_adapter()
@@ -1058,7 +1126,8 @@ class TestFetchNewMessages(unittest.TestCase):
         # Only UID 3 should be fetched (1 and 2 already seen)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["sender_addr"], "user@test.com")
-        self.assertIn(b"3", adapter._seen_uids)
+        self.assertNotIn(b"3", adapter._seen_uids)
+        mock_imap.uid.assert_any_call("fetch", b"3", "(BODY.PEEK[])")
 
     def test_fetch_no_unseen_messages(self):
         """No unseen messages returns empty list."""
@@ -1109,6 +1178,67 @@ class TestFetchNewMessages(unittest.TestCase):
         self.assertEqual(results[0]["sender_addr"], "john@test.com")
         self.assertEqual(results[0]["sender_name"], "John Doe")
         self.assertEqual(results[0]["references"], "<root@test.com> <parent@test.com>")
+
+    def test_failed_message_is_retryable_and_does_not_abort_batch(self):
+        import asyncio
+        adapter = self._make_adapter()
+        first = self._message_data("<failed@test.com>")
+        first["uid"] = b"20"
+        second = self._message_data("<later@test.com>")
+        second["uid"] = b"21"
+        dispatch_calls = []
+
+        async def dispatch(msg_data):
+            dispatch_calls.append(msg_data["uid"])
+            if msg_data["uid"] == b"20":
+                raise RuntimeError("ledger unavailable")
+
+        mark_calls = []
+
+        def mark_seen(uid):
+            mark_calls.append(("mark", uid, uid in adapter._seen_uids))
+            return True
+
+        adapter._dispatch_message = dispatch
+        with patch.object(adapter, "_fetch_new_messages", return_value=[first, second]), \
+             patch.object(adapter, "_mark_server_seen", side_effect=mark_seen):
+            asyncio.run(adapter._check_inbox())
+
+        self.assertEqual(dispatch_calls, [b"20", b"21"])
+        self.assertEqual(mark_calls, [("mark", b"21", True)])
+        self.assertNotIn(b"20", adapter._seen_uids)
+        self.assertIn(b"21", adapter._seen_uids)
+
+    def test_success_marks_uid_seen_after_dispatch(self):
+        import asyncio
+        adapter = self._make_adapter()
+        message = self._message_data("<ordered@test.com>")
+        message["uid"] = b"22"
+        events = []
+
+        async def dispatch(msg_data):
+            events.append(("dispatch", msg_data["uid"] in adapter._seen_uids))
+
+        def mark_seen(uid):
+            events.append(("mark", uid in adapter._seen_uids))
+            return True
+
+        adapter._dispatch_message = dispatch
+        with patch.object(adapter, "_fetch_new_messages", return_value=[message]), \
+             patch.object(adapter, "_mark_server_seen", side_effect=mark_seen):
+            asyncio.run(adapter._check_inbox())
+
+        self.assertEqual(events, [("dispatch", False), ("mark", True)])
+
+    def test_mark_server_seen_uses_uid_store_after_dispatch(self):
+        adapter = self._make_adapter()
+        mock_imap = MagicMock()
+        mock_imap.uid.return_value = ("OK", [b"1"])
+
+        with patch("imaplib.IMAP4_SSL", return_value=mock_imap):
+            self.assertTrue(adapter._mark_server_seen(b"22"))
+
+        mock_imap.uid.assert_called_once_with("store", b"22", "+FLAGS", r"(\Seen)")
 
 
 class TestPollLoop(unittest.TestCase):
