@@ -428,6 +428,7 @@ async def resolve_event_action(event_id: str, request: Request, board: str | Non
                 conn,
                 event_id_int,
                 task_id.strip() if isinstance(task_id, str) else None,
+                decided_by=decided_by,
             )
         except Exception as exc:
             _raise_engine_error(exc)

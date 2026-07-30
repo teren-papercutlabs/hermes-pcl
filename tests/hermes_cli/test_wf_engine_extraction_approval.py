@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from hermes_cli import kanban_db, wf_engine
 
 
@@ -95,11 +99,15 @@ def test_human_resolution_pick_and_neither(tmp_path):
         conn.execute("UPDATE wf_instance SET corr = ? WHERE task_id = ?", ('{"key":"shared"}', second))
         conn.execute("UPDATE wf_event SET corr = ? WHERE id = ?", ('{"key":"shared"}', event_id))
         assert wf_engine.match_event(conn, event_id).kind == "ambiguous"
-        picked = wf_engine.resolve_event(conn, event_id, second)
+        picked = wf_engine.resolve_event(conn, event_id, second, decided_by="reviewer")
         event = conn.execute("SELECT status, matched_task_id, match_method FROM wf_event WHERE id = ?", (event_id,)).fetchone()
         assert picked.task_id == second
         assert tuple(event) == ("applied", second, "human")
-        assert conn.execute("SELECT COUNT(*) FROM wf_event WHERE source = 'human_resolution'").fetchone()[0] == 1
+        resolution = conn.execute(
+            "SELECT payload FROM wf_event WHERE source = 'human_resolution'"
+        ).fetchone()
+        assert resolution is not None
+        assert json.loads(resolution[0])["decided_by"] == "reviewer"
 
         neither_id = wf_engine.ingest_event(conn, source="intake", external_id="neither", payload={}, corr={"key": "shared"}, event_type="arrived")
         # The first is still waiting; a second distinct unresolved candidate is enough to retain ambiguity.
@@ -162,6 +170,108 @@ def test_park_exit_invalidates_pending_approval_tokens(tmp_path):
         conn.execute("UPDATE wf_instance SET state = 'parked' WHERE task_id = ?", (task_id,))
         event_id = wf_engine.ingest_event(conn, source="intake", external_id="leave", payload={}, corr={"key": "invalidate"}, event_type="arrived")
         assert wf_engine.apply_event(conn, event_id, task_id, expected_step="waiting").kind == "applied"
-        assert conn.execute("SELECT resume_token FROM wf_approval WHERE id = ?", (approval_id,)).fetchone()[0] != approval_token
+        approval = conn.execute(
+            "SELECT status, resume_token FROM wf_approval WHERE id = ?",
+            (approval_id,),
+        ).fetchone()
+        assert tuple(approval) == ("expired", approval["resume_token"])
+        assert approval["resume_token"] != approval_token
+        assert conn.execute(
+            "SELECT COUNT(*) FROM wf_approval WHERE task_id = ? AND status = 'pending'",
+            (task_id,),
+        ).fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def test_human_resolution_match_and_apply_roll_back_together(tmp_path, monkeypatch):
+    conn = _conn(tmp_path)
+    try:
+        template, _ = wf_engine.register_template(conn, _wait_spec())
+        first, second = _instance(conn, template, "atomic-1"), _instance(conn, template, "atomic-2")
+        _at_waiting(conn, first)
+        _at_waiting(conn, second)
+        event_id = wf_engine.ingest_event(
+            conn,
+            source="intake",
+            external_id="atomic",
+            payload={"x": 1},
+            corr={"key": "shared"},
+            event_type="arrived",
+        )
+        conn.execute("UPDATE wf_instance SET corr = ? WHERE task_id IN (?, ?)", ('{"key":"shared"}', first, second))
+        assert wf_engine.match_event(conn, event_id).kind == "ambiguous"
+
+        def fail_after_match(*_args, **_kwargs):
+            raise RuntimeError("simulated apply crash")
+
+        monkeypatch.setattr(wf_engine, "apply_event", fail_after_match)
+        with pytest.raises(RuntimeError, match="simulated apply crash"):
+            wf_engine.resolve_event(conn, event_id, second, decided_by="reviewer")
+
+        assert tuple(conn.execute(
+            "SELECT status, matched_task_id FROM wf_event WHERE id = ?", (event_id,)
+        ).fetchone()) == ("ambiguous", None)
+        assert conn.execute(
+            "SELECT COUNT(*) FROM wf_event WHERE source = 'human_resolution'"
+        ).fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def test_extraction_validator_signatures_and_fail_closed_results():
+    payload = {"value": 1}
+    calls = []
+
+    def direct(schema_ref, received):
+        calls.append((schema_ref, received))
+        return True
+
+    assert wf_engine._validate_extraction(direct, "typed", payload) is True
+    assert calls == [("typed", payload)]
+    assert wf_engine._validate_extraction(lambda *_: 1, "typed", payload) is False
+
+    internal_type_errors = []
+
+    def broken(schema_ref, received):
+        internal_type_errors.append((schema_ref, received))
+        raise TypeError("validator body failed")
+
+    assert wf_engine._validate_extraction(broken, "typed", payload) is False
+    assert len(internal_type_errors) == 1
+
+    assert wf_engine._validate_extraction(
+        {"typed": lambda received: received == payload}, "typed", payload
+    ) is True
+    assert wf_engine._validate_extraction({"typed": lambda _received: None}, "typed", payload) is False
+
+
+def test_approval_token_uses_constant_time_compare_and_sql_cas(tmp_path, monkeypatch):
+    conn = _conn(tmp_path)
+    try:
+        template, _ = wf_engine.register_template(conn, _approval_spec())
+        task_id = _instance(conn, template, "constant-time")
+        approval_id = wf_engine.propose(conn, task_id, "deliver", {"body": "yes"})
+        token = conn.execute(
+            "SELECT resume_token FROM wf_approval WHERE id = ?", (approval_id,)
+        ).fetchone()[0]
+        calls = []
+        original = wf_engine.hmac.compare_digest
+
+        def compare(left, right):
+            calls.append((left, right))
+            return original(left, right)
+
+        monkeypatch.setattr(wf_engine.hmac, "compare_digest", compare)
+        assert wf_engine.decide_approval(
+            conn, approval_id, token, "approved", decided_by="reviewer"
+        ) is not None
+        assert calls == [(token, token)]
+        assert wf_engine.decide_approval(
+            conn, approval_id, token, "approved", decided_by="reviewer"
+        ) is None
+        assert conn.execute(
+            "SELECT COUNT(*) FROM wf_outbox WHERE task_id = ?", (task_id,)
+        ).fetchone()[0] == 1
     finally:
         conn.close()

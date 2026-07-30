@@ -6,7 +6,9 @@ import asyncio
 import importlib.util
 import json
 import sys
+import time
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from fastapi import FastAPI
@@ -28,7 +30,10 @@ def _load_dashboard_api(run: int):
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
-    module.time.time = lambda: FIXED_NOW
+    # Keep the synthetic dashboard clock local to the dynamically loaded
+    # module.  Mutating ``module.time.time`` would mutate the shared stdlib
+    # module object and poison every later test in the process.
+    module.time = SimpleNamespace(time=lambda: FIXED_NOW)
     return module
 
 
@@ -299,6 +304,10 @@ def _run_full_loop(home: Path, run: int, monkeypatch) -> dict:
                 "SELECT status, matched_task_id, match_method FROM wf_event WHERE id = ?",
                 (ambiguous_event,),
             ).fetchone()) == ("applied", ambiguous_b, "human")
+            resolution_payload = conn.execute(
+                "SELECT payload FROM wf_event WHERE source = 'human_resolution'"
+            ).fetchone()[0]
+            assert json.loads(resolution_payload)["decided_by"] == "synthetic-reviewer"
 
             approved_task = _instance(conn, approval_template, "approval-plain", {})
             approved_id = wf_engine.propose(
@@ -469,3 +478,12 @@ def test_p4_synthetic_full_loop_is_repeatable(tmp_path, monkeypatch):
     first = _run_full_loop(tmp_path / "run-1", 1, monkeypatch)
     second = _run_full_loop(tmp_path / "run-2", 2, monkeypatch)
     assert first == second
+
+
+def test_dashboard_loader_does_not_patch_process_time():
+    """Synthetic dashboard clock replacement must not leak into stdlib time."""
+
+    real_time = time.time
+    dashboard = _load_dashboard_api(3)
+    assert time.time is real_time
+    assert dashboard.time.time() == FIXED_NOW

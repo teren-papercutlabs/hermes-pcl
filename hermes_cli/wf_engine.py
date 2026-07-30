@@ -8,6 +8,7 @@ existing :mod:`kanban_db` transition functions.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import secrets
 import sqlite3
@@ -597,7 +598,7 @@ def _invalidate_approvals(conn: sqlite3.Connection, task_id: str) -> None:
     conn.execute(
         """
         UPDATE wf_approval
-           SET resume_token = ?
+           SET status = 'expired', resume_token = ?
          WHERE task_id = ? AND status = 'pending' AND resume_token IS NOT NULL
         """,
         (secrets.token_urlsafe(32), task_id),
@@ -1149,22 +1150,23 @@ def _validate_extraction(
 ) -> bool:
     """Run an injected schema validator without giving schema ownership to us."""
 
-    validator = validator_or_registry
-    if not callable(validator):
-        getter = getattr(validator_or_registry, "get", None)
-        validator = getter(schema_ref) if callable(getter) else None
-    if not callable(validator):
-        return False
     try:
-        try:
-            verdict = validator(schema_ref, payload)
-        except TypeError:
-            # A registry normally stores one-argument validators; the direct
-            # callable form commonly receives (schema_ref, payload).
+        if callable(validator_or_registry):
+            # Direct validators own the schema name and receive the declared
+            # two-argument form. An internal TypeError must fail closed; it
+            # must never be reinterpreted as an arity mismatch.
+            verdict = validator_or_registry(schema_ref, payload)
+        else:
+            getter = getattr(validator_or_registry, "get", None)
+            validator = getter(schema_ref) if callable(getter) else None
+            if not callable(validator):
+                return False
+            # Registries are keyed by schema_ref and store payload-only
+            # validators.
             verdict = validator(payload)
     except Exception:
         return False
-    return verdict is not False
+    return verdict is True
 
 
 def extract_event(
@@ -1249,6 +1251,7 @@ def resolve_event(
     task_id: str | None = None,
     *,
     selected_task_id: str | None = None,
+    decided_by: str | None = None,
 ) -> MatchResult:
     """Resolve an ambiguous/review event with a candidate or an explicit neither."""
 
@@ -1256,6 +1259,9 @@ def resolve_event(
         if task_id is not None and task_id != selected_task_id:
             raise ValueError("conflicting human-selected task ids")
         task_id = selected_task_id
+    actor = str(decided_by).strip() if decided_by is not None else "human"
+    if not actor:
+        actor = "human"
     with kanban_db.write_txn(conn):
         event = conn.execute("SELECT * FROM wf_event WHERE id = ?", (int(event_id),)).fetchone()
         if event is None:
@@ -1269,7 +1275,11 @@ def resolve_event(
             source="human_resolution",
             external_id=resolution_external_id,
             event_type="human_resolution",
-            payload={"event_id": int(event_id), "decision": "match" if task_id else "neither"},
+            payload={
+                "event_id": int(event_id),
+                "decision": "match" if task_id else "neither",
+                "decided_by": actor,
+            },
             corr={"event_id": int(event_id), "task_id": task_id} if task_id else {"event_id": int(event_id)},
         )
         if resolution_id is None:
@@ -1288,20 +1298,29 @@ def resolve_event(
         spec = _load_template(conn, instance["template_id"])
         current_step = str(task["current_step_key"])
         can_apply = _current_compatible(conn, task_id, current_step, event, spec)
-
-    # Applying retains the original event as the transition cause.  The
-    # resolution event above remains the durable record of the human choice.
-    if can_apply:
-        applied = apply_event(conn, int(event_id), task_id, expected_step=current_step)
-        if applied.kind == "applied":
+        # Applying retains the original event as the transition cause. The
+        # human resolution and application must commit in this same outer
+        # transaction, so an application failure cannot strand matched state.
+        if can_apply:
+            applied = apply_event(conn, int(event_id), task_id, expected_step=current_step)
+            if applied.kind != "applied":
+                raise WorkflowConflictError(
+                    f"human resolution could not apply event: {applied.kind}"
+                )
             return MatchResult("matched", task_id, int(event_id), "human")
-    return MatchResult("matched", task_id, int(event_id), "human", candidate_task_ids=candidates)
+        return MatchResult("matched", task_id, int(event_id), "human", candidate_task_ids=candidates)
 
 
-def resolve_human_review(conn, event_id: int, task_id: str | None = None) -> MatchResult:
+def resolve_human_review(
+    conn,
+    event_id: int,
+    task_id: str | None = None,
+    *,
+    decided_by: str | None = None,
+) -> MatchResult:
     """Compatibility spelling for :func:`resolve_event`."""
 
-    return resolve_event(conn, event_id, task_id)
+    return resolve_event(conn, event_id, task_id, decided_by=decided_by)
 
 
 def _json_pointer(part: str) -> str:
@@ -1365,7 +1384,16 @@ def decide_approval(
         approval = conn.execute("SELECT * FROM wf_approval WHERE id = ?", (int(approval_id),)).fetchone()
         if approval is None:
             raise KeyError(f"unknown workflow approval: {approval_id}")
-        if approval["status"] != "pending" or approval["resume_token"] != resume_token:
+        stored_token = approval["resume_token"]
+        try:
+            token_matches = (
+                isinstance(stored_token, str)
+                and isinstance(resume_token, str)
+                and hmac.compare_digest(stored_token, resume_token)
+            )
+        except (TypeError, ValueError):
+            token_matches = False
+        if approval["status"] != "pending" or not token_matches:
             return None
         original_payload = _load_json(approval["payload"], None)
         if not isinstance(original_payload, dict):
