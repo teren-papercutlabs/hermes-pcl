@@ -151,27 +151,10 @@
   }
 
   function stageCounts(board, template, instances) {
-    var source = first(board && board.stage_counts, first(board && board.counts, first(board && board.per_stage_counts, {})));
     var result = {};
-    if (Array.isArray(source)) {
-      source.forEach(function (item) {
-        var key = first(item.step_key, first(item.stage_key, first(item.key, null)));
-        if (key !== null) result[String(key)] = Number(first(item.count, first(item.instance_count, 0)));
-      });
-    } else if (source && typeof source === "object") {
-      var selected = source[templateKey(template)] || source[template.template_id] || source;
-      if (selected && typeof selected === "object") {
-        Object.keys(selected).forEach(function (key) {
-          var value = selected[key];
-          result[key] = Number(typeof value === "object" ? first(value.count, first(value.instance_count, 0)) : value);
-        });
-      }
-    }
     var scoped = instances.filter(function (item) { return instanceTemplateKey(item) === templateKey(template); });
     stageSteps(template).forEach(function (step) {
-      if (result[step._key] === undefined) {
-        result[step._key] = scoped.filter(function (item) { return currentStep(item) === step._key; }).length;
-      }
+      result[step._key] = scoped.filter(function (item) { return currentStep(item) === step._key; }).length;
     });
     return result;
   }
@@ -225,7 +208,7 @@
         h("span", null, relativeStageTime(instance)),
         h("span", { className: "hermes-workflow-card-state" }, String(first(instance.state, first(instance.status, "active"))))),
       badges.length ? h("div", { className: "hermes-workflow-badges" }, badges.map(function (key) {
-        return h(Badge, { key: key, variant: badgeTone(key) }, BADGE_LABELS[key]);
+        return h(Badge, { key: key, tone: badgeTone(key) }, BADGE_LABELS[key]);
       })) : null));
   }
 
@@ -351,8 +334,8 @@
     var rows = asArray(props.timeline && (props.timeline.transitions || props.timeline.timeline || props.timeline.events));
     return h("aside", { className: "hermes-workflow-detail", "aria-label": "Workflow instance details" },
       h("div", { className: "hermes-workflow-detail-header" },
-        h(Button, { variant: "ghost", size: "sm", onClick: props.onClose }, "Back"),
-        h(Button, { variant: "ghost", size: "sm", onClick: props.onClose, "aria-label": "Close details" }, "Close")),
+        h(Button, { ghost: true, size: "sm", onClick: props.onClose }, "Back"),
+        h(Button, { ghost: true, size: "sm", onClick: props.onClose, "aria-label": "Close details" }, "Close")),
       props.loading ? h(TimelineSkeleton) : props.error ? h("div", { className: "hermes-workflow-error" }, props.error) : !props.timeline ? h(EmptyState, { title: "No detail available." }) :
         h("div", { className: "hermes-workflow-detail-body" },
           h("div", { className: "hermes-workflow-identity" },
@@ -375,7 +358,7 @@
     return h("div", { className: "hermes-workflow-action-card" },
       h("div", { className: "hermes-workflow-action-header" },
         h("div", null, h("strong", null, "Needs review"), h("p", { className: "hermes-workflow-muted" }, String(entity))),
-        h(Badge, { variant: "warning" }, "Review")),
+        h(Badge, { tone: "warning" }, "Review")),
       item.summary ? h("p", { className: "hermes-workflow-action-summary" }, String(item.summary)) : null,
       candidates.length ? h("div", { className: "hermes-workflow-candidates" }, candidates.map(function (candidate, index) {
         var taskId = first(candidate.task_id, first(candidate.id, null));
@@ -384,7 +367,7 @@
           h(Button, { size: "sm", disabled: props.busy, onClick: function () { props.onResolve(eventId, taskId); } }, "Choose"));
       })) : null,
       h("div", { className: "hermes-workflow-action-footer" },
-        h(Button, { variant: "outline", size: "sm", disabled: props.busy, onClick: function () { props.onResolve(eventId, null); } }, "Neither")));
+        h(Button, { outlined: true, size: "sm", disabled: props.busy, onClick: function () { props.onResolve(eventId, null); } }, "Neither")));
   }
 
   function parseObject(value) {
@@ -422,7 +405,7 @@
         h("div", null,
           h("strong", null, "Pending approval"),
           h("p", { className: "hermes-workflow-muted" }, identityLabel)),
-        h(Badge, { variant: "secondary" }, "Approval")),
+        h(Badge, { tone: "secondary" }, "Approval")),
       item.summary ? h("p", { className: "hermes-workflow-action-summary" }, String(item.summary)) : null,
       editing ? h("div", { className: "hermes-workflow-editor" },
         h(Label, { htmlFor: "workflow-payload-" + approvalId }, "Edited object"),
@@ -433,8 +416,8 @@
       error ? h("p", { className: "hermes-workflow-field-error", role: "alert" }, error) : null,
       h("div", { className: "hermes-workflow-action-footer" },
         h(Button, { size: "sm", disabled: props.busy, onClick: function () { submit("approved"); } }, "Approve"),
-        h(Button, { variant: "outline", size: "sm", disabled: props.busy, onClick: function () { if (!editing) setEditing(true); else submit("edited_approved"); } }, editing ? "Submit edit" : "Edit"),
-        h(Button, { variant: "destructive", size: "sm", disabled: props.busy, onClick: function () { submit("rejected"); } }, "Reject")));
+        h(Button, { outlined: true, size: "sm", disabled: props.busy, onClick: function () { if (!editing) setEditing(true); else submit("edited_approved"); } }, editing ? "Submit edit" : "Edit"),
+        h(Button, { destructive: true, size: "sm", disabled: props.busy, onClick: function () { submit("rejected"); } }, "Reject")));
   }
 
   function ActionQueue(props) {
@@ -508,11 +491,11 @@
     return h("main", { className: "hermes-workflow" },
       h("header", { className: "hermes-workflow-header" },
         h("div", null, h("p", { className: "hermes-workflow-eyebrow" }, "Operations"), h("h1", null, "Workflow"), h("p", { className: "hermes-workflow-muted" }, "Track live instances and resolve the next action.")),
-        h(Button, { variant: "outline", size: "sm", onClick: loadData, disabled: loading }, "Refresh")),
+        h(Button, { outlined: true, size: "sm", onClick: loadData, disabled: loading }, "Refresh")),
       h("div", { className: "hermes-workflow-toolbar" },
         h("div", { className: "hermes-workflow-view-switch", role: "tablist", "aria-label": "Workflow view" },
-          h(Button, { variant: view === "board" ? "default" : "ghost", size: "sm", role: "tab", "aria-selected": view === "board", onClick: function () { setView("board"); } }, "Board"),
-          h(Button, { variant: view === "graph" ? "default" : "ghost", size: "sm", role: "tab", "aria-selected": view === "graph", onClick: function () { setView("graph"); } }, "Graph")),
+          h(Button, { ghost: view !== "board", size: "sm", role: "tab", "aria-selected": view === "board", onClick: function () { setView("board"); } }, "Board"),
+          h(Button, { ghost: view !== "graph", size: "sm", role: "tab", "aria-selected": view === "graph", onClick: function () { setView("graph"); } }, "Graph")),
         templates.length ? h(TemplatePicker, { templates: templates, value: template ? template._key : "", onChange: setSelectedTemplate }) : null),
       error ? h("div", { className: "hermes-workflow-error", role: "alert" }, error) : null,
       loading ? h(Skeleton) : !template ? h(EmptyState, { title: "No workflow templates available.", detail: "Published templates will appear here when the board has data." }) :

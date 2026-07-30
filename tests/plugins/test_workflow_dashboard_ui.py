@@ -68,6 +68,8 @@ def test_actions_validate_edits_refresh_and_do_not_render_tokens():
     assert "props.onChanged()" in source
     assert 'type: "password"' in source
     assert "resume_token" not in source
+    assert 'tone: badgeTone(key)' in source
+    assert 'ghost: view !== "board"' in source
 
 
 def test_mobile_board_and_responsive_graph_rules_are_present():
@@ -76,3 +78,5 @@ def test_mobile_board_and_responsive_graph_rules_are_present():
     assert "@media (max-width: 600px)" in css
     assert "calc(100vw - 2.2rem)" in css
     assert ".hermes-workflow-graph" in css
+    assert "var(--color-foreground)" in css
+    assert "var(--foreground)" not in css
