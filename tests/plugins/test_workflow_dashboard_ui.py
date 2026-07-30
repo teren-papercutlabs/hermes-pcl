@@ -38,6 +38,9 @@ def test_board_is_collection_bound_and_detail_uses_timeline():
     assert "No transitions recorded." in source
     assert "props.onClose" in source
     assert "item.stages" in source  # U3 collection schema
+    assert "dateFromTimestamp" in source
+    assert "numeric * 1000" in source
+    assert "sdk.utils.timeAgo(Number(started))" in source
 
 
 def test_graph_uses_host_react_flow_without_modeling_library():

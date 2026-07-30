@@ -95,7 +95,16 @@
   }
 
   function stageStartedAt(instance) {
-    return first(instance.parked_since, first(instance.stage_started_at, first(instance.stage_entered_at, first(instance.time_in_stage_since, first(instance.entered_at, null)))));
+    return first(instance.stage_started_at, first(instance.stage_entered_at, first(instance.time_in_stage_since, first(instance.entered_at, first(instance.parked_since, null)))));
+  }
+
+  function dateFromTimestamp(value) {
+    if (value === undefined || value === null || value === "") return null;
+    var numeric = Number(value);
+    var date = typeof value === "number" || (typeof value === "string" && /^[0-9]+(?:\.[0-9]+)?$/.test(value))
+      ? new Date(numeric * 1000)
+      : new Date(value);
+    return isNaN(date.getTime()) ? null : date;
   }
 
   function durationLabel(seconds) {
@@ -113,13 +122,16 @@
     if (instance.time_in_stage_seconds !== undefined) return durationLabel(instance.time_in_stage_seconds);
     var started = stageStartedAt(instance);
     if (!started) return "time unavailable";
+    if ((typeof started === "number" || /^[0-9]+(?:\.[0-9]+)?$/.test(String(started))) && sdk.utils && sdk.utils.timeAgo) {
+      return sdk.utils.timeAgo(Number(started));
+    }
     if (sdk.utils && sdk.utils.isoTimeAgo) return sdk.utils.isoTimeAgo(started);
     return "in stage";
   }
 
   function exactTime(instance) {
-    var started = stageStartedAt(instance);
-    return started ? new Date(started).toISOString() : "Stage entry time unavailable";
+    var date = dateFromTimestamp(stageStartedAt(instance));
+    return date ? date.toISOString() : "Stage entry time unavailable";
   }
 
   function badgeKeys(instance) {
@@ -321,12 +333,16 @@
     var row = props.row || {};
     var event = row.event || {};
     var timestamp = first(row.applied_at, first(event.applied_at, first(event.created_at, first(row.created_at, first(row.occurred_at, row.timestamp)))));
+    var timestampDate = dateFromTimestamp(timestamp);
     return h("li", { className: "hermes-workflow-timeline-row" },
       h("div", { className: "hermes-workflow-timeline-dot" }),
       h("div", { className: "hermes-workflow-timeline-body" },
         h("div", { className: "hermes-workflow-timeline-heading" },
           h("strong", null, String(first(row.to_step, first(row.step_key, first(row.state, "Transition"))))),
-          timestamp ? h("time", { dateTime: timestamp, title: new Date(timestamp).toISOString() }, sdk.utils && sdk.utils.isoTimeAgo ? sdk.utils.isoTimeAgo(timestamp) : timestamp) : null),
+          timestampDate ? h("time", { dateTime: timestampDate.toISOString(), title: timestampDate.toISOString() },
+            (typeof timestamp === "number" || /^[0-9]+(?:\.[0-9]+)?$/.test(String(timestamp))) && sdk.utils && sdk.utils.timeAgo
+              ? sdk.utils.timeAgo(Number(timestamp))
+              : sdk.utils && sdk.utils.isoTimeAgo ? sdk.utils.isoTimeAgo(timestamp) : timestamp) : null),
         h("p", { className: "hermes-workflow-muted" }, String(first(row.summary, first(event.event_type, first(row.event_type, first(row.from_step ? row.from_step + " to " + row.to_step : "State changed", "State changed"))))))));
   }
 
