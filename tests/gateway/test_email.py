@@ -13,6 +13,7 @@ Covers:
 """
 
 import os
+import tempfile
 import unittest
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -526,8 +527,8 @@ class TestThreadContext(unittest.TestCase):
             adapter = EmailAdapter(PlatformConfig(enabled=True))
         return adapter
 
-    def test_thread_context_stored_after_dispatch(self):
-        """After dispatching a message, thread context should be stored."""
+    def test_thread_context_stored_per_inbound_message(self):
+        """After dispatching, context is keyed by inbound message id."""
         import asyncio
         adapter = self._make_adapter()
 
@@ -549,7 +550,7 @@ class TestThreadContext(unittest.TestCase):
         }
 
         asyncio.run(adapter._dispatch_message(msg_data))
-        ctx = adapter._thread_context.get("user@test.com")
+        ctx = adapter._thread_context.get("<original@test.com>")
         self.assertIsNotNone(ctx)
         self.assertEqual(ctx["subject"], "Project question")
         self.assertEqual(ctx["message_id"], "<original@test.com>")
@@ -557,10 +558,12 @@ class TestThreadContext(unittest.TestCase):
     def test_reply_uses_re_prefix(self):
         """Reply subject should have Re: prefix."""
         adapter = self._make_adapter()
-        adapter._thread_context["user@test.com"] = {
+        adapter._store_thread_context("user@test.com", {
+            "sender_addr": "user@test.com",
             "subject": "Project question",
             "message_id": "<original@test.com>",
-        }
+            "references": "",
+        })
 
         with patch("smtplib.SMTP") as mock_smtp:
             mock_server = MagicMock()
@@ -578,10 +581,12 @@ class TestThreadContext(unittest.TestCase):
     def test_reply_does_not_double_re(self):
         """If subject already has Re:, don't add another."""
         adapter = self._make_adapter()
-        adapter._thread_context["user@test.com"] = {
+        adapter._store_thread_context("user@test.com", {
+            "sender_addr": "user@test.com",
             "subject": "Re: Project question",
             "message_id": "<reply@test.com>",
-        }
+            "references": "",
+        })
 
         with patch("smtplib.SMTP") as mock_smtp:
             mock_server = MagicMock()
@@ -606,6 +611,206 @@ class TestThreadContext(unittest.TestCase):
             send_call = mock_server.send_message.call_args[0][0]
             self.assertEqual(send_call["Subject"], "Re: Hermes Agent")
             self.assertIn("Date", send_call)
+
+    def test_explicit_reply_context_isolated_for_same_sender(self):
+        """Reverse-order replies keep each inbound message's own thread."""
+        import asyncio
+        adapter = self._make_adapter()
+
+        async def noop_handle(event):
+            pass
+
+        adapter.handle_message = noop_handle
+        first = {
+            "uid": b"11", "sender_addr": "user@test.com", "sender_name": "User",
+            "subject": "First topic", "message_id": "<first@test.com>",
+            "in_reply_to": "", "references": "<root-one@test.com>",
+            "body": "first", "attachments": [], "date": "Tue, 1 Jan 2030 00:00:00 +0000",
+        }
+        second = {
+            "uid": b"12", "sender_addr": "user@test.com", "sender_name": "User",
+            "subject": "Second topic", "message_id": "<second@test.com>",
+            "in_reply_to": "", "references": "<root-two@test.com>",
+            "body": "second", "attachments": [], "date": "Tue, 1 Jan 2030 00:01:00 +0000",
+        }
+        asyncio.run(adapter._dispatch_message(first))
+        asyncio.run(adapter._dispatch_message(second))
+
+        with patch("smtplib.SMTP") as mock_smtp:
+            mock_server = MagicMock()
+            mock_smtp.return_value = mock_server
+            adapter._send_email("user@test.com", "second reply", "<second@test.com>")
+            adapter._send_email("user@test.com", "first reply", "<first@test.com>")
+
+        second_reply, first_reply = [call.args[0] for call in mock_server.send_message.call_args_list]
+        self.assertEqual(second_reply["Subject"], "Re: Second topic")
+        self.assertEqual(second_reply["In-Reply-To"], "<second@test.com>")
+        self.assertEqual(second_reply["References"], "<root-two@test.com> <second@test.com>")
+        self.assertEqual(first_reply["Subject"], "Re: First topic")
+        self.assertEqual(first_reply["In-Reply-To"], "<first@test.com>")
+        self.assertEqual(first_reply["References"], "<root-one@test.com> <first@test.com>")
+
+    def test_document_and_image_attachment_use_explicit_reply_context(self):
+        """Attachment paths honor the same explicit reply anchor as text."""
+        import asyncio
+        from urllib.parse import quote
+
+        adapter = self._make_adapter()
+        adapter._store_thread_context("user@test.com", {
+            "sender_addr": "user@test.com",
+            "subject": "Attachment topic",
+            "message_id": "<attachment@test.com>",
+            "references": "<root-attachment@test.com>",
+        })
+        with tempfile.NamedTemporaryFile(suffix=".txt") as document, patch("smtplib.SMTP") as mock_smtp:
+            document.write(b"attachment contents")
+            document.flush()
+            mock_server = MagicMock()
+            mock_smtp.return_value = mock_server
+            asyncio.run(adapter.send_document(
+                "user@test.com", document.name, reply_to="<attachment@test.com>"
+            ))
+            asyncio.run(adapter.send_multiple_images(
+                "user@test.com",
+                [(f"file://{quote(document.name)}", "")],
+                reply_to="<attachment@test.com>",
+            ))
+
+        for call in mock_server.send_message.call_args_list:
+            sent = call.args[0]
+            self.assertEqual(sent["Subject"], "Re: Attachment topic")
+            self.assertEqual(sent["In-Reply-To"], "<attachment@test.com>")
+            self.assertEqual(sent["References"], "<root-attachment@test.com> <attachment@test.com>")
+
+    def test_thread_context_uses_deterministic_fifo_eviction(self):
+        """The per-message cache remains bounded without a sender overwrite."""
+        adapter = self._make_adapter()
+        adapter._thread_context_max = 2
+        for index in range(3):
+            adapter._store_thread_context("user@test.com", {
+                "sender_addr": "user@test.com",
+                "subject": f"Topic {index}",
+                "message_id": f"<message-{index}@test.com>",
+                "references": "",
+            })
+
+        self.assertNotIn("<message-0@test.com>", adapter._thread_context)
+        self.assertEqual(list(adapter._thread_context), ["<message-1@test.com>", "<message-2@test.com>"])
+        self.assertEqual(adapter._sender_latest_thread["user@test.com"], "<message-2@test.com>")
+
+
+class TestWorkflowIngress(unittest.TestCase):
+    """Email ingress must be ledgered before conversational handling."""
+
+    def _make_adapter(self, callback=None):
+        from gateway.config import PlatformConfig
+        with patch.dict(os.environ, {
+            "EMAIL_ADDRESS": "hermes@test.com",
+            "EMAIL_PASSWORD": "secret",
+            "EMAIL_IMAP_HOST": "imap.test.com",
+            "EMAIL_SMTP_HOST": "smtp.test.com",
+        }):
+            from gateway.platforms.email import EmailAdapter
+            return EmailAdapter(PlatformConfig(
+                enabled=True,
+                extra={"workflow_ingress_callback": callback} if callback else {},
+            ))
+
+    @staticmethod
+    def _message_data(message_id="<ingress@test.com>"):
+        return {
+            "uid": b"20", "sender_addr": "user@test.com", "sender_name": "User",
+            "subject": "Ingress subject", "message_id": message_id,
+            "in_reply_to": "<parent@test.com>", "references": "<root@test.com> <parent@test.com>",
+            "body": "raw body kept out of callback", "attachments": [],
+            "date": "Tue, 1 Jan 2030 00:00:00 +0000",
+        }
+
+    def test_callback_precedes_handler_and_receives_body_ref_only(self):
+        import asyncio
+        order = []
+        envelopes = []
+
+        async def callback(envelope):
+            order.append("callback")
+            envelopes.append(envelope)
+
+        adapter = self._make_adapter(callback)
+
+        async def handler(event):
+            order.append("handler")
+
+        adapter.handle_message = handler
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "gateway.platforms.email.get_hermes_home", return_value=Path(tmpdir)
+        ):
+            asyncio.run(adapter._dispatch_message(self._message_data()))
+            body_ref = Path(envelopes[0]["body_ref"])
+            self.assertTrue(body_ref.is_file())
+            self.assertEqual(body_ref.read_text(encoding="utf-8"), "raw body kept out of callback")
+
+        self.assertEqual(order, ["callback", "handler"])
+        self.assertEqual(envelopes, [{
+            "external_id": "<ingress@test.com>",
+            "sender": "user@test.com",
+            "subject": "Ingress subject",
+            "date": "Tue, 1 Jan 2030 00:00:00 +0000",
+            "in_reply_to": "<parent@test.com>",
+            "references": "<root@test.com> <parent@test.com>",
+            "body_ref": str(body_ref),
+        }])
+        self.assertNotIn("body", envelopes[0])
+        self.assertNotIn("raw body kept out of callback", str(envelopes[0]))
+
+    def test_callback_failure_prevents_conversational_handling(self):
+        import asyncio
+
+        async def callback(envelope):
+            raise RuntimeError("ledger unavailable")
+
+        adapter = self._make_adapter(callback)
+        handler = AsyncMock()
+        adapter.handle_message = handler
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "gateway.platforms.email.get_hermes_home", return_value=Path(tmpdir)
+        ):
+            with self.assertRaisesRegex(RuntimeError, "ledger unavailable"):
+                asyncio.run(adapter._dispatch_message(self._message_data()))
+
+        handler.assert_not_awaited()
+        self.assertEqual(adapter._thread_context, {})
+
+    def test_no_callback_preserves_conversational_handling(self):
+        import asyncio
+        adapter = self._make_adapter()
+        handler = AsyncMock()
+        adapter.handle_message = handler
+
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "gateway.platforms.email.get_hermes_home", return_value=Path(tmpdir)
+        ):
+            asyncio.run(adapter._dispatch_message(self._message_data()))
+
+        handler.assert_awaited_once()
+
+    def test_missing_message_id_uses_deterministic_external_id(self):
+        import asyncio
+        envelopes = []
+
+        async def callback(envelope):
+            envelopes.append(envelope)
+
+        adapter = self._make_adapter(callback)
+        adapter.handle_message = AsyncMock()
+        msg_data = self._message_data(message_id="")
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "gateway.platforms.email.get_hermes_home", return_value=Path(tmpdir)
+        ):
+            asyncio.run(adapter._dispatch_message(msg_data))
+            asyncio.run(adapter._dispatch_message(msg_data))
+
+        self.assertRegex(envelopes[0]["external_id"], r"^email-[0-9a-f]{64}$")
+        self.assertEqual(envelopes[0]["external_id"], envelopes[1]["external_id"])
 
 
 class TestSendMethods(unittest.TestCase):
@@ -717,7 +922,12 @@ class TestSendMethods(unittest.TestCase):
         """get_chat_info should return email address as chat info."""
         import asyncio
         adapter = self._make_adapter()
-        adapter._thread_context["user@test.com"] = {"subject": "Test", "message_id": "<m@t>"}
+        adapter._store_thread_context("user@test.com", {
+            "sender_addr": "user@test.com",
+            "subject": "Test",
+            "message_id": "<m@t>",
+            "references": "",
+        })
 
         info = asyncio.run(
             adapter.get_chat_info("user@test.com")
@@ -879,6 +1089,7 @@ class TestFetchNewMessages(unittest.TestCase):
         raw_email["From"] = '"John Doe" <john@test.com>'
         raw_email["Subject"] = "Test"
         raw_email["Message-ID"] = "<msg@test.com>"
+        raw_email["References"] = "<root@test.com> <parent@test.com>"
 
         mock_imap = MagicMock()
 
@@ -897,6 +1108,7 @@ class TestFetchNewMessages(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["sender_addr"], "john@test.com")
         self.assertEqual(results[0]["sender_name"], "John Doe")
+        self.assertEqual(results[0]["references"], "<root@test.com> <parent@test.com>")
 
 
 class TestPollLoop(unittest.TestCase):
