@@ -73,6 +73,33 @@ def _assert_citations(evidence: dict, home: Path) -> None:
         assert len(body_ref["sha256"]) == 64
 
 
+def _normalized_evidence(evidence: dict) -> dict:
+    """Replace per-run UUID task ids while preserving cited semantics."""
+
+    replacements: dict[str, str] = {}
+    for case_name, case in evidence["cases"].items():
+        for key, value in case["ids"].items():
+            if isinstance(value, str) and ("task" in key or "target" in key):
+                replacements[value] = f"<{case_name}:{key}>"
+
+    def normalize(value):
+        if isinstance(value, dict):
+            normalized = {key: normalize(child) for key, child in value.items()}
+            if isinstance(normalized.get("candidate_task_ids"), list):
+                normalized["candidate_task_ids"] = sorted(
+                    normalized["candidate_task_ids"]
+                )
+            return normalized
+        if isinstance(value, list):
+            return [normalize(child) for child in value]
+        if isinstance(value, str):
+            for source, replacement in replacements.items():
+                value = value.replace(source, replacement)
+        return value
+
+    return normalize(evidence)
+
+
 def test_p5a_driver_runs_twice_isolated_and_covers_frozen_cases(
     tmp_path, monkeypatch, capsys
 ):
@@ -81,6 +108,7 @@ def test_p5a_driver_runs_twice_isolated_and_covers_frozen_cases(
     expected = set(rehearsal.CASE_KEYS)
     assert set(first["cases"]) == expected
     assert set(second["cases"]) == expected
+    assert _normalized_evidence(first) == _normalized_evidence(second)
 
     for evidence, run in ((first, 1), (second, 2)):
         home = tmp_path / f"home-{run}"
@@ -91,6 +119,7 @@ def test_p5a_driver_runs_twice_isolated_and_covers_frozen_cases(
         assert "allied" not in rendered.lower()
         assert "/Users/" not in rendered
         assert "/tmp/" not in rendered
+        assert str(tmp_path) not in rendered
 
     zero = first["cases"]["zero_match_hold_heal"]["results"]
     assert [item["status"] for item in zero["checkpoints"]] == [
@@ -103,6 +132,8 @@ def test_p5a_driver_runs_twice_isolated_and_covers_frozen_cases(
 
     shared = first["cases"]["shared_ref_two_live"]["results"]
     assert shared["first_match"] == shared["second_match"] == "matched"
+    assert shared["first_match_task"] == first["cases"]["shared_ref_two_live"]["ids"]["first_task"]
+    assert shared["second_match_task"] == first["cases"]["shared_ref_two_live"]["ids"]["first_task"]
     assert shared["first_apply"] == shared["second_apply"] == "applied"
 
     human = first["cases"]["two_match_human_pick"]["results"]
@@ -110,6 +141,7 @@ def test_p5a_driver_runs_twice_isolated_and_covers_frozen_cases(
     assert human["resolved"] == "matched"
     assert human["match_method"] == "human"
     assert human["candidate_task_ids"]
+    assert human["resolved_task"] == first["cases"]["two_match_human_pick"]["ids"]["second_task"]
 
     ordered = first["cases"]["out_of_order_buffer"]["results"]
     assert ordered["before_enter"] == ordered["buffered"] == "buffered"
@@ -121,6 +153,7 @@ def test_p5a_driver_runs_twice_isolated_and_covers_frozen_cases(
     assert duplicates["same_source_external_second_ingest_returned_none"] is True
     assert duplicates["forwarded"] == "superseded"
     assert duplicates["second_transition"] == "re_correlate"
+    assert duplicates["transition_duplicate_advance"] == "no-op"
     assert duplicates["transition_count"] == 1
 
     done = first["cases"]["done_instance_retention"]["results"]
@@ -142,6 +175,10 @@ def test_p5a_driver_runs_twice_isolated_and_covers_frozen_cases(
     assert approval["plain_outbox_count"] == 1
     assert approval["edited_outbox_count"] == 1
     assert approval["edited_status"] == "edited_approved"
+    assert approval["decision_diff"] == [
+        {"op": "replace", "path": "/body", "value": "edited"},
+        {"op": "add", "path": "/field", "value": "added"},
+    ]
     assert approval["replay_result"] is None
     assert approval["token_rotated"] is True
 

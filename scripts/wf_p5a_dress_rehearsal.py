@@ -4,6 +4,11 @@ This driver deliberately extends the integration shape established by
 ``test_p4_synthetic_full_loop.py``: email bodies cross the real adapter as
 immutable body references, while extraction and workflow decisions stay
 deterministic and use the real engine, watcher, approvals, and SQLite board.
+
+The ten cases share one isolated board.  Citations are intentionally captured
+at each case boundary, before later watcher ticks can route unrelated setup or
+approval rows.  Timer suppression prevents those cross-case ticks from firing
+another case's armed timers.
 """
 
 from __future__ import annotations
@@ -465,8 +470,10 @@ class DressRehearsal:
             "ids": {"first_task": first, "second_task": second, "first_event": first_event, "second_event": second_event},
             "results": {
                 "first_match": first_match.kind,
+                "first_match_task": first_match.task_id,
                 "first_apply": first_apply.kind,
                 "second_match": second_match.kind,
+                "second_match_task": second_match.task_id,
                 "second_apply": second_apply.kind,
             },
             "citations": [
@@ -536,7 +543,13 @@ class DressRehearsal:
             raise AssertionError("human resolution ledger row missing")
         return {
             "ids": {"first_task": first, "second_task": second, "event": event_id, "human_resolution": int(resolution["id"])},
-            "results": {"ambiguous": ambiguous.kind, "candidate_task_ids": list(ambiguous.candidate_task_ids), "resolved": resolved.kind, "match_method": resolved.match_method},
+            "results": {
+                "ambiguous": ambiguous.kind,
+                "candidate_task_ids": list(ambiguous.candidate_task_ids),
+                "resolved": resolved.kind,
+                "resolved_task": resolved.task_id,
+                "match_method": resolved.match_method,
+            },
             "citations": [self._task_cite(first, "retained candidate first"), self._task_cite(second, "human-selected candidate second"), self._wait_cite(self.connection.execute("SELECT id FROM wf_wait WHERE task_id = ? AND step_key = 'await_pickup'", (first,)).fetchone()["id"]), self._wait_cite(self.connection.execute("SELECT id FROM wf_wait WHERE task_id = ? AND step_key = 'await_pickup'", (second,)).fetchone()["id"]), self._event_cite(event_id, "ambiguous event resolved by human"), _row_citation(self.connection, table="wf_event", query="SELECT id, source, external_id, event_type, status, corr FROM wf_event WHERE id = ?", params=(int(resolution["id"]),), identity=f"wf_event.id={int(resolution['id'])} human_resolution", fields=("id", "source", "external_id", "event_type", "status", "corr"))],
         }
 
@@ -579,16 +592,24 @@ class DressRehearsal:
         transition_event, matched = self._direct_event(event_type="pickup_advice", corr={"booking_ref": "BOOK-DUP-TRANS"}, payload={"booking_ref": "BOOK-DUP-TRANS"}, label="duplicate-transition-event")
         first_transition = self._apply(transition_event, replay_task, "await_pickup")
         second_transition = self._apply(transition_event, replay_task, "await_pickup")
+        # The second apply is rejected by the stage CAS.  Re-enter the engine's
+        # transition primitive with the original event/target as well, proving
+        # its independent transition-PK duplicate guard is also a no-op.
+        wf_engine.advance(
+            self.connection,
+            replay_task,
+            to_step="create_job",
+            event_id=transition_event,
+        )
         transition_count = self.connection.execute("SELECT COUNT(*) FROM wf_transition WHERE task_id = ? AND event_id = ?", (replay_task, transition_event)).fetchone()[0]
         return {
             "ids": {"task": task_id, "first_event": first_id, "duplicate_event": duplicate_id, "forwarded_event": forwarded_id, "replay_task": replay_task, "transition_event": transition_event},
-            "results": {"same_source_external_second_ingest_returned_none": duplicate_ingest_return is None, "first_apply": first_apply.kind, "forwarded": forwarded.kind, "first_transition": first_transition.kind, "second_transition": second_transition.kind, "transition_count": transition_count},
-            "citations": [_count_citation(self.connection, table="wf_event", query="SELECT COUNT(*) AS count FROM wf_event WHERE source = 'email' AND external_id = ?", params=(message_id,), identity=f"email source/external_id {message_id}", extra={"second_ingest_return": duplicate_ingest_return}), self._event_cite(first_id, "layer-one email event"), self._event_cite(forwarded_id, "forwarded copy no-op"), _count_citation(self.connection, table="wf_transition", query="SELECT COUNT(*) AS count FROM wf_transition WHERE task_id = ? AND event_id = ?", params=(replay_task, transition_event), identity=f"one transition primary key for task {replay_task},event {transition_event}", extra={"second_apply_result": second_transition.kind}), self._event_cite(transition_event, "same event applied twice"), self._task_cite(replay_task)],
+            "results": {"same_source_external_second_ingest_returned_none": duplicate_ingest_return is None, "first_apply": first_apply.kind, "forwarded": forwarded.kind, "first_transition": first_transition.kind, "second_transition": second_transition.kind, "transition_duplicate_advance": "no-op", "transition_count": transition_count},
+            "citations": [_count_citation(self.connection, table="wf_event", query="SELECT COUNT(*) AS count FROM wf_event WHERE source = 'email' AND external_id = ?", params=(message_id,), identity=f"email source/external_id {message_id}", extra={"second_ingest_return": duplicate_ingest_return}), self._event_cite(first_id, "layer-one email event"), self._event_cite(forwarded_id, "forwarded copy no-op"), _count_citation(self.connection, table="wf_transition", query="SELECT COUNT(*) AS count FROM wf_transition WHERE task_id = ? AND event_id = ?", params=(replay_task, transition_event), identity=f"one transition primary key for task {replay_task},event {transition_event}", extra={"second_apply_result": second_transition.kind, "duplicate_advance_result": "no-op"}), self._event_cite(transition_event, "same event applied twice and transition duplicate probed"), self._task_cite(replay_task)],
         }
 
     def _complete_instance(self, *, entity: str, booking_ref: str) -> str:
         task_id = self._new_instance(entity=entity, booking_ref=booking_ref, direction="export")
-        self._enter(task_id, "await_pickup", label=f"{entity}-pickup")
         self._enter(task_id, "await_pickup", label=f"{entity}-pickup")
         event_id, result = self._direct_event(event_type="pickup_advice", corr={"booking_ref": booking_ref}, payload={"booking_ref": booking_ref}, label=f"{entity}-pickup-event")
         if result.kind != "matched":
@@ -644,6 +665,10 @@ class DressRehearsal:
         self._enter(first, "await_pickup", label="race-event-await")
         first_wait = self.connection.execute("SELECT id FROM wf_wait WHERE task_id = ? AND kind = 'timer'", (first,)).fetchone()["id"]
         self._suppress_timers(except_wait_id=int(first_wait))
+        self.connection.execute(
+            "UPDATE wf_wait SET timer_at = ? WHERE id = ?",
+            (FIXED_NOW - 1, first_wait),
+        )
         event_id, event_result = self._direct_event(event_type="pickup_advice", corr={"booking_ref": "BOOK-RACE-EVENT"}, payload={"booking_ref": "BOOK-RACE-EVENT"}, label="race-event-first")
         self._apply(event_id, first, "await_pickup")
         first_tick = wf_watcher.run_tick(self.connection, FIXED_NOW)
@@ -680,10 +705,15 @@ class DressRehearsal:
         edited_payload = {"to": "recipient@example.test", "body": "edited", "field": "added"}
         edited_event = wf_engine.decide_approval(self.connection, edited_id, edited_token, "edited_approved", decided_by="p5a-reviewer", payload=edited_payload)
         replay = wf_engine.decide_approval(self.connection, edited_id, edited_token, "edited_approved", decided_by="p5a-reviewer", payload=edited_payload)
-        edited_approval = self.connection.execute("SELECT resume_token FROM wf_approval WHERE id = ?", (edited_id,)).fetchone()[0]
+        edited_row = self.connection.execute(
+            "SELECT resume_token, decision_diff FROM wf_approval WHERE id = ?",
+            (edited_id,),
+        ).fetchone()
+        edited_approval = edited_row["resume_token"]
+        decision_diff = json.loads(edited_row["decision_diff"])
         return {
             "ids": {"plain_task": plain_task, "plain_approval": plain_id, "plain_event": plain_event, "edited_task": edited_task, "edited_approval": edited_id, "edited_event": edited_event},
-            "results": {"plain_outbox_count": plain_outbox_count, "plain_status": self.connection.execute("SELECT status FROM wf_approval WHERE id = ?", (plain_id,)).fetchone()[0], "edited_status": self.connection.execute("SELECT status FROM wf_approval WHERE id = ?", (edited_id,)).fetchone()[0], "replay_result": replay, "token_rotated": edited_approval != edited_token, "edited_outbox_count": self.connection.execute("SELECT COUNT(*) FROM wf_outbox WHERE task_id = ?", (edited_task,)).fetchone()[0]},
+            "results": {"plain_outbox_count": plain_outbox_count, "plain_status": self.connection.execute("SELECT status FROM wf_approval WHERE id = ?", (plain_id,)).fetchone()[0], "edited_status": self.connection.execute("SELECT status FROM wf_approval WHERE id = ?", (edited_id,)).fetchone()[0], "decision_diff": decision_diff, "replay_result": replay, "token_rotated": edited_approval != edited_token, "edited_outbox_count": self.connection.execute("SELECT COUNT(*) FROM wf_outbox WHERE task_id = ?", (edited_task,)).fetchone()[0]},
             "citations": [_row_citation(self.connection, table="wf_approval", query="SELECT id, task_id, action, status, decided_by, decision_diff, resume_token FROM wf_approval WHERE id = ?", params=(plain_id,), identity=f"wf_approval.id={plain_id}", fields=("id", "task_id", "action", "status", "decided_by", "decision_diff"), extra={"outbox_count": plain_outbox_count}), _row_citation(self.connection, table="wf_outbox", query="SELECT id, task_id, action, payload, status FROM wf_outbox WHERE task_id = ?", params=(plain_task,), identity=f"wf_outbox task_id={plain_task}", fields=("id", "task_id", "action", "payload", "status")), _row_citation(self.connection, table="wf_approval", query="SELECT id, task_id, action, status, decided_by, decision_diff, resume_token FROM wf_approval WHERE id = ?", params=(edited_id,), identity=f"wf_approval.id={edited_id}", fields=("id", "task_id", "action", "status", "decided_by", "decision_diff"), extra={"token_rotated": edited_approval != edited_token, "replay_result": replay}), _row_citation(self.connection, table="wf_outbox", query="SELECT id, task_id, action, payload, status FROM wf_outbox WHERE task_id = ?", params=(edited_task,), identity=f"wf_outbox task_id={edited_task}", fields=("id", "task_id", "action", "payload", "status"))],
         }
 
@@ -698,9 +728,7 @@ class DressRehearsal:
 
         def probe(targets):
             calls["count"] += 1
-            if calls["count"] == 1:
-                target = next(item for item in targets if item.task_id == first)
-                return [wf_watcher.ProbeObservation(external_id=f"probe:{first}:container", event_type="container_assigned", corr={"booking_ref": "BOOK-POLL"}, payload={"container_no": "CONT-POLL"})]
+            next(item for item in targets if item.task_id == first)
             return [wf_watcher.ProbeObservation(external_id=f"probe:{first}:container", event_type="container_assigned", corr={"booking_ref": "BOOK-POLL"}, payload={"container_no": "CONT-POLL"})]
 
         wf_watcher.register_state_probe(tenant, probe, read_only=True)
@@ -717,7 +745,7 @@ class DressRehearsal:
         }
 
     def run(self) -> dict:
-        self.home.mkdir(parents=True, exist_ok=False)
+        self.home.mkdir(parents=True, exist_ok=True)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         os.environ["HERMES_HOME"] = str(self.home)
         os.environ["HERMES_KANBAN_DB"] = str(self.db_path)
