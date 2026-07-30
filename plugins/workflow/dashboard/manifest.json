@@ -1,7 +1,7 @@
 {
   "name": "workflow",
   "label": "Workflow",
-  "description": "Workflow instances, stage progress, and human action queue",
+  "description": "Workflow operations board, graph, and action queue",
   "icon": "GitBranch",
   "version": "1.0.0",
   "tab": {
@@ -10,5 +10,6 @@
   },
   "slots": [],
   "entry": "dist/index.js",
+  "css": "dist/style.css",
   "api": "plugin_api.py"
 }

@@ -1,0 +1,114 @@
+.hermes-workflow {
+  --workflow-border: color-mix(in srgb, var(--border) 78%, transparent);
+  --workflow-muted: var(--muted-foreground);
+  --workflow-surface: color-mix(in srgb, var(--card) 92%, var(--background));
+  min-height: 100%;
+  padding: 1.5rem;
+  color: var(--foreground);
+}
+
+.hermes-workflow h1,
+.hermes-workflow h2,
+.hermes-workflow h3,
+.hermes-workflow p { margin: 0; }
+
+.hermes-workflow-header,
+.hermes-workflow-toolbar,
+.hermes-workflow-section-heading,
+.hermes-workflow-action-header,
+.hermes-workflow-action-footer,
+.hermes-workflow-card-meta,
+.hermes-workflow-column-header,
+.hermes-workflow-detail-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+
+.hermes-workflow-header { margin-bottom: 1.25rem; }
+.hermes-workflow-header h1 { font-size: 1.65rem; letter-spacing: -.03em; }
+.hermes-workflow-header > div > p:last-child { margin-top: .3rem; }
+.hermes-workflow-eyebrow { color: var(--workflow-muted); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.hermes-workflow-muted { color: var(--workflow-muted); font-size: .82rem; }
+.hermes-workflow-toolbar { border-bottom: 1px solid var(--workflow-border); padding-bottom: 1rem; margin-bottom: 1rem; }
+.hermes-workflow-view-switch { display: flex; gap: .2rem; }
+.hermes-workflow-native-select { border: 1px solid var(--workflow-border); border-radius: .45rem; background: var(--workflow-surface); color: inherit; min-height: 2.25rem; padding: 0 .65rem; }
+.hermes-workflow-columns { display: flex; align-items: stretch; gap: .8rem; overflow-x: auto; overscroll-behavior-inline: contain; padding: .1rem .1rem 1rem; }
+.hermes-workflow-column { background: color-mix(in srgb, var(--muted) 28%, transparent); border: 1px solid var(--workflow-border); border-radius: .65rem; display: flex; flex: 0 0 min(18rem, calc(100vw - 2.2rem)); flex-direction: column; min-height: 16rem; padding: .7rem; }
+.hermes-workflow-column-header { align-items: flex-start; padding: .15rem .1rem .7rem; }
+.hermes-workflow-column-header h3 { font-size: .88rem; }
+.hermes-workflow-column-key { color: var(--workflow-muted); display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .67rem; margin-top: .2rem; max-width: 13rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hermes-workflow-count { background: var(--background); border: 1px solid var(--workflow-border); border-radius: 999px; font-size: .72rem; min-width: 1.5rem; padding: .18rem .4rem; text-align: center; }
+.hermes-workflow-column-body { display: flex; flex: 1; flex-direction: column; gap: .55rem; }
+.hermes-workflow-column-empty { color: var(--workflow-muted); font-size: .78rem; padding: 1rem .25rem; }
+.hermes-workflow-card { cursor: pointer; transition: border-color .15s ease, transform .15s ease; }
+.hermes-workflow-card:hover,
+.hermes-workflow-card:focus-visible { border-color: var(--primary); transform: translateY(-1px); outline: none; }
+.hermes-workflow-card-content { padding: .75rem; }
+.hermes-workflow-card-ref { font-size: .85rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hermes-workflow-card-meta { color: var(--workflow-muted); font-size: .72rem; margin-top: .45rem; }
+.hermes-workflow-card-state { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hermes-workflow-badges { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .6rem; }
+.hermes-workflow-actions { margin-top: 1.35rem; }
+.hermes-workflow-section-heading { margin-bottom: .7rem; }
+.hermes-workflow-section-heading h2 { font-size: 1rem; }
+.hermes-workflow-action-grid { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr)); }
+.hermes-workflow-action-card { background: var(--workflow-surface); border: 1px solid var(--workflow-border); border-radius: .65rem; padding: .85rem; }
+.hermes-workflow-action-header { align-items: flex-start; }
+.hermes-workflow-action-header strong { font-size: .85rem; }
+.hermes-workflow-action-summary { font-size: .82rem; line-height: 1.45; margin-top: .65rem !important; }
+.hermes-workflow-action-footer { justify-content: flex-start; flex-wrap: wrap; margin-top: .8rem; }
+.hermes-workflow-candidates { display: grid; gap: .4rem; margin-top: .75rem; }
+.hermes-workflow-candidate { align-items: center; border-top: 1px solid var(--workflow-border); display: flex; gap: .6rem; justify-content: space-between; padding-top: .45rem; }
+.hermes-workflow-candidate span { font-size: .78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hermes-workflow-editor,
+.hermes-workflow-token-field { display: grid; gap: .35rem; margin-top: .75rem; }
+.hermes-workflow-json { background: var(--background); border: 1px solid var(--workflow-border); border-radius: .4rem; color: inherit; font: .77rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; padding: .55rem; resize: vertical; width: 100%; }
+.hermes-workflow-field-error,
+.hermes-workflow-error { color: var(--destructive); font-size: .82rem; margin: .7rem 0 !important; }
+.hermes-workflow-empty { align-items: center; border: 1px dashed var(--workflow-border); border-radius: .65rem; display: flex; flex-direction: column; justify-content: center; min-height: 9rem; padding: 1.5rem; text-align: center; }
+.hermes-workflow-empty-title { font-size: .9rem; font-weight: 600; }
+.hermes-workflow-empty .hermes-workflow-muted { margin-top: .35rem; }
+.hermes-workflow-skeleton { display: flex; gap: .8rem; overflow: hidden; }
+.hermes-workflow-skeleton-column { background: color-mix(in srgb, var(--muted) 28%, transparent); border: 1px solid var(--workflow-border); border-radius: .65rem; flex: 0 0 min(18rem, calc(100vw - 2.2rem)); min-height: 16rem; padding: .85rem; }
+.hermes-workflow-skeleton-line,
+.hermes-workflow-skeleton-card { animation: workflow-pulse 1.4s ease-in-out infinite; background: color-mix(in srgb, var(--muted-foreground) 18%, transparent); border-radius: .35rem; height: .75rem; margin-bottom: .75rem; width: 68%; }
+.hermes-workflow-skeleton-line.wide { width: 82%; }
+.hermes-workflow-skeleton-line.short { width: 42%; }
+.hermes-workflow-skeleton-card { height: 5rem; margin-top: 1.3rem; width: 100%; }
+.hermes-workflow-skeleton-card.short { height: 3.8rem; margin-top: .5rem; width: 88%; }
+@keyframes workflow-pulse { 0%, 100% { opacity: .55; } 50% { opacity: .95; } }
+.hermes-workflow-graph { background: color-mix(in srgb, var(--muted) 14%, transparent); border: 1px solid var(--workflow-border); border-radius: .65rem; height: min(62vh, 38rem); min-height: 22rem; overflow: hidden; }
+.hermes-workflow-flow { background: transparent; }
+.hermes-workflow-node { background: var(--workflow-surface); border: 1px solid var(--workflow-border); border-radius: .55rem; box-shadow: 0 5px 18px color-mix(in srgb, var(--foreground) 8%, transparent); min-width: 10rem; padding: .7rem .85rem; text-align: center; }
+.hermes-workflow-node-label { font-size: .82rem; font-weight: 650; }
+.hermes-workflow-node-count { color: var(--workflow-muted); font-size: .7rem; margin-top: .25rem; }
+.hermes-workflow-detail { background: var(--background); border-left: 1px solid var(--workflow-border); box-shadow: -8px 0 28px color-mix(in srgb, var(--foreground) 8%, transparent); max-width: 32rem; min-height: 100%; overflow-y: auto; padding: 1rem 1.15rem; position: fixed; right: 0; top: 0; width: min(32rem, 100vw); z-index: 20; }
+.hermes-workflow-detail-header { border-bottom: 1px solid var(--workflow-border); padding-bottom: .75rem; }
+.hermes-workflow-detail-body { padding-top: 1.2rem; }
+.hermes-workflow-identity h2 { font-size: 1.1rem; margin-top: .25rem; overflow-wrap: anywhere; }
+.hermes-workflow-identity dl { display: grid; gap: .5rem; margin: 1rem 0 0; }
+.hermes-workflow-identity dl > div { align-items: baseline; display: flex; gap: 1rem; justify-content: space-between; }
+.hermes-workflow-identity dt { color: var(--workflow-muted); font-size: .75rem; }
+.hermes-workflow-identity dd { font-size: .8rem; margin: 0; max-width: 65%; overflow-wrap: anywhere; text-align: right; }
+.hermes-workflow-timeline { margin-top: 1.6rem; }
+.hermes-workflow-timeline h3 { font-size: .92rem; margin-bottom: .85rem; }
+.hermes-workflow-timeline ol { list-style: none; margin: 0; padding: 0; }
+.hermes-workflow-timeline-row { display: flex; gap: .7rem; min-height: 4.4rem; position: relative; }
+.hermes-workflow-timeline-row:not(:last-child)::before { background: var(--workflow-border); content: ""; left: .24rem; position: absolute; top: .75rem; bottom: 0; width: 1px; }
+.hermes-workflow-timeline-dot { background: var(--primary); border: 3px solid var(--background); border-radius: 50%; box-shadow: 0 0 0 1px var(--primary); flex: 0 0 .55rem; height: .55rem; margin-top: .25rem; position: relative; z-index: 1; }
+.hermes-workflow-timeline-body { min-width: 0; }
+.hermes-workflow-timeline-heading { align-items: baseline; display: flex; gap: .7rem; justify-content: space-between; }
+.hermes-workflow-timeline-heading strong { font-size: .78rem; }
+.hermes-workflow-timeline-heading time { color: var(--workflow-muted); font-size: .68rem; white-space: nowrap; }
+.hermes-workflow-timeline-body p { font-size: .75rem; line-height: 1.4; margin-top: .25rem !important; }
+.hermes-workflow-timeline-skeleton { padding-top: 1.3rem; }
+.hermes-workflow-timeline-skeleton .hermes-workflow-skeleton-line { width: 100%; }
+.hermes-workflow-timeline-skeleton .hermes-workflow-skeleton-line.short { width: 60%; }
+
+@media (max-width: 600px) {
+  .hermes-workflow { padding: 1rem; }
+  .hermes-workflow-header { align-items: flex-start; }
+  .hermes-workflow-header h1 { font-size: 1.4rem; }
+  .hermes-workflow-toolbar { align-items: flex-start; flex-direction: column; }
+  .hermes-workflow-column,
+  .hermes-workflow-skeleton-column { flex-basis: calc(100vw - 2.2rem); }
+  .hermes-workflow-graph { height: 55vh; min-height: 19rem; }
+  .hermes-workflow-detail { padding: .8rem; }
+}
