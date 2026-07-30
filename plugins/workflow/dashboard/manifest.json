@@ -1,0 +1,14 @@
+{
+  "name": "workflow",
+  "label": "Workflow",
+  "description": "Workflow instances, stage progress, and human action queue",
+  "icon": "GitBranch",
+  "version": "1.0.0",
+  "tab": {
+    "path": "/workflow",
+    "position": "after:kanban"
+  },
+  "slots": [],
+  "entry": "dist/index.js",
+  "api": "plugin_api.py"
+}
