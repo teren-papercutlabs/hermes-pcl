@@ -17,6 +17,15 @@ import React, {
   useContext,
   createContext,
 } from "react";
+import "@xyflow/react/dist/style.css";
+import {
+  Background as FlowBackground,
+  Controls as FlowControls,
+  Handle as FlowHandle,
+  Position as FlowPosition,
+  ReactFlow,
+  ReactFlowProvider,
+} from "@xyflow/react";
 import { api, fetchJSON } from "@/lib/api";
 import { cn, timeAgo, isoTimeAgo } from "@/lib/utils";
 import { Badge } from "@nous-research/ui/ui/components/badge";
@@ -142,6 +151,16 @@ export function exposePluginSDK() {
 
     // Utilities
     utils: { cn, timeAgo, isoTimeAgo },
+
+    // React Flow primitives — dashboard plugins use the host's React copy.
+    flow: {
+      ReactFlow,
+      ReactFlowProvider,
+      Background: FlowBackground,
+      Controls: FlowControls,
+      Handle: FlowHandle,
+      Position: FlowPosition,
+    },
 
     // Hooks
     useI18n,
