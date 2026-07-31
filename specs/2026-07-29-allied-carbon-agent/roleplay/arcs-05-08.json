@@ -1,0 +1,699 @@
+{
+  "campaign": "rp1",
+  "unit": "u2",
+  "answer_key_locked_before_execution": true,
+  "arcs": [
+    {
+      "id": "RP1-A05",
+      "coverage_tags": [
+        "duplicate_message_id",
+        "forwarded_duplicate",
+        "content_dedupe",
+        "superseded_noop"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Rhea Lim",
+          "company": "Allied Freight Services",
+          "voice": "methodical export-desk operator; writes in clipped paragraphs and keeps identifiers visible"
+        },
+        "carrier": {
+          "name": "Arun Mehta",
+          "company": "Meridian Line Documentation Desk",
+          "voice": "polite but hurried carrier coordinator; includes operational specifics and occasional shorthand"
+        },
+        "itos_state": {
+          "job_no": "RP1-JOB-0501",
+          "container_no": "MSCU0501001",
+          "gate_in": "not_gate_in",
+          "source": "state_poll"
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "job",
+          "entity_key": "job:RP1-JOB-0501",
+          "step": "await_pickup",
+          "corr": {
+            "job_no": "RP1-JOB-0501",
+            "booking_ref": "RP1-BKG-0501",
+            "container_no": "MSCU0501001",
+            "bill_of_lading": "RP1-BL-0501"
+          },
+          "vars": {
+            "customer": "Northstar Home Goods",
+            "direction": "export",
+            "vessel": "MV Meridian Dawn",
+            "pickup_status": "awaiting_advice"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+          "from_display": "Arun Mehta - Meridian Line Documentation Desk",
+          "subject": "[RP1-A05] Pickup advice - JOB-0501 / BL RP1-BL-0501",
+          "body": "Hi Rhea,\n\nPickup advice for RP1-JOB-0501 below. The empty box MSCU0501001 was collected from the depot this morning against booking RP1-BKG-0501, seal MS0501A, for MV Meridian Dawn, voyage MD118E. Please use the booking reference rather than the customer's internal PO when you log the movement.\n\nThe trucker confirmed the box and seal at 09:18, although the depot receipt says 09:16 - nothing operationally different, just a two-minute paperwork mismatch. We will send the EIR when the driver returns. Pls acknowledge receipt so the export desk does not chase this twice.\n\nRegards,\nArun",
+          "answer_key": {
+            "event_type": "pickup_advice",
+            "payload": {
+              "job_no": "RP1-JOB-0501",
+              "booking_ref": "RP1-BKG-0501",
+              "container_no": "MSCU0501001",
+              "seal_no": "MS0501A",
+              "pickup_status": "collected",
+              "vessel": "MV Meridian Dawn",
+              "voyage": "MD118E",
+              "content_key": "RP1-A05-PICKUP-0501",
+              "source_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0501",
+              "job_no": "RP1-JOB-0501",
+              "booking_ref": "RP1-BKG-0501",
+              "container_no": "MSCU0501001",
+              "normalized_content_key": "RP1-A05-PICKUP-0501"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "job:RP1-JOB-0501"
+            },
+            "agent_action": {
+              "kind": "resume",
+              "action": {
+                "transition": "apply pickup_advice once",
+                "next_step": "create_job",
+                "intake_record": "primary message"
+              },
+              "constraints": [
+                "dedupe on the exact source Message-ID",
+                "retain booking and container correlation fields",
+                "do not create a second workflow instance"
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+          "from_display": "Rhea Lim - Allied Export Desk",
+          "subject": "[RP1-A05] Fwd: Pickup advice - JOB-0501 / duplicate received",
+          "body": "Arun's note landed in my inbox after I had already asked the line desk to resend it, so forwarding the copy here for the record. The freight text is unchanged; please do not open another job or send a second acknowledgement.\n\n---------- Forwarded message ----------\nFrom: Arun Mehta - Meridian Line Documentation Desk\nMessage-ID: <rp1-a05-original-0501@rp1.synthetic.test>\nSubject: Pickup advice - JOB-0501 / BL RP1-BL-0501\n\nPickup advice for RP1-JOB-0501: empty container MSCU0501001 collected against booking RP1-BKG-0501, seal MS0501A, vessel MV Meridian Dawn, voyage MD118E. Driver confirmation was 09:18 and the depot receipt was 09:16.\n\nThanks,\nRhea",
+          "answer_key": {
+            "event_type": "pickup_advice",
+            "payload": {
+              "job_no": "RP1-JOB-0501",
+              "booking_ref": "RP1-BKG-0501",
+              "container_no": "MSCU0501001",
+              "seal_no": "MS0501A",
+              "pickup_status": "collected",
+              "vessel": "MV Meridian Dawn",
+              "voyage": "MD118E",
+              "content_key": "RP1-A05-PICKUP-0501",
+              "copy_kind": "forwarded_duplicate",
+              "duplicate_of_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0501",
+              "job_no": "RP1-JOB-0501",
+              "booking_ref": "RP1-BKG-0501",
+              "container_no": "MSCU0501001",
+              "forwarded_original_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+              "normalized_content_key": "RP1-A05-PICKUP-0501"
+            },
+            "correlation": {
+              "verdict": "superseded",
+              "target": "job:RP1-JOB-0501"
+            },
+            "agent_action": {
+              "kind": "no_action",
+              "action": {
+                "result": "keep the first intake only",
+                "record": "forwarded copy marked superseded",
+                "external_send": "none"
+              },
+              "constraints": [
+                "do not apply a second transition",
+                "do not create a second task or job",
+                "preserve both envelope Message-IDs for audit"
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "entity_key": "job:RP1-JOB-0501",
+        "intake_count": 1,
+        "primary_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+        "forwarded_message_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+        "forwarded_status": "superseded",
+        "transition_count": 1,
+        "external_send_count": 0,
+        "workflow_state": "advancing",
+        "current_step": "create_job"
+      }
+    },
+    {
+      "id": "RP1-A06",
+      "coverage_tags": [
+        "mid_thread_correction",
+        "bill_of_lading_change",
+        "contradiction",
+        "needs_review_no_silent_overwrite"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Rhea Lim",
+          "company": "Allied Freight Services",
+          "voice": "careful export-desk operator who quotes the old value when correcting a live thread"
+        },
+        "carrier": {
+          "name": "Nadia Koh",
+          "company": "Pacific Meridian Shipping",
+          "voice": "brief documentation contact; corrects reference numbers after the line reissues paperwork"
+        },
+        "itos_state": {
+          "job_no": "RP1-JOB-0601",
+          "container_no": "TGHU0601006",
+          "bill_of_lading": "RP1-BL-0601",
+          "source": "state_poll"
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "job",
+          "entity_key": "job:RP1-JOB-0601",
+          "step": "ingest",
+          "corr": {
+            "job_no": "RP1-JOB-0601",
+            "booking_ref": "RP1-BKG-0601",
+            "container_no": "TGHU0601006",
+            "bill_of_lading": "RP1-BL-0601"
+          },
+          "vars": {
+            "customer": "Cedar & Finch Retail",
+            "direction": "export",
+            "vessel": "MV Eastern Lantern",
+            "bill_of_lading_status": "initial_reference"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+          "from_display": "Nadia Koh - Pacific Meridian Shipping",
+          "subject": "[RP1-A06] Booking paperwork - JOB-0601 / BL RP1-BL-0601",
+          "body": "Hi Rhea,\n\nPlease use the attached booking paperwork for RP1-JOB-0601. The line's bill of lading reference is RP1-BL-0601, booking RP1-BKG-0601, container TGHU0601006, and vessel MV Eastern Lantern, voyage EL204W. Cargo is three pallets of homeware for Cedar & Finch Retail; the booking is export and ready for the pickup-advice stage.\n\nThere is no change to the consignee or sailing cut-off in this note. I am sending the reference now because the PDF footer is still being regenerated by documentation. If your tracker needs a single BL value, use RP1-BL-0601 for this thread until I say otherwise.\n\nRegards,\nNadia",
+          "answer_key": {
+            "event_type": "booking_instruction",
+            "payload": {
+              "job_no": "RP1-JOB-0601",
+              "booking_ref": "RP1-BKG-0601",
+              "container_no": "TGHU0601006",
+              "bill_of_lading": "RP1-BL-0601",
+              "bill_of_lading_status": "initial_reference",
+              "vessel": "MV Eastern Lantern",
+              "voyage": "EL204W",
+              "customer": "Cedar & Finch Retail",
+              "direction": "export"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0601",
+              "job_no": "RP1-JOB-0601",
+              "booking_ref": "RP1-BKG-0601",
+              "container_no": "TGHU0601006",
+              "bill_of_lading": "RP1-BL-0601"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "job:RP1-JOB-0601"
+            },
+            "agent_action": {
+              "kind": "propose",
+              "action": {
+                "operation": "record booking instruction",
+                "bill_of_lading_candidate": "RP1-BL-0601",
+                "advance_candidate": "await_pickup"
+              },
+              "constraints": [
+                "treat the BL as a candidate until the carrier thread settles",
+                "retain the original email as the first statement",
+                "do not send a customer-facing document from this intake alone"
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>",
+          "from_display": "Nadia Koh - Pacific Meridian Shipping",
+          "subject": "[RP1-A06] Re: Booking paperwork - actually the BL changed - JOB-0601",
+          "body": "Small but important correction to my note below - actually the BL changed. The line re-issued the bill of lading as RP1-BL-0601B for the same booking RP1-BKG-0601 and container TGHU0601006.\n\nPlease do not silently overwrite RP1-BL-0601 in the tracker. I have pasted the old reference here so the contradiction stays visible: \"The line's bill of lading reference is RP1-BL-0601.\" The new PDF is the controlling carrier document, but our customer notice and any ITOS-facing payload should wait until someone reviews the old-versus-new pair. Sorry, sent too quickly - documentation changed after my first mail.",
+          "answer_key": {
+            "event_type": "bill_of_lading_correction",
+            "payload": {
+              "job_no": "RP1-JOB-0601",
+              "booking_ref": "RP1-BKG-0601",
+              "container_no": "TGHU0601006",
+              "prior_bill_of_lading": "RP1-BL-0601",
+              "new_bill_of_lading": "RP1-BL-0601B",
+              "correction_phrase": "actually the BL changed",
+              "same_booking": true,
+              "requested_handling": "do_not_silent_overwrite",
+              "reason": "carrier reissued documentation"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0601",
+              "job_no": "RP1-JOB-0601",
+              "booking_ref": "RP1-BKG-0601",
+              "container_no": "TGHU0601006",
+              "in_reply_to_message_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+              "prior_bill_of_lading": "RP1-BL-0601",
+              "new_bill_of_lading": "RP1-BL-0601B"
+            },
+            "correlation": {
+              "verdict": "needs_review",
+              "target": "job:RP1-JOB-0601"
+            },
+            "agent_action": {
+              "kind": "review",
+              "action": {
+                "operation": "hold the BL change for human review",
+                "compare": [
+                  "RP1-BL-0601",
+                  "RP1-BL-0601B"
+                ],
+                "recommended_next_step": "confirm the new carrier PDF before committing the replacement"
+              },
+              "constraints": [
+                "do not silently replace the stored BL",
+                "do not advance on the correction alone",
+                "keep the contradiction and both source Message-IDs in the review record",
+                "no customer-facing send until review resolves"
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "entity_key": "job:RP1-JOB-0601",
+        "workflow_state": "needs_review",
+        "current_step": "ingest",
+        "committed_bill_of_lading": "RP1-BL-0601",
+        "candidate_bill_of_lading": "RP1-BL-0601B",
+        "contradiction": true,
+        "silent_overwrite": false,
+        "customer_send_count": 0,
+        "review_reason": "mid-thread carrier correction changed the BL reference"
+      }
+    },
+    {
+      "id": "RP1-A07",
+      "coverage_tags": [
+        "chase",
+        "angry_customer_escalation",
+        "urgency_extraction",
+        "tone_extraction",
+        "proposed_reply",
+        "no_autonomous_send"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Rhea Lim",
+          "company": "Allied Freight Services",
+          "voice": "calm under pressure; turns an escalation into a bounded draft and a named internal owner"
+        },
+        "carrier": {
+          "name": "Arun Mehta",
+          "company": "Meridian Line Documentation Desk",
+          "voice": "operational carrier contact who is slow to confirm a roll-over and uses short status notes"
+        },
+        "itos_state": {
+          "job_no": "RP1-JOB-0701",
+          "container_no": "MSCU0701007",
+          "vessel_status": "rollover_risk",
+          "source": "state_poll"
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "job",
+          "entity_key": "job:RP1-JOB-0701",
+          "step": "await_pickup",
+          "corr": {
+            "job_no": "RP1-JOB-0701",
+            "booking_ref": "RP1-BKG-0701",
+            "container_no": "MSCU0701007"
+          },
+          "vars": {
+            "customer": "Blue Arc Retail",
+            "direction": "export",
+            "vessel": "MV Coral Wind",
+            "customer_cutoff": "2026-07-31T15:00:00+08:00",
+            "urgency": "normal"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+          "from_display": "Arun Mehta - Meridian Line Documentation Desk",
+          "subject": "[RP1-A07] Roll-over risk - JOB-0701 / vessel cut-off missed",
+          "body": "Hi Rhea,\n\nBad news on RP1-JOB-0701. The truck arrived after the terminal receiving window and MSCU0701007 did not make the planned gate sequence for MV Coral Wind, voyage CW311N. The booking RP1-BKG-0701 is still visible, but the line has not confirmed the next sailing yet.\n\nCurrent estimate is a roll-over to the next available departure, with a possible four-day slip. I am checking space with the planning desk and will come back with a vessel name, not just a generic \"pending carrier confirmation\". Please do not tell the customer that space is secured until I confirm it in writing.\n\nRegards,\nArun",
+          "answer_key": {
+            "event_type": "carrier_delay_notice",
+            "payload": {
+              "job_no": "RP1-JOB-0701",
+              "booking_ref": "RP1-BKG-0701",
+              "container_no": "MSCU0701007",
+              "vessel": "MV Coral Wind",
+              "voyage": "CW311N",
+              "delay_type": "rollover_risk",
+              "estimated_slip_days": 4,
+              "confirmation_status": "next_sailing_unconfirmed",
+              "customer_notice": "do_not_claim_space_is_secured"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0701",
+              "job_no": "RP1-JOB-0701",
+              "booking_ref": "RP1-BKG-0701",
+              "container_no": "MSCU0701007"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "job:RP1-JOB-0701"
+            },
+            "agent_action": {
+              "kind": "park",
+              "action": {
+                "state": "await_carrier_confirmation",
+                "watch_for": "named next vessel and confirmed space",
+                "customer_send": "not yet"
+              },
+              "constraints": [
+                "do not promise a replacement sailing",
+                "keep the four-day estimate labelled as provisional",
+                "retain the carrier's request for a written confirmation"
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+          "from_display": "Rhea Lim - Allied Export Desk",
+          "subject": "[RP1-A07] Re: Roll-over risk - JOB-0701 / update?",
+          "body": "Arun,\n\nChasing this - any confirmed vessel or space yet? Customer cutoff is 15:00 SGT and I need a real answer, not another pending note. Pls revert asap.\n\nRhea",
+          "answer_key": {
+            "event_type": "status_chase",
+            "payload": {
+              "job_no": "RP1-JOB-0701",
+              "booking_ref": "RP1-BKG-0701",
+              "chase_target": "confirmed replacement vessel and space",
+              "deadline": "2026-07-31T15:00:00+08:00",
+              "urgency": "high",
+              "tone": "terse_urgent"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0701",
+              "job_no": "RP1-JOB-0701",
+              "booking_ref": "RP1-BKG-0701",
+              "in_reply_to_message_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "job:RP1-JOB-0701"
+            },
+            "agent_action": {
+              "kind": "park",
+              "action": {
+                "state": "chase_open",
+                "deadline": "2026-07-31T15:00:00+08:00",
+                "required_evidence": "carrier confirmation with vessel and space"
+              },
+              "constraints": [
+                "do not convert the chase into a customer promise",
+                "surface the deadline to the escalation owner",
+                "do not send an autonomous external reply"
+              ]
+            }
+          }
+        },
+        {
+          "step": 3,
+          "message_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>",
+          "from_display": "Maya D'Souza - Blue Arc Retail Customer Operations",
+          "subject": "[RP1-A07] URGENT: customer escalation - JOB-0701 must move today",
+          "body": "Rhea,\n\nThis is now an escalation, not a routine status check. We were told this export was moving on MV Coral Wind and our receiving team has booked labour around that date. Your last note says the box may roll four days, but it gives us no replacement vessel, no confirmed space, and no answer we can pass to our buyer.\n\nWe need a concrete recovery plan before 15:00 Singapore time today. If the carrier cannot protect the next sailing, say that plainly and tell us what alternative you are actually securing. Please stop sending \"checking\" updates with no owner or time. I am very frustrated that the same booking has reached this point without a firm answer, and I will copy procurement if we miss the cutoff again.\n\nPlease acknowledge this escalation and come back with the carrier owner, the next decision time, and the customer-facing wording. Do not close this as resolved on a provisional ETA.",
+          "answer_key": {
+            "event_type": "customer_escalation",
+            "payload": {
+              "job_no": "RP1-JOB-0701",
+              "booking_ref": "RP1-BKG-0701",
+              "container_no": "MSCU0701007",
+              "vessel": "MV Coral Wind",
+              "urgency": "critical",
+              "tone": "angry",
+              "customer_impact": "receiving labour and buyer commitment depend on the sailing date",
+              "customer_deadline": "2026-07-31T15:00:00+08:00",
+              "requested_resolution": "concrete recovery plan with carrier owner and decision time",
+              "escalation_threat": "copy procurement if cutoff is missed again"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0701",
+              "job_no": "RP1-JOB-0701",
+              "booking_ref": "RP1-BKG-0701",
+              "container_no": "MSCU0701007",
+              "thread_parent_message_id": "<rp1-a07-chase-0701@rp1.synthetic.test>"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "job:RP1-JOB-0701"
+            },
+            "agent_action": {
+              "kind": "propose",
+              "action": {
+                "state": "needs_human_review_before_send",
+                "escalate_to": "Allied export lead and Meridian Line planning desk",
+                "decision_time": "2026-07-31T14:30:00+08:00",
+                "reply_draft": "Maya, we have escalated RP1-JOB-0701 to the carrier planning desk and are holding the customer update until we have a confirmed vessel or a named recovery option. We will return by 15:00 SGT with the carrier owner, the next decision time, and the exact plan; we will not describe a provisional ETA as resolved.",
+                "send_status": "proposed_not_sent"
+              },
+              "constraints": [
+                "no_autonomous_send",
+                "human must approve the reply wording and escalation recipients",
+                "do not promise space, vessel, or delivery date without carrier evidence",
+                "keep the angry tone as an urgency signal, not as language to mirror"
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "entity_key": "job:RP1-JOB-0701",
+        "workflow_state": "needs_review",
+        "current_step": "await_carrier_confirmation",
+        "urgency": "critical",
+        "tone": "angry",
+        "deadline": "2026-07-31T15:00:00+08:00",
+        "proposed_reply_status": "proposed_not_sent",
+        "autonomous_send": false,
+        "escalation_owner": "Allied export lead and Meridian Line planning desk",
+        "required_next_evidence": "confirmed replacement vessel and protected space"
+      }
+    },
+    {
+      "id": "RP1-A08",
+      "coverage_tags": [
+        "itos_state_mismatch",
+        "email_claim_gate_in",
+        "state_poll_not_gate_in",
+        "needs_review",
+        "exception_proposal"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Rhea Lim",
+          "company": "Allied Freight Services",
+          "voice": "records external claims but refuses to invoice or notify on a stale system state"
+        },
+        "carrier": {
+          "name": "Dev Patel",
+          "company": "Harbor Pacific Terminal Liaison",
+          "voice": "confident terminal update with an EIR reference and a request to proceed"
+        },
+        "itos_state": {
+          "job_no": "RP1-JOB-0801",
+          "container_no": "TGHU0808008",
+          "gate_in": "not_gate_in",
+          "last_known_state": "container_assigned",
+          "source": "state_poll"
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "job",
+          "entity_key": "job:RP1-JOB-0801",
+          "step": "await_gatein",
+          "corr": {
+            "job_no": "RP1-JOB-0801",
+            "booking_ref": "RP1-BKG-0801",
+            "container_no": "TGHU0808008"
+          },
+          "vars": {
+            "customer": "Lattice Kitchenware",
+            "direction": "export",
+            "vessel": "MV Southern Star",
+            "gate_in_status": "awaiting_state_confirmation"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+          "from_display": "Dev Patel - Harbor Pacific Terminal Liaison",
+          "subject": "[RP1-A08] Gate-in confirmed - JOB-0801 / TGHU0808008",
+          "body": "Hi Rhea,\n\nConfirming that container TGHU0808008 for RP1-JOB-0801 and booking RP1-BKG-0801 gated in at Harbor Pacific Terminal at 16:42 yesterday, against MV Southern Star, voyage SS402E. The terminal desk gave us EIR HP-0801-1642 and marked the box accepted for the export stack.\n\nPlease update your file as gate-in complete and proceed with the normal completable-job check. I know ITOS can lag the terminal feed, but this is the signed terminal confirmation we received. If the system still says container assigned, flag that back rather than treating this email as missing.\n\nRegards,\nDev",
+          "answer_key": {
+            "event_type": "gate_in_notice",
+            "payload": {
+              "job_no": "RP1-JOB-0801",
+              "booking_ref": "RP1-BKG-0801",
+              "container_no": "TGHU0808008",
+              "gate_in_claim": "gate_in",
+              "gate_in_at": "2026-07-30T16:42:00+08:00",
+              "terminal": "Harbor Pacific Terminal",
+              "eir_reference": "HP-0801-1642",
+              "vessel": "MV Southern Star",
+              "voyage": "SS402E",
+              "source_claim": "carrier_email"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0801",
+              "job_no": "RP1-JOB-0801",
+              "booking_ref": "RP1-BKG-0801",
+              "container_no": "TGHU0808008",
+              "eir_reference": "HP-0801-1642"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "job:RP1-JOB-0801"
+            },
+            "agent_action": {
+              "kind": "park",
+              "action": {
+                "state": "await_state_confirmation",
+                "required_check": "ITOS gate-in state poll",
+                "external_mutation": "none"
+              },
+              "constraints": [
+                "record the email claim without treating it as ITOS truth",
+                "do not invoice or mark the job completable from the email alone",
+                "retain the EIR reference for the exception review"
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "<rp1-a08-forward-0801@rp1.synthetic.test>",
+          "from_display": "Rhea Lim - Allied Export Desk",
+          "subject": "[RP1-A08] Fwd: Gate-in confirmed - JOB-0801 / verify ITOS first",
+          "body": "Forwarding Dev's gate-in note to the export queue. It says the box was accepted and gives EIR HP-0801-1642, but I have not changed the job to completable because the last ITOS view still showed container assigned.\n\n---------- Forwarded message ----------\nFrom: Dev Patel - Harbor Pacific Terminal Liaison\nMessage-ID: <rp1-a08-carrier-gatein-0801@rp1.synthetic.test>\nSubject: Gate-in confirmed - JOB-0801 / TGHU0808008\n\nTGHU0808008 for RP1-JOB-0801 and booking RP1-BKG-0801 gated in at Harbor Pacific Terminal at 16:42 yesterday. EIR HP-0801-1642. Please update the file as gate-in complete, but flag it back if ITOS still says container assigned.\n\nPlease run the state check before any invoice or customer confirmation. The email claim and the system state must agree first.",
+          "answer_key": {
+            "event_type": "gate_in_claim_forward",
+            "payload": {
+              "job_no": "RP1-JOB-0801",
+              "booking_ref": "RP1-BKG-0801",
+              "container_no": "TGHU0808008",
+              "gate_in_claim": "gate_in",
+              "eir_reference": "HP-0801-1642",
+              "forwarded_from_message_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+              "required_validation": "ITOS state poll before invoice or customer confirmation"
+            },
+            "corr": {
+              "entity_key": "job:RP1-JOB-0801",
+              "job_no": "RP1-JOB-0801",
+              "booking_ref": "RP1-BKG-0801",
+              "container_no": "TGHU0808008",
+              "eir_reference": "HP-0801-1642"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "job:RP1-JOB-0801"
+            },
+            "agent_action": {
+              "kind": "review",
+              "action": {
+                "state": "awaiting_cross_source_check",
+                "check": "compare carrier_email gate_in claim with state_poll result",
+                "external_mutation": "none"
+              },
+              "constraints": [
+                "do not silently choose the email over ITOS",
+                "do not silently choose ITOS over the carrier evidence",
+                "hold invoice and customer confirmation until the mismatch is resolved"
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [
+        {
+          "source": "state_poll",
+          "polled_at": "2026-07-31T08:45:00+08:00",
+          "target": "RP1-JOB-0801",
+          "entity_key": "job:RP1-JOB-0801",
+          "request": {
+            "job_no": "RP1-JOB-0801",
+            "container_no": "TGHU0808008",
+            "field": "gate_in"
+          },
+          "result": {
+            "job_no": "RP1-JOB-0801",
+            "container_no": "TGHU0808008",
+            "status": "not_gate_in",
+            "gate_in": false,
+            "last_known_state": "container_assigned",
+            "last_updated": "2026-07-31T08:42:11+08:00"
+          },
+          "expected": {
+            "verdict": "mismatch",
+            "email_claim": "gate_in",
+            "state_poll": "not_gate_in",
+            "agent_action": "needs_review_exception_proposal"
+          }
+        }
+      ],
+      "expected_final": {
+        "entity_key": "job:RP1-JOB-0801",
+        "workflow_state": "needs_review",
+        "current_step": "await_gatein",
+        "email_claim": "gate_in",
+        "state_poll_result": "not_gate_in",
+        "mismatch": true,
+        "exception_proposal": {
+          "reason": "carrier email claims gate-in but ITOS state poll reports not_gate_in",
+          "hold_actions": [
+            "invoice",
+            "customer_confirmation",
+            "completable_transition"
+          ],
+          "required_owner": "Allied export lead",
+          "evidence_to_review": [
+            "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+            "HP-0801-1642"
+          ]
+        },
+        "autonomous_mutation": false
+      }
+    }
+  ]
+}
