@@ -1,7 +1,7 @@
 {
   "arc_counts": {
-    "evidence-limited": 0,
-    "fail": 12,
+    "evidence-limited": 3,
+    "fail": 9,
     "pass": 0
   },
   "arcs": [
@@ -12,17 +12,18 @@
           "logical_message_id": "rpa01-001@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "resume",
                   "observed": null,
@@ -42,17 +43,10 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
-                {
-                  "expected": "RP1-JOB-0101",
-                  "observed": "job:RP1-JOB-0101",
-                  "path": "correlation.target"
-                },
                 {
                   "expected": {
                     "customer": "Northstar Foods Pte Ltd"
@@ -66,6 +60,11 @@
                   "expected": "matched",
                   "observed": "matched",
                   "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0101",
+                  "observed": "job:RP1-JOB-0101",
+                  "path": "correlation.target"
                 },
                 {
                   "expected": "deterministic",
@@ -162,18 +161,18 @@
           "extraction_disposition": "classified",
           "logical_message_id": "rpa01-002@rp1.synthetic.test",
           "miss_taxonomy": [
-            "extraction",
-            "correlation",
-            "decision"
+            "extraction"
           ],
           "section_status": {
-            "action": "fail",
-            "correlation": "fail",
+            "action": "evidence-limited",
+            "correlation": "evidence-limited",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "no_action",
                   "observed": null,
@@ -193,23 +192,20 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
-              "failed": [
-                {
-                  "expected": "RP1-JOB-0101",
-                  "observed": "job:RP1-JOB-0101",
-                  "path": "correlation.target"
-                }
-              ],
+              "failed": [],
               "matched": [
                 {
                   "expected": "superseded",
                   "observed": "superseded",
                   "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0101",
+                  "observed": "job:RP1-JOB-0101",
+                  "path": "correlation.target"
                 },
                 {
                   "expected": "deterministic",
@@ -308,23 +304,44 @@
       ],
       "expected_final": {
         "comparison": {
-          "failed": [
+          "failed": [],
+          "matched": [
             {
-              "expected": {
-                "RP1-JOB-0101": {
-                  "last_event_effect": "applied_once",
-                  "pickup_reference": "PM-REL-8841",
-                  "state": "advancing",
-                  "step": "create_job"
-                },
-                "RP1-JOB-0102": {
-                  "changed_by_arc": false,
-                  "state": "parked",
-                  "step": "await_vgm"
-                }
-              },
+              "expected": "create_job",
+              "observed": "create_job",
+              "path": "expected_final.jobs.RP1-JOB-0101.step"
+            },
+            {
+              "expected": "advancing",
+              "observed": "advancing",
+              "path": "expected_final.jobs.RP1-JOB-0101.state"
+            },
+            {
+              "expected": "await_vgm",
+              "observed": "await_vgm",
+              "path": "expected_final.jobs.RP1-JOB-0102.step"
+            },
+            {
+              "expected": "parked",
+              "observed": "parked",
+              "path": "expected_final.jobs.RP1-JOB-0102.state"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "PM-REL-8841",
               "observed": null,
-              "path": "expected_final.jobs"
+              "path": "expected_final.jobs.RP1-JOB-0101.pickup_reference"
+            },
+            {
+              "expected": "applied_once",
+              "observed": null,
+              "path": "expected_final.jobs.RP1-JOB-0101.last_event_effect"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.jobs.RP1-JOB-0102.changed_by_arc"
             },
             {
               "expected": "RP1-JOB-0101_only",
@@ -336,11 +353,9 @@
               "observed": null,
               "path": "expected_final.duplicate_transition_count"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
-        "status": "fail"
+        "status": "evidence-limited"
       },
       "id": "RP1-A01",
       "state_probes": []
@@ -351,17 +366,18 @@
           "extraction_disposition": "classified",
           "logical_message_id": "rpa02-001@rp1.synthetic.test",
           "miss_taxonomy": [
-            "extraction",
-            "decision"
+            "extraction"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "evidence-limited",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "park",
                   "observed": null,
@@ -381,9 +397,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [],
@@ -477,17 +491,18 @@
           "logical_message_id": "rpa02-002@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "resume",
                   "observed": null,
@@ -507,9 +522,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -660,25 +673,29 @@
         "comparison": {
           "failed": [
             {
+              "expected": "create_job",
+              "observed": "ingest",
+              "path": "expected_final.step"
+            }
+          ],
+          "matched": [
+            {
               "expected": "RP1-JOB-0201",
-              "observed": null,
+              "observed": "RP1-JOB-0201",
               "path": "expected_final.instance"
             },
             {
               "expected": "job:RP1-JOB-0201",
-              "observed": null,
+              "observed": "job:RP1-JOB-0201",
               "path": "expected_final.entity_key"
             },
             {
-              "expected": "create_job",
-              "observed": null,
-              "path": "expected_final.step"
-            },
-            {
               "expected": "advancing",
-              "observed": null,
+              "observed": "advancing",
               "path": "expected_final.state"
-            },
+            }
+          ],
+          "unobservable": [
             {
               "expected": "applied",
               "observed": null,
@@ -699,9 +716,7 @@
               "observed": null,
               "path": "expected_final.new_job_created_by"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -715,17 +730,18 @@
           "logical_message_id": "rpa03-001@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "review",
                   "observed": null,
@@ -745,9 +761,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -860,17 +874,18 @@
           "logical_message_id": "rpa03-002@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "review",
                   "observed": null,
@@ -890,9 +905,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -1009,21 +1022,29 @@
         "comparison": {
           "failed": [
             {
-              "expected": {
-                "rpa03-001@rp1.synthetic.test": "ambiguous",
-                "rpa03-002@rp1.synthetic.test": "ambiguous"
-              },
-              "observed": null,
-              "path": "expected_final.event_status"
+              "expected": "ambiguous",
+              "observed": "routed_out",
+              "path": "expected_final.event_status.rpa03-002@rp1.synthetic.test"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "ambiguous",
+              "observed": "ambiguous",
+              "path": "expected_final.event_status.rpa03-001@rp1.synthetic.test"
             },
             {
-              "expected": {
-                "RP1-JOB-0301": "parked",
-                "RP1-JOB-0302": "parked"
-              },
-              "observed": null,
-              "path": "expected_final.instance_state"
+              "expected": "parked",
+              "observed": "parked",
+              "path": "expected_final.instance_state.RP1-JOB-0301"
             },
+            {
+              "expected": "parked",
+              "observed": "parked",
+              "path": "expected_final.instance_state.RP1-JOB-0302"
+            }
+          ],
+          "unobservable": [
             {
               "expected": true,
               "observed": null,
@@ -1047,9 +1068,7 @@
               "observed": null,
               "path": "expected_final.external_side_effects"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -1063,17 +1082,18 @@
           "logical_message_id": "rpa04-001@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "park",
                   "observed": null,
@@ -1093,17 +1113,10 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
-                {
-                  "expected": "RP1-JOB-0401",
-                  "observed": "job:RP1-JOB-0401",
-                  "path": "correlation.target"
-                },
                 {
                   "expected": "await_vgm",
                   "observed": null,
@@ -1120,6 +1133,11 @@
                   "expected": "buffered",
                   "observed": "buffered",
                   "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0401",
+                  "observed": "job:RP1-JOB-0401",
+                  "path": "correlation.target"
                 },
                 {
                   "expected": "deterministic",
@@ -1205,17 +1223,18 @@
           "logical_message_id": "rpa04-002@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "resume",
                   "observed": null,
@@ -1235,17 +1254,10 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
-                {
-                  "expected": "RP1-JOB-0401",
-                  "observed": "job:RP1-JOB-0401",
-                  "path": "correlation.target"
-                },
                 {
                   "expected": "await_vgm",
                   "observed": null,
@@ -1267,6 +1279,11 @@
                   "expected": "matched",
                   "observed": "matched",
                   "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0401",
+                  "observed": "job:RP1-JOB-0401",
+                  "path": "correlation.target"
                 },
                 {
                   "expected": "deterministic",
@@ -1351,20 +1368,24 @@
         "comparison": {
           "failed": [
             {
+              "expected": "invoice",
+              "observed": "await_gatein",
+              "path": "expected_final.step"
+            }
+          ],
+          "matched": [
+            {
               "expected": "RP1-JOB-0401",
-              "observed": null,
+              "observed": "RP1-JOB-0401",
               "path": "expected_final.instance"
             },
             {
-              "expected": "invoice",
-              "observed": null,
-              "path": "expected_final.step"
-            },
-            {
               "expected": "advancing",
-              "observed": null,
+              "observed": "advancing",
               "path": "expected_final.state"
-            },
+            }
+          ],
+          "unobservable": [
             {
               "expected": {
                 "gross_mass_kg": 18640,
@@ -1396,9 +1417,7 @@
               "observed": null,
               "path": "expected_final.transition_order"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -1411,17 +1430,18 @@
           "extraction_disposition": "classified",
           "logical_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
           "miss_taxonomy": [
-            "extraction",
-            "decision"
+            "extraction"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "pass",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "resume",
                   "observed": null,
@@ -1448,9 +1468,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [],
@@ -1592,17 +1610,18 @@
           "extraction_disposition": "classified",
           "logical_message_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
           "miss_taxonomy": [
-            "extraction",
-            "decision"
+            "extraction"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "pass",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "no_action",
                   "observed": null,
@@ -1627,9 +1646,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [],
@@ -1785,12 +1802,25 @@
       ],
       "expected_final": {
         "comparison": {
-          "failed": [
+          "failed": [],
+          "matched": [
             {
               "expected": "job:RP1-JOB-0501",
-              "observed": null,
+              "observed": "job:RP1-JOB-0501",
               "path": "expected_final.entity_key"
             },
+            {
+              "expected": "advancing",
+              "observed": "advancing",
+              "path": "expected_final.workflow_state"
+            },
+            {
+              "expected": "create_job",
+              "observed": "create_job",
+              "path": "expected_final.current_step"
+            }
+          ],
+          "unobservable": [
             {
               "expected": 1,
               "observed": null,
@@ -1822,16 +1852,6 @@
               "path": "expected_final.external_send_count"
             },
             {
-              "expected": "advancing",
-              "observed": null,
-              "path": "expected_final.workflow_state"
-            },
-            {
-              "expected": "create_job",
-              "observed": null,
-              "path": "expected_final.current_step"
-            },
-            {
               "expected": "RP1-A05-PICKUP-0501",
               "observed": null,
               "path": "expected_final.normalized_content_key"
@@ -1846,11 +1866,9 @@
               "observed": null,
               "path": "expected_final.acknowledgement_status"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
-        "status": "fail"
+        "status": "evidence-limited"
       },
       "id": "RP1-A05",
       "state_probes": []
@@ -1862,17 +1880,18 @@
           "logical_message_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "propose",
                   "observed": null,
@@ -1898,9 +1917,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -2009,17 +2026,18 @@
           "logical_message_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "review",
                   "observed": null,
@@ -2047,9 +2065,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -2168,20 +2184,24 @@
         "comparison": {
           "failed": [
             {
+              "expected": "needs_review",
+              "observed": "advancing",
+              "path": "expected_final.workflow_state"
+            }
+          ],
+          "matched": [
+            {
               "expected": "job:RP1-JOB-0601",
-              "observed": null,
+              "observed": "job:RP1-JOB-0601",
               "path": "expected_final.entity_key"
             },
             {
-              "expected": "needs_review",
-              "observed": null,
-              "path": "expected_final.workflow_state"
-            },
-            {
               "expected": "ingest",
-              "observed": null,
+              "observed": "ingest",
               "path": "expected_final.current_step"
-            },
+            }
+          ],
+          "unobservable": [
             {
               "expected": "RP1-BL-0601B",
               "observed": null,
@@ -2230,9 +2250,7 @@
               "observed": null,
               "path": "expected_final.committed_change"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -2246,17 +2264,18 @@
           "logical_message_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "park",
                   "observed": null,
@@ -2280,9 +2299,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -2386,17 +2403,18 @@
           "logical_message_id": "<rp1-a07-chase-0701@rp1.synthetic.test>",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "park",
                   "observed": null,
@@ -2420,9 +2438,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -2509,17 +2525,18 @@
           "logical_message_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "propose",
                   "observed": null,
@@ -2546,9 +2563,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -2660,20 +2675,24 @@
         "comparison": {
           "failed": [
             {
-              "expected": "job:RP1-JOB-0701",
-              "observed": null,
-              "path": "expected_final.entity_key"
-            },
-            {
               "expected": "needs_review",
-              "observed": null,
+              "observed": "parked",
               "path": "expected_final.workflow_state"
             },
             {
               "expected": "await_carrier_confirmation",
-              "observed": null,
+              "observed": "await_pickup",
               "path": "expected_final.current_step"
-            },
+            }
+          ],
+          "matched": [
+            {
+              "expected": "job:RP1-JOB-0701",
+              "observed": "job:RP1-JOB-0701",
+              "path": "expected_final.entity_key"
+            }
+          ],
+          "unobservable": [
             {
               "expected": "critical",
               "observed": null,
@@ -2709,9 +2728,7 @@
               "observed": null,
               "path": "expected_final.required_next_evidence"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -2724,17 +2741,18 @@
           "extraction_disposition": "classified",
           "logical_message_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
           "miss_taxonomy": [
-            "extraction",
-            "decision"
+            "extraction"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "pass",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "park",
                   "observed": null,
@@ -2758,9 +2776,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [],
@@ -2873,17 +2889,18 @@
           "logical_message_id": "<rp1-a08-forward-0801@rp1.synthetic.test>",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "review",
                   "observed": null,
@@ -2907,9 +2924,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -3008,20 +3023,24 @@
         "comparison": {
           "failed": [
             {
-              "expected": "job:RP1-JOB-0801",
-              "observed": null,
-              "path": "expected_final.entity_key"
-            },
-            {
               "expected": "needs_review",
-              "observed": null,
+              "observed": "advancing",
               "path": "expected_final.workflow_state"
             },
             {
               "expected": "await_gatein",
-              "observed": null,
+              "observed": "invoice",
               "path": "expected_final.current_step"
-            },
+            }
+          ],
+          "matched": [
+            {
+              "expected": "job:RP1-JOB-0801",
+              "observed": "job:RP1-JOB-0801",
+              "path": "expected_final.entity_key"
+            }
+          ],
+          "unobservable": [
             {
               "expected": "gate_in",
               "observed": null,
@@ -3059,9 +3078,7 @@
               "observed": null,
               "path": "expected_final.autonomous_mutation"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -3070,47 +3087,38 @@
         {
           "after_email_step": 2,
           "comparison": {
-            "failed": [
+            "failed": [],
+            "matched": [
               {
                 "expected": "mismatch",
-                "observed": null,
+                "observed": "mismatch",
                 "path": "state_probes[0].expected.verdict"
               },
               {
                 "expected": "gate_in",
-                "observed": null,
+                "observed": "gate_in",
                 "path": "state_probes[0].expected.email_claim"
               },
               {
                 "expected": "not_gate_in",
-                "observed": {
-                  "container_no": "TGHU0808008",
-                  "gate_in": false,
-                  "job_no": "RP1-JOB-0801",
-                  "last_known_state": "container_assigned",
-                  "last_updated": "2026-07-31T08:42:11+08:00",
-                  "status": "not_gate_in"
-                },
+                "observed": "not_gate_in",
                 "path": "state_probes[0].expected.state_poll"
               },
               {
-                "expected": "needs_review_exception_proposal",
-                "observed": {
-                  "evidence_status": "EVIDENCE-LIMITED",
-                  "reason": "no durable wf_approval row for this event"
-                },
-                "path": "state_probes[0].expected.agent_action"
-              },
-              {
                 "expected": 2,
-                "observed": null,
+                "observed": 2,
                 "path": "state_probes[0].expected.after_email_step"
               }
             ],
-            "matched": [],
-            "unobservable": []
+            "unobservable": [
+              {
+                "expected": "needs_review_exception_proposal",
+                "observed": null,
+                "path": "state_probes[0].expected.agent_action"
+              }
+            ]
           },
-          "status": "fail",
+          "status": "evidence-limited",
           "step": 3
         }
       ]
@@ -3122,17 +3130,18 @@
           "logical_message_id": "rp1-a09-1@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "park",
                   "observed": null,
@@ -3155,9 +3164,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -3167,17 +3174,18 @@
                   "path": "correlation.verdict"
                 },
                 {
-                  "expected": "RP1-JOB-0901",
-                  "observed": "job:RP1-JOB-0901",
-                  "path": "correlation.target"
-                },
-                {
                   "expected": "deterministic",
                   "observed": null,
                   "path": "correlation.method"
                 }
               ],
-              "matched": [],
+              "matched": [
+                {
+                  "expected": "RP1-JOB-0901",
+                  "observed": "job:RP1-JOB-0901",
+                  "path": "correlation.target"
+                }
+              ],
               "unobservable": []
             },
             "extraction": {
@@ -3230,17 +3238,18 @@
           "logical_message_id": "rp1-a09-2@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "park",
                   "observed": null,
@@ -3264,17 +3273,10 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
-                {
-                  "expected": "RP1-JOB-0901",
-                  "observed": "job:RP1-JOB-0901",
-                  "path": "correlation.target"
-                },
                 {
                   "expected": "deterministic",
                   "observed": null,
@@ -3286,6 +3288,11 @@
                   "expected": "buffered",
                   "observed": "buffered",
                   "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0901",
+                  "observed": "job:RP1-JOB-0901",
+                  "path": "correlation.target"
                 }
               ],
               "unobservable": []
@@ -3345,17 +3352,18 @@
           "logical_message_id": "rp1-a09-3@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "park",
                   "observed": null,
@@ -3379,9 +3387,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -3464,43 +3470,83 @@
         "comparison": {
           "failed": [
             {
-              "expected": "RP1-JOB-0901",
-              "observed": null,
-              "path": "expected_final.target"
-            },
-            {
               "expected": "parked",
-              "observed": null,
+              "observed": "advancing",
               "path": "expected_final.state"
             },
             {
               "expected": "create_job",
-              "observed": null,
+              "observed": "ingest",
               "path": "expected_final.step"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-0901",
+              "observed": "RP1-JOB-0901",
+              "path": "expected_final.target"
             },
             {
-              "expected": {
-                "booking_ref": "BK-0901-SEA",
-                "container_no": "MSCU4827312"
-              },
-              "observed": null,
-              "path": "expected_final.corr"
+              "expected": "BK-0901-SEA",
+              "observed": "BK-0901-SEA",
+              "path": "expected_final.corr.booking_ref"
             },
             {
-              "expected": {
-                "container_no": "MSCU4827312",
-                "customer": "Northstar Foods Pte Ltd",
-                "direction": "export",
-                "equipment": "1x40HC",
-                "pickup_date": "2026-08-04",
-                "vessel_name": "MV Cedar Horizon",
-                "vgm_document_status": "pending_separate_delivery",
-                "vgm_kg": 18340,
-                "vgm_method": "weighbridge",
-                "voyage": "CH128E"
-              },
+              "expected": "Northstar Foods Pte Ltd",
+              "observed": "Northstar Foods Pte Ltd",
+              "path": "expected_final.vars.customer"
+            },
+            {
+              "expected": "export",
+              "observed": "export",
+              "path": "expected_final.vars.direction"
+            },
+            {
+              "expected": "1x40HC",
+              "observed": "1x40HC",
+              "path": "expected_final.vars.equipment"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "MSCU4827312",
               "observed": null,
-              "path": "expected_final.vars"
+              "path": "expected_final.corr.container_no"
+            },
+            {
+              "expected": "MV Cedar Horizon",
+              "observed": null,
+              "path": "expected_final.vars.vessel_name"
+            },
+            {
+              "expected": "CH128E",
+              "observed": null,
+              "path": "expected_final.vars.voyage"
+            },
+            {
+              "expected": "2026-08-04",
+              "observed": null,
+              "path": "expected_final.vars.pickup_date"
+            },
+            {
+              "expected": 18340,
+              "observed": null,
+              "path": "expected_final.vars.vgm_kg"
+            },
+            {
+              "expected": "weighbridge",
+              "observed": null,
+              "path": "expected_final.vars.vgm_method"
+            },
+            {
+              "expected": "pending_separate_delivery",
+              "observed": null,
+              "path": "expected_final.vars.vgm_document_status"
+            },
+            {
+              "expected": "MSCU4827312",
+              "observed": null,
+              "path": "expected_final.vars.container_no"
             },
             {
               "expected": [
@@ -3524,9 +3570,7 @@
               "observed": null,
               "path": "expected_final.buffered_events"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -3540,17 +3584,18 @@
           "logical_message_id": "rp1-a10-1@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "no_action",
                   "observed": null,
@@ -3574,17 +3619,10 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
-                {
-                  "expected": "none",
-                  "observed": null,
-                  "path": "correlation.target"
-                },
                 {
                   "expected": "no_valid_instance_key",
                   "observed": null,
@@ -3596,6 +3634,11 @@
                   "expected": "routed_out",
                   "observed": "routed_out",
                   "path": "correlation.verdict"
+                },
+                {
+                  "expected": "none",
+                  "observed": null,
+                  "path": "correlation.target"
                 }
               ],
               "unobservable": []
@@ -3621,14 +3664,15 @@
                   "expected": "unrelated_invoice_filing",
                   "observed": null,
                   "path": "payload.reason"
-                },
+                }
+              ],
+              "matched": [
                 {
                   "expected": null,
                   "observed": null,
                   "path": "corr.booking_ref"
                 }
               ],
-              "matched": [],
               "unobservable": []
             }
           },
@@ -3637,41 +3681,34 @@
       ],
       "expected_final": {
         "comparison": {
-          "failed": [
+          "failed": [],
+          "matched": [
             {
               "expected": "none",
-              "observed": null,
+              "observed": "none",
               "path": "expected_final.target"
             },
             {
               "expected": "routed_out",
-              "observed": null,
+              "observed": "routed_out",
               "path": "expected_final.state"
             },
             {
               "expected": "none",
-              "observed": null,
+              "observed": "none",
               "path": "expected_final.step"
             },
             {
-              "expected": {},
-              "observed": null,
-              "path": "expected_final.corr"
-            },
-            {
-              "expected": {},
-              "observed": null,
-              "path": "expected_final.vars"
-            },
+              "expected": false,
+              "observed": false,
+              "path": "expected_final.instance_created"
+            }
+          ],
+          "unobservable": [
             {
               "expected": false,
               "observed": null,
               "path": "expected_final.mutation_performed"
-            },
-            {
-              "expected": false,
-              "observed": null,
-              "path": "expected_final.instance_created"
             },
             {
               "expected": false,
@@ -3683,11 +3720,9 @@
               "observed": null,
               "path": "expected_final.reason"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
-        "status": "fail"
+        "status": "evidence-limited"
       },
       "id": "RP1-A10",
       "state_probes": []
@@ -3699,17 +3734,18 @@
           "logical_message_id": "rp1-a11-1@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "resume",
                   "observed": null,
@@ -3732,9 +3768,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -3812,17 +3846,18 @@
           "logical_message_id": "rp1-a11-2@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "propose",
                   "observed": null,
@@ -3857,9 +3892,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -3869,17 +3902,18 @@
                   "path": "correlation.verdict"
                 },
                 {
-                  "expected": "RP1-JOB-1101",
-                  "observed": "job:RP1-JOB-1101",
-                  "path": "correlation.target"
-                },
-                {
                   "expected": "deterministic",
                   "observed": null,
                   "path": "correlation.method"
                 }
               ],
-              "matched": [],
+              "matched": [
+                {
+                  "expected": "RP1-JOB-1101",
+                  "observed": "job:RP1-JOB-1101",
+                  "path": "correlation.target"
+                }
+              ],
               "unobservable": []
             },
             "extraction": {
@@ -3947,28 +3981,38 @@
         "comparison": {
           "failed": [
             {
-              "expected": "RP1-JOB-1101",
-              "observed": null,
-              "path": "expected_final.target"
-            },
-            {
               "expected": "pending_approval",
-              "observed": null,
+              "observed": "advancing",
               "path": "expected_final.state"
             },
             {
               "expected": "create_job",
-              "observed": null,
+              "observed": "ingest",
               "path": "expected_final.step"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-1101",
+              "observed": "RP1-JOB-1101",
+              "path": "expected_final.target"
             },
             {
-              "expected": {
-                "booking_ref": "BK-1101-RED",
-                "container_no": "MSCU5938049",
-                "job_no": "EB-1101-7842"
-              },
+              "expected": "BK-1101-RED",
+              "observed": "BK-1101-RED",
+              "path": "expected_final.corr.booking_ref"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "MSCU5938049",
               "observed": null,
-              "path": "expected_final.corr"
+              "path": "expected_final.corr.container_no"
+            },
+            {
+              "expected": "EB-1101-7842",
+              "observed": null,
+              "path": "expected_final.corr.job_no"
             },
             {
               "expected": "job_create",
@@ -3985,9 +4029,7 @@
               "observed": null,
               "path": "expected_final.mutation_performed"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -4001,17 +4043,18 @@
           "logical_message_id": "rp1-a12-1@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "resume",
                   "observed": null,
@@ -4034,17 +4077,10 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
-                {
-                  "expected": "RP1-JOB-1201",
-                  "observed": "job:RP1-JOB-1201",
-                  "path": "correlation.target"
-                },
                 {
                   "expected": "deterministic",
                   "observed": null,
@@ -4056,6 +4092,11 @@
                   "expected": "matched",
                   "observed": "matched",
                   "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-1201",
+                  "observed": "job:RP1-JOB-1201",
+                  "path": "correlation.target"
                 }
               ],
               "unobservable": []
@@ -4130,17 +4171,18 @@
           "logical_message_id": "rp1-a12-2@rp1.synthetic.test",
           "miss_taxonomy": [
             "extraction",
-            "correlation",
-            "decision"
+            "correlation"
           ],
           "section_status": {
-            "action": "fail",
+            "action": "evidence-limited",
             "correlation": "fail",
             "extraction": "fail"
           },
           "sections": {
             "action": {
-              "failed": [
+              "failed": [],
+              "matched": [],
+              "unobservable": [
                 {
                   "expected": "propose",
                   "observed": null,
@@ -4171,9 +4213,7 @@
                   "observed": null,
                   "path": "agent_action.constraints"
                 }
-              ],
-              "matched": [],
-              "unobservable": []
+              ]
             },
             "correlation": {
               "failed": [
@@ -4281,29 +4321,39 @@
         "comparison": {
           "failed": [
             {
-              "expected": "RP1-JOB-1201",
-              "observed": null,
-              "path": "expected_final.target"
-            },
-            {
               "expected": "pending_approval",
-              "observed": null,
+              "observed": "advancing",
               "path": "expected_final.state"
             },
             {
               "expected": "invoice",
-              "observed": null,
+              "observed": "await_gatein",
               "path": "expected_final.step"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-1201",
+              "observed": "RP1-JOB-1201",
+              "path": "expected_final.target"
             },
             {
-              "expected": {
-                "booking_ref": "BK-1201-BLUE",
-                "container_no": "MSCU8172656",
-                "job_no": "ITOS-1201-5508"
-              },
-              "observed": null,
-              "path": "expected_final.corr"
+              "expected": "MSCU8172656",
+              "observed": "MSCU8172656",
+              "path": "expected_final.corr.container_no"
             },
+            {
+              "expected": "ITOS-1201-5508",
+              "observed": "ITOS-1201-5508",
+              "path": "expected_final.corr.job_no"
+            },
+            {
+              "expected": "BK-1201-BLUE",
+              "observed": "BK-1201-BLUE",
+              "path": "expected_final.corr.booking_ref"
+            }
+          ],
+          "unobservable": [
             {
               "expected": "send_customer_update",
               "observed": null,
@@ -4332,9 +4382,7 @@
               "observed": null,
               "path": "expected_final.mutation_performed"
             }
-          ],
-          "matched": [],
-          "unobservable": []
+          ]
         },
         "status": "fail"
       },
@@ -4359,8 +4407,8 @@
     "probes": 1
   },
   "probe_counts": {
-    "evidence-limited": 0,
-    "fail": 1,
+    "evidence-limited": 1,
+    "fail": 0,
     "pass": 0
   },
   "status": "fail",
