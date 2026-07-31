@@ -190,7 +190,7 @@ class FakeRemote:
         return {
             "table": "wf_template",
             "identity": (
-                f"wf_template.slug={execute.RP1_TEMPLATE_ID}@1.email_extraction"
+                f"wf_template.slug={workflow['id']}@1.email_extraction"
             ),
             "query": "resolve the sole registered email_extraction contract",
             "observed": execute._extraction_contract_evidence(
@@ -204,7 +204,7 @@ class FakeRemote:
         workflow = document["workflow"]
         return {
             "table": "wf_template",
-            "identity": f"wf_template.slug={execute.RP1_TEMPLATE_ID}@1",
+            "identity": f"wf_template.slug={workflow['id']}@1",
             "query": "SELECT latest registered workflow template",
             "observed": {"slug": workflow["id"], "version": 1},
         }
