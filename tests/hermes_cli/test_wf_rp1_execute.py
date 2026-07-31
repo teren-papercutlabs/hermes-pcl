@@ -178,10 +178,11 @@ class FakeSMTPIngress:
 
 
 class FakeRemote:
-    def __init__(self) -> None:
+    def __init__(self, *, empty_payload_logical_id: str | None = None) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.email_attempts: dict[str, int] = {}
         self.locked = campaign.load_locked_campaign()
+        self.empty_payload_logical_id = empty_payload_logical_id
 
     @staticmethod
     def _extraction_citation() -> dict[str, Any]:
@@ -261,7 +262,11 @@ class FakeRemote:
                             logical_id,
                             {
                                 "event_type": email["answer_key"]["event_type"],
-                                "payload": {"captured": True},
+                                "payload": (
+                                    {}
+                                    if logical_id == self.empty_payload_logical_id
+                                    else {"captured": True}
+                                ),
                                 "corr": {"source_message": logical_id},
                                 "correlation": {
                                     "verdict": "received",
@@ -366,6 +371,51 @@ def test_execute_uses_smtp_waits_and_runs_one_declared_probe(
     first_campaign_message = smtp.sent[1][0]
     assert sent_entries[0]["wire_body_sha256"] == execute._sha256_text(
         first_campaign_message.get_body().get_content()
+    )
+
+
+def test_execute_and_resume_record_classified_empty_email_payload(
+    tmp_path: Path,
+) -> None:
+    plan = _plan()
+    first_arc = campaign.load_locked_campaign().arcs[0]
+    first_email = first_arc["emails"][0]
+    logical_id = first_email["message_id"]
+    settings = execute.ExecutionSettings(
+        target=execute.TARGET_SYSTEM,
+        environment=execute.TARGET_ENVIRONMENT,
+        recipient="workflow+allied-workflow-staging@example.test",
+        smtp_user="dorm1@example.test",
+        smtp_password="never-output",
+        poll_interval_seconds=0.01,
+        ingress_timeout_seconds=5,
+        worker_timeout_seconds=5,
+        pacing_seconds=0.01,
+    )
+    journal_path = tmp_path / "classified-empty.jsonl"
+    clock = iter(range(100000))
+    observed = execute.execute_plan(
+        plan,
+        settings=settings,
+        remote=FakeRemote(empty_payload_logical_id=logical_id),
+        smtp=FakeSMTPIngress(),  # type: ignore[arg-type]
+        journal=execute.ExecutionJournal(journal_path, resume=False),
+        sleep=lambda _seconds: None,
+        monotonic=lambda: float(next(clock)),
+    )
+    captured = observed["arcs"][first_arc["id"]]["emails"][logical_id]
+    assert captured["payload"] == {}
+    score = campaign.score_answer_key(first_email["answer_key"], captured)
+    assert "extraction" in score["miss_taxonomy"]
+
+    execute.execute_plan(
+        plan,
+        settings=settings,
+        remote=FakeRemote(),
+        smtp=FakeSMTPIngress(),  # type: ignore[arg-type]
+        journal=execute.ExecutionJournal(journal_path, resume=True),
+        sleep=lambda _seconds: None,
+        monotonic=lambda: float(next(clock)),
     )
 
 

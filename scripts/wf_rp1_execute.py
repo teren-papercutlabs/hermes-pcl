@@ -534,7 +534,9 @@ class StagingHelper:
         _validate_observed(
             observed,
             f"wf_event.id={row['id']}",
-            allow_empty_classified_payload=row["source"] == "email",
+            allow_empty_classified_payload=(
+                row["source"] == "email" and row["payload"] not in (None, "")
+            ),
         )
         citation = _citation(
             "wf_event",
@@ -1487,7 +1489,13 @@ def execute_plan(
     loopback_observed = dict(
         _mapping(loopback.get("observed"), "preflight observed")
     )
-    _validate_observed(loopback_observed, "loopback preflight")
+    # The preflight is itself an email extraction measurement. A classified
+    # empty payload is a recorded miss, not a broken observation boundary.
+    _validate_observed(
+        loopback_observed,
+        "loopback preflight",
+        allow_empty_classified_payload=True,
+    )
     received_value = loopback_observed.get("received")
     if ingress_snapshot:
         merged_received = dict(ingress_snapshot)
@@ -1613,7 +1621,11 @@ def execute_plan(
                     raise ExecutionContractError(
                         f"{arc_id} {logical_id}: observed state missing"
                     )
-                _validate_observed(observed, f"{arc_id} {logical_id}")
+                _validate_observed(
+                    observed,
+                    f"{arc_id} {logical_id}",
+                    allow_empty_classified_payload=True,
+                )
                 citations = _citations(response, f"{arc_id} {logical_id}")
                 journal.append(
                     "email_observed",
@@ -1635,7 +1647,11 @@ def execute_plan(
                     raise ExecutionContractError(
                         f"{logical_id}: journal observation has no citations"
                     )
-                _validate_observed(observed, f"{arc_id} {logical_id} journal")
+                _validate_observed(
+                    observed,
+                    f"{arc_id} {logical_id} journal",
+                    allow_empty_classified_payload=True,
+                )
             arc_observed["emails"][logical_id] = {
                 **_clone(observed),
                 "_citations": citations,
