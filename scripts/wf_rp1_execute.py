@@ -1227,6 +1227,9 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
         observed["event_type"] is None
         and null_disposition in {"declared-no-fit", "boundary-failure"}
     )
+    classified_empty_payload = (
+        observed["event_type"] is not None and observed.get("payload") == {}
+    )
     if observed["event_type"] is None and not durable_null:
         raise ExecutionContractError(
             f"{label}: null event_type needs a durable extraction disposition"
@@ -1240,7 +1243,10 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
                 raise ExecutionContractError(
                     f"{label}: evidence-limited {key} needs a reason"
                 )
-        elif not value and not (durable_null and key in {"payload", "corr"}):
+        elif not value and not (
+            (durable_null and key in {"payload", "corr"})
+            or (classified_empty_payload and key == "payload")
+        ):
             raise ExecutionContractError(
                 f"{label}: {key} must contain observed fields or an "
                 "EVIDENCE-LIMITED marker"

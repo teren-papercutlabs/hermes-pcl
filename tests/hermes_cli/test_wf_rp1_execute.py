@@ -765,6 +765,56 @@ def test_staging_observe_email_returns_durable_declared_no_fit(
         helper.close()
 
 
+def test_staging_observe_email_records_classified_empty_payload_as_miss(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    helper = execute.StagingHelper(db_path, _service_proof(tmp_path, db_path))
+    try:
+        event_id = execute.wf_engine.ingest_event(
+            helper.conn,
+            source="email",
+            external_id="<classified-empty@rp1.synthetic.test>",
+            payload={
+                "message_id": "<classified-empty@rp1.synthetic.test>",
+                "subject": "[RP1-EMPTY] pickup advice",
+                "body_ref": "/synthetic/classified-empty.txt",
+            },
+            corr={"booking_ref": "RP1-EMPTY"},
+            event_type="pickup_advice",
+        )
+        assert event_id is not None
+        helper.conn.execute(
+            "UPDATE wf_event SET status = 'unmatched', payload = '{}' WHERE id = ?",
+            (event_id,),
+        )
+
+        response = helper.handle(
+            "observe_email",
+            {
+                "wire_message_id": "<classified-empty@rp1.synthetic.test>",
+                "subject_token": "RP1-EMPTY",
+                "x_rp1_token": None,
+            },
+        )
+
+        assert response["ready"] is True
+        assert response["observed"]["event_type"] == "pickup_advice"
+        assert response["observed"]["payload"] == {}
+        score = campaign.score_answer_key(
+            {
+                "event_type": "pickup_advice",
+                "payload": {"port": "SGSIN"},
+                "corr": {"booking_ref": "RP1-EMPTY"},
+            },
+            response["observed"],
+        )
+        assert "extraction" in score["miss_taxonomy"]
+        assert "engine-defect" not in score["miss_taxonomy"]
+    finally:
+        helper.close()
+
+
 def test_staging_observe_email_distinguishes_extraction_boundary_failure(
     tmp_path: Path,
 ) -> None:
