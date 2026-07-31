@@ -33,7 +33,7 @@ def test_plan_cli_is_offline_and_preserves_locked_contract(
     plan = json.loads(output.read_text())
     assert plan["network_performed"] is False
     assert plan["database_mutated"] is False
-    assert plan["population"] == {"arcs": 12, "emails": 25}
+    assert plan["population"] == {"arcs": 12, "emails": 25, "probes": 1}
     assert plan["workflow_template"]["mutation"] == "unchanged"
     assert plan["orchestration"]["smtp_host"] == "smtp.invalid"
     assert plan["orchestration"]["remote_db"] == "ssh://staging.invalid/db"
@@ -56,8 +56,12 @@ def test_plan_maps_wire_ids_seed_aliases_and_display_personas() -> None:
     assert a01_first["locked_body_sha256"] != a01_first["wire_body_sha256"]
 
     a05 = arcs["RP1-A05"]
-    assert a05["seed_plan"][0]["logical_target"] == "job"
     assert a05["seed_plan"][0]["canonical_alias"] == "job:RP1-JOB-0501"
+    assert a05["seed_plan"][0]["entity_key"] == "job:RP1-JOB-0501"
+    assert "logical_target" not in a05["seed_plan"][0]
+    assert arcs["RP1-A01"]["seed_plan"][0]["canonical_alias"] == "job:RP1-JOB-0101"
+    assert arcs["RP1-A01"]["seed_plan"][0]["entity_key"] == "job:RP1-JOB-0101"
+    assert "logical_target" not in arcs["RP1-A01"]["seed_plan"][0]
     assert (
         a05["emails"][0]["wire_message_id"]
         == "<rp1-a05-original-0501@rp1.synthetic.test>"
@@ -66,6 +70,9 @@ def test_plan_maps_wire_ids_seed_aliases_and_display_personas() -> None:
         a05["emails"][1]["headers"]["references"]
         == "<rp1-a05-original-0501@rp1.synthetic.test>"
     )
+    probes = arcs["RP1-A08"]["state_probes"]
+    assert [(probe["after_email_step"], probe["step"]) for probe in probes] == [(2, 3)]
+    assert probes[0]["expected"]["verdict"] == "mismatch"
 
 
 @pytest.mark.parametrize(
@@ -144,3 +151,82 @@ def test_p5a_citation_format() -> None:
 def test_score_cli_requires_observed_path() -> None:
     with pytest.raises(SystemExit, match="--observed-path is required"):
         campaign.main(["--mode", "score"])
+
+
+def _fully_matching_observation(
+    locked: campaign.LockedCampaign,
+) -> dict[str, object]:
+    arcs: dict[str, object] = {}
+    for arc in locked.arcs:
+        arcs[arc["id"]] = {
+            "emails": {
+                email["message_id"]: json.loads(json.dumps(email["answer_key"]))
+                for email in arc["emails"]
+            },
+            "state_probes": [
+                json.loads(json.dumps(probe["expected"]))
+                for probe in sorted(
+                    arc.get("state_probes", []),
+                    key=lambda item: (item["after_email_step"], item["step"]),
+                )
+            ],
+            "expected_final": json.loads(json.dumps(arc["expected_final"])),
+        }
+    return {"arcs": arcs}
+
+
+def test_score_campaign_counts_emails_probes_and_arc_finals() -> None:
+    locked = campaign.load_locked_campaign()
+    observed = _fully_matching_observation(locked)
+    result = campaign.score_campaign(locked, observed)
+    assert result["verdict"] == "pass"
+    assert result["denominators"] == {
+        "email_answer_keys": 25,
+        "arc_expected_final": 12,
+        "state_probes": 1,
+    }
+    assert result["email_counts"] == {
+        "pass": 25,
+        "evidence-limited": 0,
+        "fail": 0,
+    }
+    assert result["probe_counts"] == {
+        "pass": 1,
+        "evidence-limited": 0,
+        "fail": 0,
+    }
+    assert result["arc_counts"] == {
+        "pass": 12,
+        "evidence-limited": 0,
+        "fail": 0,
+    }
+
+
+def test_score_campaign_fails_when_all_emails_pass_but_arc_final_fails() -> None:
+    locked = campaign.load_locked_campaign()
+    observed = _fully_matching_observation(locked)
+    observed_arcs = observed["arcs"]
+    assert isinstance(observed_arcs, dict)
+    a01 = observed_arcs["RP1-A01"]
+    assert isinstance(a01, dict)
+    a01["expected_final"] = {}
+
+    result = campaign.score_campaign(locked, observed)
+    assert result["email_counts"]["pass"] == 25
+    assert result["email_counts"]["fail"] == 0
+    assert result["arc_counts"]["fail"] == 1
+    assert result["verdict"] == "fail"
+
+
+def test_score_campaign_fails_a_missing_state_probe() -> None:
+    locked = campaign.load_locked_campaign()
+    observed = _fully_matching_observation(locked)
+    observed_arcs = observed["arcs"]
+    assert isinstance(observed_arcs, dict)
+    a08 = observed_arcs["RP1-A08"]
+    assert isinstance(a08, dict)
+    a08["state_probes"] = []
+
+    result = campaign.score_campaign(locked, observed)
+    assert result["probe_counts"]["fail"] == 1
+    assert result["verdict"] == "fail"

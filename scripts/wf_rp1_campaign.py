@@ -35,8 +35,8 @@ EVIDENCE_LIMITS = (
     "correlation.selection_reason",
     "correlation.position",
     "correlation.reason",
-    "correlation.usable_keys",
-    "review.options",
+    "correlation.usable_discriminator_count",
+    "agent_action.review.options",
 )
 REFERENCE_KEYS = (
     "in_reply_to_message_id",
@@ -60,6 +60,10 @@ class LockedCampaign:
     @property
     def email_count(self) -> int:
         return sum(len(arc["emails"]) for arc in self.arcs)
+
+    @property
+    def probe_count(self) -> int:
+        return sum(len(arc.get("state_probes", [])) for arc in self.arcs)
 
 
 def _sha256(path: Path) -> str:
@@ -204,8 +208,8 @@ def build_campaign_plan(
         for instance in arc["initial_instances"]:
             seeds.append(
                 {
-                    "logical_target": instance["target"],
                     "canonical_alias": _canonical_alias(instance),
+                    "entity_key": _canonical_alias(instance),
                     "corr": _json_clone(instance.get("corr", {})),
                     "vars": _json_clone(instance.get("vars", {})),
                     "requested_step": instance["step"],
@@ -249,6 +253,21 @@ def build_campaign_plan(
                 "id": arc["id"],
                 "seed_plan": seeds,
                 "emails": emails,
+                "state_probes": [
+                    {
+                        "step": probe["step"],
+                        "after_email_step": probe["after_email_step"],
+                        "source": probe["source"],
+                        "entity_key": probe["entity_key"],
+                        "request": _json_clone(probe["request"]),
+                        "result": _json_clone(probe["result"]),
+                        "expected": _json_clone(probe["expected"]),
+                    }
+                    for probe in sorted(
+                        arc.get("state_probes", []),
+                        key=lambda item: (item["after_email_step"], item["step"]),
+                    )
+                ],
                 "expected_final": _json_clone(arc["expected_final"]),
             }
         )
@@ -258,7 +277,11 @@ def build_campaign_plan(
         "mode": "plan-only",
         "network_performed": False,
         "database_mutated": False,
-        "population": {"arcs": len(campaign.arcs), "emails": campaign.email_count},
+        "population": {
+            "arcs": len(campaign.arcs),
+            "emails": campaign.email_count,
+            "probes": campaign.probe_count,
+        },
         "locked_fixture_hashes": campaign.fixture_hashes,
         "workflow_template": {
             "path": str(TEMPLATE_PATH.relative_to(ROOT)),
@@ -367,7 +390,9 @@ def score_campaign(
 ) -> dict[str, Any]:
     observed_arcs = observed.get("arcs", {})
     scored_arcs: list[dict[str, Any]] = []
-    counts = {"pass": 0, "evidence-limited": 0, "fail": 0}
+    email_counts = {"pass": 0, "evidence-limited": 0, "fail": 0}
+    probe_counts = {"pass": 0, "evidence-limited": 0, "fail": 0}
+    arc_counts = {"pass": 0, "evidence-limited": 0, "fail": 0}
     for arc in campaign.arcs:
         arc_observed = observed_arcs.get(arc["id"], {})
         observed_emails = arc_observed.get("emails", {})
@@ -377,28 +402,80 @@ def score_campaign(
             result = score_answer_key(
                 email["answer_key"], observed_emails.get(logical_id, {})
             )
-            counts[result["status"]] += 1
+            email_counts[result["status"]] += 1
             email_results.append({"logical_message_id": logical_id, **result})
+        probe_results = []
+        observed_probes = arc_observed.get("state_probes", [])
+        for index, probe in enumerate(
+            sorted(
+                arc.get("state_probes", []),
+                key=lambda item: (item["after_email_step"], item["step"]),
+            )
+        ):
+            probe_observed = (
+                observed_probes[index]
+                if isinstance(observed_probes, list) and index < len(observed_probes)
+                else {}
+            )
+            comparison = compare_subset(
+                probe["expected"], probe_observed, f"state_probes[{index}].expected"
+            )
+            probe_status = _status(comparison)
+            probe_counts[probe_status] += 1
+            probe_results.append(
+                {
+                    "step": probe["step"],
+                    "after_email_step": probe["after_email_step"],
+                    "status": probe_status,
+                    "comparison": comparison,
+                }
+            )
         final_result = compare_subset(
             arc["expected_final"], arc_observed.get("expected_final", {}), "expected_final"
         )
+        final_status = _status(final_result)
+        arc_counts[final_status] += 1
         scored_arcs.append(
             {
                 "id": arc["id"],
                 "emails": email_results,
+                "state_probes": probe_results,
                 "expected_final": {
-                    "status": _status(final_result),
+                    "status": final_status,
                     "comparison": final_result,
                 },
             }
         )
+    verdict = (
+        "fail"
+        if email_counts["fail"] or probe_counts["fail"] or arc_counts["fail"]
+        else (
+            "evidence-limited"
+            if (
+                email_counts["evidence-limited"]
+                or probe_counts["evidence-limited"]
+                or arc_counts["evidence-limited"]
+            )
+            else "pass"
+        )
+    )
     return {
         "campaign": "rp1",
-        "population": {"arcs": len(campaign.arcs), "emails": campaign.email_count},
-        "counts": counts,
-        "status": "fail" if counts["fail"] else (
-            "evidence-limited" if counts["evidence-limited"] else "pass"
-        ),
+        "population": {
+            "arcs": len(campaign.arcs),
+            "emails": campaign.email_count,
+            "probes": campaign.probe_count,
+        },
+        "denominators": {
+            "email_answer_keys": campaign.email_count,
+            "arc_expected_final": len(campaign.arcs),
+            "state_probes": campaign.probe_count,
+        },
+        "email_counts": email_counts,
+        "probe_counts": probe_counts,
+        "arc_counts": arc_counts,
+        "verdict": verdict,
+        "status": verdict,
         "arcs": scored_arcs,
     }
 
