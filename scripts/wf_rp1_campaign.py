@@ -198,7 +198,7 @@ def build_campaign_plan(
     smtp_user_env: str = "E1_STAGING_MAIL_USER",
     smtp_password_env: str = "E1_DORM1_APP_PASSWORD",
     recipient: str = "allied-workflow-staging",
-    remote_db: str = "remote-staging-db",
+    remote_db: str = "pa-workflow-dev",
     worker_profile: str = "dorm1",
 ) -> dict[str, Any]:
     """Build a deterministic, mutation-free orchestration plan."""
@@ -500,7 +500,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--smtp-user-env", default="E1_STAGING_MAIL_USER")
     parser.add_argument("--smtp-password-env", default="E1_DORM1_APP_PASSWORD")
     parser.add_argument("--recipient", default="allied-workflow-staging")
-    parser.add_argument("--remote-db", default="remote-staging-db")
+    parser.add_argument("--remote-db", default="pa-workflow-dev")
     parser.add_argument("--worker-profile", default="dorm1")
     return parser
 

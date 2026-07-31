@@ -46,6 +46,7 @@ def test_plan_cli_is_offline_and_preserves_locked_contract(
 
 def test_plan_maps_wire_ids_seed_aliases_and_display_personas() -> None:
     plan = campaign.build_campaign_plan(campaign.load_locked_campaign())
+    assert plan["orchestration"]["remote_db"] == "pa-workflow-dev"
     arcs = {arc["id"]: arc for arc in plan["arcs"]}
     a01_first = arcs["RP1-A01"]["emails"][0]
     assert a01_first["logical_message_id"] == "rpa01-001@rp1.synthetic.test"
