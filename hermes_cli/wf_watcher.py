@@ -45,6 +45,15 @@ class ProbeObservation:
 
 
 @dataclass(frozen=True)
+class ExtractionRequest:
+    """Engine inputs resolved for one raw workflow event."""
+
+    brief: dict[str, Any] | str
+    extractor: Callable[[dict[str, Any] | str, Mapping[str, Any]], dict[str, Any]]
+    schema_validator: Any
+
+
+@dataclass(frozen=True)
 class WatchTickResult:
     """Countable output of one watcher tick."""
 
@@ -62,11 +71,7 @@ StateProbe = Callable[
     [tuple[ProbeTarget, ...]],
     Iterable[ProbeObservation | Mapping[str, Any]],
 ]
-
-# The gateway owns the host-model client and schema registry.  The watcher
-# owns only the ordering boundary: raw email must be classified through the
-# template contract before the deterministic engine is allowed to see it.
-EmailExtractor = Callable[[dict | str, dict], dict]
+ExtractorBoundary = Callable[[Mapping[str, Any]], ExtractionRequest]
 
 _STATE_PROBES: dict[str, StateProbe] = {}
 
@@ -112,97 +117,6 @@ def registered_state_probes() -> tuple[str, ...]:
 def _json_object(raw: str | None) -> dict[str, Any]:
     value = wf_engine._load_json(raw, {}) or {}
     return value if isinstance(value, dict) else {}
-
-
-def resolve_email_extraction_brief(
-    conn: sqlite3.Connection,
-) -> dict | str | None:
-    """Return the one email extraction contract declared by templates.
-
-    An email ingress event has no correlated instance yet, so selecting a
-    brief from instances would leak candidates across the LM boundary.  The
-    only legal source is the immutable template catalog.  ``email_extraction``
-    is deliberately a top-level template contract: every template that
-    declares it must declare the same canonical object/string.  Missing,
-    malformed, or conflicting contracts return ``None`` and callers fail
-    closed through :func:`wf_engine.extract_event`.
-    """
-
-    contracts: dict[str, dict | str] = {}
-    rows = conn.execute(
-        "SELECT spec FROM wf_template ORDER BY slug, version"
-    ).fetchall()
-    for row in rows:
-        try:
-            spec = wf_engine._load_json(row["spec"], None)
-        except Exception:
-            return None
-        if not isinstance(spec, dict):
-            continue
-        workflow = wf_engine._workflow_spec(spec)
-        if "email_extraction" not in workflow:
-            continue
-        brief = workflow["email_extraction"]
-        if not isinstance(brief, (dict, str)):
-            return None
-        try:
-            # Keep validation of the contract in the engine so watcher and
-            # engine agree about what a schema-bearing brief means.
-            wf_engine._extraction_schema(brief)
-            key = wf_engine._json(brief)
-        except Exception:
-            return None
-        if key is None:
-            return None
-        contracts[key] = brief
-    if len(contracts) != 1:
-        return None
-    return next(iter(contracts.values()))
-
-
-def _missing_email_extractor(_brief: dict | str, _event: dict) -> dict:
-    raise RuntimeError("email extraction runtime is unavailable")
-
-
-def _extract_received_email_events(
-    conn: sqlite3.Connection,
-    *,
-    email_extractor: EmailExtractor | None,
-    email_schema_validator: Any,
-) -> tuple[int, ...]:
-    """Classify every raw email before ``sweep`` can deterministically route it."""
-
-    event_ids = tuple(
-        int(row["id"])
-        for row in conn.execute(
-            """
-            SELECT id
-              FROM wf_event
-             WHERE source = 'email' AND status = 'received'
-             ORDER BY id
-            """
-        ).fetchall()
-    )
-    if not event_ids:
-        return ()
-
-    brief = resolve_email_extraction_brief(conn)
-    extractor = (
-        email_extractor
-        if brief is not None and callable(email_extractor)
-        else _missing_email_extractor
-    )
-    for event_id in event_ids[:5]:
-        # extract_event owns durable classification, validation and all
-        # failures.  Do not catch and re-route here: that would create a
-        # second state machine beside the engine's fail-closed path.
-        try:
-            wf_engine.extract_event(conn, event_id, brief if brief is not None else {}, extractor, email_schema_validator)
-        except Exception:
-            logger.exception("workflow email extraction failed for event %s", event_id)
-            with kanban_db.write_txn(conn):
-                wf_engine._record_match(conn, event_id, "needs_review", reason="email extraction runner failed")
-    return event_ids[:5]
 
 
 def _probe_targets(conn: sqlite3.Connection) -> dict[str, tuple[ProbeTarget, ...]]:
@@ -315,14 +229,159 @@ def _drive_matched_event(
         return True
 
 
+
+def resolve_email_extraction_brief(conn: sqlite3.Connection) -> dict | str | None:
+    """Resolve the sole catalog extraction contract; never inspect instances."""
+    contracts: dict[str, dict | str] = {}
+    for row in conn.execute("SELECT spec FROM wf_template ORDER BY slug, version").fetchall():
+        try:
+            spec = wf_engine._load_json(row["spec"], None)
+            workflow = wf_engine._workflow_spec(spec) if isinstance(spec, dict) else {}
+            if "email_extraction" not in workflow:
+                continue
+            brief = workflow["email_extraction"]
+            if not isinstance(brief, (dict, str)):
+                return None
+            wf_engine._extraction_schema(brief)
+            contracts[wf_engine._json(brief)] = brief
+        except Exception:
+            return None
+    return next(iter(contracts.values())) if len(contracts) == 1 else None
+
+def _raw_received_email_events(
+    conn: sqlite3.Connection,
+) -> tuple[sqlite3.Row, ...]:
+    """Return raw email intake that must be extracted before matching."""
+
+    return tuple(
+        conn.execute(
+            """
+            SELECT *
+              FROM wf_event
+             WHERE source = 'email'
+               AND status = 'received'
+               AND event_type IS NULL
+             ORDER BY id
+            """
+        ).fetchall()
+    )
+
+
+def _event_view(event: sqlite3.Row) -> Mapping[str, Any]:
+    """Expose only immutable event data to the extraction-plan resolver."""
+
+    return MappingProxyType(
+        {
+            "id": int(event["id"]),
+            "source": event["source"],
+            "external_id": event["external_id"],
+            "event_type": event["event_type"],
+            "payload": wf_engine._load_json(event["payload"], None),
+            "corr": wf_engine._load_json(event["corr"], None),
+        }
+    )
+
+
+def _failed_extraction_request(reason: str) -> ExtractionRequest:
+    """Build an engine request which durably records boundary failure."""
+
+    def fail(_brief, _event):
+        raise RuntimeError(reason)
+
+    return ExtractionRequest(
+        brief={"schema": None},
+        extractor=fail,
+        schema_validator=lambda _schema, _payload: False,
+    )
+
+
+def _extract_raw_email_events(
+    conn: sqlite3.Connection,
+    extractor_boundary: ExtractorBoundary | None,
+) -> None:
+    """Extract raw email intake before the generic sweeper can classify it."""
+
+    for event in _raw_received_email_events(conn):
+        if extractor_boundary is None:
+            request = _failed_extraction_request(
+                "workflow watcher has no email extractor boundary"
+            )
+        else:
+            try:
+                request = extractor_boundary(_event_view(event))
+                if not isinstance(request, ExtractionRequest):
+                    raise TypeError(
+                        "extractor boundary must return an ExtractionRequest"
+                    )
+            except Exception as exc:
+                logger.exception(
+                    "workflow watcher: extractor boundary failed for event %s",
+                    event["id"],
+                )
+                request = _failed_extraction_request(
+                    f"extractor boundary failed: {exc}"
+                )
+        try:
+            wf_engine.extract_event(
+                conn,
+                int(event["id"]),
+                request.brief,
+                request.extractor,
+                request.schema_validator,
+            )
+        except Exception as exc:
+            # A successful extractor can still hit a matching conflict after
+            # its classified write commits.  Re-enter through the engine so
+            # one poison email closes durably instead of starving every tick.
+            logger.exception(
+                "workflow watcher: extraction failed for event %s",
+                event["id"],
+            )
+            failed = _failed_extraction_request(
+                f"workflow extraction failed: {exc}"
+            )
+            wf_engine.extract_event(
+                conn,
+                int(event["id"]),
+                failed.brief,
+                failed.extractor,
+                failed.schema_validator,
+            )
+
+
+def _sweep_after_email_extraction(
+    conn: sqlite3.Connection,
+    now: int,
+) -> wf_engine.SweepResult:
+    """Sweep only while no concurrently-ingested raw email is visible."""
+
+    with kanban_db.write_txn(conn):
+        # BEGIN IMMEDIATE prevents a new email write between this guard and
+        # sweep's own intake query.  If ingress won the race before the lock,
+        # leave every intake row for the next tick rather than sweep raw mail.
+        if _raw_received_email_events(conn):
+            return wf_engine.SweepResult()
+        return wf_engine.sweep(conn, int(now))
+
+
 def run_tick(
     conn: sqlite3.Connection,
     now: int,
+    extractor_boundary: ExtractorBoundary | None = None,
     *,
-    email_extractor: EmailExtractor | None = None,
+    email_extractor: Callable[[dict | str, Mapping[str, Any]], dict] | None = None,
     email_schema_validator: Any = None,
 ) -> WatchTickResult:
     """Run one complete timer/probe/sweeper cycle against one board."""
+
+    # Compatibility seam for existing host callers while they move to the
+    # explicit boundary. The brief remains catalog-derived here.
+    if extractor_boundary is None and email_extractor is not None:
+        extractor_boundary = lambda _event: ExtractionRequest(
+            brief=resolve_email_extraction_brief(conn) or {},
+            extractor=email_extractor,
+            schema_validator=email_schema_validator,
+        )
 
     timers = tuple(wf_engine.fire_due_timers(conn, int(now)))
     pending_timers = tuple(
@@ -388,17 +447,8 @@ def run_tick(
             if _drive_matched_event(conn, event_id):
                 applied.append(event_id)
 
-    # This precedes sweep by construction.  A raw email cannot become
-    # routed_out merely because deterministic matching has not interpreted
-    # it; absent/bad runtime or contract reaches the engine's needs_review
-    # terminal instead.
-    _extract_received_email_events(
-        conn,
-        email_extractor=email_extractor,
-        email_schema_validator=email_schema_validator,
-    )
-
-    swept = wf_engine.sweep(conn, int(now))
+    _extract_raw_email_events(conn, extractor_boundary)
+    swept = _sweep_after_email_extraction(conn, int(now))
     # ``sweep`` classifies before returning.  Include every durable
     # non-create match, not only matches produced in this process, so a
     # gateway restart after classification but before application catches up.
@@ -433,13 +483,14 @@ def run_tick(
 
 
 __all__ = [
+    "ExtractionRequest",
+    "ExtractorBoundary",
     "ProbeObservation",
     "ProbeTarget",
     "StateProbe",
     "WatchTickResult",
     "register_state_probe",
     "registered_state_probes",
-    "resolve_email_extraction_brief",
     "run_tick",
     "unregister_state_probe",
 ]

@@ -5905,8 +5905,11 @@ class GatewayRunner:
                             _watcher.run_tick(
                                 conn,
                                 int(time.time()),
-                                email_extractor=self._extract_workflow_email,
-                                email_schema_validator=self._validate_workflow_email_payload,
+                                extractor_boundary=lambda event: _watcher.ExtractionRequest(
+                                    brief=_watcher.resolve_email_extraction_brief(conn) or {},
+                                    extractor=self._extract_workflow_email,
+                                    schema_validator=self._validate_workflow_email_payload,
+                                ),
                             ),
                         )
                     )
