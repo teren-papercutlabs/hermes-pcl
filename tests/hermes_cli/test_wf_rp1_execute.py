@@ -190,7 +190,7 @@ class FakeRemote:
         return {
             "table": "wf_template",
             "identity": (
-                f"wf_template.slug={workflow['id']}@1.email_extraction"
+                f"wf_template.slug={execute.RP1_TEMPLATE_ID}@1.email_extraction"
             ),
             "query": "resolve the sole registered email_extraction contract",
             "observed": execute._extraction_contract_evidence(
@@ -204,7 +204,7 @@ class FakeRemote:
         workflow = document["workflow"]
         return {
             "table": "wf_template",
-            "identity": f"wf_template.slug={workflow['id']}@1",
+            "identity": f"wf_template.slug={execute.RP1_TEMPLATE_ID}@1",
             "query": "SELECT latest registered workflow template",
             "observed": {"slug": workflow["id"], "version": 1},
         }
@@ -737,7 +737,7 @@ def test_staging_observe_email_returns_durable_declared_no_fit(
         )
         assert event_id is not None
         helper.conn.execute(
-            "UPDATE wf_event SET status = 'unmatched' WHERE id = ?",
+            "UPDATE wf_event SET status = 'unmatched', payload = '{}' WHERE id = ?",
             (event_id,),
         )
 
@@ -752,6 +752,7 @@ def test_staging_observe_email_returns_durable_declared_no_fit(
 
         assert response["ready"] is True
         assert response["observed"]["event_type"] is None
+        assert response["observed"]["payload"] == {}
         assert response["observed"]["corr"] == {}
         assert (
             response["observed"]["extraction_disposition"]

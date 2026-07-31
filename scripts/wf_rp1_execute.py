@@ -41,6 +41,7 @@ RECIPIENT_ENV = "WF_RP1_RECIPIENT"
 STAGING_DB_ENV = "WF_RP1_STAGING_DB"
 SERVICE_PROOF_ENV = "WF_RP1_SERVICE_PROOF_PATH"
 SERVICE_NAME = "pa-workflow-dev-hermes.service"
+RP1_TEMPLATE_ID = "synthetic-freight-loop-rp1"
 REMOTE_SSH_TARGET = "pa-staging@100.87.146.11"
 REMOTE_EXECUTOR_PATH = (
     "/home/pa-staging/apps/hermes-pcl/current/scripts/wf_rp1_execute.py"
@@ -336,6 +337,7 @@ class StagingHelper:
         self.workflow = _mapping(document, "workflow fixture").get("workflow")
         if not isinstance(self.workflow, dict):
             raise ExecutionContractError("workflow fixture has no workflow object")
+        self.workflow = {**self.workflow, "id": RP1_TEMPLATE_ID}
         self.template_id, _version = wf_engine.register_template(
             self.conn, self.workflow
         )
@@ -570,6 +572,17 @@ class StagingHelper:
             ).fetchone()
             if template is None:
                 raise ExecutionContractError("workflow template is not registered")
+            version_count = int(
+                self.conn.execute(
+                    "SELECT COUNT(*) AS count FROM wf_template WHERE slug = ?",
+                    (self.workflow["id"],),
+                ).fetchone()["count"]
+            )
+            if version_count != 1:
+                raise ExecutionContractError(
+                    "RP1 staging template has stale registered versions; "
+                    "remove the synthetic RP1 rows before campaign execution"
+                )
             registered_spec = wf_engine._load_json(template["spec"], None)
             registered_workflow = (
                 wf_engine._workflow_spec(registered_spec)
@@ -1221,7 +1234,7 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
                 raise ExecutionContractError(
                     f"{label}: evidence-limited {key} needs a reason"
                 )
-        elif not value and not (durable_null and key == "corr"):
+        elif not value and not (durable_null and key in {"payload", "corr"}):
             raise ExecutionContractError(
                 f"{label}: {key} must contain observed fields or an "
                 "EVIDENCE-LIMITED marker"
@@ -1256,7 +1269,7 @@ def _require_extraction_contract_citation(
     if not isinstance(contract, dict):
         raise ExecutionContractError("workflow fixture has no email_extraction")
     expected = _extraction_contract_evidence(contract)
-    expected_identity_prefix = f"wf_template.slug={workflow['id']}@"
+    expected_identity_prefix = f"wf_template.slug={RP1_TEMPLATE_ID}@"
     matching = [
         citation
         for citation in citations
