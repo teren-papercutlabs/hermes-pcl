@@ -316,8 +316,24 @@ def _is_limited(path: str, expected: Any) -> bool:
     return path == "correlation.target" and isinstance(expected, list)
 
 
+def _entity_value(value: Any) -> Any:
+    """Compare workflow entity identifiers independent of storage prefix."""
+    if value is None:
+        return "none"
+    if isinstance(value, str):
+        lowered = value.lower()
+        if lowered == "none":
+            return "none"
+        return value.removeprefix("job:")
+    return value
+
+
 def compare_subset(
-    expected: Any, observed: Any, path: str = ""
+    expected: Any,
+    observed: Any,
+    path: str = "",
+    *,
+    _limited: bool = False,
 ) -> dict[str, list[dict[str, Any]]]:
     """Compare only answer-key fields, retaining evidence-limit distinctions."""
     result: dict[str, list[dict[str, Any]]] = {
@@ -327,19 +343,46 @@ def compare_subset(
     }
     if isinstance(expected, dict):
         observed_dict = observed if isinstance(observed, dict) else {}
+        evidence_status = observed_dict.get("evidence_status")
+        limited = (
+            True
+            if evidence_status == "EVIDENCE-LIMITED"
+            else False
+            if evidence_status == "OBSERVED"
+            else _limited
+        )
         for key, value in expected.items():
             child = f"{path}.{key}" if path else key
             if key not in observed_dict:
-                bucket = "unobservable" if _is_limited(child, value) else "failed"
+                if value is None:
+                    result["matched"].append(
+                        {"path": child, "expected": None, "observed": None}
+                    )
+                    continue
+                bucket = (
+                    "unobservable"
+                    if limited or _is_limited(child, value)
+                    else "failed"
+                )
                 result[bucket].append(
                     {"path": child, "expected": _json_clone(value), "observed": None}
                 )
                 continue
-            nested = compare_subset(value, observed_dict[key], child)
+            nested = compare_subset(
+                value, observed_dict[key], child, _limited=limited
+            )
             for bucket in result:
                 result[bucket].extend(nested[bucket])
         return result
-    if expected == observed:
+    normalized_entity_path = path == "correlation.target" or path.endswith(
+        ".entity_key"
+    )
+    values_match = (
+        _entity_value(expected) == _entity_value(observed)
+        if normalized_entity_path
+        else expected == observed
+    )
+    if values_match:
         result["matched"].append(
             {"path": path, "expected": _json_clone(expected), "observed": _json_clone(observed)}
         )
@@ -348,6 +391,155 @@ def compare_subset(
             {"path": path, "expected": _json_clone(expected), "observed": _json_clone(observed)}
         )
     return result
+
+
+def _instance_for_expected(
+    expected: dict[str, Any], instances: dict[str, Any]
+) -> tuple[str | None, dict[str, Any] | None]:
+    requested = None
+    for key in ("entity_key", "instance", "target"):
+        value = expected.get(key)
+        if isinstance(value, str) and value.lower() != "none":
+            requested = _entity_value(value)
+            break
+    if requested is not None:
+        for entity_key, instance in instances.items():
+            if _entity_value(entity_key) == requested and isinstance(instance, dict):
+                return entity_key, instance
+    if len(instances) == 1:
+        entity_key, instance = next(iter(instances.items()))
+        if isinstance(instance, dict):
+            return entity_key, instance
+    return None, None
+
+
+def _project_final_observation(
+    expected: dict[str, Any],
+    observed: dict[str, Any],
+    observed_emails: dict[str, Any],
+) -> dict[str, Any]:
+    """Project durable generic rows onto the locked final-answer vocabulary."""
+    if "instances" not in observed:
+        return observed
+    instances = observed.get("instances")
+    if not isinstance(instances, dict):
+        return observed
+    projected: dict[str, Any] = {"evidence_status": "EVIDENCE-LIMITED"}
+    entity_key, instance = _instance_for_expected(expected, instances)
+    if instance is not None and entity_key is not None:
+        bare = _entity_value(entity_key)
+        if "entity_key" in expected:
+            projected["entity_key"] = entity_key
+        if "instance" in expected:
+            projected["instance"] = bare
+        if "target" in expected:
+            projected["target"] = bare
+        if "step" in expected:
+            projected["step"] = instance.get("step")
+        if "current_step" in expected:
+            projected["current_step"] = instance.get("step")
+        if "state" in expected:
+            projected["state"] = instance.get("state")
+        if "workflow_state" in expected:
+            projected["workflow_state"] = instance.get("state")
+        if "corr" in expected:
+            projected["corr"] = {
+                "evidence_status": "OBSERVED",
+                **_json_clone(instance.get("corr", {})),
+            }
+        if "vars" in expected:
+            projected["vars"] = {
+                "evidence_status": "OBSERVED",
+                **_json_clone(instance.get("vars", {})),
+            }
+    elif not instances:
+        if expected.get("target") == "none":
+            projected["target"] = "none"
+        if "instance_created" in expected:
+            projected["instance_created"] = False
+        verdicts = [
+            email.get("correlation", {}).get("verdict")
+            for email in observed_emails.values()
+            if isinstance(email, dict)
+        ]
+        if verdicts and all(value == "routed_out" for value in verdicts):
+            projected.update({"state": "routed_out", "step": "none", "corr": {}, "vars": {}})
+
+    if isinstance(expected.get("jobs"), dict):
+        projected_jobs: dict[str, Any] = {}
+        for expected_key in expected["jobs"]:
+            match = next(
+                (
+                    value
+                    for key, value in instances.items()
+                    if _entity_value(key) == _entity_value(expected_key)
+                    and isinstance(value, dict)
+                ),
+                None,
+            )
+            if match is not None:
+                projected_jobs[expected_key] = {
+                    "evidence_status": "OBSERVED",
+                    "step": match.get("step"),
+                    "state": match.get("state"),
+                    **_json_clone(match.get("corr", {})),
+                    **_json_clone(match.get("vars", {})),
+                }
+        projected["jobs"] = projected_jobs
+    if isinstance(expected.get("instance_state"), dict):
+        projected["instance_state"] = {
+            "evidence_status": "OBSERVED",
+            **{
+                expected_key: next(
+                    (
+                        value.get("state")
+                        for key, value in instances.items()
+                        if _entity_value(key) == _entity_value(expected_key)
+                        and isinstance(value, dict)
+                    ),
+                    None,
+                )
+                for expected_key in expected["instance_state"]
+            },
+        }
+    if isinstance(expected.get("event_status"), dict):
+        projected["event_status"] = {
+            "evidence_status": "OBSERVED",
+            **{
+                message_id: observed_emails.get(message_id, {})
+                .get("correlation", {})
+                .get("verdict")
+                for message_id in expected["event_status"]
+            },
+        }
+    return projected
+
+
+def _project_probe_observation(
+    probe: dict[str, Any],
+    observed: dict[str, Any],
+    arc: dict[str, Any],
+    observed_emails: dict[str, Any],
+) -> dict[str, Any]:
+    if not observed or all(key in observed for key in probe["expected"]):
+        return observed
+    projected: dict[str, Any] = {"evidence_status": "EVIDENCE-LIMITED"}
+    projected["after_email_step"] = probe["after_email_step"]
+    poll = observed.get("state_poll")
+    status = poll.get("status") if isinstance(poll, dict) else observed.get("status")
+    if status is not None:
+        projected["state_poll"] = status
+    email_index = int(probe["after_email_step"]) - 1
+    if 0 <= email_index < len(arc.get("emails", [])):
+        logical_id = arc["emails"][email_index]["message_id"]
+        email_claim = observed_emails.get(logical_id, {}).get("event_type")
+        if email_claim is not None:
+            projected["email_claim"] = email_claim
+            if status is not None:
+                projected["verdict"] = (
+                    "mismatch" if email_claim != status else "match"
+                )
+    return projected
 
 
 def _status(result: dict[str, list[dict[str, Any]]]) -> str:
@@ -441,8 +633,13 @@ def score_campaign(
                 if isinstance(observed_probes, list) and index < len(observed_probes)
                 else {}
             )
+            projected_probe = _project_probe_observation(
+                probe, probe_observed, arc, observed_emails
+            )
             comparison = compare_subset(
-                probe["expected"], probe_observed, f"state_probes[{index}].expected"
+                probe["expected"],
+                projected_probe,
+                f"state_probes[{index}].expected",
             )
             probe_status = _status(comparison)
             probe_counts[probe_status] += 1
@@ -454,8 +651,14 @@ def score_campaign(
                     "comparison": comparison,
                 }
             )
+        final_observed = arc_observed.get("expected_final", {})
+        projected_final = _project_final_observation(
+            arc["expected_final"],
+            final_observed if isinstance(final_observed, dict) else {},
+            observed_emails if isinstance(observed_emails, dict) else {},
+        )
         final_result = compare_subset(
-            arc["expected_final"], arc_observed.get("expected_final", {}), "expected_final"
+            arc["expected_final"], projected_final, "expected_final"
         )
         final_status = _status(final_result)
         arc_counts[final_status] += 1

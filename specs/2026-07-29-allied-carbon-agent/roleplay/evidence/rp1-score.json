@@ -1,0 +1,4417 @@
+{
+  "arc_counts": {
+    "evidence-limited": 2,
+    "fail": 10,
+    "pass": 0
+  },
+  "arcs": [
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rpa01-001@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "resume",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": "Apply the pickup advice to RP1-JOB-0101 and advance it from await_pickup to create_job.",
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "Do not apply the event to RP1-JOB-0102.",
+                    "Do not tie-break by recency because the booking reference is shared.",
+                    "Keep seal_number absent because the carrier did not provide one."
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": {
+                    "customer": "Northstar Foods Pte Ltd"
+                  },
+                  "observed": null,
+                  "path": "correlation.prose_discriminator"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "matched",
+                  "observed": "matched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0101",
+                  "observed": "job:RP1-JOB-0101",
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": "deterministic",
+                  "path": "correlation.match_method"
+                }
+              ],
+              "unobservable": [
+                {
+                  "expected": [
+                    "RP1-JOB-0102"
+                  ],
+                  "observed": null,
+                  "path": "correlation.candidates_rejected"
+                },
+                {
+                  "expected": "step_compatibility",
+                  "observed": null,
+                  "path": "correlation.selection_reason"
+                },
+                {
+                  "expected": 2,
+                  "observed": null,
+                  "path": "correlation.candidate_count"
+                },
+                {
+                  "expected": 1,
+                  "observed": null,
+                  "path": "correlation.compatible_candidate_count"
+                }
+              ]
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-BK-SHARED-01",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "PM-REL-8841",
+                  "observed": null,
+                  "path": "payload.pickup_reference"
+                },
+                {
+                  "expected": "Northstar Foods Pte Ltd",
+                  "observed": "Northstar Foods",
+                  "path": "payload.customer"
+                },
+                {
+                  "expected": "40HC",
+                  "observed": null,
+                  "path": "payload.equipment_type"
+                },
+                {
+                  "expected": "Westport Empty Depot",
+                  "observed": null,
+                  "path": "payload.empty_depot"
+                },
+                {
+                  "expected": "2026-08-04T08:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_start"
+                },
+                {
+                  "expected": "2026-08-04T16:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_end"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "pickup_advice",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "MV Cedar Bay",
+                  "observed": "MV Cedar Bay",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "RP1-BK-SHARED-01",
+                  "observed": "RP1-BK-SHARED-01",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rpa01-002@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "evidence-limited",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "no_action",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": "Record the correction as a past-step no-op and preserve the existing pickup advice on RP1-JOB-0101.",
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "Do not create a second pickup transition.",
+                    "Do not touch RP1-JOB-0102.",
+                    "Do not invent a seal number or change the pickup window."
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [],
+              "matched": [
+                {
+                  "expected": "superseded",
+                  "observed": "superseded",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0101",
+                  "observed": "job:RP1-JOB-0101",
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": "deterministic",
+                  "path": "correlation.match_method"
+                }
+              ],
+              "unobservable": [
+                {
+                  "expected": 1,
+                  "observed": null,
+                  "path": "correlation.candidate_count"
+                },
+                {
+                  "expected": "past",
+                  "observed": null,
+                  "path": "correlation.position"
+                },
+                {
+                  "expected": "The exact job_no selects RP1-JOB-0101 and its pickup wait was already satisfied by the first carrier message; this correction is a past-step no-op.",
+                  "observed": null,
+                  "path": "correlation.reason"
+                }
+              ]
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-BK-SHARED-01",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "PM-REL-8841",
+                  "observed": null,
+                  "path": "payload.pickup_reference"
+                },
+                {
+                  "expected": "Northstar Foods Pte Ltd",
+                  "observed": "Northstar Foods",
+                  "path": "payload.customer"
+                },
+                {
+                  "expected": "40HC",
+                  "observed": null,
+                  "path": "payload.equipment_type"
+                },
+                {
+                  "expected": "MV Cedar Bay",
+                  "observed": null,
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "Westport Empty Depot",
+                  "observed": null,
+                  "path": "payload.empty_depot"
+                },
+                {
+                  "expected": "2026-08-04T08:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_start"
+                },
+                {
+                  "expected": "2026-08-04T16:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_end"
+                },
+                {
+                  "expected": "RP1-JOB-0101",
+                  "observed": null,
+                  "path": "payload.job_no"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "pickup_advice",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-JOB-0101",
+                  "observed": "RP1-JOB-0101",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BK-SHARED-01",
+                  "observed": "RP1-BK-SHARED-01",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "PM-REL-8841",
+              "observed": null,
+              "path": "expected_final.jobs.RP1-JOB-0101.pickup_reference"
+            },
+            {
+              "expected": "applied_once",
+              "observed": null,
+              "path": "expected_final.jobs.RP1-JOB-0101.last_event_effect"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.jobs.RP1-JOB-0102.changed_by_arc"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "create_job",
+              "observed": "create_job",
+              "path": "expected_final.jobs.RP1-JOB-0101.step"
+            },
+            {
+              "expected": "advancing",
+              "observed": "advancing",
+              "path": "expected_final.jobs.RP1-JOB-0101.state"
+            },
+            {
+              "expected": "await_vgm",
+              "observed": "await_vgm",
+              "path": "expected_final.jobs.RP1-JOB-0102.step"
+            },
+            {
+              "expected": "parked",
+              "observed": "parked",
+              "path": "expected_final.jobs.RP1-JOB-0102.state"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "RP1-JOB-0101_only",
+              "observed": null,
+              "path": "expected_final.shared_booking_resolution"
+            },
+            {
+              "expected": 0,
+              "observed": null,
+              "path": "expected_final.duplicate_transition_count"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A01",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rpa02-001@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "evidence-limited",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "park",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": "Store the pickup advice as an unmatched held event and wait for the instruction to create the instance.",
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "Do not invent RP1-JOB-0201 from the booking reference alone.",
+                    "Retain the event for the bounded deterministic re-match sweep.",
+                    "Do not route it out as foreign because the booking-shaped key is valid."
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [],
+              "matched": [
+                {
+                  "expected": "unmatched",
+                  "observed": "unmatched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": null,
+                  "observed": null,
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": "deterministic",
+                  "path": "correlation.match_method"
+                }
+              ],
+              "unobservable": [
+                {
+                  "expected": 0,
+                  "observed": null,
+                  "path": "correlation.candidate_count"
+                },
+                {
+                  "expected": "The pickup advice is not a create_on event and no open instance exists yet.",
+                  "observed": null,
+                  "path": "correlation.reason"
+                }
+              ]
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-BK-LATE-02",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "OCL-PU-7718",
+                  "observed": null,
+                  "path": "payload.pickup_reference"
+                },
+                {
+                  "expected": "40HC",
+                  "observed": null,
+                  "path": "payload.equipment_type"
+                },
+                {
+                  "expected": "Jurong Container Depot",
+                  "observed": null,
+                  "path": "payload.empty_depot"
+                },
+                {
+                  "expected": "2026-08-06T09:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_start"
+                },
+                {
+                  "expected": "2026-08-06T15:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_end"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "pickup_advice",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "MV River Kestrel",
+                  "observed": "MV River Kestrel",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "RP1-BK-LATE-02",
+                  "observed": "RP1-BK-LATE-02",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rpa02-002@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "resume",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": "Create RP1-JOB-0201 from the trucking instruction, then deterministically re-match and apply the held pickup advice by booking_ref and pickup_advice step compatibility to that new instance.",
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "Use the declared booking_ref and the pickup_advice wait; do not use an LM guess or recency.",
+                    "Apply the held event once and preserve its original message id.",
+                    "Do not create a second instance for RP1-BK-LATE-02."
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "deterministic",
+                  "observed": "deterministic:create",
+                  "path": "correlation.match_method"
+                },
+                {
+                  "expected": true,
+                  "observed": null,
+                  "path": "correlation.created_instance"
+                },
+                {
+                  "expected": "rpa02-001@rp1.synthetic.test",
+                  "observed": null,
+                  "path": "correlation.held_event_released"
+                },
+                {
+                  "expected": "signal_with_start",
+                  "observed": null,
+                  "path": "correlation.creation_mode"
+                },
+                {
+                  "expected": 1,
+                  "observed": null,
+                  "path": "correlation.candidate_count_after_creation"
+                },
+                {
+                  "expected": "ingest",
+                  "observed": null,
+                  "path": "correlation.created_step"
+                },
+                {
+                  "expected": {
+                    "from": "ingest",
+                    "to": "await_pickup"
+                  },
+                  "observed": null,
+                  "path": "correlation.created_step_advance"
+                },
+                {
+                  "expected": {
+                    "from": "await_pickup",
+                    "to": "create_job"
+                  },
+                  "observed": null,
+                  "path": "correlation.held_event_transition"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "matched",
+                  "observed": "matched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0201",
+                  "observed": "RP1-JOB-0201",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": [
+                {
+                  "expected": 0,
+                  "observed": null,
+                  "path": "correlation.candidate_count"
+                }
+              ]
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-JOB-0201",
+                  "observed": null,
+                  "path": "payload.requested_job_id"
+                },
+                {
+                  "expected": "RP1-BK-LATE-02",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "Singapore",
+                  "observed": null,
+                  "path": "payload.origin"
+                },
+                {
+                  "expected": "Port Klang",
+                  "observed": null,
+                  "path": "payload.destination"
+                },
+                {
+                  "expected": "40HC",
+                  "observed": null,
+                  "path": "payload.equipment_type"
+                },
+                {
+                  "expected": "Jurong Container Depot",
+                  "observed": null,
+                  "path": "payload.empty_depot"
+                },
+                {
+                  "expected": "2026-08-06",
+                  "observed": null,
+                  "path": "payload.pickup_date"
+                },
+                {
+                  "expected": "OCL-PU-7718",
+                  "observed": null,
+                  "path": "payload.pickup_reference"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "trucking_instruction",
+                  "observed": "trucking_instruction",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "Northwind Fixtures Pte Ltd",
+                  "observed": "Northwind Fixtures Pte Ltd",
+                  "path": "payload.customer"
+                },
+                {
+                  "expected": "export",
+                  "observed": "export",
+                  "path": "payload.direction"
+                },
+                {
+                  "expected": "MV River Kestrel",
+                  "observed": "MV River Kestrel",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "RP1-BK-LATE-02",
+                  "observed": "RP1-BK-LATE-02",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "create_job",
+              "observed": "ingest",
+              "path": "expected_final.step"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-0201",
+              "observed": "RP1-JOB-0201",
+              "path": "expected_final.instance"
+            },
+            {
+              "expected": "job:RP1-JOB-0201",
+              "observed": "RP1-JOB-0201",
+              "path": "expected_final.entity_key"
+            },
+            {
+              "expected": "advancing",
+              "observed": "advancing",
+              "path": "expected_final.state"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "applied",
+              "observed": null,
+              "path": "expected_final.held_pickup_event"
+            },
+            {
+              "expected": "deterministic_on_instance_creation",
+              "observed": null,
+              "path": "expected_final.healing"
+            },
+            {
+              "expected": 1,
+              "observed": null,
+              "path": "expected_final.instance_count_for_booking"
+            },
+            {
+              "expected": "trucking_instruction",
+              "observed": null,
+              "path": "expected_final.new_job_created_by"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A02",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rpa03-001@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "review",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": "Create a needs_review pick showing RP1-JOB-0301 and RP1-JOB-0302 with the pickup summary, and ask a human to choose one.",
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "Never apply the pickup advice to both jobs.",
+                    "Never choose by recency, list order, or a guessed customer order.",
+                    "Keep both instances parked until the human pick is recorded."
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": [
+                    "RP1-JOB-0301",
+                    "RP1-JOB-0302"
+                  ],
+                  "observed": null,
+                  "path": "correlation.target"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "ambiguous",
+                  "observed": "ambiguous",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": "deterministic",
+                  "path": "correlation.match_method"
+                }
+              ],
+              "unobservable": [
+                {
+                  "expected": 0,
+                  "observed": null,
+                  "path": "correlation.usable_discriminator_count"
+                },
+                {
+                  "expected": "The event has no customer value, while the declared disambiguators vessel and direction are present but equal on both candidates; customer_order is not a declared disambiguator and is absent from the event.",
+                  "observed": null,
+                  "path": "correlation.reason"
+                },
+                {
+                  "expected": 2,
+                  "observed": null,
+                  "path": "correlation.candidate_count"
+                },
+                {
+                  "expected": 2,
+                  "observed": null,
+                  "path": "correlation.compatible_candidate_count"
+                }
+              ]
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-BK-AMB-03",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "BSS-44120",
+                  "observed": null,
+                  "path": "payload.pickup_reference"
+                },
+                {
+                  "expected": "Eastlink Empty Yard",
+                  "observed": null,
+                  "path": "payload.empty_depot"
+                },
+                {
+                  "expected": "2026-08-07T08:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_start"
+                },
+                {
+                  "expected": "2026-08-07T14:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_end"
+                },
+                {
+                  "expected": "40HC",
+                  "observed": null,
+                  "path": "payload.equipment_type"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "pickup_advice",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "MV Silver Pine",
+                  "observed": "MV Silver Pine",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "export",
+                  "observed": "export",
+                  "path": "payload.direction"
+                },
+                {
+                  "expected": "RP1-BK-AMB-03",
+                  "observed": "RP1-BK-AMB-03",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "declared-no-fit",
+          "logical_message_id": "rpa03-002@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "review",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": "Append the re-forward to the existing human-pick proposal for RP1-BK-AMB-03 and wait for an explicit selection of RP1-JOB-0301 or RP1-JOB-0302; do not apply or create a second transition.",
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "Do not auto-apply based on the customer_ops sender.",
+                    "Do not infer the target from the phrase first row.",
+                    "Do not send an external pickup update while the event is ambiguous."
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "ambiguous",
+                  "observed": "routed_out",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": [
+                    "RP1-JOB-0301",
+                    "RP1-JOB-0302"
+                  ],
+                  "observed": null,
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "pickup:RP1-BK-AMB-03:BSS-44120",
+                  "observed": null,
+                  "path": "correlation.logical_event_key"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "deterministic",
+                  "observed": "deterministic",
+                  "path": "correlation.match_method"
+                }
+              ],
+              "unobservable": [
+                {
+                  "expected": 2,
+                  "observed": null,
+                  "path": "correlation.candidate_count"
+                },
+                {
+                  "expected": 2,
+                  "observed": null,
+                  "path": "correlation.compatible_candidate_count"
+                },
+                {
+                  "expected": 0,
+                  "observed": null,
+                  "path": "correlation.usable_discriminator_count"
+                },
+                {
+                  "expected": "The re-forward repeats the same booking-only release and still contains no field that selects either job.",
+                  "observed": null,
+                  "path": "correlation.reason"
+                }
+              ]
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "pickup_advice",
+                  "observed": null,
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-BK-AMB-03",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "BSS-44120",
+                  "observed": null,
+                  "path": "payload.pickup_reference"
+                },
+                {
+                  "expected": "Eastlink Empty Yard",
+                  "observed": null,
+                  "path": "payload.empty_depot"
+                },
+                {
+                  "expected": "2026-08-07T08:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_start"
+                },
+                {
+                  "expected": "2026-08-07T14:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.pickup_window_end"
+                },
+                {
+                  "expected": "MV Silver Pine",
+                  "observed": null,
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "export",
+                  "observed": null,
+                  "path": "payload.direction"
+                },
+                {
+                  "expected": "40HC",
+                  "observed": null,
+                  "path": "payload.equipment_type"
+                },
+                {
+                  "expected": "RP1-BK-AMB-03",
+                  "observed": null,
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "matched": [],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "ambiguous",
+              "observed": "routed_out",
+              "path": "expected_final.event_status.rpa03-002@rp1.synthetic.test"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "ambiguous",
+              "observed": "ambiguous",
+              "path": "expected_final.event_status.rpa03-001@rp1.synthetic.test"
+            },
+            {
+              "expected": "parked",
+              "observed": "parked",
+              "path": "expected_final.instance_state.RP1-JOB-0301"
+            },
+            {
+              "expected": "parked",
+              "observed": "parked",
+              "path": "expected_final.instance_state.RP1-JOB-0302"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": true,
+              "observed": null,
+              "path": "expected_final.human_pick_required"
+            },
+            {
+              "expected": [
+                "RP1-JOB-0301",
+                "RP1-JOB-0302"
+              ],
+              "observed": null,
+              "path": "expected_final.candidate_jobs"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.auto_applied"
+            },
+            {
+              "expected": 0,
+              "observed": null,
+              "path": "expected_final.external_side_effects"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A03",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rpa04-001@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "park",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": "Buffer the gate-in event against RP1-JOB-0401 and leave the current VGM wait armed.",
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "Do not advance the job on gate-in alone.",
+                    "Do not treat vgm_status pending as a VGM value.",
+                    "Consume the buffered event only after a compatible VGM advance enters await_gatein."
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "await_vgm",
+                  "observed": null,
+                  "path": "correlation.current_step"
+                },
+                {
+                  "expected": "await_gatein",
+                  "observed": null,
+                  "path": "correlation.event_compatible_step"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "buffered",
+                  "observed": "buffered",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0401",
+                  "observed": "job:RP1-JOB-0401",
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": "deterministic",
+                  "path": "correlation.match_method"
+                }
+              ],
+              "unobservable": [
+                {
+                  "expected": "The job identity is exact, but gate_in is valid for the future await_gatein step and cannot apply while await_vgm is active.",
+                  "observed": null,
+                  "path": "correlation.reason"
+                }
+              ]
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-JOB-0401",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BK-OOO-04",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "CMAU4819207",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "2026-08-08T09:18:00+08:00",
+                  "observed": null,
+                  "path": "payload.gate_in_at"
+                },
+                {
+                  "expected": "CLT-GI-9402",
+                  "observed": null,
+                  "path": "payload.terminal_receipt"
+                },
+                {
+                  "expected": "pending",
+                  "observed": null,
+                  "path": "payload.vgm_status"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "gate_in",
+                  "observed": "gate_in",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "PSA Singapore",
+                  "observed": "PSA Singapore",
+                  "path": "payload.terminal"
+                },
+                {
+                  "expected": "RP1-JOB-0401",
+                  "observed": "RP1-JOB-0401",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "CMAU4819207",
+                  "observed": "CMAU4819207",
+                  "path": "corr.container_no"
+                },
+                {
+                  "expected": "RP1-BK-OOO-04",
+                  "observed": "RP1-BK-OOO-04",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rpa04-002@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "resume",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": "Apply the VGM reply, advance RP1-JOB-0401 from await_vgm to await_gatein, then consume and apply the buffered gate-in event CLT-GI-9402 exactly once.",
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "Use gross_mass_kg 18640 and method SOLAS-2; do not substitute the terminal's pending status.",
+                    "Apply the buffered gate-in only after the compatible step is entered.",
+                    "Do not create a second gate-in transition or re-read the event as unmatched."
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "await_vgm",
+                  "observed": null,
+                  "path": "correlation.current_step"
+                },
+                {
+                  "expected": "await_gatein",
+                  "observed": null,
+                  "path": "correlation.next_step"
+                },
+                {
+                  "expected": "rpa04-001@rp1.synthetic.test",
+                  "observed": null,
+                  "path": "correlation.buffered_event_to_consume"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "matched",
+                  "observed": "matched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0401",
+                  "observed": "job:RP1-JOB-0401",
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": "deterministic",
+                  "path": "correlation.match_method"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-JOB-0401",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BK-OOO-04",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "CMAU4819207",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": 18640,
+                  "observed": null,
+                  "path": "payload.gross_mass_kg"
+                },
+                {
+                  "expected": "SOLAS-2",
+                  "observed": null,
+                  "path": "payload.method"
+                },
+                {
+                  "expected": "Saffron Retail Pte Ltd",
+                  "observed": "Saffron Retail",
+                  "path": "payload.submitted_by"
+                },
+                {
+                  "expected": "2026-08-08T09:42:00+08:00",
+                  "observed": null,
+                  "path": "payload.submitted_at"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "vgm_reply",
+                  "observed": "vgm_reply",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "SR-VM-18804",
+                  "observed": "SR-VM-18804",
+                  "path": "payload.weighing_ticket"
+                },
+                {
+                  "expected": "RP1-JOB-0401",
+                  "observed": "RP1-JOB-0401",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "CMAU4819207",
+                  "observed": "CMAU4819207",
+                  "path": "corr.container_no"
+                },
+                {
+                  "expected": "RP1-BK-OOO-04",
+                  "observed": "RP1-BK-OOO-04",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "invoice",
+              "observed": "await_gatein",
+              "path": "expected_final.step"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-0401",
+              "observed": "RP1-JOB-0401",
+              "path": "expected_final.instance"
+            },
+            {
+              "expected": "advancing",
+              "observed": "advancing",
+              "path": "expected_final.state"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": {
+                "gross_mass_kg": 18640,
+                "method": "SOLAS-2",
+                "weighing_ticket": "SR-VM-18804"
+              },
+              "observed": null,
+              "path": "expected_final.vgm"
+            },
+            {
+              "expected": {
+                "applied_after_buffer": true,
+                "gate_in_at": "2026-08-08T09:18:00+08:00",
+                "terminal_receipt": "CLT-GI-9402"
+              },
+              "observed": null,
+              "path": "expected_final.gate_in"
+            },
+            {
+              "expected": "applied",
+              "observed": null,
+              "path": "expected_final.buffered_event_status"
+            },
+            {
+              "expected": [
+                "vgm_reply",
+                "gate_in"
+              ],
+              "observed": null,
+              "path": "expected_final.transition_order"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A04",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "pass",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "resume",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "from_step": "await_pickup",
+                    "intake_record": "primary message",
+                    "next_step": "create_job",
+                    "to_step": "create_job",
+                    "transition": "apply pickup_advice once"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "dedupe on exact source Message-ID first, then on normalized content key for forwarded copies",
+                    "treat the 09:18 versus 09:16 difference as administrative_only per the carrier note",
+                    "retain booking and container correlation fields",
+                    "do not create a second workflow instance or send a reply"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [],
+              "matched": [
+                {
+                  "expected": "matched",
+                  "observed": "matched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "job:RP1-JOB-0501",
+                  "observed": "job:RP1-JOB-0501",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-JOB-0501",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "collected",
+                  "observed": null,
+                  "path": "payload.pickup_status"
+                },
+                {
+                  "expected": "RP1-A05-PICKUP-0501",
+                  "observed": null,
+                  "path": "payload.content_key"
+                },
+                {
+                  "expected": "<rp1-a05-original-0501@rp1.synthetic.test>",
+                  "observed": null,
+                  "path": "payload.source_message_id"
+                },
+                {
+                  "expected": "RP1-BL-0501",
+                  "observed": null,
+                  "path": "payload.bill_of_lading"
+                },
+                {
+                  "expected": "09:18",
+                  "observed": null,
+                  "path": "payload.driver_confirmed_at"
+                },
+                {
+                  "expected": "09:16",
+                  "observed": null,
+                  "path": "payload.depot_receipt_at"
+                },
+                {
+                  "expected": 2,
+                  "observed": null,
+                  "path": "payload.timestamp_discrepancy_minutes"
+                },
+                {
+                  "expected": "administrative_only",
+                  "observed": null,
+                  "path": "payload.timestamp_discrepancy_status"
+                },
+                {
+                  "expected": "log_only_no_reply",
+                  "observed": null,
+                  "path": "payload.acknowledgement_request"
+                },
+                {
+                  "expected": "job:RP1-JOB-0501",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                },
+                {
+                  "expected": "RP1-A05-PICKUP-0501",
+                  "observed": null,
+                  "path": "corr.normalized_content_key"
+                },
+                {
+                  "expected": "RP1-BL-0501",
+                  "observed": null,
+                  "path": "corr.bill_of_lading"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "pickup_advice",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-BKG-0501",
+                  "observed": "RP1-BKG-0501",
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "MSCU0501001",
+                  "observed": "MSCU0501001",
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "MS0501A",
+                  "observed": "MS0501A",
+                  "path": "payload.seal_no"
+                },
+                {
+                  "expected": "MV Meridian Dawn",
+                  "observed": "MV Meridian Dawn",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "MD118E",
+                  "observed": "MD118E",
+                  "path": "payload.voyage"
+                },
+                {
+                  "expected": "RP1-JOB-0501",
+                  "observed": "RP1-JOB-0501",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0501",
+                  "observed": "RP1-BKG-0501",
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "MSCU0501001",
+                  "observed": "MSCU0501001",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "pass",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "no_action",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "external_send": "none",
+                    "record": "forwarded copy marked superseded",
+                    "result": "keep the first intake only"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "dedupe on normalized content key after the forwarded envelope receives a new Message-ID",
+                    "treat the 09:18 versus 09:16 difference as administrative_only, not a new freight event",
+                    "do not apply a second transition or send a reply",
+                    "preserve both envelope Message-IDs for audit"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [],
+              "matched": [
+                {
+                  "expected": "superseded",
+                  "observed": "superseded",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "job:RP1-JOB-0501",
+                  "observed": "job:RP1-JOB-0501",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "RP1-JOB-0501",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0501",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "MSCU0501001",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "collected",
+                  "observed": null,
+                  "path": "payload.pickup_status"
+                },
+                {
+                  "expected": "RP1-A05-PICKUP-0501",
+                  "observed": null,
+                  "path": "payload.content_key"
+                },
+                {
+                  "expected": "forwarded_duplicate",
+                  "observed": null,
+                  "path": "payload.copy_kind"
+                },
+                {
+                  "expected": "<rp1-a05-original-0501@rp1.synthetic.test>",
+                  "observed": null,
+                  "path": "payload.duplicate_of_message_id"
+                },
+                {
+                  "expected": "RP1-BL-0501",
+                  "observed": null,
+                  "path": "payload.bill_of_lading"
+                },
+                {
+                  "expected": "09:18",
+                  "observed": null,
+                  "path": "payload.driver_confirmed_at"
+                },
+                {
+                  "expected": "09:16",
+                  "observed": null,
+                  "path": "payload.depot_receipt_at"
+                },
+                {
+                  "expected": 2,
+                  "observed": null,
+                  "path": "payload.timestamp_discrepancy_minutes"
+                },
+                {
+                  "expected": "administrative_only",
+                  "observed": null,
+                  "path": "payload.timestamp_discrepancy_status"
+                },
+                {
+                  "expected": "log_only_no_reply",
+                  "observed": null,
+                  "path": "payload.acknowledgement_request"
+                },
+                {
+                  "expected": "exact_message_id_then_normalized_content_key",
+                  "observed": null,
+                  "path": "payload.dedupe_strategy"
+                },
+                {
+                  "expected": "job:RP1-JOB-0501",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                },
+                {
+                  "expected": "<rp1-a05-original-0501@rp1.synthetic.test>",
+                  "observed": null,
+                  "path": "corr.forwarded_original_message_id"
+                },
+                {
+                  "expected": "RP1-A05-PICKUP-0501",
+                  "observed": null,
+                  "path": "corr.normalized_content_key"
+                },
+                {
+                  "expected": "RP1-BL-0501",
+                  "observed": null,
+                  "path": "corr.bill_of_lading"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "pickup_advice",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "MS0501A",
+                  "observed": "MS0501A",
+                  "path": "payload.seal_no"
+                },
+                {
+                  "expected": "MV Meridian Dawn",
+                  "observed": "MV Meridian Dawn",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "MD118E",
+                  "observed": "MD118E",
+                  "path": "payload.voyage"
+                },
+                {
+                  "expected": "RP1-JOB-0501",
+                  "observed": "RP1-JOB-0501",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0501",
+                  "observed": "RP1-BKG-0501",
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "MSCU0501001",
+                  "observed": "MSCU0501001",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [],
+          "matched": [
+            {
+              "expected": "job:RP1-JOB-0501",
+              "observed": "job:RP1-JOB-0501",
+              "path": "expected_final.entity_key"
+            },
+            {
+              "expected": "advancing",
+              "observed": "advancing",
+              "path": "expected_final.workflow_state"
+            },
+            {
+              "expected": "create_job",
+              "observed": "create_job",
+              "path": "expected_final.current_step"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": 1,
+              "observed": null,
+              "path": "expected_final.intake_count"
+            },
+            {
+              "expected": "<rp1-a05-original-0501@rp1.synthetic.test>",
+              "observed": null,
+              "path": "expected_final.primary_message_id"
+            },
+            {
+              "expected": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+              "observed": null,
+              "path": "expected_final.forwarded_message_id"
+            },
+            {
+              "expected": "superseded",
+              "observed": null,
+              "path": "expected_final.forwarded_status"
+            },
+            {
+              "expected": 1,
+              "observed": null,
+              "path": "expected_final.transition_count"
+            },
+            {
+              "expected": 0,
+              "observed": null,
+              "path": "expected_final.external_send_count"
+            },
+            {
+              "expected": "RP1-A05-PICKUP-0501",
+              "observed": null,
+              "path": "expected_final.normalized_content_key"
+            },
+            {
+              "expected": "administrative_only",
+              "observed": null,
+              "path": "expected_final.timestamp_discrepancy_status"
+            },
+            {
+              "expected": "log_only_no_reply",
+              "observed": null,
+              "path": "expected_final.acknowledgement_status"
+            }
+          ]
+        },
+        "status": "evidence-limited"
+      },
+      "id": "RP1-A05",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "propose",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "advance_candidate": "await_pickup",
+                    "bill_of_lading_candidate": "RP1-BL-0601",
+                    "from_step": "ingest",
+                    "operation": "record booking instruction",
+                    "to_step": "await_pickup"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "treat the BL as a candidate until the carrier thread settles",
+                    "retain the original email as the first statement",
+                    "do not send a customer-facing document from this intake alone"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "buffered",
+                  "path": "correlation.verdict"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "job:RP1-JOB-0601",
+                  "observed": "job:RP1-JOB-0601",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "booking_instruction",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-JOB-0601",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0601",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "TGHU0601006",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "RP1-BL-0601",
+                  "observed": null,
+                  "path": "payload.bill_of_lading"
+                },
+                {
+                  "expected": "initial_reference",
+                  "observed": null,
+                  "path": "payload.bill_of_lading_status"
+                },
+                {
+                  "expected": "EL204W",
+                  "observed": null,
+                  "path": "payload.voyage"
+                },
+                {
+                  "expected": "job:RP1-JOB-0601",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                },
+                {
+                  "expected": "RP1-BL-0601",
+                  "observed": null,
+                  "path": "corr.bill_of_lading"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "MV Eastern Lantern",
+                  "observed": "MV Eastern Lantern",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "Cedar & Finch Retail",
+                  "observed": "Cedar & Finch Retail",
+                  "path": "payload.customer"
+                },
+                {
+                  "expected": "export",
+                  "observed": "export",
+                  "path": "payload.direction"
+                },
+                {
+                  "expected": "RP1-JOB-0601",
+                  "observed": "RP1-JOB-0601",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0601",
+                  "observed": "RP1-BKG-0601",
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "TGHU0601006",
+                  "observed": "TGHU0601006",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "review",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "compare": [
+                      "RP1-BL-0601",
+                      "RP1-BL-0601B"
+                    ],
+                    "operation": "hold the BL change for human review",
+                    "recommended_next_step": "confirm the new carrier PDF before committing the replacement"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "do not silently replace the stored BL",
+                    "do not advance on the correction alone",
+                    "keep the contradiction and both source Message-IDs in the review record",
+                    "no customer-facing send until review resolves"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "needs_review",
+                  "observed": "buffered",
+                  "path": "correlation.verdict"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "job:RP1-JOB-0601",
+                  "observed": "job:RP1-JOB-0601",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "bill_of_lading_correction",
+                  "observed": "container_assigned",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-JOB-0601",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0601",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "TGHU0601006",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "RP1-BL-0601",
+                  "observed": null,
+                  "path": "payload.prior_bill_of_lading"
+                },
+                {
+                  "expected": "RP1-BL-0601B",
+                  "observed": null,
+                  "path": "payload.new_bill_of_lading"
+                },
+                {
+                  "expected": "actually the BL changed",
+                  "observed": null,
+                  "path": "payload.correction_phrase"
+                },
+                {
+                  "expected": true,
+                  "observed": null,
+                  "path": "payload.same_booking"
+                },
+                {
+                  "expected": "do_not_silent_overwrite",
+                  "observed": null,
+                  "path": "payload.requested_handling"
+                },
+                {
+                  "expected": "carrier reissued documentation",
+                  "observed": null,
+                  "path": "payload.reason"
+                },
+                {
+                  "expected": "job:RP1-JOB-0601",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                },
+                {
+                  "expected": "RP1-JOB-0601",
+                  "observed": "JOB-0601",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+                  "observed": null,
+                  "path": "corr.in_reply_to_message_id"
+                },
+                {
+                  "expected": "RP1-BL-0601",
+                  "observed": null,
+                  "path": "corr.prior_bill_of_lading"
+                },
+                {
+                  "expected": "RP1-BL-0601B",
+                  "observed": null,
+                  "path": "corr.new_bill_of_lading"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "RP1-BKG-0601",
+                  "observed": "RP1-BKG-0601",
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "TGHU0601006",
+                  "observed": "TGHU0601006",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "needs_review",
+              "observed": "advancing",
+              "path": "expected_final.workflow_state"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "job:RP1-JOB-0601",
+              "observed": "job:RP1-JOB-0601",
+              "path": "expected_final.entity_key"
+            },
+            {
+              "expected": "ingest",
+              "observed": "ingest",
+              "path": "expected_final.current_step"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "RP1-BL-0601B",
+              "observed": null,
+              "path": "expected_final.candidate_bill_of_lading"
+            },
+            {
+              "expected": true,
+              "observed": null,
+              "path": "expected_final.contradiction"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.silent_overwrite"
+            },
+            {
+              "expected": 0,
+              "observed": null,
+              "path": "expected_final.customer_send_count"
+            },
+            {
+              "expected": "mid-thread carrier correction changed the BL reference",
+              "observed": null,
+              "path": "expected_final.review_reason"
+            },
+            {
+              "expected": "unresolved",
+              "observed": null,
+              "path": "expected_final.bill_of_lading_resolution"
+            },
+            {
+              "expected": "RP1-BL-0601",
+              "observed": null,
+              "path": "expected_final.stored_value_before_review"
+            },
+            {
+              "expected": [
+                "RP1-BL-0601",
+                "RP1-BL-0601B"
+              ],
+              "observed": null,
+              "path": "expected_final.candidate_values"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.committed_change"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A06",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "park",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "customer_send": "not yet",
+                    "state": "await_carrier_confirmation",
+                    "watch_for": "named next vessel and confirmed space"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "do not promise a replacement sailing",
+                    "keep the four-day estimate labelled as provisional",
+                    "retain the carrier's request for a written confirmation"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "buffered",
+                  "path": "correlation.verdict"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "job:RP1-JOB-0701",
+                  "observed": "job:RP1-JOB-0701",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "carrier_delay_notice",
+                  "observed": "gate_in",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-JOB-0701",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0701",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "MSCU0701007",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "CW311N",
+                  "observed": null,
+                  "path": "payload.voyage"
+                },
+                {
+                  "expected": "rollover_risk",
+                  "observed": null,
+                  "path": "payload.delay_type"
+                },
+                {
+                  "expected": 4,
+                  "observed": null,
+                  "path": "payload.estimated_slip_days"
+                },
+                {
+                  "expected": "next_sailing_unconfirmed",
+                  "observed": null,
+                  "path": "payload.confirmation_status"
+                },
+                {
+                  "expected": "do_not_claim_space_is_secured",
+                  "observed": null,
+                  "path": "payload.customer_notice"
+                },
+                {
+                  "expected": "job:RP1-JOB-0701",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "MV Coral Wind",
+                  "observed": "MV Coral Wind",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "RP1-JOB-0701",
+                  "observed": "RP1-JOB-0701",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0701",
+                  "observed": "RP1-BKG-0701",
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "MSCU0701007",
+                  "observed": "MSCU0701007",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "declared-no-fit",
+          "logical_message_id": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "park",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "deadline": "2026-07-31T15:00:00+08:00",
+                    "required_evidence": "carrier confirmation with vessel and space",
+                    "state": "chase_open"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "do not convert the chase into a customer promise",
+                    "surface the deadline to the escalation owner",
+                    "do not send an autonomous external reply"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "routed_out",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "job:RP1-JOB-0701",
+                  "observed": null,
+                  "path": "correlation.target"
+                }
+              ],
+              "matched": [],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "status_chase",
+                  "observed": null,
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-JOB-0701",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0701",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "confirmed replacement vessel and space",
+                  "observed": null,
+                  "path": "payload.chase_target"
+                },
+                {
+                  "expected": "2026-07-31T15:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.deadline"
+                },
+                {
+                  "expected": "high",
+                  "observed": null,
+                  "path": "payload.urgency"
+                },
+                {
+                  "expected": "terse_urgent",
+                  "observed": null,
+                  "path": "payload.tone"
+                },
+                {
+                  "expected": "job:RP1-JOB-0701",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                },
+                {
+                  "expected": "RP1-JOB-0701",
+                  "observed": null,
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0701",
+                  "observed": null,
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+                  "observed": null,
+                  "path": "corr.in_reply_to_message_id"
+                }
+              ],
+              "matched": [],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "declared-no-fit",
+          "logical_message_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "propose",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "decision_time": "2026-07-31T14:30:00+08:00",
+                    "escalate_to": "Allied export lead and Meridian Line planning desk",
+                    "reply_draft": "Maya, we have escalated RP1-JOB-0701 to the carrier planning desk and are holding the customer update until we have a confirmed vessel or a named recovery option. We will return by 15:00 SGT with the carrier owner, the next decision time, and the exact plan; we will not describe a provisional ETA as resolved.",
+                    "send_status": "proposed_not_sent",
+                    "state": "needs_human_review_before_send"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "no_autonomous_send",
+                    "human must approve the reply wording and escalation recipients",
+                    "do not promise space, vessel, or delivery date without carrier evidence",
+                    "keep the angry tone as an urgency signal, not as language to mirror"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "routed_out",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "job:RP1-JOB-0701",
+                  "observed": null,
+                  "path": "correlation.target"
+                }
+              ],
+              "matched": [],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "customer_escalation",
+                  "observed": null,
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-JOB-0701",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0701",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "MSCU0701007",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "MV Coral Wind",
+                  "observed": null,
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "critical",
+                  "observed": null,
+                  "path": "payload.urgency"
+                },
+                {
+                  "expected": "angry",
+                  "observed": null,
+                  "path": "payload.tone"
+                },
+                {
+                  "expected": "receiving labour and buyer commitment depend on the sailing date",
+                  "observed": null,
+                  "path": "payload.customer_impact"
+                },
+                {
+                  "expected": "2026-07-31T15:00:00+08:00",
+                  "observed": null,
+                  "path": "payload.customer_deadline"
+                },
+                {
+                  "expected": "concrete recovery plan with carrier owner and decision time",
+                  "observed": null,
+                  "path": "payload.requested_resolution"
+                },
+                {
+                  "expected": "copy procurement if cutoff is missed again",
+                  "observed": null,
+                  "path": "payload.escalation_threat"
+                },
+                {
+                  "expected": "job:RP1-JOB-0701",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                },
+                {
+                  "expected": "RP1-JOB-0701",
+                  "observed": null,
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0701",
+                  "observed": null,
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "MSCU0701007",
+                  "observed": null,
+                  "path": "corr.container_no"
+                },
+                {
+                  "expected": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+                  "observed": null,
+                  "path": "corr.thread_parent_message_id"
+                }
+              ],
+              "matched": [],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "needs_review",
+              "observed": "parked",
+              "path": "expected_final.workflow_state"
+            },
+            {
+              "expected": "await_carrier_confirmation",
+              "observed": "await_pickup",
+              "path": "expected_final.current_step"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "job:RP1-JOB-0701",
+              "observed": "job:RP1-JOB-0701",
+              "path": "expected_final.entity_key"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "critical",
+              "observed": null,
+              "path": "expected_final.urgency"
+            },
+            {
+              "expected": "angry",
+              "observed": null,
+              "path": "expected_final.tone"
+            },
+            {
+              "expected": "2026-07-31T15:00:00+08:00",
+              "observed": null,
+              "path": "expected_final.deadline"
+            },
+            {
+              "expected": "proposed_not_sent",
+              "observed": null,
+              "path": "expected_final.proposed_reply_status"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.autonomous_send"
+            },
+            {
+              "expected": "Allied export lead and Meridian Line planning desk",
+              "observed": null,
+              "path": "expected_final.escalation_owner"
+            },
+            {
+              "expected": "confirmed replacement vessel and protected space",
+              "observed": null,
+              "path": "expected_final.required_next_evidence"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A07",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "pass",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "park",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "external_mutation": "none",
+                    "required_check": "ITOS gate-in state poll",
+                    "state": "await_state_confirmation"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "record the email claim without treating it as ITOS truth",
+                    "do not invoice or mark the job completable from the email alone",
+                    "retain the EIR reference for the exception review"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [],
+              "matched": [
+                {
+                  "expected": "matched",
+                  "observed": "matched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "job:RP1-JOB-0801",
+                  "observed": "job:RP1-JOB-0801",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "gate_in_notice",
+                  "observed": "gate_in",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-JOB-0801",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0801",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "TGHU0808008",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "gate_in",
+                  "observed": null,
+                  "path": "payload.gate_in_claim"
+                },
+                {
+                  "expected": "2026-07-30T16:42:00+08:00",
+                  "observed": null,
+                  "path": "payload.gate_in_at"
+                },
+                {
+                  "expected": "Harbor Pacific Terminal",
+                  "observed": null,
+                  "path": "payload.terminal"
+                },
+                {
+                  "expected": "HP-0801-1642",
+                  "observed": null,
+                  "path": "payload.eir_reference"
+                },
+                {
+                  "expected": "SS402E",
+                  "observed": null,
+                  "path": "payload.voyage"
+                },
+                {
+                  "expected": "carrier_email",
+                  "observed": null,
+                  "path": "payload.source_claim"
+                },
+                {
+                  "expected": "job:RP1-JOB-0801",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                },
+                {
+                  "expected": "HP-0801-1642",
+                  "observed": null,
+                  "path": "corr.eir_reference"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "MV Southern Star",
+                  "observed": "MV Southern Star",
+                  "path": "payload.vessel"
+                },
+                {
+                  "expected": "RP1-JOB-0801",
+                  "observed": "RP1-JOB-0801",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0801",
+                  "observed": "RP1-BKG-0801",
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "TGHU0808008",
+                  "observed": "TGHU0808008",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "<rp1-a08-forward-0801@rp1.synthetic.test>",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "review",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "check": "compare carrier_email gate_in claim with state_poll result",
+                    "external_mutation": "none",
+                    "state": "awaiting_cross_source_check"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "do not silently choose the email over ITOS",
+                    "do not silently choose ITOS over the carrier evidence",
+                    "hold invoice and customer confirmation until the mismatch is resolved"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "superseded",
+                  "path": "correlation.verdict"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "job:RP1-JOB-0801",
+                  "observed": "job:RP1-JOB-0801",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "gate_in_claim_forward",
+                  "observed": "gate_in",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-JOB-0801",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0801",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "TGHU0808008",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "gate_in",
+                  "observed": null,
+                  "path": "payload.gate_in_claim"
+                },
+                {
+                  "expected": "HP-0801-1642",
+                  "observed": null,
+                  "path": "payload.eir_reference"
+                },
+                {
+                  "expected": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+                  "observed": null,
+                  "path": "payload.forwarded_from_message_id"
+                },
+                {
+                  "expected": "ITOS state poll before invoice or customer confirmation",
+                  "observed": null,
+                  "path": "payload.required_validation"
+                },
+                {
+                  "expected": "job:RP1-JOB-0801",
+                  "observed": null,
+                  "path": "corr.entity_key"
+                },
+                {
+                  "expected": "HP-0801-1642",
+                  "observed": null,
+                  "path": "corr.eir_reference"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "RP1-JOB-0801",
+                  "observed": "RP1-JOB-0801",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "RP1-BKG-0801",
+                  "observed": "RP1-BKG-0801",
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "TGHU0808008",
+                  "observed": "TGHU0808008",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "needs_review",
+              "observed": "advancing",
+              "path": "expected_final.workflow_state"
+            },
+            {
+              "expected": "await_gatein",
+              "observed": "invoice",
+              "path": "expected_final.current_step"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "job:RP1-JOB-0801",
+              "observed": "job:RP1-JOB-0801",
+              "path": "expected_final.entity_key"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "gate_in",
+              "observed": null,
+              "path": "expected_final.email_claim"
+            },
+            {
+              "expected": "not_gate_in",
+              "observed": null,
+              "path": "expected_final.state_poll_result"
+            },
+            {
+              "expected": true,
+              "observed": null,
+              "path": "expected_final.mismatch"
+            },
+            {
+              "expected": {
+                "evidence_to_review": [
+                  "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+                  "HP-0801-1642"
+                ],
+                "hold_actions": [
+                  "invoice",
+                  "customer_confirmation",
+                  "completable_transition"
+                ],
+                "reason": "carrier email claims gate-in but ITOS state poll reports not_gate_in",
+                "required_owner": "Allied export lead"
+              },
+              "observed": null,
+              "path": "expected_final.exception_proposal"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.autonomous_mutation"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A08",
+      "state_probes": [
+        {
+          "after_email_step": 2,
+          "comparison": {
+            "failed": [],
+            "matched": [
+              {
+                "expected": "mismatch",
+                "observed": "mismatch",
+                "path": "state_probes[0].expected.verdict"
+              },
+              {
+                "expected": "gate_in",
+                "observed": "gate_in",
+                "path": "state_probes[0].expected.email_claim"
+              },
+              {
+                "expected": "not_gate_in",
+                "observed": "not_gate_in",
+                "path": "state_probes[0].expected.state_poll"
+              },
+              {
+                "expected": 2,
+                "observed": 2,
+                "path": "state_probes[0].expected.after_email_step"
+              }
+            ],
+            "unobservable": [
+              {
+                "expected": "needs_review_exception_proposal",
+                "observed": null,
+                "path": "state_probes[0].expected.agent_action"
+              }
+            ]
+          },
+          "status": "evidence-limited",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rp1-a09-1@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "park",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "reason": "instruction is usable but vessel and container details have not arrived",
+                    "stage": "await_pickup"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "retain booking_ref BK-0901-SEA",
+                    "do not invent vessel_name, voyage, container_no, job_no, or pickup_date",
+                    "do not create or mutate an ITOS job from this fragment"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "buffered",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": null,
+                  "path": "correlation.method"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "RP1-JOB-0901",
+                  "observed": "job:RP1-JOB-0901",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "trucking_instruction",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "BK-0901-SEA",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "1x40HC",
+                  "observed": null,
+                  "path": "payload.equipment"
+                },
+                {
+                  "expected": "Singapore to Port Klang",
+                  "observed": null,
+                  "path": "payload.route"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "Northstar Foods Pte Ltd",
+                  "observed": "Northstar Foods Pte Ltd",
+                  "path": "payload.customer"
+                },
+                {
+                  "expected": "export",
+                  "observed": "export",
+                  "path": "payload.direction"
+                },
+                {
+                  "expected": "BK-0901-SEA",
+                  "observed": "BK-0901-SEA",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rp1-a09-2@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "park",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "buffered_event": "container_assigned",
+                    "reason": "vessel and container arrived before the pickup advice wait can consume them",
+                    "stage": "await_pickup"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "retain booking_ref BK-0901-SEA and container_no MSCU4827312",
+                    "do not advance on a future-step container assignment",
+                    "do not invent job_no, seal_no, or a confirmed depot slot"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "deterministic",
+                  "observed": null,
+                  "path": "correlation.method"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "buffered",
+                  "observed": "buffered",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0901",
+                  "observed": "job:RP1-JOB-0901",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "BK-0901-SEA",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "MV Cedar Horizon",
+                  "observed": null,
+                  "path": "payload.vessel_name"
+                },
+                {
+                  "expected": "CH128E",
+                  "observed": null,
+                  "path": "payload.voyage"
+                },
+                {
+                  "expected": "MSCU4827312",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "2026-08-04",
+                  "observed": null,
+                  "path": "payload.pickup_date"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "container_assigned",
+                  "observed": "container_assigned",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "BK-0901-SEA",
+                  "observed": "BK-0901-SEA",
+                  "path": "corr.booking_ref"
+                },
+                {
+                  "expected": "MSCU4827312",
+                  "observed": "MSCU4827312",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rp1-a09-3@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "park",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "reason": "pickup and VGM fragments are cumulative, but the later job/reference fields remain absent",
+                    "stage": "create_job"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "carry forward only the stated booking, vessel, container, pickup, and VGM fields",
+                    "do not manufacture job_no, seal_no, confirmed_depot_slot, or a document reference",
+                    "do not mutate ITOS while the extracted set remains incomplete",
+                    "retain the earlier buffered container assignment for later re-drive"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "unmatched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-0901",
+                  "observed": null,
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": null,
+                  "path": "correlation.method"
+                }
+              ],
+              "matched": [],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "BK-0901-SEA",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "MSCU4827312",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "2026-08-04",
+                  "observed": "04 Aug",
+                  "path": "payload.pickup_date"
+                },
+                {
+                  "expected": 18340,
+                  "observed": null,
+                  "path": "payload.vgm_kg"
+                },
+                {
+                  "expected": "pending_separate_delivery",
+                  "observed": null,
+                  "path": "payload.vgm_document_status"
+                },
+                {
+                  "expected": "BK-0901-SEA",
+                  "observed": null,
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "vgm_reply",
+                  "observed": "vgm_reply",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "weighbridge",
+                  "observed": "weighbridge",
+                  "path": "payload.vgm_method"
+                },
+                {
+                  "expected": "MSCU4827312",
+                  "observed": "MSCU4827312",
+                  "path": "corr.container_no"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "parked",
+              "observed": "advancing",
+              "path": "expected_final.state"
+            },
+            {
+              "expected": "create_job",
+              "observed": "ingest",
+              "path": "expected_final.step"
+            },
+            {
+              "expected": "MSCU4827312",
+              "observed": null,
+              "path": "expected_final.corr.container_no"
+            },
+            {
+              "expected": "MV Cedar Horizon",
+              "observed": null,
+              "path": "expected_final.vars.vessel_name"
+            },
+            {
+              "expected": "CH128E",
+              "observed": null,
+              "path": "expected_final.vars.voyage"
+            },
+            {
+              "expected": "2026-08-04",
+              "observed": null,
+              "path": "expected_final.vars.pickup_date"
+            },
+            {
+              "expected": 18340,
+              "observed": null,
+              "path": "expected_final.vars.vgm_kg"
+            },
+            {
+              "expected": "weighbridge",
+              "observed": null,
+              "path": "expected_final.vars.vgm_method"
+            },
+            {
+              "expected": "pending_separate_delivery",
+              "observed": null,
+              "path": "expected_final.vars.vgm_document_status"
+            },
+            {
+              "expected": "MSCU4827312",
+              "observed": null,
+              "path": "expected_final.vars.container_no"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-0901",
+              "observed": "RP1-JOB-0901",
+              "path": "expected_final.target"
+            },
+            {
+              "expected": "BK-0901-SEA",
+              "observed": "BK-0901-SEA",
+              "path": "expected_final.corr.booking_ref"
+            },
+            {
+              "expected": "Northstar Foods Pte Ltd",
+              "observed": "Northstar Foods Pte Ltd",
+              "path": "expected_final.vars.customer"
+            },
+            {
+              "expected": "export",
+              "observed": "export",
+              "path": "expected_final.vars.direction"
+            },
+            {
+              "expected": "1x40HC",
+              "observed": "1x40HC",
+              "path": "expected_final.vars.equipment"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": [
+                "job_no",
+                "seal_no",
+                "confirmed_depot_slot",
+                "gate_in"
+              ],
+              "observed": null,
+              "path": "expected_final.absent_fields"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.mutation_performed"
+            },
+            {
+              "expected": [
+                "container_assigned:MSCU4827312"
+              ],
+              "observed": null,
+              "path": "expected_final.buffered_events"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A09",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "declared-no-fit",
+          "logical_message_id": "rp1-a10-1@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "no_action",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "mutation_performed": false,
+                    "proposal_created": false,
+                    "route": "non_workflow_noise"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "treat booking_ref as absent, not as RP1-NOISE-10",
+                    "do not create an instance",
+                    "do not call ITOS or draft a customer update"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "no_valid_instance_key",
+                  "observed": null,
+                  "path": "correlation.method"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "routed_out",
+                  "observed": "routed_out",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "none",
+                  "observed": null,
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "other",
+                  "observed": null,
+                  "path": "event_type"
+                },
+                {
+                  "expected": "RP1-NOISE-10",
+                  "observed": null,
+                  "path": "payload.noise_marker"
+                },
+                {
+                  "expected": "office_admin",
+                  "observed": null,
+                  "path": "payload.mail_class"
+                },
+                {
+                  "expected": "unrelated_invoice_filing",
+                  "observed": null,
+                  "path": "payload.reason"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": null,
+                  "observed": null,
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [],
+          "matched": [
+            {
+              "expected": "none",
+              "observed": "none",
+              "path": "expected_final.target"
+            },
+            {
+              "expected": "routed_out",
+              "observed": "routed_out",
+              "path": "expected_final.state"
+            },
+            {
+              "expected": "none",
+              "observed": "none",
+              "path": "expected_final.step"
+            },
+            {
+              "expected": false,
+              "observed": false,
+              "path": "expected_final.instance_created"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.mutation_performed"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.proposal_created"
+            },
+            {
+              "expected": "office-admin mail has no valid workflow correlation key",
+              "observed": null,
+              "path": "expected_final.reason"
+            }
+          ]
+        },
+        "status": "evidence-limited"
+      },
+      "id": "RP1-A10",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rp1-a11-1@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "resume",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "advance_to": "await_pickup",
+                    "record": "use corrected booking BK-1101-RED; await carrier pickup advice"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "discard the superseded quote reference BR-1101-RED",
+                    "do not submit job_create before pickup advice",
+                    "retain customer EastBridge Foods Pte Ltd and vessel MV Pacific Ember"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "unmatched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-1101",
+                  "observed": null,
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": null,
+                  "path": "correlation.method"
+                }
+              ],
+              "matched": [],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "BK-1101-RED",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "1x40HC",
+                  "observed": null,
+                  "path": "payload.equipment"
+                },
+                {
+                  "expected": "MV Pacific Ember",
+                  "observed": null,
+                  "path": "payload.vessel_name"
+                },
+                {
+                  "expected": "Jebel Ali",
+                  "observed": null,
+                  "path": "payload.destination"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "trucking_instruction",
+                  "observed": "trucking_instruction",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "EastBridge Foods Pte Ltd",
+                  "observed": "EastBridge Foods Pte Ltd",
+                  "path": "payload.customer"
+                },
+                {
+                  "expected": "export",
+                  "observed": "export",
+                  "path": "payload.direction"
+                },
+                {
+                  "expected": "BK-1101-RED",
+                  "observed": "BK-1101-RED",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rp1-a11-2@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "propose",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "approval_surface": "portal",
+                    "operation": "job_create",
+                    "payload": {
+                      "booking_ref": "BK-1101-RED",
+                      "container_no": "MSCU5938049",
+                      "customer": "EastBridge Foods Pte Ltd",
+                      "destination": "Jebel Ali",
+                      "direction": "export",
+                      "job_no": "EB-1101-7842",
+                      "pickup_date": "2026-08-06",
+                      "vessel_name": "MV Pacific Ember",
+                      "voyage": "PE221"
+                    }
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "proposal only; no ITOS mutation before approval",
+                    "use unique customer job_no EB-1101-7842 and container_no MSCU5938049 exactly",
+                    "do not fill seal_no, VGM, or gate_in from absent data",
+                    "keep the superseded reference BR-1101-RED out of the payload"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "buffered",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": null,
+                  "path": "correlation.method"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "RP1-JOB-1101",
+                  "observed": "job:RP1-JOB-1101",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "BK-1101-RED",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": "EB-1101-7842",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "MSCU5938049",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "MV Pacific Ember",
+                  "observed": null,
+                  "path": "payload.vessel_name"
+                },
+                {
+                  "expected": "PE221",
+                  "observed": null,
+                  "path": "payload.voyage"
+                },
+                {
+                  "expected": "2026-08-06",
+                  "observed": null,
+                  "path": "payload.pickup_date"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "pickup_advice",
+                  "observed": "pickup_advice",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "MSCU5938049",
+                  "observed": "MSCU5938049",
+                  "path": "corr.container_no"
+                },
+                {
+                  "expected": "EB-1101-7842",
+                  "observed": "EB-1101-7842",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "BK-1101-RED",
+                  "observed": "BK-1101-RED",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "pending_approval",
+              "observed": "advancing",
+              "path": "expected_final.state"
+            },
+            {
+              "expected": "create_job",
+              "observed": "ingest",
+              "path": "expected_final.step"
+            },
+            {
+              "expected": "MSCU5938049",
+              "observed": null,
+              "path": "expected_final.corr.container_no"
+            },
+            {
+              "expected": "EB-1101-7842",
+              "observed": null,
+              "path": "expected_final.corr.job_no"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-1101",
+              "observed": "RP1-JOB-1101",
+              "path": "expected_final.target"
+            },
+            {
+              "expected": "BK-1101-RED",
+              "observed": "BK-1101-RED",
+              "path": "expected_final.corr.booking_ref"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "job_create",
+              "observed": null,
+              "path": "expected_final.pending_action"
+            },
+            {
+              "expected": "portal",
+              "observed": null,
+              "path": "expected_final.approval_surface"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.mutation_performed"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A11",
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rp1-a12-1@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "resume",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "advance_to": "await_gatein",
+                    "record": "VGM 21480 kg by weighbridge for MSCU8172656"
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "match on unique container_no MSCU8172656",
+                    "retain job_no ITOS-1201-5508 and booking_ref BK-1201-BLUE",
+                    "treat gate-in as pending until terminal confirmation"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "deterministic",
+                  "observed": null,
+                  "path": "correlation.method"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "matched",
+                  "observed": "matched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-1201",
+                  "observed": "job:RP1-JOB-1201",
+                  "path": "correlation.target"
+                }
+              ],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "ITOS-1201-5508",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "MSCU8172656",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "BK-1201-BLUE",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": 21480,
+                  "observed": null,
+                  "path": "payload.vgm_kg"
+                },
+                {
+                  "expected": "weighbridge",
+                  "observed": null,
+                  "path": "payload.vgm_method"
+                },
+                {
+                  "expected": "MV Eastern Laurel",
+                  "observed": null,
+                  "path": "payload.vessel_name"
+                },
+                {
+                  "expected": "EL509",
+                  "observed": null,
+                  "path": "payload.voyage"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "vgm_reply",
+                  "observed": "vgm_reply",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "MSCU8172656",
+                  "observed": "MSCU8172656",
+                  "path": "corr.container_no"
+                },
+                {
+                  "expected": "ITOS-1201-5508",
+                  "observed": "ITOS-1201-5508",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "BK-1201-BLUE",
+                  "observed": "BK-1201-BLUE",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        },
+        {
+          "extraction_disposition": "classified",
+          "logical_message_id": "rp1-a12-2@rp1.synthetic.test",
+          "miss_taxonomy": [
+            "extraction",
+            "correlation"
+          ],
+          "section_status": {
+            "action": "evidence-limited",
+            "correlation": "fail",
+            "extraction": "fail"
+          },
+          "sections": {
+            "action": {
+              "failed": [],
+              "matched": [],
+              "unobservable": [
+                {
+                  "expected": "propose",
+                  "observed": null,
+                  "path": "agent_action.kind"
+                },
+                {
+                  "expected": {
+                    "advance_to": "invoice",
+                    "approval_surface": "portal",
+                    "operation": "send_customer_update",
+                    "payload": {
+                      "body": "HarbourFresh's container MSCU8172656 under job ITOS-1201-5508 has gated in at Straits Gateway Terminal for MV Eastern Laurel voyage EL509. The VGM on file is 21,480 kg by weighbridge.",
+                      "container_no": "MSCU8172656",
+                      "recipient": "HarbourFresh Trading Pte Ltd",
+                      "subject": "Gate-in confirmed \u2014 MSCU8172656 / ITOS-1201-5508"
+                    }
+                  },
+                  "observed": null,
+                  "path": "agent_action.action"
+                },
+                {
+                  "expected": [
+                    "proposal only; do not send externally before approval",
+                    "state gate-in at 2026-08-07T16:42:00+08:00 exactly",
+                    "mention VGM 21480 kg by weighbridge and container MSCU8172656",
+                    "do not describe the job as invoiced or completed"
+                  ],
+                  "observed": null,
+                  "path": "agent_action.constraints"
+                }
+              ]
+            },
+            "correlation": {
+              "failed": [
+                {
+                  "expected": "matched",
+                  "observed": "unmatched",
+                  "path": "correlation.verdict"
+                },
+                {
+                  "expected": "RP1-JOB-1201",
+                  "observed": null,
+                  "path": "correlation.target"
+                },
+                {
+                  "expected": "deterministic",
+                  "observed": null,
+                  "path": "correlation.method"
+                }
+              ],
+              "matched": [],
+              "unobservable": []
+            },
+            "extraction": {
+              "failed": [
+                {
+                  "expected": "ITOS-1201-5508",
+                  "observed": null,
+                  "path": "payload.job_no"
+                },
+                {
+                  "expected": "MSCU8172656",
+                  "observed": null,
+                  "path": "payload.container_no"
+                },
+                {
+                  "expected": "BK-1201-BLUE",
+                  "observed": null,
+                  "path": "payload.booking_ref"
+                },
+                {
+                  "expected": true,
+                  "observed": null,
+                  "path": "payload.gate_in"
+                },
+                {
+                  "expected": "2026-08-07T16:42:00+08:00",
+                  "observed": null,
+                  "path": "payload.gate_in_at"
+                },
+                {
+                  "expected": "Straits Gateway Terminal",
+                  "observed": null,
+                  "path": "payload.terminal"
+                },
+                {
+                  "expected": "MV Eastern Laurel",
+                  "observed": null,
+                  "path": "payload.vessel_name"
+                },
+                {
+                  "expected": "EL509",
+                  "observed": null,
+                  "path": "payload.voyage"
+                },
+                {
+                  "expected": 21480,
+                  "observed": null,
+                  "path": "payload.vgm_kg"
+                },
+                {
+                  "expected": "weighbridge",
+                  "observed": null,
+                  "path": "payload.vgm_method"
+                }
+              ],
+              "matched": [
+                {
+                  "expected": "gate_in",
+                  "observed": "gate_in",
+                  "path": "event_type"
+                },
+                {
+                  "expected": "MSCU8172656",
+                  "observed": "MSCU8172656",
+                  "path": "corr.container_no"
+                },
+                {
+                  "expected": "ITOS-1201-5508",
+                  "observed": "ITOS-1201-5508",
+                  "path": "corr.job_no"
+                },
+                {
+                  "expected": "BK-1201-BLUE",
+                  "observed": "BK-1201-BLUE",
+                  "path": "corr.booking_ref"
+                }
+              ],
+              "unobservable": []
+            }
+          },
+          "status": "fail"
+        }
+      ],
+      "expected_final": {
+        "comparison": {
+          "failed": [
+            {
+              "expected": "pending_approval",
+              "observed": "advancing",
+              "path": "expected_final.state"
+            },
+            {
+              "expected": "invoice",
+              "observed": "await_gatein",
+              "path": "expected_final.step"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-1201",
+              "observed": "RP1-JOB-1201",
+              "path": "expected_final.target"
+            },
+            {
+              "expected": "MSCU8172656",
+              "observed": "MSCU8172656",
+              "path": "expected_final.corr.container_no"
+            },
+            {
+              "expected": "ITOS-1201-5508",
+              "observed": "ITOS-1201-5508",
+              "path": "expected_final.corr.job_no"
+            },
+            {
+              "expected": "BK-1201-BLUE",
+              "observed": "BK-1201-BLUE",
+              "path": "expected_final.corr.booking_ref"
+            }
+          ],
+          "unobservable": [
+            {
+              "expected": "send_customer_update",
+              "observed": null,
+              "path": "expected_final.pending_action"
+            },
+            {
+              "expected": "portal",
+              "observed": null,
+              "path": "expected_final.approval_surface"
+            },
+            {
+              "expected": {
+                "container_no": "MSCU8172656",
+                "gate_in_at": "2026-08-07T16:42:00+08:00",
+                "job_no": "ITOS-1201-5508",
+                "vessel_name": "MV Eastern Laurel",
+                "vgm_kg": 21480,
+                "vgm_method": "weighbridge",
+                "voyage": "EL509"
+              },
+              "observed": null,
+              "path": "expected_final.customer_update_facts"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.mutation_performed"
+            }
+          ]
+        },
+        "status": "fail"
+      },
+      "id": "RP1-A12",
+      "state_probes": []
+    }
+  ],
+  "campaign": "rp1",
+  "denominators": {
+    "arc_expected_final": 12,
+    "email_answer_keys": 25,
+    "state_probes": 1
+  },
+  "email_counts": {
+    "evidence-limited": 0,
+    "fail": 25,
+    "pass": 0
+  },
+  "population": {
+    "arcs": 12,
+    "emails": 25,
+    "probes": 1
+  },
+  "probe_counts": {
+    "evidence-limited": 1,
+    "fail": 0,
+    "pass": 0
+  },
+  "status": "fail",
+  "verdict": "fail"
+}

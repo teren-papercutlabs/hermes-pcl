@@ -1,0 +1,1022 @@
+{
+  "arcs": [
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Daniel Ortiz | Pacific Meridian Lines",
+          "headers": {},
+          "locked_body": "Hi Maya,\n\nPickup advice for booking RP1-BK-SHARED-01 is below. Please use the 40HC move for Northstar Foods, not the other 20GP movement under the same booking ref. Empty release PM-REL-8841 is ready at Westport Empty Depot, collection window 04 Aug 0800 to 1600. Vessel is MV Cedar Bay, export to PSA Singapore.\n\nQuoted from the earlier note: \"booking ref shared across the two files, please check before posting.\" The line release is for Northstar only. Seal is not issued yet, and the depot spelling in the first mail was wrong. Sorry, carrier system copied it bad.\n\nRegards,\nDaniel",
+          "locked_body_sha256": "a61d9c4b6ca26d4a482ee11813416784020a7be26ffce97486bc8cbbe1bd5d2d",
+          "logical_message_id": "rpa01-001@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A01] Pickup advice: RP1-BK-SHARED-01 / Northstar 40HC",
+          "wire_body": "Hi Maya,\n\nPickup advice for booking RP1-BK-SHARED-01 is below. Please use the 40HC move for Northstar Foods, not the other 20GP movement under the same booking ref. Empty release PM-REL-8841 is ready at Westport Empty Depot, collection window 04 Aug 0800 to 1600. Vessel is MV Cedar Bay, export to PSA Singapore.\n\nQuoted from the earlier note: \"booking ref shared across the two files, please check before posting.\" The line release is for Northstar only. Seal is not issued yet, and the depot spelling in the first mail was wrong. Sorry, carrier system copied it bad.\n\nRegards,\nDaniel\n\n--\nDaniel Ortiz | Pacific Meridian Lines <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "b7e618857894a1735249291ed8dcd64b94cf2e16eff58c2ece6d13794d489c66",
+          "wire_message_id": "<rpa01-001@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Daniel Ortiz | Pacific Meridian Lines",
+          "headers": {},
+          "locked_body": "Maya, small correction to the pickup thread. We rechecked the carrier screen and PM-REL-8841 is still the Northstar Foods 40HC release for internal job RP1-JOB-0101 on RP1-BK-SHARED-01. Harbor Lab's 20GP is a different live job and has no pickup advice in this message.\n\nPlease leave the first pickup event as filed; this is not a new depot or a new window. A stray sentence in the carrier draft said \"20GP release copied below\"; that line is not part of this release and was a bad paste from another file. No new seal number. If already moved on your side, no action needed apart from the note.\n\nThanks,\nDaniel",
+          "locked_body_sha256": "559adc770d773965c36b9a5a790a001d32f18f398fc407b5f825346f94ef2051",
+          "logical_message_id": "rpa01-002@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A01] Correction only: PM-REL-8841 stays with Northstar",
+          "wire_body": "Maya, small correction to the pickup thread. We rechecked the carrier screen and PM-REL-8841 is still the Northstar Foods 40HC release for internal job RP1-JOB-0101 on RP1-BK-SHARED-01. Harbor Lab's 20GP is a different live job and has no pickup advice in this message.\n\nPlease leave the first pickup event as filed; this is not a new depot or a new window. A stray sentence in the carrier draft said \"20GP release copied below\"; that line is not part of this release and was a bad paste from another file. No new seal number. If already moved on your side, no action needed apart from the note.\n\nThanks,\nDaniel\n\n--\nDaniel Ortiz | Pacific Meridian Lines <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "7d1f2d82394d0597b054aebb71a69b75a37e006e1b7819cd03c63433e9edc0d0",
+          "wire_message_id": "<rpa01-002@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "duplicate_transition_count": 0,
+        "jobs": {
+          "RP1-JOB-0101": {
+            "last_event_effect": "applied_once",
+            "pickup_reference": "PM-REL-8841",
+            "state": "advancing",
+            "step": "create_job"
+          },
+          "RP1-JOB-0102": {
+            "changed_by_arc": false,
+            "state": "parked",
+            "step": "await_vgm"
+          }
+        },
+        "shared_booking_resolution": "RP1-JOB-0101_only"
+      },
+      "id": "RP1-A01",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-0101",
+          "corr": {
+            "booking_ref": "RP1-BK-SHARED-01",
+            "job_no": "RP1-JOB-0101"
+          },
+          "entity_key": "job:RP1-JOB-0101",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_pickup",
+          "vars": {
+            "customer": "Northstar Foods Pte Ltd",
+            "direction": "export",
+            "equipment_type": "40HC",
+            "port": "PSA Singapore",
+            "vessel": "MV Cedar Bay"
+          }
+        },
+        {
+          "canonical_alias": "job:RP1-JOB-0102",
+          "corr": {
+            "booking_ref": "RP1-BK-SHARED-01",
+            "job_no": "RP1-JOB-0102"
+          },
+          "entity_key": "job:RP1-JOB-0102",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_vgm",
+          "vars": {
+            "customer": "Harbor Lab Supplies Pte Ltd",
+            "direction": "export",
+            "equipment_type": "20GP",
+            "port": "PSA Singapore",
+            "vessel": "MV Cedar Bay"
+          }
+        }
+      ],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Lewis Hart | Ocean Crest Line",
+          "headers": {},
+          "locked_body": "Priya, sending this ahead of the customer instruction because the line portal released it before their paperwork landed.\n\nBooking RP1-BK-LATE-02 has pickup reference OCL-PU-7718. Empty pickup is at Jurong Container Depot on 06 Aug, 0900 to 1500, for a 40HC on MV River Kestrel. The customer name is not shown on this carrier notice and there is no job number yet.\n\nQuoted portal text: \"release active, forward to ops immediately\". Please park this against the booking until the instruction arrives; do not create a guessed job just from the pickup note. I know this is early and slightly backwards, sorry.\n\nLewis",
+          "locked_body_sha256": "4632ae032a74d3567c2c02ea13fead84503b73982cfccbd95181e38afe0c4903",
+          "logical_message_id": "rpa02-001@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A02] Early pickup advice before instruction: RP1-BK-LATE-02",
+          "wire_body": "Priya, sending this ahead of the customer instruction because the line portal released it before their paperwork landed.\n\nBooking RP1-BK-LATE-02 has pickup reference OCL-PU-7718. Empty pickup is at Jurong Container Depot on 06 Aug, 0900 to 1500, for a 40HC on MV River Kestrel. The customer name is not shown on this carrier notice and there is no job number yet.\n\nQuoted portal text: \"release active, forward to ops immediately\". Please park this against the booking until the instruction arrives; do not create a guessed job just from the pickup note. I know this is early and slightly backwards, sorry.\n\nLewis\n\n--\nLewis Hart | Ocean Crest Line <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "f3c7db8631e27329e58a0ec91aad4a57a7f58d366f478aa94ca49f85fc5b6fc5",
+          "wire_message_id": "<rpa02-001@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Priya Nair | Allied Freight Services",
+          "headers": {},
+          "locked_body": "Lewis's pickup note came in before this instruction, so please join the two rather than opening a second move.\n\nCreate internal job RP1-JOB-0201 for Northwind Fixtures Pte Ltd, export from Singapore to Port Klang, booking RP1-BK-LATE-02, 40HC, vessel MV River Kestrel. Customer instruction is to collect the empty at Jurong Container Depot on 06 Aug and return the laden box for the booked sailing.\n\nThe earlier carrier mail says, \"release active, forward to ops immediately\" and gives pickup ref OCL-PU-7718. That is the same move. The instruction creates the instance; after creation, re-match the held pickup advice by booking_ref and pickup_reference, then continue with the pickup step. Please don't make me reconcile two jobs for one booking later.\n\nPriya",
+          "locked_body_sha256": "a80af6191f1f5fdc734ac4764a3ce4471b349981c79403f0e95f7212586d9db7",
+          "logical_message_id": "rpa02-002@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A02] New trucking instruction creates RP1-JOB-0201",
+          "wire_body": "Lewis's pickup note came in before this instruction, so please join the two rather than opening a second move.\n\nCreate internal job RP1-JOB-0201 for Northwind Fixtures Pte Ltd, export from Singapore to Port Klang, booking RP1-BK-LATE-02, 40HC, vessel MV River Kestrel. Customer instruction is to collect the empty at Jurong Container Depot on 06 Aug and return the laden box for the booked sailing.\n\nThe earlier carrier mail says, \"release active, forward to ops immediately\" and gives pickup ref OCL-PU-7718. That is the same move. The instruction creates the instance; after creation, re-match the held pickup advice by booking_ref and pickup_reference, then continue with the pickup step. Please don't make me reconcile two jobs for one booking later.\n\nPriya\n\n--\nPriya Nair | Allied Freight Services <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "0cb9d9fe3cbb109346186a70446364e040389ea835f28b5dc44d3f6fe8955e3c",
+          "wire_message_id": "<rpa02-002@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "entity_key": "job:RP1-JOB-0201",
+        "healing": "deterministic_on_instance_creation",
+        "held_pickup_event": "applied",
+        "instance": "RP1-JOB-0201",
+        "instance_count_for_booking": 1,
+        "new_job_created_by": "trucking_instruction",
+        "state": "advancing",
+        "step": "create_job"
+      },
+      "id": "RP1-A02",
+      "seed_plan": [],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Sara Mbeki | Blue Strait Shipping",
+          "headers": {},
+          "locked_body": "Owen, reposting the release because the first forwarding dropped the attachment.\n\nBooking RP1-BK-AMB-03 is released for pickup at Eastlink Empty Yard, window 07 Aug 0800 to 1400. Vessel MV Silver Pine, export from Singapore, one 40HC. Release number BSS-44120.\n\nOur carrier screen only shows the booking reference; it does not carry your internal job number, customer order, or a container number yet. The line has two records under this same booking, so there is no honest way for us to say whether this belongs to the first or second job. Please check the two open files before posting. Sorry, not very helpful, but guessing would be worse.\n\nSara",
+          "locked_body_sha256": "e93362b989fbb0df08cbbd0fad305a5304c0b3f2dc5bc9e2b994383a51d26728",
+          "logical_message_id": "rpa03-001@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A03] Pickup release reposted for RP1-BK-AMB-03",
+          "wire_body": "Owen, reposting the release because the first forwarding dropped the attachment.\n\nBooking RP1-BK-AMB-03 is released for pickup at Eastlink Empty Yard, window 07 Aug 0800 to 1400. Vessel MV Silver Pine, export from Singapore, one 40HC. Release number BSS-44120.\n\nOur carrier screen only shows the booking reference; it does not carry your internal job number, customer order, or a container number yet. The line has two records under this same booking, so there is no honest way for us to say whether this belongs to the first or second job. Please check the two open files before posting. Sorry, not very helpful, but guessing would be worse.\n\nSara\n\n--\nSara Mbeki | Blue Strait Shipping <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "97561d9a0bc98aa2cd7873e93cf976dab9e14116c06497c2daf762995f41d83d",
+          "wire_message_id": "<rpa03-001@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Owen Tan | Allied Freight Services",
+          "headers": {},
+          "locked_body": "Sara, received the repost. We have checked the tracker and both RP1-JOB-0301 and RP1-JOB-0302 are Meridian Home Goods export moves on MV Silver Pine, both 40HC, both waiting for pickup.\n\nThe release number BSS-44120 is not written against either internal file, and there is still no container number or customer order in the carrier note. Please leave this in review. Do not attach it to the first row just because it appears first in the sheet.\n\nQuoted for the record: \"there is no honest way for us to say whether this belongs to the first or second job.\" Correct. We will pick it when the customer confirms which order is moving. Until then, no ITOS update and no pickup email out.\n\nOwen",
+          "locked_body_sha256": "9c1c3458602ccd0080076f5d045b5413bc7c8a42078c6d150f8eec9c31a3bf82",
+          "logical_message_id": "rpa03-002@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A03] Re: pickup release still has no job discriminator",
+          "wire_body": "Sara, received the repost. We have checked the tracker and both RP1-JOB-0301 and RP1-JOB-0302 are Meridian Home Goods export moves on MV Silver Pine, both 40HC, both waiting for pickup.\n\nThe release number BSS-44120 is not written against either internal file, and there is still no container number or customer order in the carrier note. Please leave this in review. Do not attach it to the first row just because it appears first in the sheet.\n\nQuoted for the record: \"there is no honest way for us to say whether this belongs to the first or second job.\" Correct. We will pick it when the customer confirms which order is moving. Until then, no ITOS update and no pickup email out.\n\nOwen\n\n--\nOwen Tan | Allied Freight Services <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "cdacfd88cec9df495c53906582d2af5ecf570cd481caa177434c7ce15b889f23",
+          "wire_message_id": "<rpa03-002@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "auto_applied": false,
+        "candidate_jobs": [
+          "RP1-JOB-0301",
+          "RP1-JOB-0302"
+        ],
+        "event_status": {
+          "rpa03-001@rp1.synthetic.test": "ambiguous",
+          "rpa03-002@rp1.synthetic.test": "ambiguous"
+        },
+        "external_side_effects": 0,
+        "human_pick_required": true,
+        "instance_state": {
+          "RP1-JOB-0301": "parked",
+          "RP1-JOB-0302": "parked"
+        }
+      },
+      "id": "RP1-A03",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-0301",
+          "corr": {
+            "booking_ref": "RP1-BK-AMB-03",
+            "job_no": "RP1-JOB-0301"
+          },
+          "entity_key": "job:RP1-JOB-0301",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_pickup",
+          "vars": {
+            "customer": "Meridian Home Goods Pte Ltd",
+            "customer_order": "MHG-881",
+            "direction": "export",
+            "equipment_type": "40HC",
+            "port": "PSA Singapore",
+            "vessel": "MV Silver Pine"
+          }
+        },
+        {
+          "canonical_alias": "job:RP1-JOB-0302",
+          "corr": {
+            "booking_ref": "RP1-BK-AMB-03",
+            "job_no": "RP1-JOB-0302"
+          },
+          "entity_key": "job:RP1-JOB-0302",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_pickup",
+          "vars": {
+            "customer": "Meridian Home Goods Pte Ltd",
+            "customer_order": "MHG-882",
+            "direction": "export",
+            "equipment_type": "40HC",
+            "port": "PSA Singapore",
+            "vessel": "MV Silver Pine"
+          }
+        }
+      ],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Marcus Lim | Crestline Terminals",
+          "headers": {},
+          "locked_body": "Elena, terminal status came through before your VGM reply, so this is an early gate-in notice.\n\nRP1-JOB-0401 / booking RP1-BK-OOO-04 / container CMAU4819207 was gated in at PSA Singapore on 08 Aug 09:18 SGT for MV Ocean Juniper. Terminal receipt CLT-GI-9402 is attached in the original portal record.\n\nVGM is still showing pending on our screen; this mail is only the gate-in event, not a weight declaration. Quoted status: \"box accepted at gate, VGM follow-up required\". Please record it somewhere safe but do not move the job past the VGM checkpoint until the signed weight arrives. The terminal feed is annoyingly ahead of the paperwork today.\n\nMarcus",
+          "locked_body_sha256": "20c795c686c0bd90fbf25be2a385378807da50c9a3c5a50db89ef2cb3c90a331",
+          "logical_message_id": "rpa04-001@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A04] Gate-in already recorded for RP1-JOB-0401",
+          "wire_body": "Elena, terminal status came through before your VGM reply, so this is an early gate-in notice.\n\nRP1-JOB-0401 / booking RP1-BK-OOO-04 / container CMAU4819207 was gated in at PSA Singapore on 08 Aug 09:18 SGT for MV Ocean Juniper. Terminal receipt CLT-GI-9402 is attached in the original portal record.\n\nVGM is still showing pending on our screen; this mail is only the gate-in event, not a weight declaration. Quoted status: \"box accepted at gate, VGM follow-up required\". Please record it somewhere safe but do not move the job past the VGM checkpoint until the signed weight arrives. The terminal feed is annoyingly ahead of the paperwork today.\n\nMarcus\n\n--\nMarcus Lim | Crestline Terminals <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "67b5f9f28d1e545e0ec6817807806eb471a764d5444b3482cb365ac74a78508b",
+          "wire_message_id": "<rpa04-001@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Elena Rossi | Allied Freight Services",
+          "headers": {},
+          "locked_body": "Marcus, VGM is now confirmed for the same box.\n\nFor RP1-JOB-0401, booking RP1-BK-OOO-04, container CMAU4819207: verified gross mass is 18,640 kg, method SOLAS-2, weighing ticket SR-VM-18804, submitted by Saffron Retail on 08 Aug at 09:42 SGT. Please use this reply for the VGM step only.\n\nYour earlier note said, \"box accepted at gate, VGM follow-up required\". We held that gate-in event because it arrived first. Once VGM is applied, the job can enter await_gatein and the buffered CLT-GI-9402 event should be consumed against the exact job and container. Do not re-match it to another booking; there is only one candidate here.\n\nElena",
+          "locked_body_sha256": "4c1acb7c7619ae91a51034e1b38c12618a519c9fcc79d43373fe1b2e4e68e069",
+          "logical_message_id": "rpa04-002@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A04] VGM reply unlocks the buffered gate-in event",
+          "wire_body": "Marcus, VGM is now confirmed for the same box.\n\nFor RP1-JOB-0401, booking RP1-BK-OOO-04, container CMAU4819207: verified gross mass is 18,640 kg, method SOLAS-2, weighing ticket SR-VM-18804, submitted by Saffron Retail on 08 Aug at 09:42 SGT. Please use this reply for the VGM step only.\n\nYour earlier note said, \"box accepted at gate, VGM follow-up required\". We held that gate-in event because it arrived first. Once VGM is applied, the job can enter await_gatein and the buffered CLT-GI-9402 event should be consumed against the exact job and container. Do not re-match it to another booking; there is only one candidate here.\n\nElena\n\n--\nElena Rossi | Allied Freight Services <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "684c2cf9007b8e516ded77eb5767385380dd76066a2775f172a8e203689e4ee8",
+          "wire_message_id": "<rpa04-002@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "buffered_event_status": "applied",
+        "gate_in": {
+          "applied_after_buffer": true,
+          "gate_in_at": "2026-08-08T09:18:00+08:00",
+          "terminal_receipt": "CLT-GI-9402"
+        },
+        "instance": "RP1-JOB-0401",
+        "state": "advancing",
+        "step": "invoice",
+        "transition_order": [
+          "vgm_reply",
+          "gate_in"
+        ],
+        "vgm": {
+          "gross_mass_kg": 18640,
+          "method": "SOLAS-2",
+          "weighing_ticket": "SR-VM-18804"
+        }
+      },
+      "id": "RP1-A04",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-0401",
+          "corr": {
+            "booking_ref": "RP1-BK-OOO-04",
+            "container_no": "CMAU4819207",
+            "job_no": "RP1-JOB-0401"
+          },
+          "entity_key": "job:RP1-JOB-0401",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_vgm",
+          "vars": {
+            "customer": "Saffron Retail Pte Ltd",
+            "direction": "export",
+            "equipment_type": "40HC",
+            "port": "PSA Singapore",
+            "vessel": "MV Ocean Juniper",
+            "vgm_status": "missing"
+          }
+        }
+      ],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Arun Mehta - Meridian Line Documentation Desk",
+          "headers": {},
+          "locked_body": "Hi Rhea,\n\nPickup advice for RP1-JOB-0501 below. The empty box MSCU0501001 was collected from the depot this morning against booking RP1-BKG-0501, seal MS0501A, for MV Meridian Dawn, voyage MD118E. Please use the booking reference rather than the customer's internal PO when you log the movement.\n\nThe trucker confirmed the box and seal at 09:18, although the depot receipt says 09:16 - nothing operationally different, just a two-minute paperwork mismatch. We will send the EIR when the driver returns. Please log receipt in your queue so the export desk does not chase this twice; no reply is needed, and the line will send the EIR separately.\n\nRegards,\nArun",
+          "locked_body_sha256": "316e84a44773918c90201c2718ab015417a6452785b5ee4960f950ea7f6b7927",
+          "logical_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A05] Pickup advice - JOB-0501 / BL RP1-BL-0501",
+          "wire_body": "Hi Rhea,\n\nPickup advice for RP1-JOB-0501 below. The empty box MSCU0501001 was collected from the depot this morning against booking RP1-BKG-0501, seal MS0501A, for MV Meridian Dawn, voyage MD118E. Please use the booking reference rather than the customer's internal PO when you log the movement.\n\nThe trucker confirmed the box and seal at 09:18, although the depot receipt says 09:16 - nothing operationally different, just a two-minute paperwork mismatch. We will send the EIR when the driver returns. Please log receipt in your queue so the export desk does not chase this twice; no reply is needed, and the line will send the EIR separately.\n\nRegards,\nArun\n\n--\nArun Mehta - Meridian Line Documentation Desk <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "95ecd76aa5087f8411180d410d59b14cbdcbfbf026babbd14c096e3079a0cac7",
+          "wire_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Rhea Lim - Allied Freight Services Export Desk",
+          "headers": {
+            "in_reply_to": "<rp1-a05-original-0501@rp1.synthetic.test>",
+            "references": "<rp1-a05-original-0501@rp1.synthetic.test>"
+          },
+          "locked_body": "Arun's note landed in my inbox after I had already asked the line desk to resend it, so forwarding the copy here for the record. The freight text is unchanged; please do not open another job or send a reply.\n\n---------- Forwarded message ----------\nFrom: Arun Mehta - Meridian Line Documentation Desk\nMessage-ID: <rp1-a05-original-0501@rp1.synthetic.test>\nSubject: Pickup advice - JOB-0501 / BL RP1-BL-0501\n\nPickup advice for RP1-JOB-0501: empty container MSCU0501001 collected against booking RP1-BKG-0501, seal MS0501A, vessel MV Meridian Dawn, voyage MD118E. Driver confirmation was 09:18 and the depot receipt was 09:16.\n\nThanks,\nRhea",
+          "locked_body_sha256": "c2d8732a9165f8f682253029d51265e1b0c4bebb2fbd1e683fa576bde8edbf7c",
+          "logical_message_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A05] Fwd: Pickup advice - JOB-0501 / duplicate received",
+          "wire_body": "Arun's note landed in my inbox after I had already asked the line desk to resend it, so forwarding the copy here for the record. The freight text is unchanged; please do not open another job or send a reply.\n\n---------- Forwarded message ----------\nFrom: Arun Mehta - Meridian Line Documentation Desk\nMessage-ID: <rp1-a05-original-0501@rp1.synthetic.test>\nSubject: Pickup advice - JOB-0501 / BL RP1-BL-0501\n\nPickup advice for RP1-JOB-0501: empty container MSCU0501001 collected against booking RP1-BKG-0501, seal MS0501A, vessel MV Meridian Dawn, voyage MD118E. Driver confirmation was 09:18 and the depot receipt was 09:16.\n\nThanks,\nRhea\n\n--\nRhea Lim - Allied Freight Services Export Desk <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "ebbd54192fdbdb5b8861c3e228ba0c9da17813946c30d363133b24a008b9008a",
+          "wire_message_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "acknowledgement_status": "log_only_no_reply",
+        "current_step": "create_job",
+        "entity_key": "job:RP1-JOB-0501",
+        "external_send_count": 0,
+        "forwarded_message_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+        "forwarded_status": "superseded",
+        "intake_count": 1,
+        "normalized_content_key": "RP1-A05-PICKUP-0501",
+        "primary_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+        "timestamp_discrepancy_status": "administrative_only",
+        "transition_count": 1,
+        "workflow_state": "advancing"
+      },
+      "id": "RP1-A05",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-0501",
+          "corr": {
+            "bill_of_lading": "RP1-BL-0501",
+            "booking_ref": "RP1-BKG-0501",
+            "container_no": "MSCU0501001",
+            "job_no": "RP1-JOB-0501"
+          },
+          "entity_key": "job:RP1-JOB-0501",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_pickup",
+          "vars": {
+            "customer": "Northstar Home Goods",
+            "direction": "export",
+            "pickup_status": "awaiting_advice",
+            "vessel": "MV Meridian Dawn"
+          }
+        }
+      ],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Nadia Koh - Pacific Meridian Shipping",
+          "headers": {},
+          "locked_body": "Hi Rhea,\n\nPlease use the attached booking paperwork for RP1-JOB-0601. The line's bill of lading reference is RP1-BL-0601, booking RP1-BKG-0601, container TGHU0601006, and vessel MV Eastern Lantern, voyage EL204W. Cargo is three pallets of homeware for Cedar & Finch Retail; the booking is export and ready for the pickup-advice stage.\n\nThere is no change to the consignee or sailing cut-off in this note. I am sending the reference now because the PDF footer is still being regenerated by documentation. If your tracker needs a single BL value, use RP1-BL-0601 for this thread until I say otherwise.\n\nRegards,\nNadia",
+          "locked_body_sha256": "7d38d138403c30ff329c354e413047ebe7db50edbdcdba661b39919da87f0b1b",
+          "logical_message_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A06] Booking paperwork - JOB-0601 / BL RP1-BL-0601",
+          "wire_body": "Hi Rhea,\n\nPlease use the attached booking paperwork for RP1-JOB-0601. The line's bill of lading reference is RP1-BL-0601, booking RP1-BKG-0601, container TGHU0601006, and vessel MV Eastern Lantern, voyage EL204W. Cargo is three pallets of homeware for Cedar & Finch Retail; the booking is export and ready for the pickup-advice stage.\n\nThere is no change to the consignee or sailing cut-off in this note. I am sending the reference now because the PDF footer is still being regenerated by documentation. If your tracker needs a single BL value, use RP1-BL-0601 for this thread until I say otherwise.\n\nRegards,\nNadia\n\n--\nNadia Koh - Pacific Meridian Shipping <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "63399f26fb1575da9856149163ca5dec9263a6fc065c80e1e13c6cfef5e04d88",
+          "wire_message_id": "<rp1-a06-initial-0601@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Nadia Koh - Pacific Meridian Shipping",
+          "headers": {
+            "in_reply_to": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+            "references": "<rp1-a06-initial-0601@rp1.synthetic.test>"
+          },
+          "locked_body": "Small but important correction to my note below - actually the BL changed. The line re-issued the bill of lading as RP1-BL-0601B for the same booking RP1-BKG-0601 and container TGHU0601006.\n\nPlease do not silently overwrite RP1-BL-0601 in the tracker. I have pasted the old reference here so the contradiction stays visible: \"The line's bill of lading reference is RP1-BL-0601.\" The new PDF is the controlling carrier document, but our customer notice and any ITOS-facing payload should wait until someone reviews the old-versus-new pair. Sorry, sent too quickly - documentation changed after my first mail.",
+          "locked_body_sha256": "f4e7f311063e267430b19a3970bccb41b13edf5cedf10ba3ef609e115fc60807",
+          "logical_message_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A06] Re: Booking paperwork - actually the BL changed - JOB-0601",
+          "wire_body": "Small but important correction to my note below - actually the BL changed. The line re-issued the bill of lading as RP1-BL-0601B for the same booking RP1-BKG-0601 and container TGHU0601006.\n\nPlease do not silently overwrite RP1-BL-0601 in the tracker. I have pasted the old reference here so the contradiction stays visible: \"The line's bill of lading reference is RP1-BL-0601.\" The new PDF is the controlling carrier document, but our customer notice and any ITOS-facing payload should wait until someone reviews the old-versus-new pair. Sorry, sent too quickly - documentation changed after my first mail.\n\n--\nNadia Koh - Pacific Meridian Shipping <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "89bb8f1e89739f1a4aec4ff525749f34f63b2a3cd3a8f832b5f864efad839ad2",
+          "wire_message_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "bill_of_lading_resolution": "unresolved",
+        "candidate_bill_of_lading": "RP1-BL-0601B",
+        "candidate_values": [
+          "RP1-BL-0601",
+          "RP1-BL-0601B"
+        ],
+        "committed_change": false,
+        "contradiction": true,
+        "current_step": "ingest",
+        "customer_send_count": 0,
+        "entity_key": "job:RP1-JOB-0601",
+        "review_reason": "mid-thread carrier correction changed the BL reference",
+        "silent_overwrite": false,
+        "stored_value_before_review": "RP1-BL-0601",
+        "workflow_state": "needs_review"
+      },
+      "id": "RP1-A06",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-0601",
+          "corr": {
+            "bill_of_lading": "RP1-BL-0601",
+            "booking_ref": "RP1-BKG-0601",
+            "container_no": "TGHU0601006",
+            "job_no": "RP1-JOB-0601"
+          },
+          "entity_key": "job:RP1-JOB-0601",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "ingest",
+          "vars": {
+            "bill_of_lading_status": "initial_reference",
+            "customer": "Cedar & Finch Retail",
+            "direction": "export",
+            "vessel": "MV Eastern Lantern"
+          }
+        }
+      ],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Arun Mehta - Meridian Line Documentation Desk",
+          "headers": {},
+          "locked_body": "Hi Rhea,\n\nBad news on RP1-JOB-0701. The truck arrived after the terminal receiving window and MSCU0701007 did not make the planned gate sequence for MV Coral Wind, voyage CW311N. The booking RP1-BKG-0701 is still visible, but the line has not confirmed the next sailing yet.\n\nCurrent estimate is a roll-over to the next available departure, with a possible four-day slip. I am checking space with the planning desk and will come back with a vessel name, not just a generic \"pending carrier confirmation\". Please do not tell the customer that space is secured until I confirm it in writing.\n\nRegards,\nArun",
+          "locked_body_sha256": "74d3ac732365887e73662ec2ba77655fb288410d55d8ed9deb23a3dba580405f",
+          "logical_message_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A07] Roll-over risk - JOB-0701 / vessel cut-off missed",
+          "wire_body": "Hi Rhea,\n\nBad news on RP1-JOB-0701. The truck arrived after the terminal receiving window and MSCU0701007 did not make the planned gate sequence for MV Coral Wind, voyage CW311N. The booking RP1-BKG-0701 is still visible, but the line has not confirmed the next sailing yet.\n\nCurrent estimate is a roll-over to the next available departure, with a possible four-day slip. I am checking space with the planning desk and will come back with a vessel name, not just a generic \"pending carrier confirmation\". Please do not tell the customer that space is secured until I confirm it in writing.\n\nRegards,\nArun\n\n--\nArun Mehta - Meridian Line Documentation Desk <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "8b4f4dba7f9ab084c40c46f1976c755d3068c72ab17a15774d9c7b573c8f246a",
+          "wire_message_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Rhea Lim - Allied Export Desk",
+          "headers": {
+            "in_reply_to": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+            "references": "<rp1-a07-carrier-0701@rp1.synthetic.test>"
+          },
+          "locked_body": "Arun,\n\nChasing this - any confirmed vessel or space yet? Customer cutoff is 15:00 SGT and I need a real answer, not another pending note. Pls revert asap.\n\nRhea",
+          "locked_body_sha256": "0086487cf05dc74bb12c47afc6c1329a1b4ba57463798f5f3dc603f67150eea4",
+          "logical_message_id": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A07] Re: Roll-over risk - JOB-0701 / update?",
+          "wire_body": "Arun,\n\nChasing this - any confirmed vessel or space yet? Customer cutoff is 15:00 SGT and I need a real answer, not another pending note. Pls revert asap.\n\nRhea\n\n--\nRhea Lim - Allied Export Desk <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "da91ef5579a2db7b534c437f4f696ea2d9709e41b007b36b0f7063619f9c0e68",
+          "wire_message_id": "<rp1-a07-chase-0701@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Maya D'Souza - Blue Arc Retail Customer Operations",
+          "headers": {
+            "in_reply_to": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+            "references": "<rp1-a07-chase-0701@rp1.synthetic.test>"
+          },
+          "locked_body": "Rhea,\n\nThis is now an escalation, not a routine status check. We were told this export was moving on MV Coral Wind and our receiving team has booked labour around that date. Your last note says the box may roll four days, but it gives us no replacement vessel, no confirmed space, and no answer we can pass to our buyer.\n\nWe need a concrete recovery plan before 15:00 Singapore time today. If the carrier cannot protect the next sailing, say that plainly and tell us what alternative you are actually securing. Please stop sending \"checking\" updates with no owner or time. I am very frustrated that the same booking has reached this point without a firm answer, and I will copy procurement if we miss the cutoff again.\n\nPlease acknowledge this escalation and come back with the carrier owner, the next decision time, and the customer-facing wording. Do not close this as resolved on a provisional ETA.",
+          "locked_body_sha256": "a1938dc72d87bc1d15e4acb0e56273338583f25cba77edf6c51eaf44b4dab9ff",
+          "logical_message_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 3,
+          "subject": "[RP1-A07] URGENT: customer escalation - JOB-0701 must move today",
+          "wire_body": "Rhea,\n\nThis is now an escalation, not a routine status check. We were told this export was moving on MV Coral Wind and our receiving team has booked labour around that date. Your last note says the box may roll four days, but it gives us no replacement vessel, no confirmed space, and no answer we can pass to our buyer.\n\nWe need a concrete recovery plan before 15:00 Singapore time today. If the carrier cannot protect the next sailing, say that plainly and tell us what alternative you are actually securing. Please stop sending \"checking\" updates with no owner or time. I am very frustrated that the same booking has reached this point without a firm answer, and I will copy procurement if we miss the cutoff again.\n\nPlease acknowledge this escalation and come back with the carrier owner, the next decision time, and the customer-facing wording. Do not close this as resolved on a provisional ETA.\n\n--\nMaya D'Souza - Blue Arc Retail Customer Operations <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "2a76f0b2176208941e4f0ca16e739bec901e0ea52b5542bce6c1294e00c9efe2",
+          "wire_message_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "autonomous_send": false,
+        "current_step": "await_carrier_confirmation",
+        "deadline": "2026-07-31T15:00:00+08:00",
+        "entity_key": "job:RP1-JOB-0701",
+        "escalation_owner": "Allied export lead and Meridian Line planning desk",
+        "proposed_reply_status": "proposed_not_sent",
+        "required_next_evidence": "confirmed replacement vessel and protected space",
+        "tone": "angry",
+        "urgency": "critical",
+        "workflow_state": "needs_review"
+      },
+      "id": "RP1-A07",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-0701",
+          "corr": {
+            "booking_ref": "RP1-BKG-0701",
+            "container_no": "MSCU0701007",
+            "job_no": "RP1-JOB-0701"
+          },
+          "entity_key": "job:RP1-JOB-0701",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_pickup",
+          "vars": {
+            "customer": "Blue Arc Retail",
+            "customer_cutoff": "2026-07-31T15:00:00+08:00",
+            "direction": "export",
+            "urgency": "normal",
+            "vessel": "MV Coral Wind"
+          }
+        }
+      ],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Dev Patel - Harbor Pacific Terminal Liaison",
+          "headers": {},
+          "locked_body": "Hi Rhea,\n\nConfirming that container TGHU0808008 for RP1-JOB-0801 and booking RP1-BKG-0801 gated in at Harbor Pacific Terminal at 16:42 yesterday, against MV Southern Star, voyage SS402E. The terminal desk gave us EIR HP-0801-1642 and marked the box accepted for the export stack.\n\nPlease update your file as gate-in complete and proceed with the normal completable-job check. I know ITOS can lag the terminal feed, but this is the signed terminal confirmation we received. If the system still says container assigned, flag that back rather than treating this email as missing.\n\nRegards,\nDev",
+          "locked_body_sha256": "6933fe4da49195f60c72c9671ce288d901cfb8d34f62fab7565a0efc52ccfd64",
+          "logical_message_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A08] Gate-in confirmed - JOB-0801 / TGHU0808008",
+          "wire_body": "Hi Rhea,\n\nConfirming that container TGHU0808008 for RP1-JOB-0801 and booking RP1-BKG-0801 gated in at Harbor Pacific Terminal at 16:42 yesterday, against MV Southern Star, voyage SS402E. The terminal desk gave us EIR HP-0801-1642 and marked the box accepted for the export stack.\n\nPlease update your file as gate-in complete and proceed with the normal completable-job check. I know ITOS can lag the terminal feed, but this is the signed terminal confirmation we received. If the system still says container assigned, flag that back rather than treating this email as missing.\n\nRegards,\nDev\n\n--\nDev Patel - Harbor Pacific Terminal Liaison <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "4f08e7e55ceee87c98621a8f0530f338433d28b0068063e189214903ba5c8fc4",
+          "wire_message_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Rhea Lim - Allied Export Desk",
+          "headers": {},
+          "locked_body": "Forwarding Dev's gate-in note to the export queue. It says the box was accepted and gives EIR HP-0801-1642, but I have not changed the job to completable because the last ITOS view still showed container assigned.\n\n---------- Forwarded message ----------\nFrom: Dev Patel - Harbor Pacific Terminal Liaison\nMessage-ID: <rp1-a08-carrier-gatein-0801@rp1.synthetic.test>\nSubject: Gate-in confirmed - JOB-0801 / TGHU0808008\n\nTGHU0808008 for RP1-JOB-0801 and booking RP1-BKG-0801 gated in at Harbor Pacific Terminal at 16:42 yesterday. EIR HP-0801-1642. Please update the file as gate-in complete, but flag it back if ITOS still says container assigned.\n\nPlease run the state check before any invoice or customer confirmation. The email claim and the system state must agree first.",
+          "locked_body_sha256": "013f5d9c7b81b29609b48c8cac388add4d1ccefc85534bfb778bea43b46e8b2e",
+          "logical_message_id": "<rp1-a08-forward-0801@rp1.synthetic.test>",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A08] Fwd: Gate-in confirmed - JOB-0801 / verify ITOS first",
+          "wire_body": "Forwarding Dev's gate-in note to the export queue. It says the box was accepted and gives EIR HP-0801-1642, but I have not changed the job to completable because the last ITOS view still showed container assigned.\n\n---------- Forwarded message ----------\nFrom: Dev Patel - Harbor Pacific Terminal Liaison\nMessage-ID: <rp1-a08-carrier-gatein-0801@rp1.synthetic.test>\nSubject: Gate-in confirmed - JOB-0801 / TGHU0808008\n\nTGHU0808008 for RP1-JOB-0801 and booking RP1-BKG-0801 gated in at Harbor Pacific Terminal at 16:42 yesterday. EIR HP-0801-1642. Please update the file as gate-in complete, but flag it back if ITOS still says container assigned.\n\nPlease run the state check before any invoice or customer confirmation. The email claim and the system state must agree first.\n\n--\nRhea Lim - Allied Export Desk <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "73e7fbf0f8a9164fa68ed0894a461a891f3daa2cf52bc5b613a792a54d1a6640",
+          "wire_message_id": "<rp1-a08-forward-0801@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "autonomous_mutation": false,
+        "current_step": "await_gatein",
+        "email_claim": "gate_in",
+        "entity_key": "job:RP1-JOB-0801",
+        "exception_proposal": {
+          "evidence_to_review": [
+            "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+            "HP-0801-1642"
+          ],
+          "hold_actions": [
+            "invoice",
+            "customer_confirmation",
+            "completable_transition"
+          ],
+          "reason": "carrier email claims gate-in but ITOS state poll reports not_gate_in",
+          "required_owner": "Allied export lead"
+        },
+        "mismatch": true,
+        "state_poll_result": "not_gate_in",
+        "workflow_state": "needs_review"
+      },
+      "id": "RP1-A08",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-0801",
+          "corr": {
+            "booking_ref": "RP1-BKG-0801",
+            "container_no": "TGHU0808008",
+            "job_no": "RP1-JOB-0801"
+          },
+          "entity_key": "job:RP1-JOB-0801",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_gatein",
+          "vars": {
+            "customer": "Lattice Kitchenware",
+            "direction": "export",
+            "gate_in_status": "awaiting_state_confirmation",
+            "vessel": "MV Southern Star"
+          }
+        }
+      ],
+      "state_probes": [
+        {
+          "after_email_step": 2,
+          "entity_key": "job:RP1-JOB-0801",
+          "expected": {
+            "after_email_step": 2,
+            "agent_action": "needs_review_exception_proposal",
+            "email_claim": "gate_in",
+            "state_poll": "not_gate_in",
+            "verdict": "mismatch"
+          },
+          "request": {
+            "container_no": "TGHU0808008",
+            "field": "gate_in",
+            "job_no": "RP1-JOB-0801"
+          },
+          "result": {
+            "container_no": "TGHU0808008",
+            "gate_in": false,
+            "job_no": "RP1-JOB-0801",
+            "last_known_state": "container_assigned",
+            "last_updated": "2026-07-31T08:42:11+08:00",
+            "status": "not_gate_in"
+          },
+          "source": "state_poll",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Jia Wen Lim \u2014 Northstar Foods Pte Ltd",
+          "headers": {},
+          "locked_body": "Hi team, forwarding the first bit for the Northstar export. Please hold one 40HC against booking BK-0901-SEA, food-grade dry cargo, Singapore to Port Klang. The customer name is Northstar Foods Pte Ltd and this is export, not the old import quote.\n\nQuoted from the earlier note: \u201cvessel and empty details to follow from line.\u201d That is all I have for now, sorry \u2014 no job number yet, no container assigned. The line says another update is coming, likely in pieces, so I am sending this before the file gets any older. I may have typed the equipment as 1 x 40' in the old sheet, but it is 1x40HC here.",
+          "locked_body_sha256": "47926190f258f35399bd1f78c3088809df228a33da9f1e041c3fffcfd6bcab7d",
+          "logical_message_id": "rp1-a09-1@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A09] FW: booking note BK-0901-SEA / please hold space",
+          "wire_body": "Hi team, forwarding the first bit for the Northstar export. Please hold one 40HC against booking BK-0901-SEA, food-grade dry cargo, Singapore to Port Klang. The customer name is Northstar Foods Pte Ltd and this is export, not the old import quote.\n\nQuoted from the earlier note: \u201cvessel and empty details to follow from line.\u201d That is all I have for now, sorry \u2014 no job number yet, no container assigned. The line says another update is coming, likely in pieces, so I am sending this before the file gets any older. I may have typed the equipment as 1 x 40' in the old sheet, but it is 1x40HC here.\n\n--\nJia Wen Lim \u2014 Northstar Foods Pte Ltd <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "aadfe8169b2521e5eeb32b660fb3505888b7d4a6fee823a5e57934fb9dd3cd6d",
+          "wire_message_id": "<rp1-a09-1@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Lara Jensen \u2014 BlueHarbor Line",
+          "headers": {},
+          "locked_body": "Hi Jia Wen, line side has released the booking now. MV Cedar Horizon, voyage CH128E, export box MSCU4827312. The release note shows the depot date as 04 Aug, but the actual truck window is still not visible in our portal.\n\nSmall fragment only: BK-0901-SEA / MSCU4827312 / Cedar Horizon. Seal and the customer-side job reference are not on this message. I am forwarding the vessel and box information now rather than waiting for the pickup line to come back; that line is still pending.",
+          "locked_body_sha256": "84ab34df6baa2f0a74a8ab21f81b32ffb5f4eb42ee8064f031e063a18b58faa9",
+          "logical_message_id": "rp1-a09-2@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A09] RE: BK-0901-SEA \u2014 vessel / box release details",
+          "wire_body": "Hi Jia Wen, line side has released the booking now. MV Cedar Horizon, voyage CH128E, export box MSCU4827312. The release note shows the depot date as 04 Aug, but the actual truck window is still not visible in our portal.\n\nSmall fragment only: BK-0901-SEA / MSCU4827312 / Cedar Horizon. Seal and the customer-side job reference are not on this message. I am forwarding the vessel and box information now rather than waiting for the pickup line to come back; that line is still pending.\n\n--\nLara Jensen \u2014 BlueHarbor Line <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "86255a25a70a799d574ab0b7bcde2f7dab3db2174f27e68e24b9ae53ff01f660",
+          "wire_message_id": "<rp1-a09-2@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Jia Wen Lim \u2014 Northstar Foods Pte Ltd",
+          "headers": {},
+          "locked_body": "Adding the last scraps from the driver chat. For MSCU4827312, the VGM is 18,340 kg, method weighbridge. Pickup still looks like 04 Aug, but the depot slot itself is pending; the line has not sent a separate slot number.\n\nThe signed ticket is coming separately, and there is still no customer-side job reference in my notes. Quoted line from me yesterday: \u201ccontainer to follow.\u201d It has now followed, finally. The pickup advice and VGM details are together here, but the record is still missing the later reference fields.",
+          "locked_body_sha256": "9be424be2fe943b0f04e4e2bd1adb24a30d9060174412dec06123307c9e1ff7b",
+          "logical_message_id": "rp1-a09-3@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 3,
+          "subject": "[RP1-A09] RE: BK-0901-SEA / VGM bit + pickup correction",
+          "wire_body": "Adding the last scraps from the driver chat. For MSCU4827312, the VGM is 18,340 kg, method weighbridge. Pickup still looks like 04 Aug, but the depot slot itself is pending; the line has not sent a separate slot number.\n\nThe signed ticket is coming separately, and there is still no customer-side job reference in my notes. Quoted line from me yesterday: \u201ccontainer to follow.\u201d It has now followed, finally. The pickup advice and VGM details are together here, but the record is still missing the later reference fields.\n\n--\nJia Wen Lim \u2014 Northstar Foods Pte Ltd <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "bed89322683e6bf532760e3d8f14c02b34ef2db71bd834912b3c5e758689beed",
+          "wire_message_id": "<rp1-a09-3@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "absent_fields": [
+          "job_no",
+          "seal_no",
+          "confirmed_depot_slot",
+          "gate_in"
+        ],
+        "buffered_events": [
+          "container_assigned:MSCU4827312"
+        ],
+        "corr": {
+          "booking_ref": "BK-0901-SEA",
+          "container_no": "MSCU4827312"
+        },
+        "mutation_performed": false,
+        "state": "parked",
+        "step": "create_job",
+        "target": "RP1-JOB-0901",
+        "vars": {
+          "container_no": "MSCU4827312",
+          "customer": "Northstar Foods Pte Ltd",
+          "direction": "export",
+          "equipment": "1x40HC",
+          "pickup_date": "2026-08-04",
+          "vessel_name": "MV Cedar Horizon",
+          "vgm_document_status": "pending_separate_delivery",
+          "vgm_kg": 18340,
+          "vgm_method": "weighbridge",
+          "voyage": "CH128E"
+        }
+      },
+      "id": "RP1-A09",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-0901",
+          "corr": {
+            "booking_ref": "BK-0901-SEA"
+          },
+          "entity_key": "job:RP1-JOB-0901",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "ingest",
+          "vars": {
+            "customer": "Northstar Foods Pte Ltd",
+            "direction": "export",
+            "equipment": "1x40HC"
+          }
+        }
+      ],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Mikael Ho \u2014 HarbourLink Logistics Pte Ltd",
+          "headers": {},
+          "locked_body": "Hello all, this is the monthly office clean-up thread, not a booking instruction. Please archive the October vendor invoice PDFs under Finance / Freight Admin and rename the loose scan from \u201cfreight-final2\u201d to \u201cfreight-final2-signed\u201d.\n\nUse filing marker RP1-NOISE-10 in the archive note so the finance desk can find the batch later. There is no booking reference, ITOS job number, container number, vessel assignment, pickup advice, or customer request in this thread. The rate sheet also needs the old photocopy removed before Friday close \u2014 unrelated, but it was sitting in the same freight inbox and got forwarded by mistake.",
+          "locked_body_sha256": "c7904b0f1c069debd2e007095b05c3b691302dfa590f8fbb17aeb78b963ec68d",
+          "logical_message_id": "rp1-a10-1@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A10] RE: freight office housekeeping \u2014 RP1-NOISE-10",
+          "wire_body": "Hello all, this is the monthly office clean-up thread, not a booking instruction. Please archive the October vendor invoice PDFs under Finance / Freight Admin and rename the loose scan from \u201cfreight-final2\u201d to \u201cfreight-final2-signed\u201d.\n\nUse filing marker RP1-NOISE-10 in the archive note so the finance desk can find the batch later. There is no booking reference, ITOS job number, container number, vessel assignment, pickup advice, or customer request in this thread. The rate sheet also needs the old photocopy removed before Friday close \u2014 unrelated, but it was sitting in the same freight inbox and got forwarded by mistake.\n\n--\nMikael Ho \u2014 HarbourLink Logistics Pte Ltd <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "44fd729b90fdb60cd0c5f05efcceebf84e3adb8768d3176a24230d28a354292f",
+          "wire_message_id": "<rp1-a10-1@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "corr": {},
+        "instance_created": false,
+        "mutation_performed": false,
+        "proposal_created": false,
+        "reason": "office-admin mail has no valid workflow correlation key",
+        "state": "routed_out",
+        "step": "none",
+        "target": "none",
+        "vars": {}
+      },
+      "id": "RP1-A10",
+      "seed_plan": [],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Nadia Rahman \u2014 EastBridge Foods Pte Ltd",
+          "headers": {},
+          "locked_body": "Hi ops, sending the EastBridge export instruction for booking BK-1101-RED, one 40HC of frozen goods from Singapore to Jebel Ali on MV Pacific Ember. The older quote used \u201cBR-1101-RED\u201d; that was the typo in the first sheet, so the booking in this thread is BK-1101-RED.\n\nThe carrier says an empty-box release will follow. I do not have the box particulars or the customer job number in this note yet; Nadia's desk can add those when the release comes through. The customer is EastBridge Foods Pte Ltd and the voyage is still PE221 from the line's earlier note.",
+          "locked_body_sha256": "96df97b65812226cb67c46afef78169ec12b72f6671554eae1e9d4a7ede0898a",
+          "logical_message_id": "rp1-a11-1@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A11] export instruction BK-1101-RED \u2014 please action",
+          "wire_body": "Hi ops, sending the EastBridge export instruction for booking BK-1101-RED, one 40HC of frozen goods from Singapore to Jebel Ali on MV Pacific Ember. The older quote used \u201cBR-1101-RED\u201d; that was the typo in the first sheet, so the booking in this thread is BK-1101-RED.\n\nThe carrier says an empty-box release will follow. I do not have the box particulars or the customer job number in this note yet; Nadia's desk can add those when the release comes through. The customer is EastBridge Foods Pte Ltd and the voyage is still PE221 from the line's earlier note.\n\n--\nNadia Rahman \u2014 EastBridge Foods Pte Ltd <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "30d2a3063797d0e10e98a18eb668146182893214298785d00af6722f54107c75",
+          "wire_message_id": "<rp1-a11-1@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Calvin Ng \u2014 Ocean Meridian Lines",
+          "headers": {},
+          "locked_body": "Nadia, pickup advice is confirmed for BK-1101-RED. The carrier release sheet ties it to EastBridge job EB-1101-7842; empty container MSCU5938049 was released this morning for MV Pacific Ember, voyage PE221. The truck may collect from the depot on 06 Aug.\n\nThe live box on the release sheet is MSCU5938049, replacing the draft number in yesterday's spreadsheet. Seal will be supplied after collection. This is the complete release note for now; VGM and gate-in are later steps, so the job record can be assembled from the confirmed customer and carrier fields.",
+          "locked_body_sha256": "f1a808fbe13802b8585ece8ac49a5c4f313dd7e1bacec94e3965b4c6579e26d7",
+          "logical_message_id": "rp1-a11-2@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A11] pickup advice BK-1101-RED / EB-1101-7842 / MSCU5938049",
+          "wire_body": "Nadia, pickup advice is confirmed for BK-1101-RED. The carrier release sheet ties it to EastBridge job EB-1101-7842; empty container MSCU5938049 was released this morning for MV Pacific Ember, voyage PE221. The truck may collect from the depot on 06 Aug.\n\nThe live box on the release sheet is MSCU5938049, replacing the draft number in yesterday's spreadsheet. Seal will be supplied after collection. This is the complete release note for now; VGM and gate-in are later steps, so the job record can be assembled from the confirmed customer and carrier fields.\n\n--\nCalvin Ng \u2014 Ocean Meridian Lines <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "50beef6bb889ff41e9de91797e8282dd4e32f21261b22040d1146881764583b7",
+          "wire_message_id": "<rp1-a11-2@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "approval_surface": "portal",
+        "corr": {
+          "booking_ref": "BK-1101-RED",
+          "container_no": "MSCU5938049",
+          "job_no": "EB-1101-7842"
+        },
+        "mutation_performed": false,
+        "pending_action": "job_create",
+        "state": "pending_approval",
+        "step": "create_job",
+        "target": "RP1-JOB-1101"
+      },
+      "id": "RP1-A11",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-1101",
+          "corr": {
+            "booking_ref": "BK-1101-RED"
+          },
+          "entity_key": "job:RP1-JOB-1101",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "ingest",
+          "vars": {
+            "customer": "EastBridge Foods Pte Ltd",
+            "direction": "export",
+            "equipment": "1x40HC",
+            "vessel_name": "MV Pacific Ember"
+          }
+        }
+      ],
+      "state_probes": []
+    },
+    {
+      "emails": [
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Priya Menon \u2014 HarbourFresh Trading Pte Ltd",
+          "headers": {},
+          "locked_body": "Hi team, VGM for HarbourFresh job ITOS-1201-5508 is now confirmed: container MSCU8172656, 21,480 kg, weighbridge method. Booking is BK-1201-BLUE and the cargo is on MV Eastern Laurel, EL509.\n\nThe signed VGM sheet was sent in the same thread as a scan, although the figures above are the customer confirmation if the attachment is slow to load. I believe gate-in is still pending from the terminal, so the next useful state change is the terminal update rather than an invoice or completion note.",
+          "locked_body_sha256": "13303db853bbbd0fa95dce27d589c540e4637bad2003b724071aaf8c05c081a4",
+          "logical_message_id": "rp1-a12-1@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 1,
+          "subject": "[RP1-A12] VGM reply for ITOS-1201-5508 / MSCU8172656",
+          "wire_body": "Hi team, VGM for HarbourFresh job ITOS-1201-5508 is now confirmed: container MSCU8172656, 21,480 kg, weighbridge method. Booking is BK-1201-BLUE and the cargo is on MV Eastern Laurel, EL509.\n\nThe signed VGM sheet was sent in the same thread as a scan, although the figures above are the customer confirmation if the attachment is slow to load. I believe gate-in is still pending from the terminal, so the next useful state change is the terminal update rather than an invoice or completion note.\n\n--\nPriya Menon \u2014 HarbourFresh Trading Pte Ltd <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "6a4078ad936fd53f9b0c0195f8e3972b3f091095fb11346fa0907660887d45e6",
+          "wire_message_id": "<rp1-a12-1@rp1.synthetic.test>"
+        },
+        {
+          "from_address_env": "E1_STAGING_MAIL_USER",
+          "from_display": "Ethan Koh \u2014 Straits Gateway Terminal",
+          "headers": {},
+          "locked_body": "Status update from the terminal, 07 Aug 16:42 SGT: MSCU8172656 gated in against ITOS-1201-5508, booking BK-1201-BLUE, for MV Eastern Laurel voyage EL509. Gate-in is accepted; no exception or weight discrepancy was raised.\n\nHarbourFresh's last customer-service note asked for a short confirmation once the terminal status cleared. The useful update is that the container has gated in and the VGM on file is 21,480 kg by weighbridge. This terminal note does not make the shipment invoiced or completed.",
+          "locked_body_sha256": "38e291e11b22116327e5844eb3874ca950027979a2ad497b66911080153a9aed",
+          "logical_message_id": "rp1-a12-2@rp1.synthetic.test",
+          "recipient": "allied-workflow-staging",
+          "settle_before_next": true,
+          "step": 2,
+          "subject": "[RP1-A12] gate-in confirmed: MSCU8172656 / ITOS-1201-5508",
+          "wire_body": "Status update from the terminal, 07 Aug 16:42 SGT: MSCU8172656 gated in against ITOS-1201-5508, booking BK-1201-BLUE, for MV Eastern Laurel voyage EL509. Gate-in is accepted; no exception or weight discrepancy was raised.\n\nHarbourFresh's last customer-service note asked for a short confirmation once the terminal status cleared. The useful update is that the container has gated in and the VGM on file is 21,480 kg by weighbridge. This terminal note does not make the shipment invoiced or completed.\n\n--\nEthan Koh \u2014 Straits Gateway Terminal <dorm1@staging.invalid>\n",
+          "wire_body_sha256": "dc36b0bfc2ccfbd1bf7f357a40577a76fa05a7f58a9ebae38d75d8e3f0e0dc91",
+          "wire_message_id": "<rp1-a12-2@rp1.synthetic.test>"
+        }
+      ],
+      "expected_final": {
+        "approval_surface": "portal",
+        "corr": {
+          "booking_ref": "BK-1201-BLUE",
+          "container_no": "MSCU8172656",
+          "job_no": "ITOS-1201-5508"
+        },
+        "customer_update_facts": {
+          "container_no": "MSCU8172656",
+          "gate_in_at": "2026-08-07T16:42:00+08:00",
+          "job_no": "ITOS-1201-5508",
+          "vessel_name": "MV Eastern Laurel",
+          "vgm_kg": 21480,
+          "vgm_method": "weighbridge",
+          "voyage": "EL509"
+        },
+        "mutation_performed": false,
+        "pending_action": "send_customer_update",
+        "state": "pending_approval",
+        "step": "invoice",
+        "target": "RP1-JOB-1201"
+      },
+      "id": "RP1-A12",
+      "seed_plan": [
+        {
+          "canonical_alias": "job:RP1-JOB-1201",
+          "corr": {
+            "booking_ref": "BK-1201-BLUE",
+            "container_no": "MSCU8172656",
+            "job_no": "ITOS-1201-5508"
+          },
+          "entity_key": "job:RP1-JOB-1201",
+          "operations": [
+            "wf_engine.create_instance",
+            "wf_engine.ingest_event(source=campaign_seed)",
+            "wf_engine.advance(to_step=requested_step) when needed"
+          ],
+          "requested_step": "await_vgm",
+          "vars": {
+            "customer": "HarbourFresh Trading Pte Ltd",
+            "direction": "export",
+            "vessel_name": "MV Eastern Laurel",
+            "voyage": "EL509"
+          }
+        }
+      ],
+      "state_probes": []
+    }
+  ],
+  "campaign": "rp1",
+  "citation_contract": {
+    "format": [
+      "table",
+      "identity",
+      "query",
+      "observed"
+    ],
+    "style": "P5a"
+  },
+  "database_mutated": false,
+  "evidence_limited_paths": [
+    "correlation.candidate_count",
+    "correlation.compatible_candidate_count",
+    "correlation.candidates_rejected",
+    "correlation.selection_reason",
+    "correlation.position",
+    "correlation.reason",
+    "correlation.usable_discriminator_count",
+    "agent_action.review.options"
+  ],
+  "locked_fixture_hashes": {
+    "arcs-01-04.json": "10f969dddd9841ca5c51506b8e961dcda5fd47ea116394b61bcb52bf5f0f93bd",
+    "arcs-05-08.json": "ba62f24d846e05825595650e8b4aecf86d0b79eebc19f5fdaa9977483b21bde7",
+    "arcs-09-12.json": "371ca962d746aedff77bbc429121e1fc682fe97dee75e88f41de390a3839cd5f"
+  },
+  "mode": "plan-only",
+  "network_performed": false,
+  "orchestration": {
+    "ingress_timeout_seconds": 180,
+    "poll_interval_seconds": 2,
+    "recipient": "allied-workflow-staging",
+    "remote_db": "pa-workflow-dev",
+    "smtp_host": "smtp.gmail.com",
+    "smtp_password_env": "E1_DORM1_APP_PASSWORD",
+    "smtp_port": 587,
+    "smtp_user_env": "E1_STAGING_MAIL_USER",
+    "worker_profile": "dorm1",
+    "worker_timeout_seconds": 600
+  },
+  "population": {
+    "arcs": 12,
+    "emails": 25,
+    "probes": 1
+  },
+  "workflow_template": {
+    "path": "tests/fixtures/workflow/synthetic_allied_like.yaml",
+    "sha256": "81632e1c2e6f202d532f0eb8a9d616963b7ea383373d8119e1f6d918a02dd593",
+    "template_artifact_edited_during_execution": false
+  }
+}

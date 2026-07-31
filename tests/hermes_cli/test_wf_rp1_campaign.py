@@ -312,3 +312,171 @@ def test_score_campaign_fails_a_missing_state_probe() -> None:
     result = campaign.score_campaign(locked, observed)
     assert result["probe_counts"]["fail"] == 1
     assert result["verdict"] == "fail"
+
+
+def test_evidence_limited_parent_marks_missing_action_fields_unobservable() -> None:
+    result = campaign.score_answer_key(
+        {
+            "event_type": "pickup_advice",
+            "payload": {},
+            "corr": {},
+            "agent_action": {
+                "kind": "propose",
+                "action": "draft_reply",
+                "constraints": ["do_not_send"],
+            },
+        },
+        {
+            "event_type": "pickup_advice",
+            "payload": {},
+            "corr": {},
+            "correlation": {},
+            "agent_action": {
+                "evidence_status": "EVIDENCE-LIMITED",
+                "reason": "no durable approval row",
+            },
+        },
+    )
+    assert result["section_status"]["action"] == "evidence-limited"
+    assert result["sections"]["action"]["failed"] == []
+    assert len(result["sections"]["action"]["unobservable"]) == 3
+    assert "decision" not in result["miss_taxonomy"]
+
+
+def test_target_comparison_normalizes_job_prefix_and_none() -> None:
+    prefixed = campaign.compare_subset(
+        {"target": "RP1-JOB-1"},
+        {"target": "job:RP1-JOB-1"},
+        "correlation",
+    )
+    assert len(prefixed["matched"]) == 1
+    none_target = campaign.compare_subset(
+        {"target": "none"}, {"target": None}, "correlation"
+    )
+    assert len(none_target["matched"]) == 1
+
+
+def test_final_projection_preserves_durable_entity_key_shape() -> None:
+    projected = campaign._project_final_observation(
+        {"entity_key": "job:RP1-JOB-1"},
+        {
+            "instances": {
+                "RP1-JOB-1": {
+                    "step": "pickup",
+                    "state": "advancing",
+                    "corr": {},
+                    "vars": {},
+                }
+            }
+        },
+        {},
+    )
+    assert projected["entity_key"] == "RP1-JOB-1"
+    comparison = campaign.compare_subset(
+        {"entity_key": "job:RP1-JOB-1"}, projected, "expected_final"
+    )
+    assert comparison["failed"] == []
+    assert comparison["matched"][0]["observed"] == "RP1-JOB-1"
+
+
+def test_missing_key_in_durable_corr_is_an_observed_failure() -> None:
+    projected = campaign._project_final_observation(
+        {"entity_key": "job:RP1-JOB-1", "corr": {"container_no": "MSCU1"}},
+        {
+            "instances": {
+                "job:RP1-JOB-1": {
+                    "step": "pickup",
+                    "state": "advancing",
+                    "corr": {"booking_ref": "BK1"},
+                    "vars": {},
+                }
+            }
+        },
+        {},
+    )
+    comparison = campaign.compare_subset(
+        {"entity_key": "job:RP1-JOB-1", "corr": {"container_no": "MSCU1"}},
+        projected,
+        "expected_final",
+    )
+    assert [row["path"] for row in comparison["failed"]] == [
+        "expected_final.corr.container_no"
+    ]
+    assert comparison["unobservable"] == []
+
+
+def test_missing_expected_null_is_an_observed_null_match() -> None:
+    result = campaign.compare_subset(
+        {"booking_ref": None}, {}, "corr"
+    )
+    assert result == {
+        "matched": [
+            {"path": "corr.booking_ref", "expected": None, "observed": None}
+        ],
+        "failed": [],
+        "unobservable": [],
+    }
+
+
+def test_generic_final_rows_project_to_locked_vocabulary() -> None:
+    expected = {
+        "entity_key": "job:RP1-JOB-1",
+        "workflow_state": "needs_review",
+        "current_step": "await_gatein",
+        "review_reason": "missing from durable rows",
+    }
+    observed = {
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+            "RP1-JOB-1": {
+                "state": "advancing",
+                "step": "invoice",
+                "corr": {},
+                "vars": {},
+            }
+        },
+    }
+    projected = campaign._project_final_observation(expected, observed, {})
+    result = campaign.compare_subset(expected, projected, "expected_final")
+    assert len(result["matched"]) == 1
+    assert {entry["path"] for entry in result["failed"]} == {
+        "expected_final.workflow_state",
+        "expected_final.current_step",
+    }
+    assert [entry["path"] for entry in result["unobservable"]] == [
+        "expected_final.review_reason"
+    ]
+
+
+def test_probe_projection_scores_poll_and_timing_but_limits_action() -> None:
+    probe = {
+        "after_email_step": 2,
+        "step": 3,
+        "expected": {
+            "verdict": "mismatch",
+            "email_claim": "gate_in",
+            "state_poll": "not_gate_in",
+            "agent_action": "needs_review_exception_proposal",
+            "after_email_step": 2,
+        },
+    }
+    arc = {
+        "emails": [
+            {"message_id": "one"},
+            {"message_id": "two"},
+        ]
+    }
+    projected = campaign._project_probe_observation(
+        probe,
+        {"status": "not_gate_in", "gate_in": False},
+        arc,
+        {"two": {"event_type": "gate_in"}},
+    )
+    result = campaign.compare_subset(
+        probe["expected"], projected, "state_probes[0].expected"
+    )
+    assert len(result["matched"]) == 4
+    assert result["failed"] == []
+    assert [entry["path"] for entry in result["unobservable"]] == [
+        "state_probes[0].expected.agent_action"
+    ]
