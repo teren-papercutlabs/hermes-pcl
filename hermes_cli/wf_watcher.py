@@ -302,13 +302,47 @@ def _extract_raw_email_events(
                 request = _failed_extraction_request(
                     f"extractor boundary failed: {exc}"
                 )
-        wf_engine.extract_event(
-            conn,
-            int(event["id"]),
-            request.brief,
-            request.extractor,
-            request.schema_validator,
-        )
+        try:
+            wf_engine.extract_event(
+                conn,
+                int(event["id"]),
+                request.brief,
+                request.extractor,
+                request.schema_validator,
+            )
+        except Exception as exc:
+            # A successful extractor can still hit a matching conflict after
+            # its classified write commits.  Re-enter through the engine so
+            # one poison email closes durably instead of starving every tick.
+            logger.exception(
+                "workflow watcher: extraction failed for event %s",
+                event["id"],
+            )
+            failed = _failed_extraction_request(
+                f"workflow extraction failed: {exc}"
+            )
+            wf_engine.extract_event(
+                conn,
+                int(event["id"]),
+                failed.brief,
+                failed.extractor,
+                failed.schema_validator,
+            )
+
+
+def _sweep_after_email_extraction(
+    conn: sqlite3.Connection,
+    now: int,
+) -> wf_engine.SweepResult:
+    """Sweep only while no concurrently-ingested raw email is visible."""
+
+    with kanban_db.write_txn(conn):
+        # BEGIN IMMEDIATE prevents a new email write between this guard and
+        # sweep's own intake query.  If ingress won the race before the lock,
+        # leave every intake row for the next tick rather than sweep raw mail.
+        if _raw_received_email_events(conn):
+            return wf_engine.SweepResult()
+        return wf_engine.sweep(conn, int(now))
 
 
 def run_tick(
@@ -383,7 +417,7 @@ def run_tick(
                 applied.append(event_id)
 
     _extract_raw_email_events(conn, extractor_boundary)
-    swept = wf_engine.sweep(conn, int(now))
+    swept = _sweep_after_email_extraction(conn, int(now))
     # ``sweep`` classifies before returning.  Include every durable
     # non-create match, not only matches produced in this process, so a
     # gateway restart after classification but before application catches up.

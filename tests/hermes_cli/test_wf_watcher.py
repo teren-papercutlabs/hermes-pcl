@@ -342,6 +342,71 @@ def test_extractor_boundary_failure_is_needs_review_before_sweep(
         conn.close()
 
 
+def test_email_ingested_during_extraction_waits_for_next_tick(
+    tmp_path, monkeypatch
+):
+    path, conn, task_id = _board(tmp_path, monkeypatch)
+    first_id = wf_engine.ingest_event(
+        conn,
+        source="email",
+        external_id="first-raw-email",
+        payload={"body_ref": "/private/first-email.txt"},
+        corr={},
+        event_type=None,
+    )
+    assert first_id is not None
+    late_id = None
+
+    def boundary(_event):
+        nonlocal late_id
+        if late_id is None:
+            ingress = kanban_db.connect(path)
+            try:
+                late_id = wf_engine.ingest_event(
+                    ingress,
+                    source="email",
+                    external_id="concurrent-raw-email",
+                    payload={"body_ref": "/private/concurrent-email.txt"},
+                    corr={},
+                    event_type=None,
+                )
+            finally:
+                ingress.close()
+        return wf_watcher.ExtractionRequest(
+            brief={"schema": "observation-v1"},
+            extractor=lambda _brief, _event: {
+                "event_type": "observed",
+                "payload": {"result": "accepted"},
+                "corr": {"entity": "entity-1"},
+            },
+            schema_validator={"observation-v1": lambda _payload: True},
+        )
+
+    try:
+        first = wf_watcher.run_tick(conn, NOW, extractor_boundary=boundary)
+        assert late_id is not None
+        assert first.sweep_processed == 0
+        assert _row(
+            conn, "SELECT status FROM wf_event WHERE id = ?", late_id
+        )[0] == "received"
+        assert _row(
+            conn, "SELECT status FROM wf_event WHERE id = ?", first_id
+        )[0] == "applied"
+        assert _row(
+            conn, "SELECT current_step_key FROM tasks WHERE id = ?", task_id
+        )[0] == "done"
+
+        wf_watcher.run_tick(conn, NOW + 60, extractor_boundary=boundary)
+        assert _row(
+            conn, "SELECT status FROM wf_event WHERE id = ?", late_id
+        )[0] != "received"
+        assert _row(
+            conn, "SELECT event_type FROM wf_event WHERE id = ?", late_id
+        )[0] == "observed"
+    finally:
+        conn.close()
+
+
 def test_match_and_apply_roll_back_together_on_failure_and_restart_recovers(
     tmp_path, monkeypatch
 ):
