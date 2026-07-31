@@ -127,7 +127,16 @@ To ignore all incoming attachments (for malware protection or bandwidth savings)
 platforms:
   email:
     skip_attachments: true
+  # Staging/test harnesses only. Default false. When true, mail whose From
+  # address exactly equals EMAIL_ADDRESS enters workflow intake only and is
+  # never handled as chat or replied to.
+  allow_self_workflow_ingress: false
 ```
+
+> **Warning:** `allow_self_workflow_ingress` is a staging/test capability, not
+> sender authentication. Email `From` can be forged and Hermes does not verify
+> SPF/DMARC here. Keep it `false` outside an isolated synthetic workflow mailbox.
+
 
 When enabled, attachment and inline parts are skipped before payload decoding. The email body text is still processed normally.
 
