@@ -1,0 +1,592 @@
+{
+  "campaign": "rp1",
+  "unit": "u3",
+  "answer_key_locked_before_execution": true,
+  "arcs": [
+    {
+      "id": "RP1-A09",
+      "coverage_tags": [
+        "partial_info_dribble",
+        "cumulative_extraction",
+        "no_invention",
+        "buffered_future_event"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Jia Wen Lim",
+          "company": "Northstar Foods Pte Ltd",
+          "voice": "quick, informal operations notes; sends fragments as soon as someone forwards them and corrects details mid-thread"
+        },
+        "carrier": {
+          "name": "Lara Jensen",
+          "company": "BlueHarbor Line",
+          "voice": "short carrier-desk updates with practical pickup details, occasional missing punctuation"
+        },
+        "itos_state": {
+          "job_no": null,
+          "container_no": null,
+          "vessel_name": null,
+          "vgm_kg": null,
+          "gate_in": null
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "RP1-JOB-0901",
+          "entity_key": "job:RP1-JOB-0901",
+          "step": "ingest",
+          "corr": {
+            "booking_ref": "BK-0901-SEA"
+          },
+          "vars": {
+            "customer": "Northstar Foods Pte Ltd",
+            "direction": "export",
+            "equipment": "1x40HC"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "rp1-a09-1@rp1.synthetic.test",
+          "from_display": "Jia Wen Lim — Northstar Foods Pte Ltd",
+          "subject": "[RP1-A09] FW: booking note BK-0901-SEA / please hold space",
+          "body": "Hi team, forwarding the first bit for the Northstar export. Please hold one 40HC against booking BK-0901-SEA, food-grade dry cargo, Singapore to Port Klang. The customer name is Northstar Foods Pte Ltd and this is export, not the old import quote.\n\nQuoted from the earlier note: “vessel and empty details to follow from line.” That is all I have for now, sorry — no job number yet, no container assigned. The line says another update is coming, likely in pieces, so I am sending this before the file gets any older. I may have typed the equipment as 1 x 40' in the old sheet, but it is 1x40HC here.",
+          "answer_key": {
+            "event_type": "trucking_instruction",
+            "payload": {
+              "booking_ref": "BK-0901-SEA",
+              "customer": "Northstar Foods Pte Ltd",
+              "direction": "export",
+              "equipment": "1x40HC",
+              "route": "Singapore to Port Klang"
+            },
+            "corr": {
+              "booking_ref": "BK-0901-SEA"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-0901",
+              "method": "deterministic"
+            },
+            "agent_action": {
+              "kind": "park",
+              "action": {
+                "stage": "await_pickup",
+                "reason": "instruction is usable but vessel and container details have not arrived"
+              },
+              "constraints": [
+                "retain booking_ref BK-0901-SEA",
+                "do not invent vessel_name, voyage, container_no, job_no, or pickup_date",
+                "do not create or mutate an ITOS job from this fragment"
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "rp1-a09-2@rp1.synthetic.test",
+          "from_display": "Lara Jensen — BlueHarbor Line",
+          "subject": "[RP1-A09] RE: BK-0901-SEA — vessel / box release details",
+          "body": "Hi Jia Wen, line side has released the booking now. MV Cedar Horizon, voyage CH128E, export box MSCU4827312. The release note shows the depot date as 04 Aug, but the actual truck window is still not visible in our portal.\n\nSmall fragment only: BK-0901-SEA / MSCU4827312 / Cedar Horizon. Seal and the customer-side job reference are not on this message. I am forwarding the vessel and box information now rather than waiting for the pickup line to come back; that line is still pending.",
+          "answer_key": {
+            "event_type": "container_assigned",
+            "payload": {
+              "booking_ref": "BK-0901-SEA",
+              "vessel_name": "MV Cedar Horizon",
+              "voyage": "CH128E",
+              "container_no": "MSCU4827312",
+              "pickup_date": "2026-08-04"
+            },
+            "corr": {
+              "booking_ref": "BK-0901-SEA",
+              "container_no": "MSCU4827312"
+            },
+            "correlation": {
+              "verdict": "buffered",
+              "target": "RP1-JOB-0901",
+              "method": "deterministic"
+            },
+            "agent_action": {
+              "kind": "park",
+              "action": {
+                "stage": "await_pickup",
+                "buffered_event": "container_assigned",
+                "reason": "vessel and container arrived before the pickup advice wait can consume them"
+              },
+              "constraints": [
+                "retain booking_ref BK-0901-SEA and container_no MSCU4827312",
+                "do not advance on a future-step container assignment",
+                "do not invent job_no, seal_no, or a confirmed depot slot"
+              ]
+            }
+          }
+        },
+        {
+          "step": 3,
+          "message_id": "rp1-a09-3@rp1.synthetic.test",
+          "from_display": "Jia Wen Lim — Northstar Foods Pte Ltd",
+          "subject": "[RP1-A09] RE: BK-0901-SEA / VGM bit + pickup correction",
+          "body": "Adding the last scraps from the driver chat. For MSCU4827312, the VGM is 18,340 kg, method weighbridge. Pickup still looks like 04 Aug, but the depot slot itself is pending; the line has not sent a separate slot number.\n\nThe signed ticket is coming separately, and there is still no customer-side job reference in my notes. Quoted line from me yesterday: “container to follow.” It has now followed, finally. The pickup advice and VGM details are together here, but the record is still missing the later reference fields.",
+          "answer_key": {
+            "event_type": "vgm_reply",
+            "payload": {
+              "booking_ref": "BK-0901-SEA",
+              "container_no": "MSCU4827312",
+              "pickup_date": "2026-08-04",
+              "vgm_kg": 18340,
+              "vgm_method": "weighbridge",
+              "vgm_document_status": "pending_separate_delivery"
+            },
+            "corr": {
+              "booking_ref": "BK-0901-SEA",
+              "container_no": "MSCU4827312"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-0901",
+              "method": "deterministic"
+            },
+            "agent_action": {
+              "kind": "park",
+              "action": {
+                "stage": "create_job",
+                "reason": "pickup and VGM fragments are cumulative, but the later job/reference fields remain absent"
+              },
+              "constraints": [
+                "carry forward only the stated booking, vessel, container, pickup, and VGM fields",
+                "do not manufacture job_no, seal_no, confirmed_depot_slot, or a document reference",
+                "do not mutate ITOS while the extracted set remains incomplete",
+                "retain the earlier buffered container assignment for later re-drive"
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "target": "RP1-JOB-0901",
+        "state": "parked",
+        "step": "create_job",
+        "corr": {
+          "booking_ref": "BK-0901-SEA",
+          "container_no": "MSCU4827312"
+        },
+        "vars": {
+          "customer": "Northstar Foods Pte Ltd",
+          "direction": "export",
+          "equipment": "1x40HC",
+          "vessel_name": "MV Cedar Horizon",
+          "voyage": "CH128E",
+          "pickup_date": "2026-08-04",
+          "vgm_kg": 18340,
+          "vgm_method": "weighbridge",
+          "vgm_document_status": "pending_separate_delivery",
+          "container_no": "MSCU4827312"
+        },
+        "absent_fields": [
+          "job_no",
+          "seal_no",
+          "confirmed_depot_slot",
+          "gate_in"
+        ],
+        "mutation_performed": false,
+        "buffered_events": [
+          "container_assigned:MSCU4827312"
+        ]
+      }
+    },
+    {
+      "id": "RP1-A10",
+      "coverage_tags": [
+        "wrong_recipient",
+        "noise_mail",
+        "routed_out",
+        "no_mutation"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Mikael Ho",
+          "company": "HarbourLink Logistics Pte Ltd",
+          "voice": "internal admin notes that look operational at a glance but are not customer-job instructions"
+        },
+        "carrier": {
+          "name": "Omar Singh",
+          "company": "Seaborne Freight Desk",
+          "voice": "generic shared-mailbox voice, not actually involved in this message"
+        },
+        "itos_state": {
+          "job_no": null,
+          "container_no": null,
+          "vessel_name": null,
+          "vgm_kg": null,
+          "gate_in": null
+        }
+      },
+      "initial_instances": [],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "rp1-a10-1@rp1.synthetic.test",
+          "from_display": "Mikael Ho — HarbourLink Logistics Pte Ltd",
+          "subject": "[RP1-A10] RE: freight office housekeeping — RP1-NOISE-10",
+          "body": "Hello all, this is the monthly office clean-up thread, not a booking instruction. Please archive the October vendor invoice PDFs under Finance / Freight Admin and rename the loose scan from “freight-final2” to “freight-final2-signed”.\n\nUse filing marker RP1-NOISE-10 in the archive note so the finance desk can find the batch later. There is no booking reference, ITOS job number, container number, vessel assignment, pickup advice, or customer request in this thread. The rate sheet also needs the old photocopy removed before Friday close — unrelated, but it was sitting in the same freight inbox and got forwarded by mistake.",
+          "answer_key": {
+            "event_type": "other",
+            "payload": {
+              "noise_marker": "RP1-NOISE-10",
+              "mail_class": "office_admin",
+              "reason": "unrelated_invoice_filing"
+            },
+            "corr": {
+              "booking_ref": null
+            },
+            "correlation": {
+              "verdict": "routed_out",
+              "target": "none",
+              "method": "no_valid_instance_key"
+            },
+            "agent_action": {
+              "kind": "no_action",
+              "action": {
+                "route": "non_workflow_noise",
+                "proposal_created": false,
+                "mutation_performed": false
+              },
+              "constraints": [
+                "treat booking_ref as absent, not as RP1-NOISE-10",
+                "do not create an instance",
+                "do not call ITOS or draft a customer update"
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "target": "none",
+        "state": "routed_out",
+        "step": "none",
+        "corr": {},
+        "vars": {},
+        "mutation_performed": false,
+        "instance_created": false,
+        "proposal_created": false,
+        "reason": "office-admin mail has no valid workflow correlation key"
+      }
+    },
+    {
+      "id": "RP1-A11",
+      "coverage_tags": [
+        "clean_happy_path",
+        "strong_unique_keys",
+        "create_job_proposal"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Nadia Rahman",
+          "company": "EastBridge Foods Pte Ltd",
+          "voice": "direct and busy; corrects old references explicitly and expects the ops desk to use the latest line"
+        },
+        "carrier": {
+          "name": "Calvin Ng",
+          "company": "Ocean Meridian Lines",
+          "voice": "concise release advice with job and container identifiers in the subject or first paragraph"
+        },
+        "itos_state": {
+          "job_no": null,
+          "container_no": null,
+          "gate_in": null,
+          "vgm_kg": null
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "RP1-JOB-1101",
+          "entity_key": "job:RP1-JOB-1101",
+          "step": "ingest",
+          "corr": {
+            "booking_ref": "BK-1101-RED"
+          },
+          "vars": {
+            "customer": "EastBridge Foods Pte Ltd",
+            "direction": "export",
+            "equipment": "1x40HC",
+            "vessel_name": "MV Pacific Ember"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "rp1-a11-1@rp1.synthetic.test",
+          "from_display": "Nadia Rahman — EastBridge Foods Pte Ltd",
+          "subject": "[RP1-A11] export instruction BK-1101-RED — please action",
+          "body": "Hi ops, sending the EastBridge export instruction for booking BK-1101-RED, one 40HC of frozen goods from Singapore to Jebel Ali on MV Pacific Ember. The older quote used “BR-1101-RED”; that was the typo in the first sheet, so the booking in this thread is BK-1101-RED.\n\nThe carrier says an empty-box release will follow. I do not have the box particulars or the customer job number in this note yet; Nadia's desk can add those when the release comes through. The customer is EastBridge Foods Pte Ltd and the voyage is still PE221 from the line's earlier note.",
+          "answer_key": {
+            "event_type": "trucking_instruction",
+            "payload": {
+              "booking_ref": "BK-1101-RED",
+              "customer": "EastBridge Foods Pte Ltd",
+              "direction": "export",
+              "equipment": "1x40HC",
+              "vessel_name": "MV Pacific Ember",
+              "destination": "Jebel Ali"
+            },
+            "corr": {
+              "booking_ref": "BK-1101-RED"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-1101",
+              "method": "deterministic"
+            },
+            "agent_action": {
+              "kind": "resume",
+              "action": {
+                "advance_to": "await_pickup",
+                "record": "use corrected booking BK-1101-RED; await carrier pickup advice"
+              },
+              "constraints": [
+                "discard the superseded quote reference BR-1101-RED",
+                "do not submit job_create before pickup advice",
+                "retain customer EastBridge Foods Pte Ltd and vessel MV Pacific Ember"
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "rp1-a11-2@rp1.synthetic.test",
+          "from_display": "Calvin Ng — Ocean Meridian Lines",
+          "subject": "[RP1-A11] pickup advice BK-1101-RED / EB-1101-7842 / MSCU5938049",
+          "body": "Nadia, pickup advice is confirmed for BK-1101-RED. The carrier release sheet ties it to EastBridge job EB-1101-7842; empty container MSCU5938049 was released this morning for MV Pacific Ember, voyage PE221. The truck may collect from the depot on 06 Aug.\n\nThe live box on the release sheet is MSCU5938049, replacing the draft number in yesterday's spreadsheet. Seal will be supplied after collection. This is the complete release note for now; VGM and gate-in are later steps, so the job record can be assembled from the confirmed customer and carrier fields.",
+          "answer_key": {
+            "event_type": "pickup_advice",
+            "payload": {
+              "booking_ref": "BK-1101-RED",
+              "job_no": "EB-1101-7842",
+              "container_no": "MSCU5938049",
+              "vessel_name": "MV Pacific Ember",
+              "voyage": "PE221",
+              "pickup_date": "2026-08-06"
+            },
+            "corr": {
+              "container_no": "MSCU5938049",
+              "job_no": "EB-1101-7842",
+              "booking_ref": "BK-1101-RED"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-1101",
+              "method": "deterministic"
+            },
+            "agent_action": {
+              "kind": "propose",
+              "action": {
+                "operation": "job_create",
+                "approval_surface": "portal",
+                "payload": {
+                  "job_no": "EB-1101-7842",
+                  "booking_ref": "BK-1101-RED",
+                  "customer": "EastBridge Foods Pte Ltd",
+                  "direction": "export",
+                  "vessel_name": "MV Pacific Ember",
+                  "voyage": "PE221",
+                  "container_no": "MSCU5938049",
+                  "pickup_date": "2026-08-06",
+                  "destination": "Jebel Ali"
+                }
+              },
+              "constraints": [
+                "proposal only; no ITOS mutation before approval",
+                "use unique customer job_no EB-1101-7842 and container_no MSCU5938049 exactly",
+                "do not fill seal_no, VGM, or gate_in from absent data",
+                "keep the superseded reference BR-1101-RED out of the payload"
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "target": "RP1-JOB-1101",
+        "state": "pending_approval",
+        "step": "create_job",
+        "corr": {
+          "container_no": "MSCU5938049",
+          "job_no": "EB-1101-7842",
+          "booking_ref": "BK-1101-RED"
+        },
+        "pending_action": "job_create",
+        "approval_surface": "portal",
+        "mutation_performed": false
+      }
+    },
+    {
+      "id": "RP1-A12",
+      "coverage_tags": [
+        "clean_happy_path",
+        "vgm_progress",
+        "gate_in_progress",
+        "strong_unique_keys",
+        "customer_update_proposal"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Priya Menon",
+          "company": "HarbourFresh Trading Pte Ltd",
+          "voice": "calm, precise customer-service updates; wants a short factual confirmation once gate-in is visible"
+        },
+        "carrier": {
+          "name": "Ethan Koh",
+          "company": "Straits Gateway Terminal",
+          "voice": "operational status notes with timestamps, terminal language, and clean container identifiers"
+        },
+        "itos_state": {
+          "job_no": "ITOS-1201-5508",
+          "container_no": "MSCU8172656",
+          "vgm_kg": null,
+          "vgm_method": null,
+          "gate_in": false
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "RP1-JOB-1201",
+          "entity_key": "job:RP1-JOB-1201",
+          "step": "await_vgm",
+          "corr": {
+            "job_no": "ITOS-1201-5508",
+            "container_no": "MSCU8172656",
+            "booking_ref": "BK-1201-BLUE"
+          },
+          "vars": {
+            "customer": "HarbourFresh Trading Pte Ltd",
+            "direction": "export",
+            "vessel_name": "MV Eastern Laurel",
+            "voyage": "EL509"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "rp1-a12-1@rp1.synthetic.test",
+          "from_display": "Priya Menon — HarbourFresh Trading Pte Ltd",
+          "subject": "[RP1-A12] VGM reply for ITOS-1201-5508 / MSCU8172656",
+          "body": "Hi team, VGM for HarbourFresh job ITOS-1201-5508 is now confirmed: container MSCU8172656, 21,480 kg, weighbridge method. Booking is BK-1201-BLUE and the cargo is on MV Eastern Laurel, EL509.\n\nThe signed VGM sheet was sent in the same thread as a scan, although the figures above are the customer confirmation if the attachment is slow to load. I believe gate-in is still pending from the terminal, so the next useful state change is the terminal update rather than an invoice or completion note.",
+          "answer_key": {
+            "event_type": "vgm_reply",
+            "payload": {
+              "job_no": "ITOS-1201-5508",
+              "container_no": "MSCU8172656",
+              "booking_ref": "BK-1201-BLUE",
+              "vgm_kg": 21480,
+              "vgm_method": "weighbridge",
+              "vessel_name": "MV Eastern Laurel",
+              "voyage": "EL509"
+            },
+            "corr": {
+              "container_no": "MSCU8172656",
+              "job_no": "ITOS-1201-5508",
+              "booking_ref": "BK-1201-BLUE"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-1201",
+              "method": "deterministic"
+            },
+            "agent_action": {
+              "kind": "resume",
+              "action": {
+                "advance_to": "await_gatein",
+                "record": "VGM 21480 kg by weighbridge for MSCU8172656"
+              },
+              "constraints": [
+                "match on unique container_no MSCU8172656",
+                "retain job_no ITOS-1201-5508 and booking_ref BK-1201-BLUE",
+                "treat gate-in as pending until terminal confirmation"
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "rp1-a12-2@rp1.synthetic.test",
+          "from_display": "Ethan Koh — Straits Gateway Terminal",
+          "subject": "[RP1-A12] gate-in confirmed: MSCU8172656 / ITOS-1201-5508",
+          "body": "Status update from the terminal, 07 Aug 16:42 SGT: MSCU8172656 gated in against ITOS-1201-5508, booking BK-1201-BLUE, for MV Eastern Laurel voyage EL509. Gate-in is accepted; no exception or weight discrepancy was raised.\n\nHarbourFresh's last customer-service note asked for a short confirmation once the terminal status cleared. The useful update is that the container has gated in and the VGM on file is 21,480 kg by weighbridge. This terminal note does not make the shipment invoiced or completed.",
+          "answer_key": {
+            "event_type": "gate_in",
+            "payload": {
+              "job_no": "ITOS-1201-5508",
+              "container_no": "MSCU8172656",
+              "booking_ref": "BK-1201-BLUE",
+              "gate_in": true,
+              "gate_in_at": "2026-08-07T16:42:00+08:00",
+              "terminal": "Straits Gateway Terminal",
+              "vessel_name": "MV Eastern Laurel",
+              "voyage": "EL509",
+              "vgm_kg": 21480,
+              "vgm_method": "weighbridge"
+            },
+            "corr": {
+              "container_no": "MSCU8172656",
+              "job_no": "ITOS-1201-5508",
+              "booking_ref": "BK-1201-BLUE"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-1201",
+              "method": "deterministic"
+            },
+            "agent_action": {
+              "kind": "propose",
+              "action": {
+                "operation": "send_customer_update",
+                "approval_surface": "portal",
+                "payload": {
+                  "recipient": "HarbourFresh Trading Pte Ltd",
+                  "subject": "Gate-in confirmed — MSCU8172656 / ITOS-1201-5508",
+                  "body": "HarbourFresh's container MSCU8172656 under job ITOS-1201-5508 has gated in at Straits Gateway Terminal for MV Eastern Laurel voyage EL509. The VGM on file is 21,480 kg by weighbridge.",
+                  "container_no": "MSCU8172656"
+                },
+                "advance_to": "invoice"
+              },
+              "constraints": [
+                "proposal only; do not send externally before approval",
+                "state gate-in at 2026-08-07T16:42:00+08:00 exactly",
+                "mention VGM 21480 kg by weighbridge and container MSCU8172656",
+                "do not describe the job as invoiced or completed"
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "target": "RP1-JOB-1201",
+        "state": "pending_approval",
+        "step": "invoice",
+        "corr": {
+          "container_no": "MSCU8172656",
+          "job_no": "ITOS-1201-5508",
+          "booking_ref": "BK-1201-BLUE"
+        },
+        "pending_action": "send_customer_update",
+        "approval_surface": "portal",
+        "customer_update_facts": {
+          "container_no": "MSCU8172656",
+          "job_no": "ITOS-1201-5508",
+          "gate_in_at": "2026-08-07T16:42:00+08:00",
+          "vgm_kg": 21480,
+          "vgm_method": "weighbridge",
+          "vessel_name": "MV Eastern Laurel",
+          "voyage": "EL509"
+        },
+        "mutation_performed": false
+      }
+    }
+  ]
+}
