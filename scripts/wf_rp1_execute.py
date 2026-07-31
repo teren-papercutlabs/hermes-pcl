@@ -1118,15 +1118,11 @@ def _citations(response: Mapping[str, Any], label: str) -> list[dict[str, Any]]:
     citations = response.get("citations")
     if not isinstance(citations, list) or not citations:
         raise ExecutionContractError(f"{label}: missing P5a citations")
+    required_fields = {"table", "identity", "query", "observed"}
     for citation in citations:
         if (
             not isinstance(citation, dict)
-            or list(citation) != [
-            "table",
-            "identity",
-            "query",
-            "observed",
-            ]
+            or set(citation) != required_fields
             or not isinstance(citation["identity"], str)
         ):
             raise ExecutionContractError(f"{label}: invalid P5a citation shape")
