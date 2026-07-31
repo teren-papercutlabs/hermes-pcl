@@ -356,6 +356,13 @@ if not config_enabled:
 config_mode = stat.S_IMODE((home / "config.yaml").stat().st_mode)
 assert config_mode == 0o640, oct(config_mode)
 assert (home / "config.yaml").stat().st_uid == 0
+for protected in (
+    home / ".env",
+    home / "runtime/provider-key-provenance.json",
+):
+    protected_mode = stat.S_IMODE(protected.stat().st_mode)
+    assert protected_mode == 0o640, (str(protected), oct(protected_mode))
+    assert protected.stat().st_uid == 0, (str(protected), protected.stat().st_uid)
 print(json.dumps({
     "quick_verify": "pass",
     "slot": slot,

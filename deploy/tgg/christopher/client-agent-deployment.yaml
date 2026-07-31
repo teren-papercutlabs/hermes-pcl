@@ -142,7 +142,7 @@ spec:
 
   env:
     materialization: /home/pclaw/.hermes-christopher-tgg/.env
-    mode: "0600"
+    mode: "0640"
     refs:
       - name: OPENAI_API_KEY
         source: marshal-secrets#OPENAI_API_KEY_TGG

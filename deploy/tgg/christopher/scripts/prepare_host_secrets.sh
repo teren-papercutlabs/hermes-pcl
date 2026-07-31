@@ -50,10 +50,10 @@ scp -q "$env_tmp" "$target:/root/.pcl-secret-staging/christopher.env"
 scp -q "$provenance_tmp" \
   "$target:/root/.pcl-secret-staging/provider-key-provenance.json"
 ssh "$target" 'set -euo pipefail
-install -m 0600 -o pclaw -g pclaw \
+install -m 0640 -o root -g pclaw \
   /root/.pcl-secret-staging/christopher.env \
   /home/pclaw/.hermes-christopher-tgg/.env
-install -m 0600 -o pclaw -g pclaw \
+install -m 0640 -o root -g pclaw \
   /root/.pcl-secret-staging/provider-key-provenance.json \
   /home/pclaw/.hermes-christopher-tgg/runtime/provider-key-provenance.json
 rm -f \

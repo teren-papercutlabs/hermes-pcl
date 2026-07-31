@@ -224,6 +224,11 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert "GEMINI_API_KEY_TGG" not in prepare_script
     assert "source \"$SECRETS_FILE\"" not in prepare_script
     assert "provider-key-provenance.json" in prepare_script
+    assert "install -m 0640 -o root -g pclaw" in prepare_script
+    isolated_smoke = (
+        DEPLOY_ROOT / "scripts" / "run_isolated_smoke.py"
+    ).read_text()
+    assert "GEMINI_API_KEY_PCL_PA_SHARED" not in isolated_smoke
     assert 'd["spec"]["deploy"]["manifestRef"]' in deploy_script
     assert '--manifest "$manifest_path"' in deploy_script
     assert "output_quality_eval.py" in deploy_script
@@ -258,6 +263,8 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert '"retention_hold": status["retention_hold"]' in verify_script
     assert '"$APP_ROOT/deploy/pa/provider_key_contract.py" verify' in verify_script
     assert '--process-environ "/proc/$main_pid/environ"' in verify_script
+    assert 'home / "runtime/provider-key-provenance.json"' in verify_script
+    assert "protected.stat().st_uid == 0" in verify_script
 
     manifest = json.loads((ROOT / manifest_ref).read_text())
     assert "deploy/pa/provider_key_contract.py" in manifest["include"]
