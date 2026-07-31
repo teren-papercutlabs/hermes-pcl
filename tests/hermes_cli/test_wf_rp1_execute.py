@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from scripts import wf_rp1_campaign as campaign
 from scripts import wf_rp1_execute as execute
@@ -182,17 +183,34 @@ class FakeRemote:
         self.email_attempts: dict[str, int] = {}
         self.locked = campaign.load_locked_campaign()
 
+    @staticmethod
+    def _extraction_citation() -> dict[str, Any]:
+        document = yaml.safe_load(campaign.TEMPLATE_PATH.read_text())
+        workflow = document["workflow"]
+        return {
+            "table": "wf_template",
+            "identity": (
+                f"wf_template.slug={workflow['id']}@1.email_extraction"
+            ),
+            "query": "resolve the sole registered email_extraction contract",
+            "observed": execute._extraction_contract_evidence(
+                workflow["email_extraction"]
+            ),
+        }
+
     def request(self, action: str, payload: Any) -> dict[str, Any]:
         payload = dict(payload)
         self.calls.append((action, payload))
         if action == "preflight":
-            return {
+            response = {
                 **_ready("preflight"),
                 "service_identity": execute.SERVICE_NAME,
                 "deployed_release": "test-release",
                 "watcher_healthy": True,
                 "extraction_contract_ready": True,
             }
+            response["citations"].append(self._extraction_citation())
+            return response
         if action == "observe_preflight":
             return _ready(
                 "preflight-email",
@@ -370,6 +388,50 @@ def test_execute_refuses_remote_preflight_without_extraction_contract(
             _plan(),
             settings=settings,
             remote=MissingContractRemote(),
+            smtp=smtp,  # type: ignore[arg-type]
+            journal=execute.ExecutionJournal(
+                tmp_path / "rp1-journal.jsonl", resume=False
+            ),
+        )
+    assert smtp.sent == []
+
+
+def test_execute_refuses_uncited_extraction_contract(
+    tmp_path: Path,
+) -> None:
+    class UncitedContractRemote(FakeRemote):
+        def request(
+            self, action: str, payload: dict[str, object]
+        ) -> dict[str, object]:
+            response = super().request(action, payload)
+            if action == "preflight":
+                response["citations"] = [
+                    citation
+                    for citation in response["citations"]
+                    if not citation["identity"].endswith(".email_extraction")
+                ]
+            return response
+
+    settings = execute.ExecutionSettings(
+        target=execute.TARGET_SYSTEM,
+        environment=execute.TARGET_ENVIRONMENT,
+        recipient="workflow+allied-workflow-staging@example.test",
+        smtp_user="dorm1@example.test",
+        smtp_password="never-output",
+        poll_interval_seconds=0.01,
+        ingress_timeout_seconds=5,
+        worker_timeout_seconds=5,
+        pacing_seconds=0.01,
+    )
+    smtp = FakeSMTPIngress()
+    with pytest.raises(
+        execute.ExecutionContractError,
+        match="did not cite the exact registered",
+    ):
+        execute.execute_plan(
+            _plan(),
+            settings=settings,
+            remote=UncitedContractRemote(),
             smtp=smtp,  # type: ignore[arg-type]
             journal=execute.ExecutionJournal(
                 tmp_path / "rp1-journal.jsonl", resume=False

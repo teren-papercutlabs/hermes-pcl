@@ -286,7 +286,7 @@ def build_campaign_plan(
         "workflow_template": {
             "path": str(TEMPLATE_PATH.relative_to(ROOT)),
             "sha256": _sha256(TEMPLATE_PATH),
-            "mutation": "unchanged",
+            "mutation_during_execution": False,
         },
         "orchestration": {
             "smtp_host": smtp_host,

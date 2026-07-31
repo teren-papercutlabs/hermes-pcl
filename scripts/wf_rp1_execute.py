@@ -294,6 +294,29 @@ def _citation(
     }
 
 
+def _extraction_contract_evidence(contract: Mapping[str, Any]) -> dict[str, Any]:
+    event_types = contract.get("event_types")
+    correlation_keys = contract.get("correlation_keys")
+    instruction = contract.get("instruction")
+    if (
+        not isinstance(contract.get("schema"), str)
+        or not isinstance(event_types, Mapping)
+        or not isinstance(correlation_keys, list)
+        or not all(isinstance(key, str) and key for key in correlation_keys)
+        or not isinstance(instruction, str)
+        or not instruction.strip()
+    ):
+        raise ExecutionContractError("email_extraction contract is incomplete")
+    canonical = wf_engine._json(dict(contract))
+    return {
+        "schema": contract["schema"],
+        "event_types": sorted(event_types),
+        "correlation_keys": list(correlation_keys),
+        "contract_sha256": _sha256_text(canonical),
+        "instruction_sha256": _sha256_text(instruction),
+    }
+
+
 class StagingHelper:
     """Tenant-neutral staging implementation over the real workflow engine."""
 
@@ -541,6 +564,18 @@ class StagingHelper:
                 raise ExecutionContractError(
                     "registered workflow correlation_keys are missing"
                 )
+            registered_extraction = registered_workflow.get("email_extraction")
+            if registered_extraction != expected_extraction:
+                raise ExecutionContractError(
+                    "latest RP1 template email_extraction differs from fixture"
+                )
+            extraction_evidence = _extraction_contract_evidence(
+                resolved_extraction
+            )
+            if extraction_evidence["correlation_keys"] != registered_correlation_keys:
+                raise ExecutionContractError(
+                    "email_extraction correlation_keys differ from workflow"
+                )
             citations = [
                 _citation(
                     "runtime_service_proof",
@@ -561,13 +596,7 @@ class StagingHelper:
                         ".email_extraction"
                     ),
                     "resolve the sole registered email_extraction contract",
-                    {
-                        "schema": resolved_extraction.get("schema"),
-                        "event_types": sorted(
-                            resolved_extraction.get("event_types", {})
-                        ),
-                        "correlation_keys": registered_correlation_keys,
-                    },
+                    extraction_evidence,
                 ),
                 _citation(
                     "wf_watcher.run_tick",
@@ -1173,6 +1202,31 @@ def _citations(response: Mapping[str, Any], label: str) -> list[dict[str, Any]]:
     return _clone(citations)
 
 
+def _require_extraction_contract_citation(
+    citations: list[dict[str, Any]],
+) -> None:
+    document = yaml.safe_load(
+        campaign_lib.TEMPLATE_PATH.read_text(encoding="utf-8")
+    )
+    workflow = _mapping(document, "workflow fixture").get("workflow")
+    if not isinstance(workflow, dict):
+        raise ExecutionContractError("workflow fixture has no workflow object")
+    contract = workflow.get("email_extraction")
+    if not isinstance(contract, dict):
+        raise ExecutionContractError("workflow fixture has no email_extraction")
+    expected = _extraction_contract_evidence(contract)
+    matching = [
+        citation
+        for citation in citations
+        if citation["identity"].endswith(".email_extraction")
+        and citation["observed"] == expected
+    ]
+    if len(matching) != 1:
+        raise ExecutionContractError(
+            "preflight did not cite the exact registered email_extraction contract"
+        )
+
+
 def _durable_ready(response: Mapping[str, Any]) -> bool:
     durable = response.get("durable")
     return response.get("ready") is True and isinstance(durable, Mapping) and all(
@@ -1277,6 +1331,7 @@ def execute_plan(
             "and extraction contract"
         )
     all_citations = _citations(preflight, "preflight")
+    _require_extraction_contract_citation(all_citations)
     journal.append(
         "remote_preflight_observed",
         service_identity=preflight.get("service_identity"),

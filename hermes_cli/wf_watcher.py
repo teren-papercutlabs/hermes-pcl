@@ -231,9 +231,14 @@ def _drive_matched_event(
 
 
 def resolve_email_extraction_brief(conn: sqlite3.Connection) -> dict | str | None:
-    """Resolve the sole catalog extraction contract; never inspect instances."""
+    """Resolve the sole latest-per-template extraction contract."""
     contracts: dict[str, dict | str] = {}
-    for row in conn.execute("SELECT spec FROM wf_template ORDER BY slug, version").fetchall():
+    latest_by_slug: dict[str, sqlite3.Row] = {}
+    for row in conn.execute(
+        "SELECT slug, version, spec FROM wf_template ORDER BY slug, version DESC"
+    ).fetchall():
+        latest_by_slug.setdefault(row["slug"], row)
+    for row in latest_by_slug.values():
         try:
             spec = wf_engine._load_json(row["spec"], None)
             workflow = wf_engine._workflow_spec(spec) if isinstance(spec, dict) else {}

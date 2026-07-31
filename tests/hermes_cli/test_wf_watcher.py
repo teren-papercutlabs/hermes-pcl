@@ -680,6 +680,27 @@ def test_repeating_non_chase_timer_is_rejected(tmp_path, monkeypatch):
     conn.close()
 
 
+def test_email_extraction_resolver_uses_latest_version_per_template(
+    tmp_path,
+) -> None:
+    conn = kanban_db.connect(tmp_path / "workflow.sqlite")
+    old_brief = {
+        "schema": "email-observation-v1",
+        "instruction": "Old extraction contract.",
+    }
+    latest_brief = {
+        "schema": "email-observation-v2",
+        "instruction": "Current extraction contract.",
+    }
+    try:
+        wf_engine.register_template(conn, _spec(email_extraction=old_brief))
+        wf_engine.register_template(conn, _spec(email_extraction=latest_brief))
+
+        assert wf_watcher.resolve_email_extraction_brief(conn) == latest_brief
+    finally:
+        conn.close()
+
+
 def test_raw_email_is_extracted_from_template_before_sweep_and_deduped(
     tmp_path, monkeypatch
 ):

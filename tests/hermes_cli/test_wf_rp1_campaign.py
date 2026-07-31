@@ -29,6 +29,7 @@ def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
         "job_no",
         "container_no",
     }
+    assert set(contract["correlation_keys"]) == set(workflow["correlation_keys"])
     instruction = contract["instruction"]
     assert "omit unknown values rather than guessing" in instruction
     assert "return a null event_type and an empty corr object" in instruction
@@ -45,17 +46,8 @@ def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
         assert undeclared_type not in contract["event_types"]
         assert undeclared_type not in instruction
 
-    expected_fields: dict[str, set[str]] = {
-        event_type: set() for event_type in declared_types
-    }
-    for arc in campaign.load_locked_campaign().arcs:
-        for email in arc["emails"]:
-            answer_key = email["answer_key"]
-            event_type = answer_key["event_type"]
-            if event_type in declared_types:
-                expected_fields[event_type].update(answer_key["payload"])
-    for event_type, fields in expected_fields.items():
-        assert fields <= set(contract["event_types"][event_type]["payload_fields"])
+    assert all(config == {} for config in contract["event_types"].values())
+    assert "payload_fields" not in json.dumps(contract, sort_keys=True)
 
 
 def test_plan_cli_is_offline_and_preserves_locked_contract(
@@ -83,7 +75,7 @@ def test_plan_cli_is_offline_and_preserves_locked_contract(
     assert plan["network_performed"] is False
     assert plan["database_mutated"] is False
     assert plan["population"] == {"arcs": 12, "emails": 25, "probes": 1}
-    assert plan["workflow_template"]["mutation"] == "unchanged"
+    assert plan["workflow_template"]["mutation_during_execution"] is False
     assert plan["orchestration"]["smtp_host"] == "smtp.invalid"
     assert plan["orchestration"]["remote_db"] == "ssh://staging.invalid/db"
     assert plan["orchestration"]["worker_profile"] == "dorm1"
