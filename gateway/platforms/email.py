@@ -289,9 +289,21 @@ class EmailAdapter(BasePlatformAdapter):
         # watched mailbox. Keep the default echo guard intact and, when this
         # explicit gate is open, route self-mail to workflow intake only —
         # never to conversational handling or reply generation.
-        self._allow_self_workflow_ingress = (
-            extra.get("allow_self_workflow_ingress") is True
-        )
+        raw_self_workflow_ingress = extra.get("allow_self_workflow_ingress")
+        self._allow_self_workflow_ingress = raw_self_workflow_ingress is True
+        if (
+            "allow_self_workflow_ingress" in extra
+            and not isinstance(raw_self_workflow_ingress, bool)
+        ):
+            logger.warning(
+                "[Email] Ignoring non-boolean allow_self_workflow_ingress; "
+                "self-message guard remains enabled"
+            )
+        if self._allow_self_workflow_ingress:
+            logger.warning(
+                "[Email] SELF WORKFLOW INGRESS ENABLED: self-addressed mail may "
+                "enter workflow intake, but will never enter chat handling"
+            )
 
         # Track message IDs we've already processed to avoid duplicates
         self._seen_uids: set = set()
@@ -759,7 +771,7 @@ class EmailAdapter(BasePlatformAdapter):
         """Convert a fetched email into a MessageEvent and dispatch it."""
         sender_addr = msg_data["sender_addr"]
 
-        is_self_message = sender_addr == self._address.lower()
+        is_self_message = bool(self._address) and sender_addr == self._address.lower()
         if is_self_message and not self._allow_self_workflow_ingress:
             return
 

@@ -108,6 +108,20 @@ def test_factory_dispatch_creates_one_body_by_reference_event(
 
 
 
+def test_self_ingress_gate_defaults_off(
+    isolated_email_env,
+):
+    _runner_instance, adapter = _adapter()
+    message = _message()
+    message["sender_addr"] = "hermes@test.com"
+    message["message_id"] = "<self-default-off@test.com>"
+
+    asyncio.run(adapter._dispatch_message(message))
+
+    assert _workflow_rows() == []
+    adapter.handle_message.assert_not_awaited()
+
+
 def test_self_ingress_gate_records_workflow_only(
     isolated_email_env,
 ):
@@ -122,6 +136,63 @@ def test_self_ingress_gate_records_workflow_only(
     rows = _workflow_rows()
     assert len(rows) == 1
     assert rows[0]["external_id"] == "<self-workflow@test.com>"
+    assert not adapter._thread_context
+    adapter.handle_message.assert_not_awaited()
+
+
+def test_self_ingress_gate_does_not_bypass_nonself_allowlist(
+    isolated_email_env,
+):
+    _runner_instance, adapter = _adapter(allow_self_workflow_ingress=True)
+    message = _message()
+    message["sender_addr"] = "outsider@test.com"
+    message["message_id"] = "<outsider@test.com>"
+
+    asyncio.run(adapter._dispatch_message(message))
+
+    assert _workflow_rows() == []
+    adapter.handle_message.assert_not_awaited()
+
+
+def test_self_ingress_gate_does_not_bypass_automated_sender(
+    isolated_email_env,
+    monkeypatch,
+):
+    monkeypatch.setenv("EMAIL_ALLOWED_USERS", "mailer-daemon@test.com")
+    _runner_instance, adapter = _adapter(allow_self_workflow_ingress=True)
+    message = _message()
+    message["sender_addr"] = "mailer-daemon@test.com"
+    message["message_id"] = "<automated@test.com>"
+
+    asyncio.run(adapter._dispatch_message(message))
+
+    assert _workflow_rows() == []
+    adapter.handle_message.assert_not_awaited()
+
+
+def test_self_ingress_gate_does_not_treat_empty_sender_as_self(
+    isolated_email_env,
+    monkeypatch,
+):
+    from gateway.platforms.email import EmailAdapter
+
+    monkeypatch.setenv("EMAIL_ADDRESS", "")
+    callback = AsyncMock()
+    adapter = EmailAdapter(
+        PlatformConfig(
+            enabled=True,
+            extra={"allow_self_workflow_ingress": True},
+        ),
+        workflow_ingress_callback=callback,
+    )
+    adapter.handle_message = AsyncMock()
+    message = _message()
+    message["sender_addr"] = ""
+    message["message_id"] = "<empty-sender@test.com>"
+
+    asyncio.run(adapter._dispatch_message(message))
+
+    callback.assert_not_awaited()
     adapter.handle_message.assert_not_awaited()
 
 
