@@ -29,6 +29,10 @@ Current source ingests email with `event_type = NULL` and empty correlation, the
 
 These are independent defects: repairing release coherence exposes the missing interpretation stage rather than fixing it. Both were filed through the bug pipeline; neither was patched inside the campaign.
 
+### Score-as-is boundary
+
+Preflight also found locked expectations beyond the current registered template and durable evidence surface: 8 of 25 email steps use event types the existing synthetic template does not declare; seeded `ingest` instances cannot current-match create-on events; and the engine does not persist all candidate/reason/action details requested by the answer keys. The orchestrator ruled these are campaign data, not build scope. The campaign will execute them unchanged, classify the actual gaps, and mark cells `EVIDENCE-LIMITED` where the consumer surface cannot support a stronger claim. No capability will be added merely to make the locked keys pass.
+
 ## Arc scorecards
 
 All scorecards remain **NOT RUN**. There are no campaign DB citations yet, so aggregate rates are intentionally withheld.
