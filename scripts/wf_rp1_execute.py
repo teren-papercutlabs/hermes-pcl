@@ -916,8 +916,22 @@ class StagingHelper:
 
         if action == "observe_arc_final":
             seeds = payload.get("seeds")
-            if not isinstance(seeds, list) or not seeds:
+            if not isinstance(seeds, list):
                 raise ExecutionContractError("observe_arc_final requires seeds")
+            if not seeds:
+                return self._response(
+                    ready=True,
+                    citations=[],
+                    observed={
+                        "evidence_status": "EVIDENCE-LIMITED",
+                        "instances": {},
+                    },
+                    durable={
+                        "event": "not_applicable",
+                        "instance": "not_applicable",
+                        "proposal": "not_applicable",
+                    },
+                )
             citations = [
                 self._instance_citation(
                     _text(_mapping(seed, "seed").get("entity_key"), "entity_key")
@@ -1315,6 +1329,19 @@ def _citations(response: Mapping[str, Any], label: str) -> list[dict[str, Any]]:
     return _clone(citations)
 
 
+def _no_seed_citations(
+    response: Mapping[str, Any], label: str
+) -> list[dict[str, Any]]:
+    expected_durable = {
+        "event": "not_applicable",
+        "instance": "not_applicable",
+        "proposal": "not_applicable",
+    }
+    if response.get("citations") != [] or response.get("durable") != expected_durable:
+        raise ExecutionContractError(f"{label}: invalid zero-seed evidence shape")
+    return []
+
+
 def _require_extraction_contract_citation(
     citations: list[dict[str, Any]],
 ) -> None:
@@ -1596,7 +1623,11 @@ def execute_plan(
                 journal=journal,
                 journal_fields={"arc_id": arc_id},
             )
-        seed_citations = _citations(seed, f"{arc_id} seed")
+        seed_citations = (
+            _citations(seed, f"{arc_id} seed")
+            if arc["seed_plan"]
+            else _no_seed_citations(seed, f"{arc_id} seed")
+        )
         journal.append("seed_observed", arc_id=arc_id)
         _journal_citations(journal, seed_citations, arc_id=arc_id, phase="seed")
         all_citations.extend(seed_citations)
@@ -1753,7 +1784,11 @@ def execute_plan(
         final_observed = final.get("observed")
         if not isinstance(final_observed, dict):
             raise ExecutionContractError(f"{arc_id}: final observation missing")
-        final_citations = _citations(final, f"{arc_id} final")
+        final_citations = (
+            _citations(final, f"{arc_id} final")
+            if arc["seed_plan"]
+            else _no_seed_citations(final, f"{arc_id} final")
+        )
         journal.append("arc_final_observed", arc_id=arc_id, observed=final_observed)
         _journal_citations(
             journal, final_citations, arc_id=arc_id, phase="arc_final"

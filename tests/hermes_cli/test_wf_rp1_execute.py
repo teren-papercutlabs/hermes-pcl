@@ -233,6 +233,15 @@ class FakeRemote:
     def request(self, action: str, payload: Any) -> dict[str, Any]:
         payload = dict(payload)
         self.calls.append((action, payload))
+        if action == "seed_arc" and payload.get("seeds") == []:
+            response = _ready(action)
+            response["citations"] = []
+            response["durable"] = {
+                "event": "not_applicable",
+                "instance": "not_applicable",
+                "proposal": "not_applicable",
+            }
+            return response
         if action == "preflight":
             response = {
                 **_ready("preflight"),
@@ -316,6 +325,21 @@ class FakeRemote:
                 },
             )
         if action == "observe_arc_final":
+            if payload["seeds"] == []:
+                response = _ready(
+                    f"{payload['arc_id']}-final",
+                    {
+                        "evidence_status": "EVIDENCE-LIMITED",
+                        "instances": {},
+                    },
+                )
+                response["citations"] = []
+                response["durable"] = {
+                    "event": "not_applicable",
+                    "instance": "not_applicable",
+                    "proposal": "not_applicable",
+                }
+                return response
             return _ready(
                 f"{payload['arc_id']}-final",
                 {
@@ -373,6 +397,9 @@ def test_execute_uses_smtp_waits_and_runs_one_declared_probe(
     assert observed["evidence_status"] == "EVIDENCE-LIMITED"
     assert observed["evidence_limited_paths"] == list(campaign.EVIDENCE_LIMITS)
     assert len(observed["arcs"]) == 12
+    for arc_id in ("RP1-A02", "RP1-A10"):
+        assert observed["arcs"][arc_id]["expected_final"]["instances"] == {}
+        assert observed["arcs"][arc_id]["expected_final"]["_citations"] == []
     assert observed["arcs"]["RP1-A08"]["state_probes"][0]["event_type"] == "gate_in"
     assert all(
         list(citation) == ["table", "identity", "query", "observed"]
