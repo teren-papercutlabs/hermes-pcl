@@ -14,27 +14,48 @@ import json
 import os
 import shlex
 import smtplib
+import sqlite3
 import subprocess
 import sys
 import time
+import uuid
 from dataclasses import dataclass
 from email.message import EmailMessage
 from email.utils import formataddr, parseaddr
 from pathlib import Path
-from typing import Any, Callable, Mapping, Protocol
+from typing import Any, Callable, IO, Mapping, Protocol
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import yaml
+
+from hermes_cli import kanban_db, wf_engine, wf_watcher
 from scripts import wf_rp1_campaign as campaign_lib
 
 
 TARGET_SYSTEM = "pa-workflow-dev"
 TARGET_ENVIRONMENT = "staging"
-STAGING_COMMAND_ENV = "WF_RP1_STAGING_COMMAND"
 RECIPIENT_ENV = "WF_RP1_RECIPIENT"
+STAGING_DB_ENV = "WF_RP1_STAGING_DB"
+SERVICE_PROOF_ENV = "WF_RP1_SERVICE_PROOF_PATH"
+SERVICE_NAME = "pa-workflow-dev-hermes.service"
+REMOTE_SSH_TARGET = "pa-staging@100.87.146.11"
+REMOTE_EXECUTOR_PATH = (
+    "/home/pa-staging/apps/hermes-pcl/current/scripts/wf_rp1_execute.py"
+)
+REMOTE_PYTHON_PATH = (
+    "/home/pa-staging/apps/hermes-pcl/current/.venv/bin/python"
+)
+REMOTE_STAGING_DB_PATH = (
+    "/home/pa-staging/.hermes-p0/kanban/boards/workflow/kanban.db"
+)
+REMOTE_SERVICE_PROOF_PATH = (
+    "/home/pa-staging/.hermes-p0/kanban/wf-rp1-service-proof.json"
+)
 _REQUIRED_DURABLE = ("event", "instance", "proposal")
+_SCORABLE_KEYS = ("event_type", "payload", "corr", "correlation", "agent_action")
 
 
 class ExecutionContractError(RuntimeError):
@@ -83,9 +104,12 @@ class ExecutionSettings:
         _mailbox(smtp_user, "SMTP user")
         _mailbox(recipient, "recipient")
         recipient_local = recipient.rsplit("@", 1)[0].lower()
-        if "+allied-workflow-staging" not in recipient_local:
+        planned_recipient = _text(
+            orchestration.get("recipient"), "planned recipient"
+        ).lower()
+        if f"+{planned_recipient}" not in recipient_local:
             raise ExecutionContractError(
-                "recipient must use the +allied-workflow-staging mailbox"
+                "recipient mailbox does not agree with the plan recipient"
             )
         return cls(
             target=target,
@@ -108,24 +132,94 @@ class ExecutionSettings:
         )
 
 
+class ExecutionJournal:
+    """Append-only execution record used to make resume non-replaying."""
+
+    def __init__(self, path: Path, *, resume: bool) -> None:
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if self.path.exists() and self.path.stat().st_size and not resume:
+            raise ExecutionContractError(
+                f"refusing non-empty journal without --resume: {self.path}"
+            )
+        self.entries: list[dict[str, Any]] = []
+        if self.path.exists():
+            for number, line in enumerate(
+                self.path.read_text(encoding="utf-8").splitlines(), 1
+            ):
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ExecutionContractError(
+                        f"invalid journal JSON on line {number}"
+                    ) from exc
+                if not isinstance(entry, dict):
+                    raise ExecutionContractError(
+                        f"invalid journal entry on line {number}"
+                    )
+                self.entries.append(entry)
+
+    def append(self, event: str, **fields: Any) -> None:
+        entry = {
+            "version": 1,
+            "ts_unix": time.time(),
+            "event": event,
+            **_clone(fields),
+        }
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        self.entries.append(entry)
+
+    def email_state(self, logical_id: str) -> tuple[bool, dict[str, Any] | None]:
+        sent = False
+        observed = None
+        for entry in self.entries:
+            if entry.get("logical_message_id") != logical_id:
+                continue
+            if entry.get("event") == "email_sent":
+                sent = True
+            elif entry.get("event") == "email_observed":
+                observed = entry
+        return sent, observed
+
+
 class CommandRemoteStaging:
-    """JSON-over-stdin staging boundary; command arguments are forbidden."""
+    """JSON-over-stdin boundary pinned to the deployed staging helper."""
 
     def __init__(
         self,
         *,
-        command: str,
         target: str,
         environment: str,
         timeout_seconds: float,
+        command: str | None = None,
         runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
     ) -> None:
-        argv = shlex.split(command)
-        if len(argv) != 1:
+        if target != TARGET_SYSTEM or environment != TARGET_ENVIRONMENT:
             raise ExecutionContractError(
-                f"{STAGING_COMMAND_ENV} must name one executable without arguments"
+                "remote staging target must be pa-workflow-dev staging"
             )
-        self._argv = argv
+        expected_argv = [
+            "ssh",
+            "-T",
+            REMOTE_SSH_TARGET,
+            "env",
+            f"{STAGING_DB_ENV}={REMOTE_STAGING_DB_PATH}",
+            f"{SERVICE_PROOF_ENV}={REMOTE_SERVICE_PROOF_PATH}",
+            REMOTE_PYTHON_PATH,
+            REMOTE_EXECUTOR_PATH,
+            "--staging-stdio",
+        ]
+        # A command override exists only to fail closed on stale deployment
+        # wrappers. It may not redirect execution to a local helper or another
+        # host/path.
+        if command is not None and shlex.split(command) != expected_argv:
+            raise ExecutionContractError(
+                "staging command must be the exact pa-workflow-dev SSH helper"
+            )
+        self._argv = expected_argv
         self._target = target
         self._environment = environment
         self._timeout = timeout_seconds
@@ -172,6 +266,588 @@ class CommandRemoteStaging:
         if response.get("environment") != self._environment:
             raise ExecutionContractError("remote staging response environment mismatch")
         return response
+
+
+def _json_object(raw: str | None) -> dict[str, Any]:
+    if not raw:
+        return {}
+    value = json.loads(raw)
+    return value if isinstance(value, dict) else {}
+
+
+def _citation(
+    table: str, identity: str, query: str, observed: Mapping[str, Any]
+) -> dict[str, Any]:
+    return {
+        "table": table,
+        "identity": identity,
+        "query": query,
+        "observed": _clone(observed),
+    }
+
+
+class StagingHelper:
+    """Tenant-neutral staging implementation over the real workflow engine."""
+
+    def __init__(self, db_path: Path, service_proof_path: Path) -> None:
+        self.db_path = db_path.resolve()
+        self.service_proof_path = service_proof_path.resolve()
+        self.conn = kanban_db.connect(self.db_path)
+        document = yaml.safe_load(
+            campaign_lib.TEMPLATE_PATH.read_text(encoding="utf-8")
+        )
+        self.workflow = _mapping(document, "workflow fixture").get("workflow")
+        if not isinstance(self.workflow, dict):
+            raise ExecutionContractError("workflow fixture has no workflow object")
+        self.template_id, _version = wf_engine.register_template(
+            self.conn, self.workflow
+        )
+
+    def close(self) -> None:
+        self.conn.close()
+
+    def _response(
+        self,
+        *,
+        ready: bool,
+        citations: list[dict[str, Any]],
+        observed: Mapping[str, Any] | None = None,
+        durable: Mapping[str, Any] | None = None,
+        **extra: Any,
+    ) -> dict[str, Any]:
+        return {
+            "ok": True,
+            "target": TARGET_SYSTEM,
+            "environment": TARGET_ENVIRONMENT,
+            "ready": ready,
+            "durable": dict(
+                durable
+                or {
+                    "event": "not_applicable",
+                    "instance": "not_applicable",
+                    "proposal": "not_applicable",
+                }
+            ),
+            "observed": _clone(observed or {}),
+            "citations": citations,
+            **_clone(extra),
+        }
+
+    def _service_proof(self) -> dict[str, Any]:
+        try:
+            proof = json.loads(self.service_proof_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ExecutionContractError("service proof is missing or invalid") from exc
+        if not isinstance(proof, dict):
+            raise ExecutionContractError("service proof must be an object")
+        required = {
+            "target": TARGET_SYSTEM,
+            "environment": TARGET_ENVIRONMENT,
+            "service": SERVICE_NAME,
+            "database": str(self.db_path),
+        }
+        for key, expected in required.items():
+            if proof.get(key) != expected:
+                raise ExecutionContractError(f"service proof {key} mismatch")
+        if not isinstance(proof.get("deployed_release"), str) or not proof[
+            "deployed_release"
+        ]:
+            raise ExecutionContractError("service proof deployed_release missing")
+        executor_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+        if proof.get("executor_sha256") != executor_hash:
+            raise ExecutionContractError("service proof executor_sha256 mismatch")
+        return proof
+
+    def _instance_citation(self, entity_key: str) -> dict[str, Any]:
+        row = self.conn.execute(
+            """
+            SELECT i.task_id, i.entity_key, i.template_id, i.state, i.corr, i.vars,
+                   t.current_step_key
+              FROM wf_instance i JOIN tasks t ON t.id = i.task_id
+             WHERE i.entity_key = ?
+            """,
+            (entity_key,),
+        ).fetchone()
+        if row is None:
+            raise ExecutionContractError(f"workflow instance missing: {entity_key}")
+        return _citation(
+            "wf_instance+tasks",
+            f"wf_instance.entity_key={entity_key}",
+            "SELECT workflow instance and current task step by entity_key",
+            {
+                "task_id": row["task_id"],
+                "entity_key": row["entity_key"],
+                "template_id": row["template_id"],
+                "state": row["state"],
+                "current_step_key": row["current_step_key"],
+                "corr": _json_object(row["corr"]),
+                "vars": _json_object(row["vars"]),
+            },
+        )
+
+    def _event_by_stable_keys(
+        self,
+        *,
+        wire_message_id: str | None,
+        subject_token: str | None,
+        x_token: str | None,
+    ) -> tuple[sqlite3.Row, dict[str, Any]] | None:
+        rows = self.conn.execute(
+            """
+            SELECT * FROM wf_event
+             WHERE source = 'email'
+             ORDER BY id DESC
+             LIMIT 500
+            """
+        ).fetchall()
+        for row in rows:
+            payload = _json_object(row["payload"])
+            message_id = str(
+                payload.get("message_id")
+                or payload.get("Message-ID")
+                or row["external_id"]
+                or ""
+            )
+            subject = str(payload.get("subject") or "")
+            headers = payload.get("headers")
+            header_token = ""
+            if isinstance(headers, dict):
+                header_token = str(
+                    headers.get("X-RP1-Token")
+                    or headers.get("x-rp1-token")
+                    or ""
+                )
+            if wire_message_id and message_id == wire_message_id:
+                return row, payload
+            if subject_token and subject_token in subject:
+                return row, payload
+            if subject_token and subject_token in json.dumps(
+                payload, sort_keys=True
+            ):
+                return row, payload
+            if x_token and header_token == x_token:
+                return row, payload
+        return None
+
+    def _event_capture(
+        self, row: sqlite3.Row, payload: dict[str, Any]
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        if not row["event_type"]:
+            raise ExecutionContractError("email event has null event_type")
+        corr = _json_object(row["corr"])
+        entity_key = None
+        if row["matched_task_id"]:
+            instance = self.conn.execute(
+                "SELECT entity_key FROM wf_instance WHERE task_id = ?",
+                (row["matched_task_id"],),
+            ).fetchone()
+            entity_key = instance["entity_key"] if instance else None
+        approval = None
+        if row["matched_task_id"]:
+            approval = self.conn.execute(
+                """
+                SELECT action, payload, status FROM wf_approval
+                 WHERE task_id = ? ORDER BY id DESC LIMIT 1
+                """,
+                (row["matched_task_id"],),
+            ).fetchone()
+        action = (
+            {
+                "kind": "propose",
+                "proposal": {
+                    "action": approval["action"],
+                    "payload": _json_object(approval["payload"]),
+                    "status": approval["status"],
+                },
+            }
+            if approval
+            else {
+                "evidence_status": "EVIDENCE-LIMITED",
+                "reason": "no durable wf_approval row for this event",
+            }
+        )
+        observed = {
+            "event_type": row["event_type"],
+            "payload": payload,
+            "corr": corr,
+            "correlation": {
+                "verdict": row["status"],
+                "target": entity_key,
+                "match_method": row["match_method"],
+            },
+            "agent_action": action,
+        }
+        _validate_observed(observed, f"wf_event.id={row['id']}")
+        citation = _citation(
+            "wf_event",
+            f"wf_event.id={row['id']}",
+            "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+            {
+                "id": int(row["id"]),
+                "source": row["source"],
+                "external_id": row["external_id"],
+                "event_type": row["event_type"],
+                "status": row["status"],
+                "matched_task_id": row["matched_task_id"],
+                "match_method": row["match_method"],
+            },
+        )
+        return observed, citation
+
+    def handle(self, action: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+        if action == "preflight":
+            proof = self._service_proof()
+            tick = wf_watcher.run_tick(self.conn, int(time.time()))
+            template = self.conn.execute(
+                "SELECT slug, version, content_hash FROM wf_template "
+                "WHERE slug = ? ORDER BY version DESC LIMIT 1",
+                (self.workflow["id"],),
+            ).fetchone()
+            if template is None:
+                raise ExecutionContractError("workflow template is not registered")
+            citations = [
+                _citation(
+                    "runtime_service_proof",
+                    f"service={proof['service']} release={proof['deployed_release']}",
+                    f"read {self.service_proof_path}",
+                    proof,
+                ),
+                _citation(
+                    "wf_template",
+                    f"wf_template.slug={template['slug']}@{template['version']}",
+                    "SELECT latest registered workflow template",
+                    dict(template),
+                ),
+                _citation(
+                    "wf_watcher.run_tick",
+                    f"database={self.db_path}",
+                    "run wf_watcher.run_tick against the staging database",
+                    {
+                        "probe_errors": tick.probe_errors,
+                        "timer_errors": tick.timer_errors,
+                        "sweep_processed": tick.sweep_processed,
+                    },
+                ),
+            ]
+            healthy = tick.probe_errors == 0 and tick.timer_errors == 0
+            return self._response(
+                ready=healthy,
+                citations=citations,
+                service_identity=proof["service"],
+                deployed_release=proof["deployed_release"],
+                watcher_healthy=healthy,
+            )
+
+        if action in {"seed_arc", "observe_seed"}:
+            seeds = payload.get("seeds")
+            if not isinstance(seeds, list) or not seeds:
+                raise ExecutionContractError(f"{action} requires seeds")
+            citations: list[dict[str, Any]] = []
+            if action == "seed_arc":
+                for seed in seeds:
+                    seed = _mapping(seed, "seed")
+                    entity_key = _text(seed.get("entity_key"), "seed entity_key")
+                    event_id = wf_engine.ingest_event(
+                        self.conn,
+                        source="campaign_seed",
+                        external_id=f"rp1:{payload.get('arc_id')}:{entity_key}",
+                        payload={"entity_key": entity_key},
+                        corr=dict(_mapping(seed.get("corr", {}), "seed corr")),
+                        event_type="campaign_seed",
+                    )
+                    task_id = wf_engine.create_instance(
+                        self.conn,
+                        template_id=self.template_id,
+                        entity_key=entity_key,
+                        corr=dict(_mapping(seed.get("corr", {}), "seed corr")),
+                        vars=dict(_mapping(seed.get("vars", {}), "seed vars")),
+                        source_event_id=event_id,
+                    )
+                    requested = _text(seed.get("requested_step"), "requested_step")
+                    current = self.conn.execute(
+                        "SELECT current_step_key FROM tasks WHERE id = ?", (task_id,)
+                    ).fetchone()["current_step_key"]
+                    if current != requested:
+                        if event_id is None:
+                            existing = self.conn.execute(
+                                "SELECT id FROM wf_event WHERE source='campaign_seed' "
+                                "AND external_id=?",
+                                (f"rp1:{payload.get('arc_id')}:{entity_key}",),
+                            ).fetchone()
+                            event_id = int(existing["id"])
+                        wf_engine.advance(
+                            self.conn,
+                            task_id,
+                            to_step=requested,
+                            event_id=int(event_id),
+                        )
+            for seed in seeds:
+                citations.append(
+                    self._instance_citation(
+                        _text(_mapping(seed, "seed").get("entity_key"), "entity_key")
+                    )
+                )
+            return self._response(
+                ready=True,
+                citations=citations,
+                durable={
+                    "event": True if action == "seed_arc" else "not_applicable",
+                    "instance": True,
+                    "proposal": "not_applicable",
+                },
+            )
+
+        if action in {"observe_preflight", "observe_email"}:
+            match = self._event_by_stable_keys(
+                wire_message_id=payload.get("wire_message_id"),
+                subject_token=payload.get("subject_token"),
+                x_token=payload.get("x_rp1_token"),
+            )
+            if match is None:
+                return self._response(ready=False, citations=[])
+            row, event_payload = match
+            if not row["event_type"]:
+                if action == "observe_preflight":
+                    ingress = {
+                        "from": event_payload.get("sender_addr")
+                        or event_payload.get("sender")
+                        or event_payload.get("from"),
+                        "message_id": event_payload.get("message_id")
+                        or row["external_id"],
+                        "subject": event_payload.get("subject"),
+                        "x_rp1_token": (
+                            event_payload.get("headers", {}).get("X-RP1-Token")
+                            if isinstance(event_payload.get("headers"), dict)
+                            else None
+                        ),
+                    }
+                    ingress_citation = _citation(
+                        "wf_event",
+                        f"wf_event.id={row['id']} ingress-envelope",
+                        "SELECT unclassified email envelope by stable keys",
+                        {
+                            "id": int(row["id"]),
+                            "source": row["source"],
+                            "external_id": row["external_id"],
+                            "event_type": None,
+                            "payload": event_payload,
+                        },
+                    )
+                    return self._response(
+                        ready=False,
+                        citations=[ingress_citation],
+                        observed={
+                            "ingress_received": ingress,
+                            "stable_keys": [
+                                key
+                                for key in ("message_id", "subject", "x_rp1_token")
+                                if ingress.get(key)
+                            ],
+                        },
+                    )
+                return self._response(ready=False, citations=[])
+            observed, citation = self._event_capture(row, event_payload)
+            if action == "observe_preflight":
+                received = {
+                    "from": event_payload.get("sender_addr")
+                    or event_payload.get("sender")
+                    or event_payload.get("from"),
+                    "message_id": event_payload.get("message_id")
+                    or row["external_id"],
+                    "subject": event_payload.get("subject"),
+                    "x_rp1_token": (
+                        event_payload.get("headers", {}).get("X-RP1-Token")
+                        if isinstance(event_payload.get("headers"), dict)
+                        else None
+                    ),
+                }
+                stable = [
+                    key
+                    for key in ("message_id", "subject", "x_rp1_token")
+                    if received.get(key)
+                ]
+                if not stable:
+                    raise ExecutionContractError(
+                        "preflight rewrite lost every stable observation key"
+                    )
+                observed = {**observed, "received": received, "stable_keys": stable}
+            return self._response(
+                ready=True,
+                citations=[citation],
+                observed=observed,
+                durable={
+                    "event": True,
+                    "instance": bool(row["matched_task_id"]) or "not_applicable",
+                    "proposal": "not_applicable",
+                },
+                lookup_fallback="subject_token",
+            )
+
+        if action == "execute_state_poll":
+            if set(payload) != {"entity_key", "request", "result"}:
+                raise ExecutionContractError(
+                    "state_poll payload permits entity_key, request, result only"
+                )
+            entity_key = _text(payload.get("entity_key"), "probe entity_key")
+            request = dict(_mapping(payload.get("request"), "probe request"))
+            result = dict(_mapping(payload.get("result"), "probe result"))
+            tenant = "rp1-staging"
+            task = self.conn.execute(
+                "SELECT task_id FROM wf_instance WHERE entity_key = ?",
+                (entity_key,),
+            ).fetchone()
+            if task is None:
+                raise ExecutionContractError("state_poll entity is not seeded")
+            self.conn.execute(
+                "UPDATE tasks SET tenant = ? WHERE id = ?", (tenant, task["task_id"])
+            )
+
+            def probe(
+                targets: tuple[wf_watcher.ProbeTarget, ...],
+            ) -> tuple[wf_watcher.ProbeObservation, ...]:
+                selected = [target for target in targets if target.entity_key == entity_key]
+                if not selected:
+                    return ()
+                field = _text(request.get("field"), "probe field")
+                corr = {
+                    key: result[key]
+                    for key in ("job_no", "container_no")
+                    if key in result
+                }
+                return (
+                    wf_watcher.ProbeObservation(
+                        external_id=f"rp1:{entity_key}:{field}",
+                        event_type=field,
+                        corr=corr,
+                        payload=result,
+                    ),
+                )
+
+            wf_watcher.register_state_probe(tenant, probe, read_only=True)
+            try:
+                tick = wf_watcher.run_tick(self.conn, int(time.time()))
+            finally:
+                wf_watcher.unregister_state_probe(tenant)
+            row = self.conn.execute(
+                "SELECT * FROM wf_event WHERE source='state_poll' "
+                "AND external_id=? ORDER BY id DESC LIMIT 1",
+                (f"rp1:{entity_key}:{request['field']}",),
+            ).fetchone()
+            if row is None:
+                return self._response(ready=False, citations=[])
+            event_payload = _json_object(row["payload"])
+            observed, citation = self._event_capture(row, event_payload)
+            observed["state_poll"] = result
+            observed["process_local_isolation"] = (
+                "probe registered and ticked in this staging helper process "
+                "against the same SQLite board"
+            )
+            return self._response(
+                ready=True,
+                citations=[
+                    citation,
+                    _citation(
+                        "wf_watcher.run_tick",
+                        f"state_poll.entity_key={entity_key}",
+                        "register_state_probe(read_only=True), then run_tick",
+                        {
+                            "poll_events": list(tick.poll_events),
+                            "probe_errors": tick.probe_errors,
+                            "poll_duplicates": tick.poll_duplicates,
+                        },
+                    ),
+                ],
+                observed=observed,
+                durable={
+                    "event": True,
+                    "instance": True,
+                    "proposal": (
+                        True
+                        if observed["agent_action"].get("kind") == "propose"
+                        else "not_applicable"
+                    ),
+                },
+            )
+
+        if action == "observe_arc_final":
+            seeds = payload.get("seeds")
+            if not isinstance(seeds, list) or not seeds:
+                raise ExecutionContractError("observe_arc_final requires seeds")
+            citations = [
+                self._instance_citation(
+                    _text(_mapping(seed, "seed").get("entity_key"), "entity_key")
+                )
+                for seed in seeds
+            ]
+            observed = {
+                citation["observed"]["entity_key"]: {
+                    "state": citation["observed"]["state"],
+                    "step": citation["observed"]["current_step_key"],
+                    "corr": citation["observed"]["corr"],
+                    "vars": citation["observed"]["vars"],
+                }
+                for citation in citations
+            }
+            return self._response(
+                ready=True,
+                citations=citations,
+                observed={
+                    "evidence_status": "EVIDENCE-LIMITED",
+                    "instances": observed,
+                },
+                durable={
+                    "event": "not_applicable",
+                    "instance": True,
+                    "proposal": "not_applicable",
+                },
+            )
+        raise ExecutionContractError(f"unknown staging action: {action}")
+
+
+def staging_stdio(
+    stdin: IO[str],
+    stdout: IO[str],
+    *,
+    env: Mapping[str, str],
+) -> int:
+    """Serve exactly one staging request on stdin/stdout."""
+    try:
+        envelope = json.loads(stdin.read())
+        if not isinstance(envelope, dict):
+            raise ExecutionContractError("staging request must be an object")
+        if set(envelope) != {
+            "protocol",
+            "target",
+            "environment",
+            "action",
+            "payload",
+        }:
+            raise ExecutionContractError("staging request schema mismatch")
+        if (
+            envelope["protocol"] != "wf-rp1-staging-v1"
+            or envelope["target"] != TARGET_SYSTEM
+            or envelope["environment"] != TARGET_ENVIRONMENT
+        ):
+            raise ExecutionContractError("staging request target gate failed")
+        db_path = Path(_text(env.get(STAGING_DB_ENV), STAGING_DB_ENV))
+        proof_path = Path(_text(env.get(SERVICE_PROOF_ENV), SERVICE_PROOF_ENV))
+        helper = StagingHelper(db_path, proof_path)
+        try:
+            response = helper.handle(
+                _text(envelope["action"], "action"),
+                _mapping(envelope["payload"], "payload"),
+            )
+        finally:
+            helper.close()
+    except Exception as exc:
+        response = {
+            "ok": False,
+            "target": TARGET_SYSTEM,
+            "environment": TARGET_ENVIRONMENT,
+            "error": type(exc).__name__,
+        }
+    stdout.write(json.dumps(response, sort_keys=True) + "\n")
+    return 0 if response.get("ok") else 1
 
 
 class SMTPIngress:
@@ -349,12 +1025,17 @@ def validate_plan(plan: Mapping[str, Any]) -> dict[str, Any]:
             locked_arc.get("state_probes", []),
             key=lambda item: (item["after_email_step"], item["step"]),
         )
+        email_steps = {int(email["step"]) for email in emails}
         for planned_probe, locked_probe in zip(probes, ordered, strict=True):
             for key in ("step", "after_email_step", "source", "entity_key", "request"):
                 if planned_probe.get(key) != locked_probe.get(key):
                     raise ExecutionContractError(
                         f"{arc_id}: state probe {key} changed"
                     )
+            if int(planned_probe["after_email_step"]) not in email_steps:
+                raise ExecutionContractError(
+                    f"{arc_id}: state probe is not bound to an email step"
+                )
     if probe_count != 1:
         raise ExecutionContractError(
             "RP1 execution requires exactly one declared state_poll"
@@ -401,17 +1082,45 @@ def _email_message(
     return message, sender
 
 
+def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
+    missing = [key for key in _SCORABLE_KEYS if key not in observed]
+    if missing:
+        raise ExecutionContractError(
+            f"{label}: observed capture missing scorable keys {missing}"
+        )
+    if not isinstance(observed["event_type"], str) or not observed["event_type"]:
+        raise ExecutionContractError(f"{label}: event_type must be non-empty")
+    for key in ("payload", "corr", "correlation", "agent_action"):
+        value = observed[key]
+        if not isinstance(value, Mapping):
+            raise ExecutionContractError(f"{label}: {key} must be an object")
+        if value.get("evidence_status") == "EVIDENCE-LIMITED":
+            if not isinstance(value.get("reason"), str) or not value["reason"]:
+                raise ExecutionContractError(
+                    f"{label}: evidence-limited {key} needs a reason"
+                )
+        elif not value:
+            raise ExecutionContractError(
+                f"{label}: {key} must contain observed fields or an "
+                "EVIDENCE-LIMITED marker"
+            )
+
+
 def _citations(response: Mapping[str, Any], label: str) -> list[dict[str, Any]]:
     citations = response.get("citations")
     if not isinstance(citations, list) or not citations:
         raise ExecutionContractError(f"{label}: missing P5a citations")
     for citation in citations:
-        if not isinstance(citation, dict) or list(citation) != [
+        if (
+            not isinstance(citation, dict)
+            or list(citation) != [
             "table",
             "identity",
             "query",
             "observed",
-        ]:
+            ]
+            or not isinstance(citation["identity"], str)
+        ):
             raise ExecutionContractError(f"{label}: invalid P5a citation shape")
     return _clone(citations)
 
@@ -432,17 +1141,56 @@ def _wait_remote(
     poll_interval_seconds: float,
     monotonic: Callable[[], float],
     sleep: Callable[[float], None],
+    journal: ExecutionJournal | None = None,
+    journal_fields: Mapping[str, Any] | None = None,
+    response_hook: Callable[[Mapping[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     deadline = monotonic() + timeout_seconds
     while True:
         response = remote.request(action, payload)
+        if response_hook is not None:
+            response_hook(response)
         if _durable_ready(response):
             return response
         if monotonic() >= deadline:
+            if journal is not None:
+                journal.append(
+                    "timeout",
+                    action=action,
+                    **dict(journal_fields or {}),
+                )
             raise ExecutionContractError(
                 f"timed out waiting for durable {action} state"
             )
         sleep(poll_interval_seconds)
+
+
+def _journal_citations(
+    journal: ExecutionJournal,
+    citations: list[dict[str, Any]],
+    **identity: Any,
+) -> None:
+    for citation in citations:
+        journal.append("citation_captured", citation=citation, **identity)
+
+
+def _preflight_message(
+    *, sender_base: str, recipient: str, token: str
+) -> tuple[EmailMessage, str]:
+    sender = _plus_address(sender_base, "rp1-preflight")
+    message = EmailMessage()
+    message["From"] = formataddr(("RP1 Staging Preflight", sender))
+    message["To"] = recipient
+    message["Subject"] = f"[{token}] RP1 staging ingress preflight"
+    message["Message-ID"] = f"<{token}@rp1.synthetic.test>"
+    message["X-RP1-Token"] = token
+    message.set_content(
+        "TYPE=pickup_advice\n"
+        f"BOOKING_REF={token}\n"
+        "RESULT=preflight\n\n"
+        f"--\nRP1 Staging Preflight <{sender}>\n"
+    )
+    return message, sender
 
 
 def execute_plan(
@@ -451,6 +1199,7 @@ def execute_plan(
     settings: ExecutionSettings,
     remote: RemoteStaging,
     smtp: SMTPIngress,
+    journal: ExecutionJournal,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> dict[str, Any]:
@@ -468,7 +1217,117 @@ def execute_plan(
     )
     if not _durable_ready(preflight):
         raise ExecutionContractError("staging preflight is not durably ready")
+    if (
+        preflight.get("service_identity") != SERVICE_NAME
+        or not isinstance(preflight.get("deployed_release"), str)
+        or not preflight["deployed_release"]
+        or preflight.get("watcher_healthy") is not True
+    ):
+        raise ExecutionContractError(
+            "remote preflight did not prove service, release, and watcher health"
+        )
     all_citations = _citations(preflight, "preflight")
+    journal.append(
+        "remote_preflight_observed",
+        service_identity=preflight.get("service_identity"),
+        deployed_release=preflight.get("deployed_release"),
+        watcher_healthy=preflight.get("watcher_healthy"),
+    )
+    _journal_citations(journal, all_citations, phase="remote_preflight")
+
+    preflight_token = f"rp1-preflight-{uuid.uuid4().hex}"
+    loopback_message, loopback_sender = _preflight_message(
+        sender_base=settings.smtp_user,
+        recipient=settings.recipient,
+        token=preflight_token,
+    )
+    smtp.send(loopback_message, loopback_sender)
+    journal.append(
+        "preflight_email_sent",
+        wire_message_id=loopback_message["Message-ID"],
+        subject_token=preflight_token,
+        envelope_sender=loopback_sender,
+    )
+    ingress_snapshot: dict[str, Any] = {}
+    ingress_citations: list[dict[str, Any]] = []
+
+    def capture_ingress(response: Mapping[str, Any]) -> None:
+        observed = response.get("observed")
+        if not isinstance(observed, Mapping):
+            return
+        received = observed.get("ingress_received")
+        if isinstance(received, Mapping):
+            ingress_snapshot.update(_clone(received))
+            journal.append(
+                "preflight_ingress_observed",
+                received=received,
+                stable_keys=observed.get("stable_keys", []),
+            )
+            citations = response.get("citations")
+            if isinstance(citations, list) and citations:
+                validated = _citations(response, "preflight ingress")
+                ingress_citations.extend(validated)
+                _journal_citations(
+                    journal, validated, phase="loopback_ingress"
+                )
+
+    loopback = _wait_remote(
+        remote,
+        action="observe_preflight",
+        payload={
+            "wire_message_id": loopback_message["Message-ID"],
+            "subject_token": preflight_token,
+            "x_rp1_token": preflight_token,
+            "expected_from": loopback_sender,
+        },
+        timeout_seconds=settings.ingress_timeout_seconds,
+        poll_interval_seconds=settings.poll_interval_seconds,
+        monotonic=monotonic,
+        sleep=sleep,
+        journal=journal,
+        journal_fields={"phase": "loopback_preflight"},
+        response_hook=capture_ingress,
+    )
+    loopback_observed = dict(
+        _mapping(loopback.get("observed"), "preflight observed")
+    )
+    _validate_observed(loopback_observed, "loopback preflight")
+    received_value = loopback_observed.get("received")
+    if ingress_snapshot:
+        merged_received = dict(ingress_snapshot)
+        if isinstance(received_value, Mapping):
+            merged_received.update(
+                {key: value for key, value in received_value.items() if value}
+            )
+        loopback_observed["received"] = merged_received
+        stable = set(loopback_observed.get("stable_keys") or ())
+        stable.update(
+            key
+            for key in ("message_id", "subject", "x_rp1_token")
+            if merged_received.get(key)
+        )
+        loopback_observed["stable_keys"] = sorted(stable)
+    received = _mapping(loopback_observed.get("received"), "preflight received")
+    if received.get("from") != loopback_sender:
+        raise ExecutionContractError("preflight received From does not match sender")
+    stable_keys = loopback_observed.get("stable_keys")
+    if (
+        not received.get("message_id")
+        or not isinstance(stable_keys, list)
+        or not {"subject", "x_rp1_token"}.intersection(stable_keys)
+    ):
+        raise ExecutionContractError(
+            "preflight must retain Message-ID and a subject/X-RP1 token"
+        )
+    loopback_citations = _citations(loopback, "loopback preflight")
+    journal.append(
+        "preflight_email_observed",
+        observed=loopback_observed,
+        display_persona_scope="display and body only",
+    )
+    _journal_citations(journal, loopback_citations, phase="loopback_preflight")
+    all_citations.extend(loopback_citations)
+    all_citations.extend(ingress_citations)
     observed_arcs: dict[str, Any] = {}
 
     for arc in plan["arcs"]:
@@ -486,13 +1345,22 @@ def execute_plan(
             seed = _wait_remote(
                 remote,
                 action="observe_seed",
-                payload={"campaign": "rp1", "arc_id": arc_id},
+                payload={
+                    "campaign": "rp1",
+                    "arc_id": arc_id,
+                    "seeds": arc["seed_plan"],
+                },
                 timeout_seconds=settings.worker_timeout_seconds,
                 poll_interval_seconds=settings.poll_interval_seconds,
                 monotonic=monotonic,
                 sleep=sleep,
+                journal=journal,
+                journal_fields={"arc_id": arc_id},
             )
-        all_citations.extend(_citations(seed, f"{arc_id} seed"))
+        seed_citations = _citations(seed, f"{arc_id} seed")
+        journal.append("seed_observed", arc_id=arc_id)
+        _journal_citations(journal, seed_citations, arc_id=arc_id, phase="seed")
+        all_citations.extend(seed_citations)
         arc_observed: dict[str, Any] = {
             "emails": {},
             "state_probes": [],
@@ -510,28 +1378,68 @@ def execute_plan(
                 sender_base=settings.smtp_user,
                 recipient=settings.recipient,
             )
-            smtp.send(message, sender)
             logical_id = planned_email["logical_message_id"]
-            response = _wait_remote(
-                remote,
-                action="observe_email",
-                payload={
-                    "campaign": "rp1",
-                    "arc_id": arc_id,
-                    "logical_message_id": logical_id,
-                    "wire_message_id": planned_email["wire_message_id"],
-                },
-                timeout_seconds=settings.ingress_timeout_seconds,
-                poll_interval_seconds=settings.poll_interval_seconds,
-                monotonic=monotonic,
-                sleep=sleep,
-            )
-            observed = response.get("observed")
-            if not isinstance(observed, dict):
-                raise ExecutionContractError(
-                    f"{arc_id} {logical_id}: observed state missing"
+            already_sent, captured = journal.email_state(logical_id)
+            if captured is None:
+                if not already_sent:
+                    actual_body = message.get_body().get_content()
+                    smtp.send(message, sender)
+                    journal.append(
+                        "email_sent",
+                        arc_id=arc_id,
+                        logical_message_id=logical_id,
+                        wire_message_id=message["Message-ID"],
+                        wire_body_sha256=_sha256_text(actual_body),
+                        envelope_sender=sender,
+                    )
+                response = _wait_remote(
+                    remote,
+                    action="observe_email",
+                    payload={
+                        "campaign": "rp1",
+                        "arc_id": arc_id,
+                        "logical_message_id": logical_id,
+                        "wire_message_id": planned_email["wire_message_id"],
+                        "subject_token": planned_email["subject"],
+                    },
+                    timeout_seconds=settings.ingress_timeout_seconds,
+                    poll_interval_seconds=settings.poll_interval_seconds,
+                    monotonic=monotonic,
+                    sleep=sleep,
+                    journal=journal,
+                    journal_fields={
+                        "arc_id": arc_id,
+                        "logical_message_id": logical_id,
+                    },
                 )
-            citations = _citations(response, f"{arc_id} {logical_id}")
+                observed = response.get("observed")
+                if not isinstance(observed, dict):
+                    raise ExecutionContractError(
+                        f"{arc_id} {logical_id}: observed state missing"
+                    )
+                _validate_observed(observed, f"{arc_id} {logical_id}")
+                citations = _citations(response, f"{arc_id} {logical_id}")
+                journal.append(
+                    "email_observed",
+                    arc_id=arc_id,
+                    logical_message_id=logical_id,
+                    observed=observed,
+                    citations=citations,
+                )
+                _journal_citations(
+                    journal,
+                    citations,
+                    arc_id=arc_id,
+                    logical_message_id=logical_id,
+                )
+            else:
+                observed = _mapping(captured.get("observed"), "journal observed")
+                citations = captured.get("citations")
+                if not isinstance(citations, list):
+                    raise ExecutionContractError(
+                        f"{logical_id}: journal observation has no citations"
+                    )
+                _validate_observed(observed, f"{arc_id} {logical_id} journal")
             arc_observed["emails"][logical_id] = {
                 **_clone(observed),
                 "_citations": citations,
@@ -546,11 +1454,17 @@ def execute_plan(
                 probe_response = _wait_remote(
                     remote,
                     action="execute_state_poll",
-                    payload={"campaign": "rp1", "arc_id": arc_id, "probe": probe},
+                    payload={
+                        "entity_key": probe["entity_key"],
+                        "request": probe["request"],
+                        "result": probe["result"],
+                    },
                     timeout_seconds=settings.worker_timeout_seconds,
                     poll_interval_seconds=settings.poll_interval_seconds,
                     monotonic=monotonic,
                     sleep=sleep,
+                    journal=journal,
+                    journal_fields={"arc_id": arc_id, "phase": "state_poll"},
                 )
                 probe_observed = probe_response.get("observed")
                 if not isinstance(probe_observed, dict):
@@ -559,6 +1473,14 @@ def execute_plan(
                     )
                 probe_citations = _citations(
                     probe_response, f"{arc_id} state_poll"
+                )
+                journal.append(
+                    "state_poll_observed",
+                    arc_id=arc_id,
+                    observed=probe_observed,
+                )
+                _journal_citations(
+                    journal, probe_citations, arc_id=arc_id, phase="state_poll"
                 )
                 arc_observed["state_probes"].append(
                     {**_clone(probe_observed), "_citations": probe_citations}
@@ -569,16 +1491,26 @@ def execute_plan(
         final = _wait_remote(
             remote,
             action="observe_arc_final",
-            payload={"campaign": "rp1", "arc_id": arc_id},
+            payload={
+                "campaign": "rp1",
+                "arc_id": arc_id,
+                "seeds": arc["seed_plan"],
+            },
             timeout_seconds=settings.worker_timeout_seconds,
             poll_interval_seconds=settings.poll_interval_seconds,
             monotonic=monotonic,
             sleep=sleep,
+            journal=journal,
+            journal_fields={"arc_id": arc_id, "phase": "arc_final"},
         )
         final_observed = final.get("observed")
         if not isinstance(final_observed, dict):
             raise ExecutionContractError(f"{arc_id}: final observation missing")
         final_citations = _citations(final, f"{arc_id} final")
+        journal.append("arc_final_observed", arc_id=arc_id, observed=final_observed)
+        _journal_citations(
+            journal, final_citations, arc_id=arc_id, phase="arc_final"
+        )
         arc_observed["expected_final"] = {
             **_clone(final_observed),
             "_citations": final_citations,
@@ -611,9 +1543,12 @@ def execute_plan(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--plan", required=True, type=Path)
+    parser.add_argument("--plan", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--journal", type=Path)
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--staging-stdio", action="store_true")
     return parser
 
 
@@ -628,6 +1563,22 @@ def _write_json(value: Mapping[str, Any], path: Path | None) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.staging_stdio:
+        if any(
+            (
+                args.plan,
+                args.output,
+                args.dry_run,
+                args.journal,
+                args.resume,
+            )
+        ):
+            raise ExecutionContractError(
+                "--staging-stdio cannot be combined with campaign flags"
+            )
+        return staging_stdio(sys.stdin, sys.stdout, env=os.environ)
+    if args.plan is None:
+        raise ExecutionContractError("--plan is required")
     try:
         plan = json.loads(args.plan.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -635,16 +1586,16 @@ def main(argv: list[str] | None = None) -> int:
     if not isinstance(plan, dict):
         raise ExecutionContractError("plan must be a JSON object")
     if args.dry_run:
+        if args.resume:
+            raise ExecutionContractError("--resume is not valid with --dry-run")
         _write_json(validate_plan(plan), args.output)
         return 0
+    if args.journal is None:
+        raise ExecutionContractError("--journal is required for execution")
 
     settings = ExecutionSettings.from_environment(plan, os.environ)
     orchestration = _mapping(plan["orchestration"], "orchestration")
-    command = os.environ.get(STAGING_COMMAND_ENV, "")
-    if not command:
-        raise ExecutionContractError(f"{STAGING_COMMAND_ENV} is required")
     remote = CommandRemoteStaging(
-        command=command,
         target=settings.target,
         environment=settings.environment,
         timeout_seconds=settings.worker_timeout_seconds,
@@ -657,7 +1608,13 @@ def main(argv: list[str] | None = None) -> int:
         recipient=settings.recipient,
     )
     _write_json(
-        execute_plan(plan, settings=settings, remote=remote, smtp=smtp),
+        execute_plan(
+            plan,
+            settings=settings,
+            remote=remote,
+            smtp=smtp,
+            journal=ExecutionJournal(args.journal, resume=args.resume),
+        ),
         args.output,
     )
     return 0
