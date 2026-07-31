@@ -31,7 +31,7 @@ def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
     }
     assert set(contract["correlation_keys"]) == set(workflow["correlation_keys"])
     instruction = contract["instruction"]
-    assert "omit unknown values rather than guessing" in instruction
+    assert "Omit unknown values rather than guessing" in instruction
     assert "return a null event_type and an empty corr object" in instruction
     for undeclared_type in {
         "booking_instruction",
@@ -75,7 +75,10 @@ def test_plan_cli_is_offline_and_preserves_locked_contract(
     assert plan["network_performed"] is False
     assert plan["database_mutated"] is False
     assert plan["population"] == {"arcs": 12, "emails": 25, "probes": 1}
-    assert plan["workflow_template"]["mutation_during_execution"] is False
+    assert (
+        plan["workflow_template"]["template_artifact_edited_during_execution"]
+        is False
+    )
     assert plan["orchestration"]["smtp_host"] == "smtp.invalid"
     assert plan["orchestration"]["remote_db"] == "ssh://staging.invalid/db"
     assert plan["orchestration"]["worker_profile"] == "dorm1"
@@ -178,6 +181,32 @@ def test_answer_key_scoring_fails_observable_mismatch() -> None:
         "correlation": "pass",
         "action": "fail",
     }
+
+
+def test_answer_key_scoring_labels_declared_no_fit_as_extraction_miss() -> None:
+    result = campaign.score_answer_key(
+        {
+            "event_type": "status_chase",
+            "payload": {"booking_ref": "BK-1"},
+            "corr": {"booking_ref": "BK-1"},
+        },
+        {
+            "event_type": None,
+            "extraction_disposition": "declared-no-fit",
+            "payload": {"booking_ref": "BK-1"},
+            "corr": {},
+            "correlation": {"verdict": "unmatched"},
+            "agent_action": {
+                "evidence_status": "EVIDENCE-LIMITED",
+                "reason": "no durable proposal for a declared no-fit event",
+            },
+        },
+    )
+
+    assert result["status"] == "fail"
+    assert result["section_status"]["extraction"] == "fail"
+    assert result["extraction_disposition"] == "declared-no-fit"
+    assert result["miss_taxonomy"] == "extraction"
 
 
 def test_p5a_citation_format() -> None:

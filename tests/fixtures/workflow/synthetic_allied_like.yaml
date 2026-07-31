@@ -18,14 +18,18 @@ workflow:
       - container_no
       - job_no
       - booking_ref
+    disambiguators:
+      - customer
+      - vessel
+      - direction
     instruction: >-
       Classify the persisted email as exactly one declared event type:
       trucking_instruction, pickup_advice, container_assigned, vgm_reply, or
       gate_in. Extract only facts explicitly present in the email. Return
       correlation values only for the correlation_keys declared in this
-      contract; omit unknown values rather than guessing. If none of the
-      declared event types fits, return a null event_type and an empty corr
-      object.
+      contract. Put explicitly stated disambiguators in payload when present.
+      Omit unknown values rather than guessing. If none of the declared event
+      types fits, return a null event_type and an empty corr object.
     event_types:
       trucking_instruction: {}
       pickup_advice: {}

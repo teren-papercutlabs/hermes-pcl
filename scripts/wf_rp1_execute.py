@@ -297,12 +297,17 @@ def _citation(
 def _extraction_contract_evidence(contract: Mapping[str, Any]) -> dict[str, Any]:
     event_types = contract.get("event_types")
     correlation_keys = contract.get("correlation_keys")
+    disambiguators = contract.get("disambiguators")
     instruction = contract.get("instruction")
     if (
         not isinstance(contract.get("schema"), str)
         or not isinstance(event_types, Mapping)
         or not isinstance(correlation_keys, list)
         or not all(isinstance(key, str) and key for key in correlation_keys)
+        or not isinstance(disambiguators, list)
+        or not all(
+            isinstance(key, str) and key for key in disambiguators
+        )
         or not isinstance(instruction, str)
         or not instruction.strip()
     ):
@@ -312,6 +317,7 @@ def _extraction_contract_evidence(contract: Mapping[str, Any]) -> dict[str, Any]
         "schema": contract["schema"],
         "event_types": sorted(event_types),
         "correlation_keys": list(correlation_keys),
+        "disambiguators": list(disambiguators),
         "contract_sha256": _sha256_text(canonical),
         "instruction_sha256": _sha256_text(instruction),
     }
@@ -464,7 +470,10 @@ class StagingHelper:
         self, row: sqlite3.Row, payload: dict[str, Any]
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         if not row["event_type"]:
-            raise ExecutionContractError("email event has null event_type")
+            if row["status"] == "received":
+                raise ExecutionContractError(
+                    "email event extraction is not yet durable"
+                )
         corr = _json_object(row["corr"])
         entity_key = None
         if row["matched_task_id"]:
@@ -499,6 +508,9 @@ class StagingHelper:
         )
         observed = {
             "event_type": row["event_type"],
+            "extraction_disposition": (
+                "declared-no-fit" if row["event_type"] is None else "classified"
+            ),
             "payload": payload,
             "corr": corr,
             "correlation": {
@@ -528,6 +540,10 @@ class StagingHelper:
     def handle(self, action: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         if action == "preflight":
             proof = self._service_proof()
+            if wf_watcher._raw_received_email_events(self.conn):
+                raise ExecutionContractError(
+                    "staging preflight has pending raw email intake"
+                )
             tick = wf_watcher.run_tick(self.conn, int(time.time()))
             expected_extraction = self.workflow.get("email_extraction")
             resolved_extraction = wf_watcher.resolve_email_extraction_brief(self.conn)
@@ -575,6 +591,12 @@ class StagingHelper:
             if extraction_evidence["correlation_keys"] != registered_correlation_keys:
                 raise ExecutionContractError(
                     "email_extraction correlation_keys differ from workflow"
+                )
+            if extraction_evidence["disambiguators"] != registered_workflow.get(
+                "disambiguators"
+            ):
+                raise ExecutionContractError(
+                    "email_extraction disambiguators differ from workflow"
                 )
             citations = [
                 _citation(
@@ -687,7 +709,7 @@ class StagingHelper:
             if match is None:
                 return self._response(ready=False, citations=[])
             row, event_payload = match
-            if not row["event_type"]:
+            if not row["event_type"] and row["status"] == "received":
                 if action == "observe_preflight":
                     ingress = {
                         "from": event_payload.get("sender_addr")
@@ -804,6 +826,8 @@ class StagingHelper:
                     ),
                 )
 
+            if wf_watcher._raw_received_email_events(self.conn):
+                return self._response(ready=False, citations=[])
             wf_watcher.register_state_probe(tenant, probe, read_only=True)
             try:
                 tick = wf_watcher.run_tick(self.conn, int(time.time()))
@@ -1169,8 +1193,21 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
         raise ExecutionContractError(
             f"{label}: observed capture missing scorable keys {missing}"
         )
-    if not isinstance(observed["event_type"], str) or not observed["event_type"]:
-        raise ExecutionContractError(f"{label}: event_type must be non-empty")
+    if observed["event_type"] is not None and (
+        not isinstance(observed["event_type"], str)
+        or not observed["event_type"]
+    ):
+        raise ExecutionContractError(
+            f"{label}: event_type must be non-empty or null"
+        )
+    declared_no_fit = (
+        observed["event_type"] is None
+        and observed.get("extraction_disposition") == "declared-no-fit"
+    )
+    if observed["event_type"] is None and not declared_no_fit:
+        raise ExecutionContractError(
+            f"{label}: null event_type needs declared-no-fit disposition"
+        )
     for key in ("payload", "corr", "correlation", "agent_action"):
         value = observed[key]
         if not isinstance(value, Mapping):
@@ -1180,7 +1217,7 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
                 raise ExecutionContractError(
                     f"{label}: evidence-limited {key} needs a reason"
                 )
-        elif not value:
+        elif not value and not (declared_no_fit and key == "corr"):
             raise ExecutionContractError(
                 f"{label}: {key} must contain observed fields or an "
                 "EVIDENCE-LIMITED marker"
@@ -1215,10 +1252,12 @@ def _require_extraction_contract_citation(
     if not isinstance(contract, dict):
         raise ExecutionContractError("workflow fixture has no email_extraction")
     expected = _extraction_contract_evidence(contract)
+    expected_identity_prefix = f"wf_template.slug={workflow['id']}@"
     matching = [
         citation
         for citation in citations
-        if citation["identity"].endswith(".email_extraction")
+        if citation["identity"].startswith(expected_identity_prefix)
+        and citation["identity"].endswith(".email_extraction")
         and citation["observed"] == expected
     ]
     if len(matching) != 1:

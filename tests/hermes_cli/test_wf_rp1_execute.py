@@ -704,6 +704,51 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
         helper.close()
 
 
+def test_staging_observe_email_returns_durable_declared_no_fit(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    helper = execute.StagingHelper(db_path, _service_proof(tmp_path, db_path))
+    try:
+        event_id = execute.wf_engine.ingest_event(
+            helper.conn,
+            source="email",
+            external_id="<noise@rp1.synthetic.test>",
+            payload={
+                "message_id": "<noise@rp1.synthetic.test>",
+                "subject": "[RP1-NOISE] cafeteria menu",
+                "body_ref": "/synthetic/noise.txt",
+            },
+            corr={},
+            event_type=None,
+        )
+        assert event_id is not None
+        helper.conn.execute(
+            "UPDATE wf_event SET status = 'unmatched' WHERE id = ?",
+            (event_id,),
+        )
+
+        response = helper.handle(
+            "observe_email",
+            {
+                "wire_message_id": "<noise@rp1.synthetic.test>",
+                "subject_token": "RP1-NOISE",
+                "x_rp1_token": None,
+            },
+        )
+
+        assert response["ready"] is True
+        assert response["observed"]["event_type"] is None
+        assert response["observed"]["corr"] == {}
+        assert (
+            response["observed"]["extraction_disposition"]
+            == "declared-no-fit"
+        )
+        assert execute._citations(response, "declared no-fit")
+    finally:
+        helper.close()
+
+
 def test_staging_preflight_refuses_ambiguous_extraction_contracts(
     tmp_path: Path,
 ) -> None:

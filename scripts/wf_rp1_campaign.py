@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 ROLEPLAY_DIR = ROOT / "specs/2026-07-29-allied-carbon-agent/roleplay"
@@ -286,7 +288,7 @@ def build_campaign_plan(
         "workflow_template": {
             "path": str(TEMPLATE_PATH.relative_to(ROOT)),
             "sha256": _sha256(TEMPLATE_PATH),
-            "mutation_during_execution": False,
+            "template_artifact_edited_during_execution": False,
         },
         "orchestration": {
             "smtp_host": smtp_host,
@@ -382,7 +384,23 @@ def score_answer_key(
     overall = "fail" if "fail" in statuses.values() else (
         "evidence-limited" if "evidence-limited" in statuses.values() else "pass"
     )
-    return {"status": overall, "section_status": statuses, "sections": sections}
+    document = yaml.safe_load(TEMPLATE_PATH.read_text(encoding="utf-8"))
+    supported_types = set(
+        document["workflow"]["email_extraction"]["event_types"]
+    )
+    declared_no_fit = (
+        answer_key.get("event_type") not in supported_types
+        and observed.get("event_type") is None
+    )
+    return {
+        "status": overall,
+        "section_status": statuses,
+        "sections": sections,
+        "extraction_disposition": (
+            "declared-no-fit" if declared_no_fit else "classified"
+        ),
+        "miss_taxonomy": "extraction" if declared_no_fit else None,
+    }
 
 
 def score_campaign(
