@@ -4,7 +4,7 @@ _Checkpoint recorded 2026-07-31T06:52:32.471341+00:00._
 
 ## Status
 
-**Execution blocked after answer-key lock.** Twelve story arcs passed the author-wave gate. No arc has been scored because the live staging path cannot yet execute the interpretation contract end to end. Reporting a score before that repair would be a fabricated capability result.
+**Execution is waiting on the live LM-extraction leg.** Twelve story arcs passed the author-wave gate. The stale-release defect is repaired and consumer-verified: the coherent staging release created a durable `wf_event` from a literal SMTP → IMAP message. No arc has been scored because the interpretation contract is still absent from the live watcher path. Reporting a score before that repair would be a fabricated capability result.
 
 ## Objective
 
@@ -19,9 +19,11 @@ Test LM extraction, deterministic correlation, and action/proposal choices again
 
 ## Blocking engine defects
 
-### 1. Selected release executes a prior release interpreter (`314b3736`)
+### 1. Selected release executes a prior release interpreter (`314b3736`) — repaired
 
-`pa-workflow-dev` resolves `current` to release `ffc5a396…`, while `current/.venv/bin/hermes` names release `b8264f88…` in its absolute shebang. The running service therefore loads the older package set. A controlled real email reached the adapter but produced no new `wf_event`; the live log also reproduced the missing `hermes_cli.pa_credentials` module.
+The original preflight found `current` at release `ffc5a396…` while the running entry point loaded release `b8264f88…`. The repair merged as release `3f86dc2…`. Consumer verification on `pa-workflow-dev` found the systemd unit active, the process interpreter and both `hermes_cli` and `gateway` loading from that same release, and literal SMTP → IMAP probe `RP1-SMTP-IMAP-FINAL-20260731T074047Z` durably recorded as staging `wf_event.id = 56` at epoch `1785483651`. The workflow-event population was 57 rows at verification time.
+
+Gmail canonicalized the probe's plus-alias From address to the dorm1 base address. The default exact self-send guard remained unchanged: the listener was temporarily configured to the plus alias for the probe, so the canonicalized base sender did not equal the listener address. The canonical listener was restored before the final restart.
 
 ### 2. Live email ingress has no LM-extraction caller (`dbbab08a`)
 
@@ -58,7 +60,7 @@ Not computed. Population: 12 authored arcs / 25 authored email steps; executed p
 
 ## Miss taxonomy
 
-- **Engine defect:** 2 pre-execution blockers.
+- **Engine defect:** 2 pre-execution blockers; 1 repaired and consumer-verified, 1 still active.
 - **Extraction:** not measurable until the live extractor is wired.
 - **Correlation:** not measurable until extracted events reach matching.
 - **Decision:** not measurable until matched events generate proposals.
@@ -66,4 +68,4 @@ Not computed. Population: 12 authored arcs / 25 authored email steps; executed p
 
 ## Next gate
 
-Resume only after both fixes are consumer-verified on `pa-workflow-dev`: a fresh external email must create a workflow event under the selected release, and that event must be LM-extracted before deterministic classification. Then execute the locked fixtures without editing their answer keys and replace each NOT RUN row with DB-cited results.
+Resume campaign sends after the remaining live LM-extraction fix is consumer-verified on `pa-workflow-dev`: the release-coherence half is already proven, and the next probe must show the raw email LM-extracted before deterministic classification. Then execute the locked fixtures without editing their answer keys and replace each NOT RUN row with DB-cited results.
