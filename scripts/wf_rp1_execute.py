@@ -673,8 +673,18 @@ class StagingHelper:
 
         if action in {"seed_arc", "observe_seed"}:
             seeds = payload.get("seeds")
-            if not isinstance(seeds, list) or not seeds:
+            if not isinstance(seeds, list):
                 raise ExecutionContractError(f"{action} requires seeds")
+            if not seeds:
+                return self._response(
+                    ready=True,
+                    citations=[],
+                    durable={
+                        "event": "not_applicable",
+                        "instance": "not_applicable",
+                        "proposal": "not_applicable",
+                    },
+                )
             citations: list[dict[str, Any]] = []
             if action == "seed_arc":
                 for seed in seeds:

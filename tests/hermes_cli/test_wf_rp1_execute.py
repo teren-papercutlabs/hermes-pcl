@@ -695,6 +695,18 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
             "booking_ref",
         ]
 
+        empty_seed = helper.handle(
+            "seed_arc",
+            {"arc_id": "RP1-A02", "seeds": []},
+        )
+        assert empty_seed["ready"] is True
+        assert empty_seed["citations"] == []
+        assert empty_seed["durable"] == {
+            "event": "not_applicable",
+            "instance": "not_applicable",
+            "proposal": "not_applicable",
+        }
+
         seeded = helper.handle(
             "seed_arc",
             {"arc_id": "RP1-A08", "seeds": a08["seed_plan"]},
