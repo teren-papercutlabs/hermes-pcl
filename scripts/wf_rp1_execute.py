@@ -275,6 +275,14 @@ def _json_object(raw: str | None) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _correlation_verdict(row: Mapping[str, Any]) -> str:
+    """Recover the match verdict after apply has advanced event status."""
+    status = str(row["status"])
+    if status == "applied" and row["matched_task_id"]:
+        return "matched"
+    return status
+
+
 def _citation(
     table: str, identity: str, query: str, observed: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -471,7 +479,7 @@ class StagingHelper:
             "payload": payload,
             "corr": corr,
             "correlation": {
-                "verdict": row["status"],
+                "verdict": _correlation_verdict(row),
                 "target": entity_key,
                 "match_method": row["match_method"],
             },

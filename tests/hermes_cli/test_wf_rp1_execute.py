@@ -159,6 +159,15 @@ def test_smtp_message_has_plus_sender_signature_and_thread_headers() -> None:
     )
 
 
+def test_applied_event_retains_matched_correlation_verdict() -> None:
+    assert execute._correlation_verdict(
+        {"status": "applied", "matched_task_id": "task-1"}
+    ) == "matched"
+    assert execute._correlation_verdict(
+        {"status": "routed_out", "matched_task_id": None}
+    ) == "routed_out"
+
+
 class FakeSMTPIngress:
     def __init__(self) -> None:
         self.sent: list[tuple[EmailMessage, str]] = []
