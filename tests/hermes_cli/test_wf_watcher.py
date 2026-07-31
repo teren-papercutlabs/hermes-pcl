@@ -252,6 +252,96 @@ def test_read_only_tenant_probe_ingests_applies_and_dedupes(tmp_path, monkeypatc
         conn.close()
 
 
+def test_raw_email_is_extracted_before_sweep(tmp_path, monkeypatch):
+    _path, conn, task_id = _board(tmp_path, monkeypatch)
+    event_id = wf_engine.ingest_event(
+        conn,
+        source="email",
+        external_id="raw-email",
+        payload={"body_ref": "/private/raw-email.txt"},
+        corr={},
+        event_type=None,
+    )
+    assert event_id is not None
+    seen = []
+
+    def boundary(event):
+        seen.append(event)
+        return wf_watcher.ExtractionRequest(
+            brief={"schema": "observation-v1"},
+            extractor=lambda _brief, _event: {
+                "event_type": "observed",
+                "payload": {"result": "accepted"},
+                "corr": {"entity": "entity-1"},
+            },
+            schema_validator={
+                "observation-v1": lambda payload: payload == {"result": "accepted"}
+            },
+        )
+
+    real_sweep = wf_engine.sweep
+
+    def assert_extracted_before_sweep(target_conn, now):
+        row = _row(
+            target_conn,
+            "SELECT status, event_type FROM wf_event WHERE id = ?",
+            event_id,
+        )
+        assert tuple(row) == ("matched", "observed")
+        return real_sweep(target_conn, now)
+
+    monkeypatch.setattr(wf_engine, "sweep", assert_extracted_before_sweep)
+    try:
+        wf_watcher.run_tick(conn, NOW, extractor_boundary=boundary)
+        assert len(seen) == 1
+        assert seen[0]["id"] == event_id
+        assert "candidates" not in seen[0]
+        assert _row(
+            conn, "SELECT status FROM wf_event WHERE id = ?", event_id
+        )[0] == "applied"
+        assert _row(
+            conn, "SELECT current_step_key FROM tasks WHERE id = ?", task_id
+        )[0] == "done"
+    finally:
+        conn.close()
+
+
+def test_extractor_boundary_failure_is_needs_review_before_sweep(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(wf_engine, "_now", lambda: NOW)
+    conn = kanban_db.connect(tmp_path / "workflow.sqlite")
+    event_id = wf_engine.ingest_event(
+        conn,
+        source="email",
+        external_id="broken-raw-email",
+        payload={"body_ref": "/private/broken-email.txt"},
+        corr={},
+        event_type=None,
+    )
+    assert event_id is not None
+
+    def broken_boundary(_event):
+        raise RuntimeError("auxiliary model unavailable")
+
+    real_sweep = wf_engine.sweep
+
+    def assert_failed_closed_before_sweep(target_conn, now):
+        assert _row(
+            target_conn, "SELECT status FROM wf_event WHERE id = ?", event_id
+        )[0] == "needs_review"
+        return real_sweep(target_conn, now)
+
+    monkeypatch.setattr(wf_engine, "sweep", assert_failed_closed_before_sweep)
+    try:
+        wf_watcher.run_tick(conn, NOW, extractor_boundary=broken_boundary)
+        assert _row(
+            conn, "SELECT status FROM wf_event WHERE id = ?", event_id
+        )[0] == "needs_review"
+    finally:
+        conn.close()
+
+
 def test_match_and_apply_roll_back_together_on_failure_and_restart_recovers(
     tmp_path, monkeypatch
 ):

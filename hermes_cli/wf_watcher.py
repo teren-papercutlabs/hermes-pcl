@@ -45,6 +45,15 @@ class ProbeObservation:
 
 
 @dataclass(frozen=True)
+class ExtractionRequest:
+    """Engine inputs resolved for one raw workflow event."""
+
+    brief: dict[str, Any] | str
+    extractor: Callable[[dict[str, Any] | str, Mapping[str, Any]], dict[str, Any]]
+    schema_validator: Any
+
+
+@dataclass(frozen=True)
 class WatchTickResult:
     """Countable output of one watcher tick."""
 
@@ -62,6 +71,7 @@ StateProbe = Callable[
     [tuple[ProbeTarget, ...]],
     Iterable[ProbeObservation | Mapping[str, Any]],
 ]
+ExtractorBoundary = Callable[[Mapping[str, Any]], ExtractionRequest]
 
 _STATE_PROBES: dict[str, StateProbe] = {}
 
@@ -219,7 +229,93 @@ def _drive_matched_event(
         return True
 
 
-def run_tick(conn: sqlite3.Connection, now: int) -> WatchTickResult:
+def _raw_received_email_events(
+    conn: sqlite3.Connection,
+) -> tuple[sqlite3.Row, ...]:
+    """Return raw email intake that must be extracted before matching."""
+
+    return tuple(
+        conn.execute(
+            """
+            SELECT *
+              FROM wf_event
+             WHERE source = 'email'
+               AND status = 'received'
+               AND event_type IS NULL
+             ORDER BY id
+            """
+        ).fetchall()
+    )
+
+
+def _event_view(event: sqlite3.Row) -> Mapping[str, Any]:
+    """Expose only immutable event data to the extraction-plan resolver."""
+
+    return MappingProxyType(
+        {
+            "id": int(event["id"]),
+            "source": event["source"],
+            "external_id": event["external_id"],
+            "event_type": event["event_type"],
+            "payload": wf_engine._load_json(event["payload"], None),
+            "corr": wf_engine._load_json(event["corr"], None),
+        }
+    )
+
+
+def _failed_extraction_request(reason: str) -> ExtractionRequest:
+    """Build an engine request which durably records boundary failure."""
+
+    def fail(_brief, _event):
+        raise RuntimeError(reason)
+
+    return ExtractionRequest(
+        brief={"schema": None},
+        extractor=fail,
+        schema_validator=lambda _schema, _payload: False,
+    )
+
+
+def _extract_raw_email_events(
+    conn: sqlite3.Connection,
+    extractor_boundary: ExtractorBoundary | None,
+) -> None:
+    """Extract raw email intake before the generic sweeper can classify it."""
+
+    for event in _raw_received_email_events(conn):
+        if extractor_boundary is None:
+            request = _failed_extraction_request(
+                "workflow watcher has no email extractor boundary"
+            )
+        else:
+            try:
+                request = extractor_boundary(_event_view(event))
+                if not isinstance(request, ExtractionRequest):
+                    raise TypeError(
+                        "extractor boundary must return an ExtractionRequest"
+                    )
+            except Exception as exc:
+                logger.exception(
+                    "workflow watcher: extractor boundary failed for event %s",
+                    event["id"],
+                )
+                request = _failed_extraction_request(
+                    f"extractor boundary failed: {exc}"
+                )
+        wf_engine.extract_event(
+            conn,
+            int(event["id"]),
+            request.brief,
+            request.extractor,
+            request.schema_validator,
+        )
+
+
+def run_tick(
+    conn: sqlite3.Connection,
+    now: int,
+    extractor_boundary: ExtractorBoundary | None = None,
+) -> WatchTickResult:
     """Run one complete timer/probe/sweeper cycle against one board."""
 
     timers = tuple(wf_engine.fire_due_timers(conn, int(now)))
@@ -286,6 +382,7 @@ def run_tick(conn: sqlite3.Connection, now: int) -> WatchTickResult:
             if _drive_matched_event(conn, event_id):
                 applied.append(event_id)
 
+    _extract_raw_email_events(conn, extractor_boundary)
     swept = wf_engine.sweep(conn, int(now))
     # ``sweep`` classifies before returning.  Include every durable
     # non-create match, not only matches produced in this process, so a
@@ -321,6 +418,8 @@ def run_tick(conn: sqlite3.Connection, now: int) -> WatchTickResult:
 
 
 __all__ = [
+    "ExtractionRequest",
+    "ExtractorBoundary",
     "ProbeObservation",
     "ProbeTarget",
     "StateProbe",
