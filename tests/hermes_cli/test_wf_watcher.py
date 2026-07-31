@@ -12,7 +12,11 @@ from hermes_cli import kanban_db, wf_engine, wf_watcher
 NOW = 1_785_100_000
 
 
-def _spec(timer: dict | None = None) -> dict:
+def _spec(
+    timer: dict | None = None,
+    *,
+    email_extraction: dict | str | None = None,
+) -> dict:
     waits: list[dict] = [
         {
             "kind": "event",
@@ -23,7 +27,7 @@ def _spec(timer: dict | None = None) -> dict:
     ]
     if timer:
         waits.append({"kind": "timer", **timer})
-    return {
+    spec = {
         "id": "watcher-test",
         "entity": "entity",
         "correlation_keys": ["entity"],
@@ -35,6 +39,9 @@ def _spec(timer: dict | None = None) -> dict:
             {"key": "done"},
         ],
     }
+    if email_extraction is not None:
+        spec["email_extraction"] = email_extraction
+    return spec
 
 
 def _board(tmp_path, monkeypatch, timer: dict | None = None):
@@ -671,3 +678,131 @@ def test_repeating_non_chase_timer_is_rejected(tmp_path, monkeypatch):
             ),
         )
     conn.close()
+
+
+def test_raw_email_is_extracted_from_template_before_sweep_and_deduped(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(wf_engine, "_now", lambda: NOW)
+    conn = kanban_db.connect(tmp_path / "workflow.sqlite")
+    brief = {
+        "schema": "email-observation-v1",
+        "instruction": "Classify the immutable email envelope into event fields.",
+    }
+    try:
+        template_id, _ = wf_engine.register_template(
+            conn, _spec(email_extraction=brief)
+        )
+        task_id = wf_engine.create_instance(
+            conn,
+            template_id=template_id,
+            entity_key="email-entity",
+            corr={"entity": "email-entity"},
+            vars={},
+            source_event_id=None,
+        )
+        setup = wf_engine.ingest_event(
+            conn,
+            source="synthetic",
+            external_id="email-setup",
+            payload={},
+            corr={},
+            event_type="setup",
+        )
+        assert setup is not None
+        wf_engine.advance(conn, task_id, to_step="wait", event_id=setup)
+        event_id = wf_engine.ingest_event(
+            conn,
+            source="email",
+            external_id="message@example.test",
+            payload={"body_ref": "/tenant-neutral/raw-message.txt"},
+            corr={},
+            event_type=None,
+        )
+        assert event_id is not None
+        calls = []
+
+        def extractor(received_brief, event):
+            calls.append((received_brief, event))
+            assert "candidates" not in event
+            return {
+                "event_type": "observed",
+                "payload": {"observed": True},
+                "corr": {"entity": "email-entity"},
+            }
+
+        result = wf_watcher.run_tick(
+            conn,
+            NOW,
+            email_extractor=extractor,
+            email_schema_validator={
+                "email-observation-v1": lambda payload: payload == {"observed": True}
+            },
+        )
+        assert calls[0][0] == brief
+        assert len(calls) == 1
+        assert event_id in result.applied_events
+        assert tuple(_row(
+            conn,
+            "SELECT event_type, payload, corr, status FROM wf_event WHERE id = ?",
+            event_id,
+        )) == (
+            "observed",
+            '{"observed":true}',
+            '{"entity":"email-entity"}',
+            "applied",
+        )
+        assert _row(
+            conn,
+            "SELECT current_step_key FROM tasks WHERE id = ?",
+            task_id,
+        )[0] == "done"
+
+        # Exact redelivery is deduplicated at ingress, so a restart/catch-up
+        # tick has no raw row to send to the extractor a second time.
+        assert wf_engine.ingest_event(
+            conn,
+            source="email",
+            external_id="message@example.test",
+            payload={"body_ref": "/tenant-neutral/raw-message.txt"},
+            corr={},
+            event_type=None,
+        ) is None
+        wf_watcher.run_tick(
+            conn,
+            NOW + 60,
+            email_extractor=extractor,
+            email_schema_validator={"email-observation-v1": lambda _payload: True},
+        )
+        assert len(calls) == 1
+    finally:
+        conn.close()
+
+
+def test_raw_email_without_a_unique_contract_or_runtime_fails_closed_before_sweep(
+    tmp_path, monkeypatch
+):
+    _path, conn, task_id = _board(tmp_path, monkeypatch)
+    try:
+        event_id = wf_engine.ingest_event(
+            conn,
+            source="email",
+            external_id="unconfigured@example.test",
+            payload={"body_ref": "/tenant-neutral/raw-message.txt"},
+            corr={},
+            event_type=None,
+        )
+        assert event_id is not None
+        wf_watcher.run_tick(conn, NOW)
+        assert tuple(_row(
+            conn,
+            "SELECT event_type, status FROM wf_event WHERE id = ?",
+            event_id,
+        )) == (None, "needs_review")
+        assert _row(
+            conn,
+            "SELECT current_step_key FROM tasks WHERE id = ?",
+            task_id,
+        )[0] == "wait"
+    finally:
+        conn.close()

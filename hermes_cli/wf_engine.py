@@ -1207,35 +1207,40 @@ def extract_event(
     boundary, and this function does not construct an argv or model prompt.
     """
 
-    with kanban_db.write_txn(conn):
-        event = conn.execute("SELECT * FROM wf_event WHERE id = ?", (int(event_id),)).fetchone()
-        if event is None:
-            raise KeyError(f"unknown workflow event: {event_id}")
-        if event["status"] in _TERMINAL_EVENT_STATUSES:
-            return _result_for_terminal_event(event)
-        try:
-            schema_ref = _extraction_schema(extraction_brief)
-            event_view = {
-                "id": int(event["id"]),
-                "source": event["source"],
-                "external_id": event["external_id"],
-                "event_type": event["event_type"],
-                "payload": _load_json(event["payload"], None),
-                "corr": _load_json(event["corr"], None),
-            }
-            extracted = extractor(extraction_brief, event_view)
-            if not isinstance(extracted, dict):
-                raise ValueError("extractor result is not an object")
-            payload = extracted.get("payload")
-            corr = extracted.get("corr")
-            event_type = extracted.get("event_type", event["event_type"])
-            if not isinstance(payload, dict) or not isinstance(corr, dict):
-                raise ValueError("extractor result requires object payload and corr")
-            if event_type is not None and not isinstance(event_type, str):
-                raise ValueError("extractor event_type must be a string or null")
-            if not _validate_extraction(schema_validator, schema_ref, payload):
-                raise ValueError("extracted payload did not validate")
-        except Exception as exc:
+    # A model call must never sit inside BEGIN IMMEDIATE.  Snapshot the raw
+    # event, call the bounded extractor unlocked, then CAS the result into the
+    # ledger. Exact redelivery/concurrent classifiers therefore remain no-ops.
+    event = conn.execute("SELECT * FROM wf_event WHERE id = ?", (int(event_id),)).fetchone()
+    if event is None:
+        raise KeyError(f"unknown workflow event: {event_id}")
+    if event["status"] in _TERMINAL_EVENT_STATUSES:
+        return _result_for_terminal_event(event)
+    try:
+        schema_ref = _extraction_schema(extraction_brief)
+        event_view = {
+            "id": int(event["id"]), "source": event["source"],
+            "external_id": event["external_id"], "event_type": event["event_type"],
+            "payload": _load_json(event["payload"], None), "corr": _load_json(event["corr"], None),
+        }
+        extracted = extractor(extraction_brief, event_view)
+        if not isinstance(extracted, dict):
+            raise ValueError("extractor result is not an object")
+        payload = extracted.get("payload")
+        corr = extracted.get("corr")
+        event_type = extracted.get("event_type", event["event_type"])
+        if not isinstance(payload, dict) or not isinstance(corr, dict):
+            raise ValueError("extractor result requires object payload and corr")
+        if event_type is not None and not isinstance(event_type, str):
+            raise ValueError("extractor event_type must be a string or null")
+        if not _validate_extraction(schema_validator, schema_ref, payload):
+            raise ValueError("extracted payload did not validate")
+    except Exception as exc:
+        with kanban_db.write_txn(conn):
+            current = conn.execute("SELECT * FROM wf_event WHERE id = ?", (int(event_id),)).fetchone()
+            if current is None:
+                raise KeyError(f"unknown workflow event: {event_id}")
+            if current["status"] in _TERMINAL_EVENT_STATUSES:
+                return _result_for_terminal_event(current)
             return _record_match(
                 conn,
                 int(event_id),
@@ -1243,14 +1248,23 @@ def extract_event(
                 reason=f"extraction failed: {exc}",
             )
 
-        conn.execute(
+    with kanban_db.write_txn(conn):
+        current = conn.execute("SELECT * FROM wf_event WHERE id = ?", (int(event_id),)).fetchone()
+        if current is None:
+            raise KeyError(f"unknown workflow event: {event_id}")
+        if current["status"] in _TERMINAL_EVENT_STATUSES:
+            return _result_for_terminal_event(current)
+        updated = conn.execute(
             """
             UPDATE wf_event
                SET event_type = ?, payload = ?, corr = ?, status = 'classified'
-             WHERE id = ?
+             WHERE id = ? AND status = 'received'
             """,
             (event_type, _json(payload), _json(corr), int(event_id)),
-        )
+        ).rowcount
+        if updated != 1:
+            current = conn.execute("SELECT * FROM wf_event WHERE id = ?", (int(event_id),)).fetchone()
+            return _result_for_terminal_event(current)
     return match_event(conn, int(event_id))
 
 
