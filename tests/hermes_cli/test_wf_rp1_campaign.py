@@ -14,15 +14,16 @@ def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
     document = yaml.safe_load(campaign.TEMPLATE_PATH.read_text(encoding="utf-8"))
     workflow = document["workflow"]
     contract = workflow["email_extraction"]
-
-    assert contract["schema"] == "synthetic-freight-email-event-v1"
-    assert set(contract["event_types"]) == {
+    declared_types = {
         "trucking_instruction",
         "pickup_advice",
         "container_assigned",
         "vgm_reply",
         "gate_in",
     }
+
+    assert contract["schema"] == "synthetic-freight-email-event-v1"
+    assert set(contract["event_types"]) == declared_types
     assert set(workflow["correlation_keys"]) == {
         "booking_ref",
         "job_no",
@@ -41,6 +42,18 @@ def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
         "other",
     }:
         assert undeclared_type not in contract["event_types"]
+
+    expected_fields: dict[str, set[str]] = {
+        event_type: set() for event_type in declared_types
+    }
+    for arc in campaign.load_locked_campaign().arcs:
+        for email in arc["emails"]:
+            answer_key = email["answer_key"]
+            event_type = answer_key["event_type"]
+            if event_type in declared_types:
+                expected_fields[event_type].update(answer_key["payload"])
+    for event_type, fields in expected_fields.items():
+        assert fields <= set(contract["event_types"][event_type]["payload_fields"])
 
 
 def test_plan_cli_is_offline_and_preserves_locked_contract(

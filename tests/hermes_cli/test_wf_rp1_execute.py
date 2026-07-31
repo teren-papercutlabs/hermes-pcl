@@ -492,6 +492,20 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
         assert preflight["ready"] is True
         assert preflight["service_identity"] == execute.SERVICE_NAME
         assert preflight["watcher_healthy"] is True
+        assert preflight["extraction_contract_ready"] is True
+        extraction_citation = next(
+            citation
+            for citation in preflight["citations"]
+            if str(citation["identity"]).endswith(".email_extraction")
+        )
+        assert extraction_citation["observed"]["schema"] == (
+            "synthetic-freight-email-event-v1"
+        )
+        assert extraction_citation["observed"]["correlation_keys"] == [
+            "container_no",
+            "job_no",
+            "booking_ref",
+        ]
 
         seeded = helper.handle(
             "seed_arc",
@@ -583,6 +597,34 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
             isinstance(citation["identity"], str)
             for citation in final["citations"]
         )
+    finally:
+        helper.close()
+
+
+def test_staging_preflight_refuses_ambiguous_extraction_contracts(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    helper = execute.StagingHelper(db_path, _service_proof(tmp_path, db_path))
+    conflicting = {
+        "id": "conflicting-email-flow",
+        "entity": "case",
+        "correlation_keys": ["case_ref"],
+        "disambiguators": [],
+        "create_on": [],
+        "email_extraction": {
+            "schema": "conflicting-email-v1",
+            "instruction": "Extract a conflicting fixture event.",
+        },
+        "steps": [{"key": "start"}],
+    }
+    try:
+        execute.wf_engine.register_template(helper.conn, conflicting)
+        with pytest.raises(
+            execute.ExecutionContractError,
+            match="email_extraction contract is absent or ambiguous",
+        ):
+            helper.handle("preflight", {})
     finally:
         helper.close()
 

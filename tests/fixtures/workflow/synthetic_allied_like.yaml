@@ -14,6 +14,9 @@ workflow:
       brief: synthetic_mail_ingest
   email_extraction:
     schema: synthetic-freight-email-event-v1
+    payload_fields_note: >-
+      These field lists bound the extractor prompt; the live validator enforces
+      only the named schema and object shape.
     instruction: >-
       Classify the persisted email as exactly one declared event type:
       trucking_instruction, pickup_advice, container_assigned, vgm_reply, or
@@ -31,7 +34,10 @@ workflow:
           - origin
           - destination
           - route
+          - empty_depot
           - pickup_date
+          - pickup_reference
+          - requested_job_id
           - vessel
           - vessel_name
       pickup_advice:
@@ -40,8 +46,14 @@ workflow:
           - job_no
           - container_no
           - customer
+          - direction
           - empty_depot
           - equipment_type
+          - acknowledgement_request
+          - bill_of_lading
+          - content_key
+          - copy_kind
+          - dedupe_strategy
           - pickup_date
           - pickup_reference
           - pickup_status
@@ -49,6 +61,11 @@ workflow:
           - pickup_window_end
           - depot_receipt_at
           - driver_confirmed_at
+          - duplicate_of_message_id
+          - seal_no
+          - source_message_id
+          - timestamp_discrepancy_minutes
+          - timestamp_discrepancy_status
           - vessel
           - vessel_name
           - voyage
@@ -68,6 +85,7 @@ workflow:
           - container_no
           - gross_mass_kg
           - vgm_kg
+          - pickup_date
           - method
           - vgm_method
           - vgm_document_status
@@ -85,6 +103,8 @@ workflow:
           - gate_in_at
           - terminal
           - terminal_receipt
+          - vgm_kg
+          - vgm_method
           - vgm_status
           - vessel_name
           - voyage

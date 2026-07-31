@@ -506,6 +506,16 @@ class StagingHelper:
         if action == "preflight":
             proof = self._service_proof()
             tick = wf_watcher.run_tick(self.conn, int(time.time()))
+            expected_extraction = self.workflow.get("email_extraction")
+            resolved_extraction = wf_watcher.resolve_email_extraction_brief(self.conn)
+            if not isinstance(expected_extraction, dict):
+                raise ExecutionContractError(
+                    "workflow fixture has no email_extraction contract"
+                )
+            if resolved_extraction != expected_extraction:
+                raise ExecutionContractError(
+                    "registered email_extraction contract is absent or ambiguous"
+                )
             template = self.conn.execute(
                 "SELECT slug, version, content_hash FROM wf_template "
                 "WHERE slug = ? ORDER BY version DESC LIMIT 1",
@@ -527,6 +537,23 @@ class StagingHelper:
                     dict(template),
                 ),
                 _citation(
+                    "wf_template",
+                    (
+                        f"wf_template.slug={template['slug']}@{template['version']}"
+                        ".email_extraction"
+                    ),
+                    "resolve the sole registered email_extraction contract",
+                    {
+                        "schema": resolved_extraction.get("schema"),
+                        "event_types": sorted(
+                            resolved_extraction.get("event_types", {})
+                        ),
+                        "correlation_keys": list(
+                            self.workflow.get("correlation_keys", [])
+                        ),
+                    },
+                ),
+                _citation(
                     "wf_watcher.run_tick",
                     f"database={self.db_path}",
                     "run wf_watcher.run_tick against the staging database",
@@ -544,6 +571,7 @@ class StagingHelper:
                 service_identity=proof["service"],
                 deployed_release=proof["deployed_release"],
                 watcher_healthy=healthy,
+                extraction_contract_ready=True,
             )
 
         if action in {"seed_arc", "observe_seed"}:
