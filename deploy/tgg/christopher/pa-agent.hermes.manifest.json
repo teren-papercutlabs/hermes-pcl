@@ -9,10 +9,6 @@
     {
       "name": "GEMINI_API_KEY",
       "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
-    },
-    {
-      "name": "GEMINI_API_KEY_PCL_PA_SHARED",
-      "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
     }
   ],
   "services": [
@@ -161,6 +157,7 @@
     "cron/__init__.py",
     "cron/jobs.py",
     "cron/scheduler.py",
+    "deploy/pa/provider_key_contract.py",
     "deploy/tgg/christopher/SOUL.md",
     "deploy/tgg/christopher/baselines/june-2026/PROVENANCE.md",
     "deploy/tgg/christopher/baselines/june-2026/SHA256SUMS",
@@ -294,6 +291,7 @@
     "hermes_cli/models.py",
     "hermes_cli/nous_subscription.py",
     "hermes_cli/oneshot.py",
+    "hermes_cli/pa_credentials.py",
     "hermes_cli/pairing.py",
     "hermes_cli/platforms.py",
     "hermes_cli/plugins.py",
@@ -326,6 +324,8 @@
     "hermes_cli/uninstall.py",
     "hermes_cli/vercel_auth.py",
     "hermes_cli/voice.py",
+    "hermes_cli/wf_engine.py",
+    "hermes_cli/wf_watcher.py",
     "hermes_constants.py",
     "hermes_logging.py",
     "hermes_state.py",
@@ -510,6 +510,10 @@
     "plugins/web/tavily/__init__.py",
     "plugins/web/tavily/plugin.yaml",
     "plugins/web/tavily/provider.py",
+    "plugins/workflow/dashboard/dist/index.js",
+    "plugins/workflow/dashboard/dist/style.css",
+    "plugins/workflow/dashboard/manifest.json",
+    "plugins/workflow/dashboard/plugin_api.py",
     "providers/__init__.py",
     "providers/base.py",
     "pyproject.toml",
@@ -620,6 +624,7 @@
     "tools/voice_mode.py",
     "tools/web_tools.py",
     "tools/website_policy.py",
+    "tools/wf_tools.py",
     "tools/xai_http.py",
     "tools/yuanbao_tools.py",
     "toolset_distributions.py",

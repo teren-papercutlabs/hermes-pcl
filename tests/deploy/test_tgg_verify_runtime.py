@@ -187,10 +187,43 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert not (ROOT / "pa-agent.manifest.json").exists()
 
     spec = yaml.safe_load((DEPLOY_ROOT / "client-agent-deployment.yaml").read_text())
+    assert spec["spec"]["capabilities"]["providerKeys"] == {
+        "mode": "per-client-principal-supplied",
+        "suppliedBy": "principal",
+        "canonicalStore": "~/.marshal/secrets.env",
+        "provenancePath": (
+            "/home/pclaw/.hermes-christopher-tgg/runtime/"
+            "provider-key-provenance.json"
+        ),
+        "providers": [
+            {
+                "provider": "openai",
+                "runtimeEnv": "OPENAI_API_KEY",
+                "sourceSlot": "OPENAI_API_KEY_TGG",
+            },
+            {
+                "provider": "gemini",
+                "runtimeEnv": "GEMINI_API_KEY",
+                "sourceSlot": "GEMINI_API_KEY_TGG",
+            },
+        ],
+    }
+    env_refs = {row["name"]: row for row in spec["spec"]["env"]["refs"]}
+    assert env_refs["OPENAI_API_KEY"]["source"].endswith("#OPENAI_API_KEY_TGG")
+    assert env_refs["GEMINI_API_KEY"]["source"].endswith("#GEMINI_API_KEY_TGG")
+    assert "GEMINI_API_KEY_PCL_PA_SHARED" not in env_refs
     manifest_ref = spec["spec"]["deploy"]["manifestRef"]
     assert manifest_ref == "deploy/tgg/christopher/pa-agent.hermes.manifest.json"
 
     deploy_script = (DEPLOY_ROOT / "scripts" / "deploy_runtime.sh").read_text()
+    prepare_script = (
+        DEPLOY_ROOT / "scripts" / "prepare_host_secrets.sh"
+    ).read_text()
+    assert "deploy/pa/provider_key_contract.py" in prepare_script
+    assert "OPENAI_API_KEY_TGG" not in prepare_script
+    assert "GEMINI_API_KEY_TGG" not in prepare_script
+    assert "source \"$SECRETS_FILE\"" not in prepare_script
+    assert "provider-key-provenance.json" in prepare_script
     assert 'd["spec"]["deploy"]["manifestRef"]' in deploy_script
     assert '--manifest "$manifest_path"' in deploy_script
     assert "output_quality_eval.py" in deploy_script
@@ -223,12 +256,19 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert '"state": status["state"]' in verify_script
     assert '"retention_held": status["retention_held"]' in verify_script
     assert '"retention_hold": status["retention_hold"]' in verify_script
+    assert '"$APP_ROOT/deploy/pa/provider_key_contract.py" verify' in verify_script
+    assert '--process-environ "/proc/$main_pid/environ"' in verify_script
 
     manifest = json.loads((ROOT / manifest_ref).read_text())
+    assert "deploy/pa/provider_key_contract.py" in manifest["include"]
+    assert {
+        row["name"] for row in manifest["requiredEnv"]
+    } == {"OPENAI_API_KEY", "GEMINI_API_KEY"}
     assert [service["name"] for service in manifest["services"]] == [
         "christopher-tgg-hermes.service"
     ]
     manifest_text = json.dumps(manifest)
+    assert "GEMINI_API_KEY_PCL_PA_SHARED" not in manifest_text
     assert "christopher-tgg-systems.service" not in manifest_text
     assert "singpass-pair-server.service" not in manifest_text
     assert manifest["verifyHooks"] == [

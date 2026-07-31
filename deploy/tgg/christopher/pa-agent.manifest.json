@@ -245,10 +245,6 @@
   ],
   "requiredEnv": [
     {
-      "name": "GEMINI_API_KEY_PCL_PA_SHARED",
-      "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
-    },
-    {
       "name": "GEMINI_API_KEY",
       "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
     },

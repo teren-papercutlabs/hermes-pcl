@@ -126,18 +126,31 @@ spec:
       provider: gemini
       model: gemini-3.1-flash-lite
 
+  capabilities:
+    providerKeys:
+      mode: per-client-principal-supplied
+      suppliedBy: principal
+      canonicalStore: ~/.marshal/secrets.env
+      provenancePath: /home/pclaw/.hermes-christopher-tgg/runtime/provider-key-provenance.json
+      providers:
+        - provider: openai
+          runtimeEnv: OPENAI_API_KEY
+          sourceSlot: OPENAI_API_KEY_TGG
+        - provider: gemini
+          runtimeEnv: GEMINI_API_KEY
+          sourceSlot: GEMINI_API_KEY_TGG
+
   env:
     materialization: /home/pclaw/.hermes-christopher-tgg/.env
     mode: "0600"
     refs:
       - name: OPENAI_API_KEY
-        source: marshal-secrets
+        source: marshal-secrets#OPENAI_API_KEY_TGG
+        materializer: deploy/pa/provider_key_contract.py
         requiredWhen: always
       - name: GEMINI_API_KEY
-        source: marshal-secrets
-        requiredWhen: always
-      - name: GEMINI_API_KEY_PCL_PA_SHARED
-        source: GEMINI_API_KEY
+        source: marshal-secrets#GEMINI_API_KEY_TGG
+        materializer: deploy/pa/provider_key_contract.py
         requiredWhen: always
       - name: CHRISTOPHER_TGG_PS_SERVICE_TOKEN
         source: /etc/systems-papercut-labs/tgg.env#CHRISTOPHER_TGG_PS_SERVICE_TOKEN

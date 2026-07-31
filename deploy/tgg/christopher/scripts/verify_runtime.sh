@@ -131,6 +131,12 @@ if [[ ! "$main_pid" =~ ^[1-9][0-9]*$ ]]; then
   echo "Christopher consumer has no live MainPID" >&2
   exit 32
 fi
+"$APP_ROOT/.venv/bin/python" \
+  "$APP_ROOT/deploy/pa/provider_key_contract.py" verify \
+  --spec "$DEPLOY_ROOT/client-agent-deployment.yaml" \
+  --env-file "$HERMES_HOME/.env" \
+  --provenance "$RUNTIME_ROOT/provider-key-provenance.json" \
+  --process-environ "/proc/$main_pid/environ" >/dev/null
 python3 - "$main_pid" <<'PY'
 import pathlib
 import sys

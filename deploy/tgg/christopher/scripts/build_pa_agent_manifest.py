@@ -40,6 +40,7 @@ PACKAGE_ROOTS = (
     "tui_gateway/",
 )
 DEPLOY_ROOT = "deploy/tgg/christopher/"
+PA_DEPLOY_ROOT = "deploy/pa/"
 EXCLUDED_PATHS = {
     # Not imported by the Christopher runtime. Keeping them out avoids
     # unrelated OAuth/web-dashboard surfaces and their dependencies.
@@ -80,6 +81,7 @@ def expected_runtime_files(app_root: Path) -> list[str]:
             relative in TOP_LEVEL_RUNTIME_FILES
             or relative.startswith(PACKAGE_ROOTS)
             or relative.startswith(DEPLOY_ROOT)
+            or relative.startswith(PA_DEPLOY_ROOT)
             or (
                 relative.startswith("gateway/")
                 and not relative.startswith("gateway/platforms/")

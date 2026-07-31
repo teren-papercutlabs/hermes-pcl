@@ -94,6 +94,59 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         raise RuntimeError("deployment agent must be christopher")
 
     spec = document["spec"]
+    expected_provider_keys = {
+        "mode": "per-client-principal-supplied",
+        "suppliedBy": "principal",
+        "canonicalStore": "~/.marshal/secrets.env",
+        "provenancePath": (
+            "/home/pclaw/.hermes-christopher-tgg/runtime/"
+            "provider-key-provenance.json"
+        ),
+        "providers": [
+            {
+                "provider": "openai",
+                "runtimeEnv": "OPENAI_API_KEY",
+                "sourceSlot": "OPENAI_API_KEY_TGG",
+            },
+            {
+                "provider": "gemini",
+                "runtimeEnv": "GEMINI_API_KEY",
+                "sourceSlot": "GEMINI_API_KEY_TGG",
+            },
+        ],
+    }
+    if (
+        spec.get("capabilities", {}).get("providerKeys")
+        != expected_provider_keys
+    ):
+        raise RuntimeError("per-client principal-supplied provider-key contract drifted")
+    provider_refs = {
+        row["name"]: row
+        for row in spec["env"]["refs"]
+        if row.get("name") in {"OPENAI_API_KEY", "GEMINI_API_KEY"}
+    }
+    expected_materializer = "deploy/pa/provider_key_contract.py"
+    if provider_refs != {
+        "OPENAI_API_KEY": {
+            "name": "OPENAI_API_KEY",
+            "source": "marshal-secrets#OPENAI_API_KEY_TGG",
+            "materializer": expected_materializer,
+            "requiredWhen": "always",
+        },
+        "GEMINI_API_KEY": {
+            "name": "GEMINI_API_KEY",
+            "source": "marshal-secrets#GEMINI_API_KEY_TGG",
+            "materializer": expected_materializer,
+            "requiredWhen": "always",
+        },
+    }:
+        raise RuntimeError("provider env refs must use TGG client slots")
+    if any(
+        row.get("name") == "GEMINI_API_KEY_PCL_PA_SHARED"
+        for row in spec["env"]["refs"]
+    ):
+        raise RuntimeError("fleet/shared provider aliases are forbidden")
+    _resolve(app_root, expected_materializer)
     if spec["processing"]["enabled"] is not False:
         raise RuntimeError("processing must remain disabled for this deployment")
     if spec["processing"]["activationIncludedInThisDeployment"] is not False:
@@ -402,6 +455,7 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         "deploy/tgg/christopher/scripts/processing_activation_transaction.py",
         "deploy/tgg/christopher/scripts/validate_deployment_spec.py",
         "deploy/tgg/christopher/scripts/verify_runtime.sh",
+        "deploy/pa/provider_key_contract.py",
     }
     missing_runtime_files = sorted(required_runtime_files - included)
     if missing_runtime_files:

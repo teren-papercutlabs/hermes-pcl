@@ -1,0 +1,15 @@
+{
+  "obligation": true,
+  "review_surface": {
+    "checks": [
+      {
+        "key": "pa-provider-keys-per-client",
+        "why": "Every PA deploy must prove its provider credentials came from the principal-supplied client slots before the runtime is flipped.",
+        "state_proof": "Deploy verification compares the provider-key provenance receipt, runtime env file, and live service process environment.",
+        "attachment": "ClientAgentDeployment",
+        "activation": "pre-transition and post-transition",
+        "red_owner": "edna"
+      }
+    ]
+  }
+}
