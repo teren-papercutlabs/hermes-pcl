@@ -285,6 +285,13 @@ class EmailAdapter(BasePlatformAdapter):
         #       skip_attachments: true
         extra = config.extra or {}
         self._skip_attachments = extra.get("skip_attachments", False)
+        # Staging harnesses may need to ingest messages authenticated as the
+        # watched mailbox. Keep the default echo guard intact and, when this
+        # explicit gate is open, route self-mail to workflow intake only —
+        # never to conversational handling or reply generation.
+        self._allow_self_workflow_ingress = (
+            extra.get("allow_self_workflow_ingress") is True
+        )
 
         # Track message IDs we've already processed to avoid duplicates
         self._seen_uids: set = set()
@@ -752,26 +759,27 @@ class EmailAdapter(BasePlatformAdapter):
         """Convert a fetched email into a MessageEvent and dispatch it."""
         sender_addr = msg_data["sender_addr"]
 
-        # Skip self-messages
-        if sender_addr == self._address.lower():
+        is_self_message = sender_addr == self._address.lower()
+        if is_self_message and not self._allow_self_workflow_ingress:
             return
 
-        # Never reply to automated senders
-        if _is_automated_sender(sender_addr, {}):
-            logger.debug("[Email] Dropping automated sender at dispatch: %s", sender_addr)
-            return
-
-        # Skip senders not in EMAIL_ALLOWED_USERS — prevents the adapter
-        # from creating a MessageEvent (and thus thread context) for senders
-        # that the gateway will never authorize.  Without this early guard,
-        # a race between dispatch and authorization can result in the adapter
-        # sending a reply even though the handler returned None.
-        allowed_raw = os.getenv("EMAIL_ALLOWED_USERS", "").strip()
-        if allowed_raw:
-            allowed = {addr.strip().lower() for addr in allowed_raw.split(",") if addr.strip()}
-            if sender_addr.lower() not in allowed:
-                logger.debug("[Email] Dropping non-allowlisted sender at dispatch: %s", sender_addr)
+        if not is_self_message:
+            # Never reply to automated senders
+            if _is_automated_sender(sender_addr, {}):
+                logger.debug("[Email] Dropping automated sender at dispatch: %s", sender_addr)
                 return
+
+            # Skip senders not in EMAIL_ALLOWED_USERS — prevents the adapter
+            # from creating a MessageEvent (and thus thread context) for senders
+            # that the gateway will never authorize.  Without this early guard,
+            # a race between dispatch and authorization can result in the adapter
+            # sending a reply even though the handler returned None.
+            allowed_raw = os.getenv("EMAIL_ALLOWED_USERS", "").strip()
+            if allowed_raw:
+                allowed = {addr.strip().lower() for addr in allowed_raw.split(",") if addr.strip()}
+                if sender_addr.lower() not in allowed:
+                    logger.debug("[Email] Dropping non-allowlisted sender at dispatch: %s", sender_addr)
+                    return
 
         subject = msg_data["subject"]
         body = msg_data["body"].strip()
@@ -782,6 +790,12 @@ class EmailAdapter(BasePlatformAdapter):
         # thread mutation and chat handling.  The callback receives only a
         # reference to the untrusted raw body.
         await self._record_workflow_ingress(msg_data, external_id=external_id)
+        if is_self_message:
+            logger.info(
+                "[Email] Self-message admitted to workflow ingress only: %s",
+                external_id,
+            )
+            return
 
         # Build message text: include subject as context
         text = body

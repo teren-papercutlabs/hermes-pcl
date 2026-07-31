@@ -53,11 +53,14 @@ def _message() -> dict:
     }
 
 
-def _adapter() -> tuple[GatewayRunner, object]:
+def _adapter(*, allow_self_workflow_ingress: bool = False) -> tuple[GatewayRunner, object]:
     runner = _runner()
     adapter = runner._create_adapter(
         Platform.EMAIL,
-        PlatformConfig(enabled=True),
+        PlatformConfig(
+            enabled=True,
+            extra={"allow_self_workflow_ingress": allow_self_workflow_ingress},
+        ),
     )
     assert adapter is not None
     assert adapter._workflow_ingress_callback.__self__ is runner
@@ -102,6 +105,24 @@ def test_factory_dispatch_creates_one_body_by_reference_event(
         assert body_file.read() == RAW_BODY
 
     adapter.handle_message.assert_awaited_once()
+
+
+
+def test_self_ingress_gate_records_workflow_only(
+    isolated_email_env,
+):
+    _runner_instance, adapter = _adapter(allow_self_workflow_ingress=True)
+    message = _message()
+    message["sender_addr"] = "hermes@test.com"
+    message["sender_name"] = "Synthetic Allied Ops"
+    message["message_id"] = "<self-workflow@test.com>"
+
+    asyncio.run(adapter._dispatch_message(message))
+
+    rows = _workflow_rows()
+    assert len(rows) == 1
+    assert rows[0]["external_id"] == "<self-workflow@test.com>"
+    adapter.handle_message.assert_not_awaited()
 
 
 def test_factory_dispatch_exact_redelivery_is_deduplicated(
