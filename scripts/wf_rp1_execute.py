@@ -469,11 +469,18 @@ class StagingHelper:
     def _event_capture(
         self, row: sqlite3.Row, payload: dict[str, Any]
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        if not row["event_type"]:
-            if row["status"] == "received":
-                raise ExecutionContractError(
-                    "email event extraction is not yet durable"
-                )
+        if not row["event_type"] and row["status"] == "received":
+            raise ExecutionContractError(
+                "email event extraction is not yet durable"
+            )
+        if row["event_type"] is None:
+            extraction_disposition = (
+                "boundary-failure"
+                if row["status"] == "needs_review"
+                else "declared-no-fit"
+            )
+        else:
+            extraction_disposition = "classified"
         corr = _json_object(row["corr"])
         entity_key = None
         if row["matched_task_id"]:
@@ -508,9 +515,7 @@ class StagingHelper:
         )
         observed = {
             "event_type": row["event_type"],
-            "extraction_disposition": (
-                "declared-no-fit" if row["event_type"] is None else "classified"
-            ),
+            "extraction_disposition": extraction_disposition,
             "payload": payload,
             "corr": corr,
             "correlation": {
@@ -540,11 +545,9 @@ class StagingHelper:
     def handle(self, action: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         if action == "preflight":
             proof = self._service_proof()
-            if wf_watcher._raw_received_email_events(self.conn):
-                raise ExecutionContractError(
-                    "staging preflight has pending raw email intake"
-                )
-            tick = wf_watcher.run_tick(self.conn, int(time.time()))
+            tick = wf_watcher.run_tick(
+                self.conn, int(time.time()), extract_email=False
+            )
             expected_extraction = self.workflow.get("email_extraction")
             resolved_extraction = wf_watcher.resolve_email_extraction_brief(self.conn)
             if not isinstance(expected_extraction, dict):
@@ -826,11 +829,11 @@ class StagingHelper:
                     ),
                 )
 
-            if wf_watcher._raw_received_email_events(self.conn):
-                return self._response(ready=False, citations=[])
             wf_watcher.register_state_probe(tenant, probe, read_only=True)
             try:
-                tick = wf_watcher.run_tick(self.conn, int(time.time()))
+                tick = wf_watcher.run_tick(
+                    self.conn, int(time.time()), extract_email=False
+                )
             finally:
                 wf_watcher.unregister_state_probe(tenant)
             row = self.conn.execute(
@@ -1200,13 +1203,14 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
         raise ExecutionContractError(
             f"{label}: event_type must be non-empty or null"
         )
-    declared_no_fit = (
+    null_disposition = observed.get("extraction_disposition")
+    durable_null = (
         observed["event_type"] is None
-        and observed.get("extraction_disposition") == "declared-no-fit"
+        and null_disposition in {"declared-no-fit", "boundary-failure"}
     )
-    if observed["event_type"] is None and not declared_no_fit:
+    if observed["event_type"] is None and not durable_null:
         raise ExecutionContractError(
-            f"{label}: null event_type needs declared-no-fit disposition"
+            f"{label}: null event_type needs a durable extraction disposition"
         )
     for key in ("payload", "corr", "correlation", "agent_action"):
         value = observed[key]
@@ -1217,7 +1221,7 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
                 raise ExecutionContractError(
                     f"{label}: evidence-limited {key} needs a reason"
                 )
-        elif not value and not (declared_no_fit and key == "corr"):
+        elif not value and not (durable_null and key == "corr"):
             raise ExecutionContractError(
                 f"{label}: {key} must contain observed fields or an "
                 "EVIDENCE-LIMITED marker"
@@ -1263,6 +1267,15 @@ def _require_extraction_contract_citation(
     if len(matching) != 1:
         raise ExecutionContractError(
             "preflight did not cite the exact registered email_extraction contract"
+        )
+    extraction_identity = matching[0]["identity"]
+    template_identity = extraction_identity.removesuffix(".email_extraction")
+    if not any(
+        citation["identity"] == template_identity
+        for citation in citations
+    ):
+        raise ExecutionContractError(
+            "preflight extraction citation version is not bound to template"
         )
 
 

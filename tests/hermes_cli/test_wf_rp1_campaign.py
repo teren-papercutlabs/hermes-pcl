@@ -206,7 +206,18 @@ def test_answer_key_scoring_labels_declared_no_fit_as_extraction_miss() -> None:
     assert result["status"] == "fail"
     assert result["section_status"]["extraction"] == "fail"
     assert result["extraction_disposition"] == "declared-no-fit"
-    assert result["miss_taxonomy"] == "extraction"
+    assert result["miss_taxonomy"] == ["extraction"]
+
+
+def test_answer_key_scoring_does_not_invent_no_fit_for_missing_observation() -> None:
+    result = campaign.score_answer_key(
+        {"event_type": "status_chase", "payload": {}, "corr": {}},
+        {},
+    )
+
+    assert result["extraction_disposition"] == "not-observed"
+    assert "engine-defect" in result["miss_taxonomy"]
+    assert result["extraction_disposition"] != "declared-no-fit"
 
 
 def test_p5a_citation_format() -> None:

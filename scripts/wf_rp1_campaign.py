@@ -15,9 +15,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
-
-
 ROOT = Path(__file__).resolve().parents[1]
 ROLEPLAY_DIR = ROOT / "specs/2026-07-29-allied-carbon-agent/roleplay"
 TEMPLATE_PATH = ROOT / "tests/fixtures/workflow/synthetic_allied_like.yaml"
@@ -384,22 +381,30 @@ def score_answer_key(
     overall = "fail" if "fail" in statuses.values() else (
         "evidence-limited" if "evidence-limited" in statuses.values() else "pass"
     )
-    document = yaml.safe_load(TEMPLATE_PATH.read_text(encoding="utf-8"))
-    supported_types = set(
-        document["workflow"]["email_extraction"]["event_types"]
-    )
-    declared_no_fit = (
-        answer_key.get("event_type") not in supported_types
-        and observed.get("event_type") is None
-    )
+    disposition = observed.get("extraction_disposition")
+    if not observed:
+        disposition = "not-observed"
+    elif disposition not in {
+        "classified",
+        "declared-no-fit",
+        "boundary-failure",
+    }:
+        disposition = "unclassified"
+    taxonomies: list[str] = []
+    if disposition in {"not-observed", "boundary-failure"}:
+        taxonomies.append("engine-defect")
+    if statuses["extraction"] == "fail" and disposition != "boundary-failure":
+        taxonomies.append("extraction")
+    if statuses["correlation"] == "fail":
+        taxonomies.append("correlation")
+    if statuses["action"] == "fail":
+        taxonomies.append("decision")
     return {
         "status": overall,
         "section_status": statuses,
         "sections": sections,
-        "extraction_disposition": (
-            "declared-no-fit" if declared_no_fit else "classified"
-        ),
-        "miss_taxonomy": "extraction" if declared_no_fit else None,
+        "extraction_disposition": disposition,
+        "miss_taxonomy": taxonomies,
     }
 
 

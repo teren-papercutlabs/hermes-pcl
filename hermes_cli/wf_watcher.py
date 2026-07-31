@@ -376,6 +376,7 @@ def run_tick(
     *,
     email_extractor: Callable[[dict | str, Mapping[str, Any]], dict] | None = None,
     email_schema_validator: Any = None,
+    extract_email: bool = True,
 ) -> WatchTickResult:
     """Run one complete timer/probe/sweeper cycle against one board."""
 
@@ -452,7 +453,8 @@ def run_tick(
             if _drive_matched_event(conn, event_id):
                 applied.append(event_id)
 
-    _extract_raw_email_events(conn, extractor_boundary)
+    if extract_email:
+        _extract_raw_email_events(conn, extractor_boundary)
     swept = _sweep_after_email_extraction(conn, int(now))
     # ``sweep`` classifies before returning.  Include every durable
     # non-create match, not only matches produced in this process, so a

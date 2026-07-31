@@ -198,6 +198,17 @@ class FakeRemote:
             ),
         }
 
+    @staticmethod
+    def _template_citation() -> dict[str, Any]:
+        document = yaml.safe_load(campaign.TEMPLATE_PATH.read_text())
+        workflow = document["workflow"]
+        return {
+            "table": "wf_template",
+            "identity": f"wf_template.slug={workflow['id']}@1",
+            "query": "SELECT latest registered workflow template",
+            "observed": {"slug": workflow["id"], "version": 1},
+        }
+
     def request(self, action: str, payload: Any) -> dict[str, Any]:
         payload = dict(payload)
         self.calls.append((action, payload))
@@ -209,7 +220,9 @@ class FakeRemote:
                 "watcher_healthy": True,
                 "extraction_contract_ready": True,
             }
-            response["citations"].append(self._extraction_citation())
+            response["citations"].extend(
+                [self._template_citation(), self._extraction_citation()]
+            )
             return response
         if action == "observe_preflight":
             return _ready(
@@ -745,6 +758,52 @@ def test_staging_observe_email_returns_durable_declared_no_fit(
             == "declared-no-fit"
         )
         assert execute._citations(response, "declared no-fit")
+    finally:
+        helper.close()
+
+
+def test_staging_observe_email_distinguishes_extraction_boundary_failure(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    helper = execute.StagingHelper(db_path, _service_proof(tmp_path, db_path))
+    try:
+        event_id = execute.wf_engine.ingest_event(
+            helper.conn,
+            source="email",
+            external_id="<broken@rp1.synthetic.test>",
+            payload={
+                "message_id": "<broken@rp1.synthetic.test>",
+                "subject": "[RP1-BROKEN] extractor failed",
+                "body_ref": "/synthetic/broken.txt",
+            },
+            corr={},
+            event_type=None,
+        )
+        assert event_id is not None
+        helper.conn.execute(
+            "UPDATE wf_event SET status = 'needs_review' WHERE id = ?",
+            (event_id,),
+        )
+
+        response = helper.handle(
+            "observe_email",
+            {
+                "wire_message_id": "<broken@rp1.synthetic.test>",
+                "subject_token": "RP1-BROKEN",
+                "x_rp1_token": None,
+            },
+        )
+
+        assert response["ready"] is True
+        assert response["observed"]["event_type"] is None
+        assert response["observed"]["extraction_disposition"] == "boundary-failure"
+        score = campaign.score_answer_key(
+            {"event_type": "pickup_advice", "payload": {}, "corr": {}},
+            response["observed"],
+        )
+        assert "engine-defect" in score["miss_taxonomy"]
+        assert score["extraction_disposition"] == "boundary-failure"
     finally:
         helper.close()
 
