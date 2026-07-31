@@ -1,1 +1,4 @@
 {"ts":"2026-07-31T06:20:48Z","phase":"rp","unit":"author-wave","event":"wave_start","rung":"sol","notes":"three disjoint four-arc authoring units; coordinator allocated files, arc ids, correlation refs, and subject namespaces"}
+{"ts":"2026-07-31T06:24:38Z","phase":"rp","unit":"author-u1","event":"spawn","rung":"luna","notes":"wb 564194e8-57eb-42c7-8b3f-a61647482845; assigned arcs-01-04.json and RP1-A01..A04 namespace"}
+{"ts":"2026-07-31T06:27:09Z","phase":"rp","unit":"author-u2","event":"spawn","rung":"luna","notes":"wb 7bd40ea9-d2db-489b-977f-65a4b88b86f4; assigned disjoint story file and arc/ref namespace"}
+{"ts":"2026-07-31T06:28:21Z","phase":"rp","unit":"author-u3","event":"spawn","rung":"luna","notes":"wb b3c1c768-43fe-4f15-aafe-26bfa8095446; assigned disjoint story file and arc/ref namespace"}
