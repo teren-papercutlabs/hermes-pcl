@@ -785,7 +785,7 @@ def test_staging_observe_email_records_classified_empty_payload_as_miss(
         )
         assert event_id is not None
         helper.conn.execute(
-            "UPDATE wf_event SET status = 'unmatched', payload = '{}' WHERE id = ?",
+            "UPDATE wf_event SET status = 'classified', payload = '{}' WHERE id = ?",
             (event_id,),
         )
 
@@ -810,9 +810,24 @@ def test_staging_observe_email_records_classified_empty_payload_as_miss(
             response["observed"],
         )
         assert "extraction" in score["miss_taxonomy"]
-        assert "engine-defect" not in score["miss_taxonomy"]
+        assert response["citations"][0]["observed"]["payload_column_present"] is True
     finally:
         helper.close()
+
+
+def test_validate_observed_rejects_empty_payload_outside_email_capture() -> None:
+    with pytest.raises(execute.ExecutionContractError, match="payload must contain"):
+        execute._validate_observed(
+            {
+                "event_type": "state_poll",
+                "extraction_disposition": "classified",
+                "payload": {},
+                "corr": {"booking_ref": "RP1-EMPTY"},
+                "correlation": {"verdict": "matched"},
+                "agent_action": {"kind": "manual"},
+            },
+            "state_poll",
+        )
 
 
 def test_staging_observe_email_distinguishes_extraction_boundary_failure(

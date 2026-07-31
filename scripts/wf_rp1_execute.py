@@ -531,7 +531,11 @@ class StagingHelper:
             },
             "agent_action": action,
         }
-        _validate_observed(observed, f"wf_event.id={row['id']}")
+        _validate_observed(
+            observed,
+            f"wf_event.id={row['id']}",
+            allow_empty_classified_payload=row["source"] == "email",
+        )
         citation = _citation(
             "wf_event",
             f"wf_event.id={row['id']}",
@@ -544,6 +548,8 @@ class StagingHelper:
                 "status": row["status"],
                 "matched_task_id": row["matched_task_id"],
                 "match_method": row["match_method"],
+                "payload_column_present": row["payload"] is not None
+                and row["payload"] != "",
             },
         )
         return observed, citation
@@ -1209,7 +1215,12 @@ def _email_message(
     return message, sender
 
 
-def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
+def _validate_observed(
+    observed: Mapping[str, Any],
+    label: str,
+    *,
+    allow_empty_classified_payload: bool = False,
+) -> None:
     missing = [key for key in _SCORABLE_KEYS if key not in observed]
     if missing:
         raise ExecutionContractError(
@@ -1228,7 +1239,9 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
         and null_disposition in {"declared-no-fit", "boundary-failure"}
     )
     classified_empty_payload = (
-        observed["event_type"] is not None and observed.get("payload") == {}
+        allow_empty_classified_payload
+        and observed["event_type"] is not None
+        and observed.get("payload") == {}
     )
     if observed["event_type"] is None and not durable_null:
         raise ExecutionContractError(
