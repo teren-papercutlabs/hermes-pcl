@@ -22,7 +22,9 @@ workflow:
       trucking_instruction, pickup_advice, container_assigned, vgm_reply, or
       gate_in. Extract only facts explicitly present in the email. Return
       correlation values only for the template correlation keys booking_ref,
-      job_no, and container_no; omit unknown values rather than guessing.
+      job_no, and container_no; omit unknown values rather than guessing. If
+      none of the declared event types fits, return a null event_type and an
+      empty corr object.
     event_types:
       trucking_instruction:
         payload_fields:

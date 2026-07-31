@@ -512,17 +512,35 @@ class StagingHelper:
                 raise ExecutionContractError(
                     "workflow fixture has no email_extraction contract"
                 )
-            if resolved_extraction != expected_extraction:
+            if resolved_extraction is None:
                 raise ExecutionContractError(
                     "registered email_extraction contract is absent or ambiguous"
                 )
+            if resolved_extraction != expected_extraction:
+                raise ExecutionContractError(
+                    "registered email_extraction contract differs from fixture"
+                )
+            assert isinstance(resolved_extraction, dict)
             template = self.conn.execute(
-                "SELECT slug, version, content_hash FROM wf_template "
+                "SELECT slug, version, content_hash, spec FROM wf_template "
                 "WHERE slug = ? ORDER BY version DESC LIMIT 1",
                 (self.workflow["id"],),
             ).fetchone()
             if template is None:
                 raise ExecutionContractError("workflow template is not registered")
+            registered_spec = wf_engine._load_json(template["spec"], None)
+            registered_workflow = (
+                wf_engine._workflow_spec(registered_spec)
+                if isinstance(registered_spec, dict)
+                else {}
+            )
+            registered_correlation_keys = registered_workflow.get(
+                "correlation_keys"
+            )
+            if not isinstance(registered_correlation_keys, list):
+                raise ExecutionContractError(
+                    "registered workflow correlation_keys are missing"
+                )
             citations = [
                 _citation(
                     "runtime_service_proof",
@@ -548,9 +566,7 @@ class StagingHelper:
                         "event_types": sorted(
                             resolved_extraction.get("event_types", {})
                         ),
-                        "correlation_keys": list(
-                            self.workflow.get("correlation_keys", [])
-                        ),
+                        "correlation_keys": registered_correlation_keys,
                     },
                 ),
                 _citation(
@@ -1254,9 +1270,11 @@ def execute_plan(
         or not isinstance(preflight.get("deployed_release"), str)
         or not preflight["deployed_release"]
         or preflight.get("watcher_healthy") is not True
+        or preflight.get("extraction_contract_ready") is not True
     ):
         raise ExecutionContractError(
-            "remote preflight did not prove service, release, and watcher health"
+            "remote preflight did not prove service, release, watcher health, "
+            "and extraction contract"
         )
     all_citations = _citations(preflight, "preflight")
     journal.append(
@@ -1264,6 +1282,7 @@ def execute_plan(
         service_identity=preflight.get("service_identity"),
         deployed_release=preflight.get("deployed_release"),
         watcher_healthy=preflight.get("watcher_healthy"),
+        extraction_contract_ready=preflight.get("extraction_contract_ready"),
     )
     _journal_citations(journal, all_citations, phase="remote_preflight")
 

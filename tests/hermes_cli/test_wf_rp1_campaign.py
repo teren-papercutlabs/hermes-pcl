@@ -31,6 +31,7 @@ def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
     }
     instruction = contract["instruction"]
     assert "omit unknown values rather than guessing" in instruction
+    assert "return a null event_type and an empty corr object" in instruction
     for undeclared_type in {
         "booking_instruction",
         "bill_of_lading_correction",
@@ -42,6 +43,7 @@ def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
         "other",
     }:
         assert undeclared_type not in contract["event_types"]
+        assert undeclared_type not in instruction
 
     expected_fields: dict[str, set[str]] = {
         event_type: set() for event_type in declared_types

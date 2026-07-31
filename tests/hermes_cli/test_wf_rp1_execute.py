@@ -191,6 +191,7 @@ class FakeRemote:
                 "service_identity": execute.SERVICE_NAME,
                 "deployed_release": "test-release",
                 "watcher_healthy": True,
+                "extraction_contract_ready": True,
             }
         if action == "observe_preflight":
             return _ready(
@@ -335,6 +336,46 @@ def test_execute_uses_smtp_waits_and_runs_one_declared_probe(
     assert sent_entries[0]["wire_body_sha256"] == execute._sha256_text(
         first_campaign_message.get_body().get_content()
     )
+
+
+def test_execute_refuses_remote_preflight_without_extraction_contract(
+    tmp_path: Path,
+) -> None:
+    class MissingContractRemote(FakeRemote):
+        def request(
+            self, action: str, payload: dict[str, object]
+        ) -> dict[str, object]:
+            response = super().request(action, payload)
+            if action == "preflight":
+                response["extraction_contract_ready"] = False
+            return response
+
+    settings = execute.ExecutionSettings(
+        target=execute.TARGET_SYSTEM,
+        environment=execute.TARGET_ENVIRONMENT,
+        recipient="workflow+allied-workflow-staging@example.test",
+        smtp_user="dorm1@example.test",
+        smtp_password="never-output",
+        poll_interval_seconds=0.01,
+        ingress_timeout_seconds=5,
+        worker_timeout_seconds=5,
+        pacing_seconds=0.01,
+    )
+    smtp = FakeSMTPIngress()
+    with pytest.raises(
+        execute.ExecutionContractError,
+        match="extraction contract",
+    ):
+        execute.execute_plan(
+            _plan(),
+            settings=settings,
+            remote=MissingContractRemote(),
+            smtp=smtp,  # type: ignore[arg-type]
+            journal=execute.ExecutionJournal(
+                tmp_path / "rp1-journal.jsonl", resume=False
+            ),
+        )
+    assert smtp.sent == []
 
 
 def test_missing_citations_fail_closed() -> None:
