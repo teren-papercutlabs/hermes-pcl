@@ -115,7 +115,7 @@
           "message_id": "rpa01-002@rp1.synthetic.test",
           "from_display": "Daniel Ortiz | Pacific Meridian Lines",
           "subject": "[RP1-A01] Correction only: PM-REL-8841 stays with Northstar",
-          "body": "Maya, small correction to the pickup thread. We rechecked the carrier screen and PM-REL-8841 is still the Northstar Foods 40HC release on RP1-BK-SHARED-01. Harbor Lab's 20GP is a different live job and has no pickup advice in this message.\n\nPlease leave the first pickup event as filed; this is not a new depot or a new window. A stray sentence in the carrier draft said \"20GP release copied below\"; that line is not part of this release and was a bad paste from another file. No new seal number. If already moved on your side, no action needed apart from the note.\n\nThanks,\nDaniel",
+          "body": "Maya, small correction to the pickup thread. We rechecked the carrier screen and PM-REL-8841 is still the Northstar Foods 40HC release for internal job RP1-JOB-0101 on RP1-BK-SHARED-01. Harbor Lab's 20GP is a different live job and has no pickup advice in this message.\n\nPlease leave the first pickup event as filed; this is not a new depot or a new window. A stray sentence in the carrier draft said \"20GP release copied below\"; that line is not part of this release and was a bad paste from another file. No new seal number. If already moved on your side, no action needed apart from the note.\n\nThanks,\nDaniel",
           "answer_key": {
             "event_type": "pickup_advice",
             "payload": {
@@ -126,16 +126,20 @@
               "vessel": "MV Cedar Bay",
               "empty_depot": "Westport Empty Depot",
               "pickup_window_start": "2026-08-04T08:00:00+08:00",
-              "pickup_window_end": "2026-08-04T16:00:00+08:00"
+              "pickup_window_end": "2026-08-04T16:00:00+08:00",
+              "job_no": "RP1-JOB-0101"
             },
             "corr": {
+              "job_no": "RP1-JOB-0101",
               "booking_ref": "RP1-BK-SHARED-01"
             },
             "correlation": {
               "verdict": "superseded",
               "target": "RP1-JOB-0101",
               "match_method": "deterministic",
-              "reason": "The pickup wait was already satisfied by the first carrier message; this correction does not alter the recorded event."
+              "candidate_count": 1,
+              "position": "past",
+              "reason": "The exact job_no selects RP1-JOB-0101 and its pickup wait was already satisfied by the first carrier message; this correction is a past-step no-op."
             },
             "agent_action": {
               "kind": "no_action",
@@ -546,7 +550,7 @@
               "match_method": "deterministic",
               "current_step": "await_vgm",
               "event_compatible_step": "await_gatein",
-              "reason": "The job identity is exact, but gate_in_confirmation is valid for the future await_gatein step and cannot apply while await_vgm is active."
+              "reason": "The job identity is exact, but gate_in is valid for the future await_gatein step and cannot apply while await_vgm is active."
             },
             "agent_action": {
               "kind": "park",
