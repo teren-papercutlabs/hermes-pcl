@@ -425,6 +425,54 @@ class StagingHelper:
             },
         )
 
+    def _instance_lookup_citation(self, entity_key: str) -> dict[str, Any]:
+        try:
+            return self._instance_citation(entity_key)
+        except ExecutionContractError as exc:
+            if str(exc) != f"workflow instance missing: {entity_key}":
+                raise
+        return _citation(
+            "wf_instance+tasks",
+            f"wf_instance.entity_key={entity_key}",
+            "SELECT workflow instance and current task step by entity_key",
+            {"entity_key": entity_key, "found": False},
+        )
+
+    def _source_linkage_citation(
+        self, external_ids: list[str]
+    ) -> dict[str, Any]:
+        placeholders = ",".join("?" for _ in external_ids)
+        rows = self.conn.execute(
+            f"""
+            SELECT e.id, e.external_id, e.status, e.matched_task_id,
+                   i.entity_key
+              FROM wf_event e
+              LEFT JOIN wf_instance i ON i.task_id = e.matched_task_id
+             WHERE e.source = 'email'
+               AND e.external_id IN ({placeholders})
+             ORDER BY e.id
+            """,
+            tuple(external_ids),
+        ).fetchall()
+        return _citation(
+            "wf_event+wf_instance",
+            "wf_event.external_id in arc wire Message-IDs",
+            "SELECT email events and linked workflow instances by external_id",
+            {
+                "requested_external_ids": list(external_ids),
+                "rows": [
+                    {
+                        "id": int(row["id"]),
+                        "external_id": row["external_id"],
+                        "status": row["status"],
+                        "matched_task_id": row["matched_task_id"],
+                        "entity_key": row["entity_key"],
+                    }
+                    for row in rows
+                ],
+            },
+        )
+
     def _event_by_stable_keys(
         self,
         *,
@@ -918,26 +966,47 @@ class StagingHelper:
             seeds = payload.get("seeds")
             if not isinstance(seeds, list):
                 raise ExecutionContractError("observe_arc_final requires seeds")
-            if not seeds:
-                return self._response(
-                    ready=True,
-                    citations=[],
-                    observed={
-                        "evidence_status": "EVIDENCE-LIMITED",
-                        "instances": {},
-                    },
-                    durable={
-                        "event": "not_applicable",
-                        "instance": "not_applicable",
-                        "proposal": "not_applicable",
-                    },
+            expected_entity_keys = payload.get("expected_entity_keys")
+            if not isinstance(expected_entity_keys, list) or any(
+                not isinstance(value, str) or not value.strip()
+                for value in expected_entity_keys
+            ):
+                raise ExecutionContractError(
+                    "observe_arc_final requires expected_entity_keys"
                 )
-            citations = [
-                self._instance_citation(
-                    _text(_mapping(seed, "seed").get("entity_key"), "entity_key")
+            source_external_ids = payload.get("source_external_ids")
+            if not isinstance(source_external_ids, list) or not source_external_ids or any(
+                not isinstance(value, str) or not value.strip()
+                for value in source_external_ids
+            ):
+                raise ExecutionContractError(
+                    "observe_arc_final requires source_external_ids"
                 )
-                for seed in seeds
+            linkage_citation = self._source_linkage_citation(source_external_ids)
+            linked_entity_keys = [
+                row["entity_key"]
+                for row in linkage_citation["observed"]["rows"]
+                if row.get("entity_key")
             ]
+            entity_keys = list(
+                dict.fromkeys(
+                    [
+                        *(
+                            _text(
+                                _mapping(seed, "seed").get("entity_key"),
+                                "entity_key",
+                            )
+                            for seed in seeds
+                        ),
+                        *expected_entity_keys,
+                        *linked_entity_keys,
+                    ]
+                )
+            )
+            citations = [
+                self._instance_lookup_citation(entity_key) for entity_key in entity_keys
+            ]
+            citations.append(linkage_citation)
             observed = {
                 citation["observed"]["entity_key"]: {
                     "state": citation["observed"]["state"],
@@ -946,6 +1015,8 @@ class StagingHelper:
                     "vars": citation["observed"]["vars"],
                 }
                 for citation in citations
+                if citation["table"] == "wf_instance+tasks"
+                and citation["observed"].get("found") is not False
             }
             return self._response(
                 ready=True,
@@ -956,7 +1027,7 @@ class StagingHelper:
                 },
                 durable={
                     "event": "not_applicable",
-                    "instance": True,
+                    "instance": True if entity_keys else "not_applicable",
                     "proposal": "not_applicable",
                 },
             )
@@ -1337,7 +1408,11 @@ def _no_seed_citations(
         "instance": "not_applicable",
         "proposal": "not_applicable",
     }
-    if response.get("citations") != [] or response.get("durable") != expected_durable:
+    if (
+        response.get("ready") is not True
+        or response.get("citations") != []
+        or response.get("durable") != expected_durable
+    ):
         raise ExecutionContractError(f"{label}: invalid zero-seed evidence shape")
     return []
 
@@ -1773,6 +1848,14 @@ def execute_plan(
                 "campaign": "rp1",
                 "arc_id": arc_id,
                 "seeds": arc["seed_plan"],
+                "expected_entity_keys": [
+                    arc["expected_final"]["entity_key"]
+                ]
+                if isinstance(arc["expected_final"].get("entity_key"), str)
+                else [],
+                "source_external_ids": [
+                    email["wire_message_id"] for email in arc["emails"]
+                ],
             },
             timeout_seconds=settings.worker_timeout_seconds,
             poll_interval_seconds=settings.poll_interval_seconds,
@@ -1784,11 +1867,7 @@ def execute_plan(
         final_observed = final.get("observed")
         if not isinstance(final_observed, dict):
             raise ExecutionContractError(f"{arc_id}: final observation missing")
-        final_citations = (
-            _citations(final, f"{arc_id} final")
-            if arc["seed_plan"]
-            else _no_seed_citations(final, f"{arc_id} final")
-        )
+        final_citations = _citations(final, f"{arc_id} final")
         journal.append("arc_final_observed", arc_id=arc_id, observed=final_observed)
         _journal_citations(
             journal, final_citations, arc_id=arc_id, phase="arc_final"

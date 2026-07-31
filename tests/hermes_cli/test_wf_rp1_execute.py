@@ -326,19 +326,17 @@ class FakeRemote:
             )
         if action == "observe_arc_final":
             if payload["seeds"] == []:
+                instances = {
+                    entity_key: {"state": "observed"}
+                    for entity_key in payload["expected_entity_keys"]
+                }
                 response = _ready(
                     f"{payload['arc_id']}-final",
                     {
                         "evidence_status": "EVIDENCE-LIMITED",
-                        "instances": {},
+                        "instances": instances,
                     },
                 )
-                response["citations"] = []
-                response["durable"] = {
-                    "event": "not_applicable",
-                    "instance": "not_applicable",
-                    "proposal": "not_applicable",
-                }
                 return response
             return _ready(
                 f"{payload['arc_id']}-final",
@@ -397,9 +395,12 @@ def test_execute_uses_smtp_waits_and_runs_one_declared_probe(
     assert observed["evidence_status"] == "EVIDENCE-LIMITED"
     assert observed["evidence_limited_paths"] == list(campaign.EVIDENCE_LIMITS)
     assert len(observed["arcs"]) == 12
+    assert observed["arcs"]["RP1-A02"]["expected_final"]["instances"] == {
+        "job:RP1-JOB-0201": {"state": "observed"}
+    }
+    assert observed["arcs"]["RP1-A10"]["expected_final"]["instances"] == {}
     for arc_id in ("RP1-A02", "RP1-A10"):
-        assert observed["arcs"][arc_id]["expected_final"]["instances"] == {}
-        assert observed["arcs"][arc_id]["expected_final"]["_citations"] == []
+        assert observed["arcs"][arc_id]["expected_final"]["_citations"]
     assert observed["arcs"]["RP1-A08"]["state_probes"][0]["event_type"] == "gate_in"
     assert all(
         list(citation) == ["table", "identity", "query", "observed"]
@@ -734,6 +735,40 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
             "proposal": "not_applicable",
         }
 
+        a02 = next(arc for arc in plan["arcs"] if arc["id"] == "RP1-A02")
+        empty_final = helper.handle(
+            "observe_arc_final",
+            {
+                "arc_id": "RP1-A02",
+                "seeds": [],
+                "expected_entity_keys": ["job:RP1-JOB-0201"],
+                "source_external_ids": [
+                    email["wire_message_id"] for email in a02["emails"]
+                ],
+            },
+        )
+        assert empty_final["observed"]["instances"] == {}
+        assert any(
+            citation["table"] == "wf_instance+tasks"
+            and citation["observed"] == {
+                "entity_key": "job:RP1-JOB-0201",
+                "found": False,
+            }
+            for citation in empty_final["citations"]
+        )
+        linkage = next(
+            citation
+            for citation in empty_final["citations"]
+            if citation["table"] == "wf_event+wf_instance"
+        )
+        assert linkage["observed"]["rows"] == []
+
+        for action in ("seed_arc", "observe_seed"):
+            with pytest.raises(execute.ExecutionContractError, match="requires seeds"):
+                helper.handle(action, {"arc_id": "RP1-BAD", "seeds": None})
+        with pytest.raises(execute.ExecutionContractError, match="requires seeds"):
+            helper.handle("observe_arc_final", {"arc_id": "RP1-BAD"})
+
         seeded = helper.handle(
             "seed_arc",
             {"arc_id": "RP1-A08", "seeds": a08["seed_plan"]},
@@ -816,7 +851,14 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
 
         final = helper.handle(
             "observe_arc_final",
-            {"arc_id": "RP1-A08", "seeds": a08["seed_plan"]},
+            {
+                "arc_id": "RP1-A08",
+                "seeds": a08["seed_plan"],
+                "expected_entity_keys": [],
+                "source_external_ids": [
+                    email["wire_message_id"] for email in a08["emails"]
+                ],
+            },
         )
         assert final["ready"] is True
         assert final["observed"]["evidence_status"] == "EVIDENCE-LIMITED"
@@ -826,6 +868,37 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
         )
     finally:
         helper.close()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        {"ready": False},
+        {"citations": [_citation("unexpected")]},
+        {
+            "durable": {
+                "event": True,
+                "instance": "not_applicable",
+                "proposal": "not_applicable",
+            }
+        },
+    ],
+)
+def test_zero_seed_citation_exemption_rejects_shape_drift(
+    mutation: dict[str, Any],
+) -> None:
+    response = {
+        "ready": True,
+        "citations": [],
+        "durable": {
+            "event": "not_applicable",
+            "instance": "not_applicable",
+            "proposal": "not_applicable",
+        },
+    }
+    response.update(mutation)
+    with pytest.raises(execute.ExecutionContractError, match="zero-seed evidence"):
+        execute._no_seed_citations(response, "RP1-A02 seed")
 
 
 def test_staging_observe_email_returns_durable_declared_no_fit(
