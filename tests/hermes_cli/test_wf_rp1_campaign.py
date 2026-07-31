@@ -5,8 +5,42 @@ import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 from scripts import wf_rp1_campaign as campaign
+
+
+def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
+    document = yaml.safe_load(campaign.TEMPLATE_PATH.read_text(encoding="utf-8"))
+    workflow = document["workflow"]
+    contract = workflow["email_extraction"]
+
+    assert contract["schema"] == "synthetic-freight-email-event-v1"
+    assert set(contract["event_types"]) == {
+        "trucking_instruction",
+        "pickup_advice",
+        "container_assigned",
+        "vgm_reply",
+        "gate_in",
+    }
+    assert set(workflow["correlation_keys"]) == {
+        "booking_ref",
+        "job_no",
+        "container_no",
+    }
+    instruction = contract["instruction"]
+    assert "omit unknown values rather than guessing" in instruction
+    for undeclared_type in {
+        "booking_instruction",
+        "bill_of_lading_correction",
+        "carrier_delay_notice",
+        "status_chase",
+        "customer_escalation",
+        "gate_in_notice",
+        "gate_in_claim_forward",
+        "other",
+    }:
+        assert undeclared_type not in contract["event_types"]
 
 
 def test_plan_cli_is_offline_and_preserves_locked_contract(

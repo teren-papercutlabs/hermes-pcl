@@ -12,6 +12,82 @@ workflow:
   create_on:
     - type: trucking_instruction
       brief: synthetic_mail_ingest
+  email_extraction:
+    schema: synthetic-freight-email-event-v1
+    instruction: >-
+      Classify the persisted email as exactly one declared event type:
+      trucking_instruction, pickup_advice, container_assigned, vgm_reply, or
+      gate_in. Extract only facts explicitly present in the email. Return
+      correlation values only for the template correlation keys booking_ref,
+      job_no, and container_no; omit unknown values rather than guessing.
+    event_types:
+      trucking_instruction:
+        payload_fields:
+          - booking_ref
+          - customer
+          - direction
+          - equipment
+          - equipment_type
+          - origin
+          - destination
+          - route
+          - pickup_date
+          - vessel
+          - vessel_name
+      pickup_advice:
+        payload_fields:
+          - booking_ref
+          - job_no
+          - container_no
+          - customer
+          - empty_depot
+          - equipment_type
+          - pickup_date
+          - pickup_reference
+          - pickup_status
+          - pickup_window_start
+          - pickup_window_end
+          - depot_receipt_at
+          - driver_confirmed_at
+          - vessel
+          - vessel_name
+          - voyage
+      container_assigned:
+        payload_fields:
+          - booking_ref
+          - job_no
+          - container_no
+          - pickup_date
+          - vessel
+          - vessel_name
+          - voyage
+      vgm_reply:
+        payload_fields:
+          - booking_ref
+          - job_no
+          - container_no
+          - gross_mass_kg
+          - vgm_kg
+          - method
+          - vgm_method
+          - vgm_document_status
+          - submitted_at
+          - submitted_by
+          - weighing_ticket
+          - vessel_name
+          - voyage
+      gate_in:
+        payload_fields:
+          - booking_ref
+          - job_no
+          - container_no
+          - gate_in
+          - gate_in_at
+          - terminal
+          - terminal_receipt
+          - vgm_status
+          - vessel_name
+          - voyage
   steps:
     - key: ingest
       mode: propose
