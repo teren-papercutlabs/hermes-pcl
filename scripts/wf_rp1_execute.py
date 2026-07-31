@@ -41,6 +41,7 @@ RECIPIENT_ENV = "WF_RP1_RECIPIENT"
 STAGING_DB_ENV = "WF_RP1_STAGING_DB"
 SERVICE_PROOF_ENV = "WF_RP1_SERVICE_PROOF_PATH"
 SERVICE_NAME = "pa-workflow-dev-hermes.service"
+RP1_BOARD = "workflow-rp1"
 REMOTE_SSH_TARGET = "pa-staging@100.87.146.11"
 REMOTE_EXECUTOR_PATH = (
     "/home/pa-staging/apps/hermes-pcl/current/scripts/wf_rp1_execute.py"
@@ -49,7 +50,7 @@ REMOTE_PYTHON_PATH = (
     "/home/pa-staging/apps/hermes-pcl/current/.venv/bin/python"
 )
 REMOTE_STAGING_DB_PATH = (
-    "/home/pa-staging/.hermes-p0/kanban/boards/workflow/kanban.db"
+    "/home/pa-staging/.hermes-p0/kanban/boards/workflow-rp1/kanban.db"
 )
 REMOTE_SERVICE_PROOF_PATH = (
     "/home/pa-staging/.hermes-p0/kanban/wf-rp1-service-proof.json"
@@ -294,6 +295,35 @@ def _citation(
     }
 
 
+def _extraction_contract_evidence(contract: Mapping[str, Any]) -> dict[str, Any]:
+    event_types = contract.get("event_types")
+    correlation_keys = contract.get("correlation_keys")
+    disambiguators = contract.get("disambiguators")
+    instruction = contract.get("instruction")
+    if (
+        not isinstance(contract.get("schema"), str)
+        or not isinstance(event_types, Mapping)
+        or not isinstance(correlation_keys, list)
+        or not all(isinstance(key, str) and key for key in correlation_keys)
+        or not isinstance(disambiguators, list)
+        or not all(
+            isinstance(key, str) and key for key in disambiguators
+        )
+        or not isinstance(instruction, str)
+        or not instruction.strip()
+    ):
+        raise ExecutionContractError("email_extraction contract is incomplete")
+    canonical = wf_engine._json(dict(contract))
+    return {
+        "schema": contract["schema"],
+        "event_types": sorted(event_types),
+        "correlation_keys": list(correlation_keys),
+        "disambiguators": list(disambiguators),
+        "contract_sha256": _sha256_text(canonical),
+        "instruction_sha256": _sha256_text(instruction),
+    }
+
+
 class StagingHelper:
     """Tenant-neutral staging implementation over the real workflow engine."""
 
@@ -353,6 +383,8 @@ class StagingHelper:
             "environment": TARGET_ENVIRONMENT,
             "service": SERVICE_NAME,
             "database": str(self.db_path),
+            "ingress_board": RP1_BOARD,
+            "kanban_db_override": None,
         }
         for key, expected in required.items():
             if proof.get(key) != expected:
@@ -408,14 +440,18 @@ class StagingHelper:
              LIMIT 500
             """
         ).fetchall()
-        for row in rows:
-            payload = _json_object(row["payload"])
-            message_id = str(
-                payload.get("message_id")
-                or payload.get("Message-ID")
-                or row["external_id"]
-                or ""
-            )
+        parsed = [(row, _json_object(row["payload"])) for row in rows]
+        if wire_message_id:
+            for row, payload in parsed:
+                message_id = str(
+                    payload.get("message_id")
+                    or payload.get("Message-ID")
+                    or row["external_id"]
+                    or ""
+                )
+                if message_id == wire_message_id:
+                    return row, payload
+        for row, payload in parsed:
             subject = str(payload.get("subject") or "")
             headers = payload.get("headers")
             header_token = ""
@@ -425,8 +461,6 @@ class StagingHelper:
                     or headers.get("x-rp1-token")
                     or ""
                 )
-            if wire_message_id and message_id == wire_message_id:
-                return row, payload
             if subject_token and subject_token in subject:
                 return row, payload
             if subject_token and subject_token in json.dumps(
@@ -440,8 +474,19 @@ class StagingHelper:
     def _event_capture(
         self, row: sqlite3.Row, payload: dict[str, Any]
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        if not row["event_type"]:
-            raise ExecutionContractError("email event has null event_type")
+        if not row["event_type"] and row["status"] == "received":
+            raise ExecutionContractError(
+                "email event extraction is not yet durable"
+            )
+        if row["event_type"] is None:
+            extraction_disposition = (
+                "boundary-failure"
+                if row["status"] == "needs_review"
+                and row["matched_task_id"] is None
+                else "declared-no-fit"
+            )
+        else:
+            extraction_disposition = "classified"
         corr = _json_object(row["corr"])
         entity_key = None
         if row["matched_task_id"]:
@@ -476,6 +521,7 @@ class StagingHelper:
         )
         observed = {
             "event_type": row["event_type"],
+            "extraction_disposition": extraction_disposition,
             "payload": payload,
             "corr": corr,
             "correlation": {
@@ -505,14 +551,71 @@ class StagingHelper:
     def handle(self, action: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         if action == "preflight":
             proof = self._service_proof()
-            tick = wf_watcher.run_tick(self.conn, int(time.time()))
+            tick = wf_watcher.run_tick(
+                self.conn, int(time.time()), extract_email=False
+            )
+            expected_extraction = self.workflow.get("email_extraction")
+            resolved_extraction = wf_watcher.resolve_email_extraction_brief(self.conn)
+            if not isinstance(expected_extraction, dict):
+                raise ExecutionContractError(
+                    "workflow fixture has no email_extraction contract"
+                )
+            if resolved_extraction is None:
+                raise ExecutionContractError(
+                    "registered email_extraction contract is absent or ambiguous"
+                )
+            if resolved_extraction != expected_extraction:
+                raise ExecutionContractError(
+                    "registered email_extraction contract differs from fixture"
+                )
+            assert isinstance(resolved_extraction, dict)
             template = self.conn.execute(
-                "SELECT slug, version, content_hash FROM wf_template "
+                "SELECT slug, version, content_hash, spec FROM wf_template "
                 "WHERE slug = ? ORDER BY version DESC LIMIT 1",
                 (self.workflow["id"],),
             ).fetchone()
             if template is None:
                 raise ExecutionContractError("workflow template is not registered")
+            template_count = int(
+                self.conn.execute(
+                    "SELECT COUNT(*) AS count FROM wf_template"
+                ).fetchone()["count"]
+            )
+            if template_count != 1:
+                raise ExecutionContractError(
+                    "fresh RP1 staging board contains another workflow template"
+                )
+            registered_spec = wf_engine._load_json(template["spec"], None)
+            registered_workflow = (
+                wf_engine._workflow_spec(registered_spec)
+                if isinstance(registered_spec, dict)
+                else {}
+            )
+            registered_correlation_keys = registered_workflow.get(
+                "correlation_keys"
+            )
+            if not isinstance(registered_correlation_keys, list):
+                raise ExecutionContractError(
+                    "registered workflow correlation_keys are missing"
+                )
+            registered_extraction = registered_workflow.get("email_extraction")
+            if registered_extraction != expected_extraction:
+                raise ExecutionContractError(
+                    "latest RP1 template email_extraction differs from fixture"
+                )
+            extraction_evidence = _extraction_contract_evidence(
+                resolved_extraction
+            )
+            if extraction_evidence["correlation_keys"] != registered_correlation_keys:
+                raise ExecutionContractError(
+                    "email_extraction correlation_keys differ from workflow"
+                )
+            if extraction_evidence["disambiguators"] != registered_workflow.get(
+                "disambiguators"
+            ):
+                raise ExecutionContractError(
+                    "email_extraction disambiguators differ from workflow"
+                )
             citations = [
                 _citation(
                     "runtime_service_proof",
@@ -524,7 +627,20 @@ class StagingHelper:
                     "wf_template",
                     f"wf_template.slug={template['slug']}@{template['version']}",
                     "SELECT latest registered workflow template",
-                    dict(template),
+                    {
+                        "slug": template["slug"],
+                        "version": int(template["version"]),
+                        "content_hash": template["content_hash"],
+                    },
+                ),
+                _citation(
+                    "wf_template",
+                    (
+                        f"wf_template.slug={template['slug']}@{template['version']}"
+                        ".email_extraction"
+                    ),
+                    "resolve the sole registered email_extraction contract",
+                    extraction_evidence,
                 ),
                 _citation(
                     "wf_watcher.run_tick",
@@ -544,6 +660,7 @@ class StagingHelper:
                 service_identity=proof["service"],
                 deployed_release=proof["deployed_release"],
                 watcher_healthy=healthy,
+                extraction_contract_ready=True,
             )
 
         if action in {"seed_arc", "observe_seed"}:
@@ -614,7 +731,7 @@ class StagingHelper:
             if match is None:
                 return self._response(ready=False, citations=[])
             row, event_payload = match
-            if not row["event_type"]:
+            if not row["event_type"] and row["status"] == "received":
                 if action == "observe_preflight":
                     ingress = {
                         "from": event_payload.get("sender_addr")
@@ -733,7 +850,9 @@ class StagingHelper:
 
             wf_watcher.register_state_probe(tenant, probe, read_only=True)
             try:
-                tick = wf_watcher.run_tick(self.conn, int(time.time()))
+                tick = wf_watcher.run_tick(
+                    self.conn, int(time.time()), extract_email=False
+                )
             finally:
                 wf_watcher.unregister_state_probe(tenant)
             row = self.conn.execute(
@@ -1096,8 +1215,22 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
         raise ExecutionContractError(
             f"{label}: observed capture missing scorable keys {missing}"
         )
-    if not isinstance(observed["event_type"], str) or not observed["event_type"]:
-        raise ExecutionContractError(f"{label}: event_type must be non-empty")
+    if observed["event_type"] is not None and (
+        not isinstance(observed["event_type"], str)
+        or not observed["event_type"]
+    ):
+        raise ExecutionContractError(
+            f"{label}: event_type must be non-empty or null"
+        )
+    null_disposition = observed.get("extraction_disposition")
+    durable_null = (
+        observed["event_type"] is None
+        and null_disposition in {"declared-no-fit", "boundary-failure"}
+    )
+    if observed["event_type"] is None and not durable_null:
+        raise ExecutionContractError(
+            f"{label}: null event_type needs a durable extraction disposition"
+        )
     for key in ("payload", "corr", "correlation", "agent_action"):
         value = observed[key]
         if not isinstance(value, Mapping):
@@ -1107,7 +1240,7 @@ def _validate_observed(observed: Mapping[str, Any], label: str) -> None:
                 raise ExecutionContractError(
                     f"{label}: evidence-limited {key} needs a reason"
                 )
-        elif not value:
+        elif not value and not (durable_null and key in {"payload", "corr"}):
             raise ExecutionContractError(
                 f"{label}: {key} must contain observed fields or an "
                 "EVIDENCE-LIMITED marker"
@@ -1127,6 +1260,42 @@ def _citations(response: Mapping[str, Any], label: str) -> list[dict[str, Any]]:
         ):
             raise ExecutionContractError(f"{label}: invalid P5a citation shape")
     return _clone(citations)
+
+
+def _require_extraction_contract_citation(
+    citations: list[dict[str, Any]],
+) -> None:
+    document = yaml.safe_load(
+        campaign_lib.TEMPLATE_PATH.read_text(encoding="utf-8")
+    )
+    workflow = _mapping(document, "workflow fixture").get("workflow")
+    if not isinstance(workflow, dict):
+        raise ExecutionContractError("workflow fixture has no workflow object")
+    contract = workflow.get("email_extraction")
+    if not isinstance(contract, dict):
+        raise ExecutionContractError("workflow fixture has no email_extraction")
+    expected = _extraction_contract_evidence(contract)
+    expected_identity_prefix = f"wf_template.slug={workflow['id']}@"
+    matching = [
+        citation
+        for citation in citations
+        if citation["identity"].startswith(expected_identity_prefix)
+        and citation["identity"].endswith(".email_extraction")
+        and citation["observed"] == expected
+    ]
+    if len(matching) != 1:
+        raise ExecutionContractError(
+            "preflight did not cite the exact registered email_extraction contract"
+        )
+    extraction_identity = matching[0]["identity"]
+    template_identity = extraction_identity.removesuffix(".email_extraction")
+    if not any(
+        citation["identity"] == template_identity
+        for citation in citations
+    ):
+        raise ExecutionContractError(
+            "preflight extraction citation version is not bound to template"
+        )
 
 
 def _durable_ready(response: Mapping[str, Any]) -> bool:
@@ -1226,16 +1395,20 @@ def execute_plan(
         or not isinstance(preflight.get("deployed_release"), str)
         or not preflight["deployed_release"]
         or preflight.get("watcher_healthy") is not True
+        or preflight.get("extraction_contract_ready") is not True
     ):
         raise ExecutionContractError(
-            "remote preflight did not prove service, release, and watcher health"
+            "remote preflight did not prove service, release, watcher health, "
+            "and extraction contract"
         )
     all_citations = _citations(preflight, "preflight")
+    _require_extraction_contract_citation(all_citations)
     journal.append(
         "remote_preflight_observed",
         service_identity=preflight.get("service_identity"),
         deployed_release=preflight.get("deployed_release"),
         watcher_healthy=preflight.get("watcher_healthy"),
+        extraction_contract_ready=preflight.get("extraction_contract_ready"),
     )
     _journal_citations(journal, all_citations, phase="remote_preflight")
 

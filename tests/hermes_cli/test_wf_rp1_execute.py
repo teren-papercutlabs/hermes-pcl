@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from scripts import wf_rp1_campaign as campaign
 from scripts import wf_rp1_execute as execute
@@ -182,16 +183,47 @@ class FakeRemote:
         self.email_attempts: dict[str, int] = {}
         self.locked = campaign.load_locked_campaign()
 
+    @staticmethod
+    def _extraction_citation() -> dict[str, Any]:
+        document = yaml.safe_load(campaign.TEMPLATE_PATH.read_text())
+        workflow = document["workflow"]
+        return {
+            "table": "wf_template",
+            "identity": (
+                f"wf_template.slug={workflow['id']}@1.email_extraction"
+            ),
+            "query": "resolve the sole registered email_extraction contract",
+            "observed": execute._extraction_contract_evidence(
+                workflow["email_extraction"]
+            ),
+        }
+
+    @staticmethod
+    def _template_citation() -> dict[str, Any]:
+        document = yaml.safe_load(campaign.TEMPLATE_PATH.read_text())
+        workflow = document["workflow"]
+        return {
+            "table": "wf_template",
+            "identity": f"wf_template.slug={workflow['id']}@1",
+            "query": "SELECT latest registered workflow template",
+            "observed": {"slug": workflow["id"], "version": 1},
+        }
+
     def request(self, action: str, payload: Any) -> dict[str, Any]:
         payload = dict(payload)
         self.calls.append((action, payload))
         if action == "preflight":
-            return {
+            response = {
                 **_ready("preflight"),
                 "service_identity": execute.SERVICE_NAME,
                 "deployed_release": "test-release",
                 "watcher_healthy": True,
+                "extraction_contract_ready": True,
             }
+            response["citations"].extend(
+                [self._template_citation(), self._extraction_citation()]
+            )
+            return response
         if action == "observe_preflight":
             return _ready(
                 "preflight-email",
@@ -337,6 +369,90 @@ def test_execute_uses_smtp_waits_and_runs_one_declared_probe(
     )
 
 
+def test_execute_refuses_remote_preflight_without_extraction_contract(
+    tmp_path: Path,
+) -> None:
+    class MissingContractRemote(FakeRemote):
+        def request(
+            self, action: str, payload: dict[str, object]
+        ) -> dict[str, object]:
+            response = super().request(action, payload)
+            if action == "preflight":
+                response["extraction_contract_ready"] = False
+            return response
+
+    settings = execute.ExecutionSettings(
+        target=execute.TARGET_SYSTEM,
+        environment=execute.TARGET_ENVIRONMENT,
+        recipient="workflow+allied-workflow-staging@example.test",
+        smtp_user="dorm1@example.test",
+        smtp_password="never-output",
+        poll_interval_seconds=0.01,
+        ingress_timeout_seconds=5,
+        worker_timeout_seconds=5,
+        pacing_seconds=0.01,
+    )
+    smtp = FakeSMTPIngress()
+    with pytest.raises(
+        execute.ExecutionContractError,
+        match="extraction contract",
+    ):
+        execute.execute_plan(
+            _plan(),
+            settings=settings,
+            remote=MissingContractRemote(),
+            smtp=smtp,  # type: ignore[arg-type]
+            journal=execute.ExecutionJournal(
+                tmp_path / "rp1-journal.jsonl", resume=False
+            ),
+        )
+    assert smtp.sent == []
+
+
+def test_execute_refuses_uncited_extraction_contract(
+    tmp_path: Path,
+) -> None:
+    class UncitedContractRemote(FakeRemote):
+        def request(
+            self, action: str, payload: dict[str, object]
+        ) -> dict[str, object]:
+            response = super().request(action, payload)
+            if action == "preflight":
+                response["citations"] = [
+                    citation
+                    for citation in response["citations"]
+                    if not citation["identity"].endswith(".email_extraction")
+                ]
+            return response
+
+    settings = execute.ExecutionSettings(
+        target=execute.TARGET_SYSTEM,
+        environment=execute.TARGET_ENVIRONMENT,
+        recipient="workflow+allied-workflow-staging@example.test",
+        smtp_user="dorm1@example.test",
+        smtp_password="never-output",
+        poll_interval_seconds=0.01,
+        ingress_timeout_seconds=5,
+        worker_timeout_seconds=5,
+        pacing_seconds=0.01,
+    )
+    smtp = FakeSMTPIngress()
+    with pytest.raises(
+        execute.ExecutionContractError,
+        match="did not cite the exact registered",
+    ):
+        execute.execute_plan(
+            _plan(),
+            settings=settings,
+            remote=UncitedContractRemote(),
+            smtp=smtp,  # type: ignore[arg-type]
+            journal=execute.ExecutionJournal(
+                tmp_path / "rp1-journal.jsonl", resume=False
+            ),
+        )
+    assert smtp.sent == []
+
+
 def test_missing_citations_fail_closed() -> None:
     response = _ready("x")
     response["citations"] = []
@@ -472,6 +588,8 @@ def _service_proof(tmp_path: Path, db_path: Path) -> Path:
                 "environment": execute.TARGET_ENVIRONMENT,
                 "service": execute.SERVICE_NAME,
                 "database": str(db_path.resolve()),
+                "ingress_board": execute.RP1_BOARD,
+                "kanban_db_override": None,
                 "deployed_release": "test-release-123",
                 "executor_sha256": execute.hashlib.sha256(
                     Path(execute.__file__).read_bytes()
@@ -492,6 +610,20 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
         assert preflight["ready"] is True
         assert preflight["service_identity"] == execute.SERVICE_NAME
         assert preflight["watcher_healthy"] is True
+        assert preflight["extraction_contract_ready"] is True
+        extraction_citation = next(
+            citation
+            for citation in preflight["citations"]
+            if str(citation["identity"]).endswith(".email_extraction")
+        )
+        assert extraction_citation["observed"]["schema"] == (
+            "synthetic-freight-email-event-v1"
+        )
+        assert extraction_citation["observed"]["correlation_keys"] == [
+            "container_no",
+            "job_no",
+            "booking_ref",
+        ]
 
         seeded = helper.handle(
             "seed_arc",
@@ -583,6 +715,126 @@ def test_staging_helper_uses_real_workflow_primitives(tmp_path: Path) -> None:
             isinstance(citation["identity"], str)
             for citation in final["citations"]
         )
+    finally:
+        helper.close()
+
+
+def test_staging_observe_email_returns_durable_declared_no_fit(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    helper = execute.StagingHelper(db_path, _service_proof(tmp_path, db_path))
+    try:
+        event_id = execute.wf_engine.ingest_event(
+            helper.conn,
+            source="email",
+            external_id="<noise@rp1.synthetic.test>",
+            payload={
+                "message_id": "<noise@rp1.synthetic.test>",
+                "subject": "[RP1-NOISE] cafeteria menu",
+                "body_ref": "/synthetic/noise.txt",
+            },
+            corr={},
+            event_type=None,
+        )
+        assert event_id is not None
+        helper.conn.execute(
+            "UPDATE wf_event SET status = 'unmatched', payload = '{}' WHERE id = ?",
+            (event_id,),
+        )
+
+        response = helper.handle(
+            "observe_email",
+            {
+                "wire_message_id": "<noise@rp1.synthetic.test>",
+                "subject_token": "RP1-NOISE",
+                "x_rp1_token": None,
+            },
+        )
+
+        assert response["ready"] is True
+        assert response["observed"]["event_type"] is None
+        assert response["observed"]["payload"] == {}
+        assert response["observed"]["corr"] == {}
+        assert (
+            response["observed"]["extraction_disposition"]
+            == "declared-no-fit"
+        )
+        assert execute._citations(response, "declared no-fit")
+    finally:
+        helper.close()
+
+
+def test_staging_observe_email_distinguishes_extraction_boundary_failure(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    helper = execute.StagingHelper(db_path, _service_proof(tmp_path, db_path))
+    try:
+        event_id = execute.wf_engine.ingest_event(
+            helper.conn,
+            source="email",
+            external_id="<broken@rp1.synthetic.test>",
+            payload={
+                "message_id": "<broken@rp1.synthetic.test>",
+                "subject": "[RP1-BROKEN] extractor failed",
+                "body_ref": "/synthetic/broken.txt",
+            },
+            corr={},
+            event_type=None,
+        )
+        assert event_id is not None
+        helper.conn.execute(
+            "UPDATE wf_event SET status = 'needs_review' WHERE id = ?",
+            (event_id,),
+        )
+
+        response = helper.handle(
+            "observe_email",
+            {
+                "wire_message_id": "<broken@rp1.synthetic.test>",
+                "subject_token": "RP1-BROKEN",
+                "x_rp1_token": None,
+            },
+        )
+
+        assert response["ready"] is True
+        assert response["observed"]["event_type"] is None
+        assert response["observed"]["extraction_disposition"] == "boundary-failure"
+        score = campaign.score_answer_key(
+            {"event_type": "pickup_advice", "payload": {}, "corr": {}},
+            response["observed"],
+        )
+        assert "engine-defect" in score["miss_taxonomy"]
+        assert score["extraction_disposition"] == "boundary-failure"
+    finally:
+        helper.close()
+
+
+def test_staging_preflight_refuses_ambiguous_extraction_contracts(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "workflow.db"
+    helper = execute.StagingHelper(db_path, _service_proof(tmp_path, db_path))
+    conflicting = {
+        "id": "conflicting-email-flow",
+        "entity": "case",
+        "correlation_keys": ["case_ref"],
+        "disambiguators": [],
+        "create_on": [],
+        "email_extraction": {
+            "schema": "conflicting-email-v1",
+            "instruction": "Extract a conflicting fixture event.",
+        },
+        "steps": [{"key": "start"}],
+    }
+    try:
+        execute.wf_engine.register_template(helper.conn, conflicting)
+        with pytest.raises(
+            execute.ExecutionContractError,
+            match="email_extraction contract is absent or ambiguous",
+        ):
+            helper.handle("preflight", {})
     finally:
         helper.close()
 

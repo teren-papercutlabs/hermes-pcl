@@ -680,6 +680,53 @@ def test_repeating_non_chase_timer_is_rejected(tmp_path, monkeypatch):
     conn.close()
 
 
+def test_email_extraction_resolver_uses_latest_version_per_template(
+    tmp_path,
+) -> None:
+    conn = kanban_db.connect(tmp_path / "workflow.sqlite")
+    old_brief = {
+        "schema": "email-observation-v1",
+        "instruction": "Old extraction contract.",
+    }
+    latest_brief = {
+        "schema": "email-observation-v2",
+        "instruction": "Current extraction contract.",
+    }
+    try:
+        wf_engine.register_template(conn, _spec(email_extraction=old_brief))
+        wf_engine.register_template(conn, _spec(email_extraction=latest_brief))
+
+        assert wf_watcher.resolve_email_extraction_brief(conn) == latest_brief
+    finally:
+        conn.close()
+
+
+def test_tick_can_skip_email_extraction_without_poisoning_raw_intake(
+    tmp_path,
+) -> None:
+    conn = kanban_db.connect(tmp_path / "workflow.sqlite")
+    try:
+        event_id = wf_engine.ingest_event(
+            conn,
+            source="email",
+            external_id="raw-message@example.test",
+            payload={"body_ref": "/tenant-neutral/raw-message.txt"},
+            corr={},
+            event_type=None,
+        )
+        assert event_id is not None
+
+        wf_watcher.run_tick(conn, NOW, extract_email=False)
+
+        row = conn.execute(
+            "SELECT status, event_type FROM wf_event WHERE id = ?",
+            (event_id,),
+        ).fetchone()
+        assert dict(row) == {"status": "received", "event_type": None}
+    finally:
+        conn.close()
+
+
 def test_raw_email_is_extracted_from_template_before_sweep_and_deduped(
     tmp_path, monkeypatch
 ):

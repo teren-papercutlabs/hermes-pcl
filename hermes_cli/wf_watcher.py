@@ -231,9 +231,14 @@ def _drive_matched_event(
 
 
 def resolve_email_extraction_brief(conn: sqlite3.Connection) -> dict | str | None:
-    """Resolve the sole catalog extraction contract; never inspect instances."""
+    """Resolve the sole latest-per-template extraction contract."""
     contracts: dict[str, dict | str] = {}
-    for row in conn.execute("SELECT spec FROM wf_template ORDER BY slug, version").fetchall():
+    latest_by_slug: dict[str, sqlite3.Row] = {}
+    for row in conn.execute(
+        "SELECT slug, version, spec FROM wf_template ORDER BY slug, version DESC"
+    ).fetchall():
+        latest_by_slug.setdefault(row["slug"], row)
+    for row in latest_by_slug.values():
         try:
             spec = wf_engine._load_json(row["spec"], None)
             workflow = wf_engine._workflow_spec(spec) if isinstance(spec, dict) else {}
@@ -371,6 +376,7 @@ def run_tick(
     *,
     email_extractor: Callable[[dict | str, Mapping[str, Any]], dict] | None = None,
     email_schema_validator: Any = None,
+    extract_email: bool = True,
 ) -> WatchTickResult:
     """Run one complete timer/probe/sweeper cycle against one board."""
 
@@ -447,7 +453,8 @@ def run_tick(
             if _drive_matched_event(conn, event_id):
                 applied.append(event_id)
 
-    _extract_raw_email_events(conn, extractor_boundary)
+    if extract_email:
+        _extract_raw_email_events(conn, extractor_boundary)
     swept = _sweep_after_email_extraction(conn, int(now))
     # ``sweep`` classifies before returning.  Include every durable
     # non-create match, not only matches produced in this process, so a

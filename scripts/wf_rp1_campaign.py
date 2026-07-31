@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[1]
 ROLEPLAY_DIR = ROOT / "specs/2026-07-29-allied-carbon-agent/roleplay"
 TEMPLATE_PATH = ROOT / "tests/fixtures/workflow/synthetic_allied_like.yaml"
@@ -286,7 +285,7 @@ def build_campaign_plan(
         "workflow_template": {
             "path": str(TEMPLATE_PATH.relative_to(ROOT)),
             "sha256": _sha256(TEMPLATE_PATH),
-            "mutation": "unchanged",
+            "template_artifact_edited_during_execution": False,
         },
         "orchestration": {
             "smtp_host": smtp_host,
@@ -382,7 +381,32 @@ def score_answer_key(
     overall = "fail" if "fail" in statuses.values() else (
         "evidence-limited" if "evidence-limited" in statuses.values() else "pass"
     )
-    return {"status": overall, "section_status": statuses, "sections": sections}
+    disposition = observed.get("extraction_disposition")
+    if not observed:
+        disposition = "not-observed"
+    elif disposition not in {
+        "classified",
+        "declared-no-fit",
+        "boundary-failure",
+    }:
+        disposition = "unclassified"
+    taxonomies: list[str] = []
+    if disposition in {"not-observed", "boundary-failure"}:
+        taxonomies.append("engine-defect")
+    else:
+        if statuses["extraction"] == "fail":
+            taxonomies.append("extraction")
+        if statuses["correlation"] == "fail":
+            taxonomies.append("correlation")
+        if statuses["action"] == "fail":
+            taxonomies.append("decision")
+    return {
+        "status": overall,
+        "section_status": statuses,
+        "sections": sections,
+        "extraction_disposition": disposition,
+        "miss_taxonomy": taxonomies,
+    }
 
 
 def score_campaign(

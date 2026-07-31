@@ -5,8 +5,49 @@ import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 from scripts import wf_rp1_campaign as campaign
+
+
+def test_workflow_fixture_declares_bounded_email_extraction_contract() -> None:
+    document = yaml.safe_load(campaign.TEMPLATE_PATH.read_text(encoding="utf-8"))
+    workflow = document["workflow"]
+    contract = workflow["email_extraction"]
+    declared_types = {
+        "trucking_instruction",
+        "pickup_advice",
+        "container_assigned",
+        "vgm_reply",
+        "gate_in",
+    }
+
+    assert contract["schema"] == "synthetic-freight-email-event-v1"
+    assert set(contract["event_types"]) == declared_types
+    assert set(workflow["correlation_keys"]) == {
+        "booking_ref",
+        "job_no",
+        "container_no",
+    }
+    assert set(contract["correlation_keys"]) == set(workflow["correlation_keys"])
+    instruction = contract["instruction"]
+    assert "Omit unknown values rather than guessing" in instruction
+    assert "return a null event_type and an empty corr object" in instruction
+    for undeclared_type in {
+        "booking_instruction",
+        "bill_of_lading_correction",
+        "carrier_delay_notice",
+        "status_chase",
+        "customer_escalation",
+        "gate_in_notice",
+        "gate_in_claim_forward",
+        "other",
+    }:
+        assert undeclared_type not in contract["event_types"]
+        assert undeclared_type not in instruction
+
+    assert all(config == {} for config in contract["event_types"].values())
+    assert "payload_fields" not in json.dumps(contract, sort_keys=True)
 
 
 def test_plan_cli_is_offline_and_preserves_locked_contract(
@@ -34,7 +75,10 @@ def test_plan_cli_is_offline_and_preserves_locked_contract(
     assert plan["network_performed"] is False
     assert plan["database_mutated"] is False
     assert plan["population"] == {"arcs": 12, "emails": 25, "probes": 1}
-    assert plan["workflow_template"]["mutation"] == "unchanged"
+    assert (
+        plan["workflow_template"]["template_artifact_edited_during_execution"]
+        is False
+    )
     assert plan["orchestration"]["smtp_host"] == "smtp.invalid"
     assert plan["orchestration"]["remote_db"] == "ssh://staging.invalid/db"
     assert plan["orchestration"]["worker_profile"] == "dorm1"
@@ -137,6 +181,43 @@ def test_answer_key_scoring_fails_observable_mismatch() -> None:
         "correlation": "pass",
         "action": "fail",
     }
+
+
+def test_answer_key_scoring_labels_declared_no_fit_as_extraction_miss() -> None:
+    result = campaign.score_answer_key(
+        {
+            "event_type": "status_chase",
+            "payload": {"booking_ref": "BK-1"},
+            "corr": {"booking_ref": "BK-1"},
+        },
+        {
+            "event_type": None,
+            "extraction_disposition": "declared-no-fit",
+            "payload": {"booking_ref": "BK-1"},
+            "corr": {},
+            "correlation": {"verdict": "unmatched"},
+            "agent_action": {
+                "evidence_status": "EVIDENCE-LIMITED",
+                "reason": "no durable proposal for a declared no-fit event",
+            },
+        },
+    )
+
+    assert result["status"] == "fail"
+    assert result["section_status"]["extraction"] == "fail"
+    assert result["extraction_disposition"] == "declared-no-fit"
+    assert result["miss_taxonomy"] == ["extraction"]
+
+
+def test_answer_key_scoring_does_not_invent_no_fit_for_missing_observation() -> None:
+    result = campaign.score_answer_key(
+        {"event_type": "status_chase", "payload": {}, "corr": {}},
+        {},
+    )
+
+    assert result["extraction_disposition"] == "not-observed"
+    assert "engine-defect" in result["miss_taxonomy"]
+    assert result["extraction_disposition"] != "declared-no-fit"
 
 
 def test_p5a_citation_format() -> None:
