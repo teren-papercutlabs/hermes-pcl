@@ -244,3 +244,141 @@ def test_workflow_ingress_defaults_to_workflow_board_and_ignores_duplicate_resul
     rows = _workflow_rows()
     assert len(rows) == 1
     assert json.loads(rows[0]["payload"]) == envelope
+
+
+def test_embedded_watcher_extracts_ingressed_email_before_matching(
+    isolated_email_env, monkeypatch
+):
+    """Consumer path: gateway ingress -> embedded tick -> engine outcome."""
+    from hermes_cli import wf_engine
+
+    runner = _runner()
+    conn = kanban_db.connect(board="workflow")
+    template = {
+        "id": "email-ingress-flow",
+        "entity": "case",
+        "correlation_keys": ["case"],
+        "disambiguators": [],
+        "create_on": [],
+        "email_extraction": {
+            "schema": "email-reply-v1",
+            "instruction": "Classify the persisted email into a typed reply.",
+        },
+        "steps": [
+            {"key": "start", "advance_to": "waiting"},
+            {
+                "key": "waiting",
+                "waits": [{
+                    "kind": "event", "types": ["reply"],
+                    "schema": "email-reply-v1", "advance_to": "done",
+                }],
+            },
+            {"key": "done"},
+        ],
+    }
+    try:
+        template_id, _ = wf_engine.register_template(conn, template)
+        task_id = wf_engine.create_instance(
+            conn, template_id=template_id, entity_key="case-live",
+            corr={"case": "live"}, vars={}, source_event_id=None,
+        )
+        setup = wf_engine.ingest_event(
+            conn, source="synthetic", external_id="setup", payload={}, corr={}, event_type="setup",
+        )
+        assert setup is not None
+        wf_engine.advance(conn, task_id, to_step="waiting", event_id=setup)
+    finally:
+        conn.close()
+
+    isolated_email_env.mkdir(parents=True, exist_ok=True)
+    body_path = isolated_email_env / "mail-body.txt"
+    body_path.write_text("CASE=live", encoding="utf-8")
+    runner._ingest_email_workflow_event(
+        {"source": "email", "external_id": "<live@example.test>", "body_ref": str(body_path)}
+    )
+    observed = []
+
+    def extract(brief, event):
+        observed.append((brief, event))
+        assert brief == template["email_extraction"]
+        assert "candidates" not in event
+        return {
+            "event_type": "reply", "payload": {"result": "accepted"},
+            "corr": {"case": "live"},
+        }
+
+    runner._extract_workflow_email = extract
+    runner._validate_workflow_email_payload = (  # type: ignore[method-assign]
+        lambda schema, payload: schema == "email-reply-v1" and payload == {"result": "accepted"}
+    )
+    monkeypatch.setattr(kanban_db, "list_boards", lambda include_archived=False: [{"slug": "workflow"}])
+    runner._running = True
+    real_sleep = asyncio.sleep
+
+    async def stop_after_tick(delay):
+        if delay == 5:
+            return None
+        runner._running = False
+        await real_sleep(0)
+
+    monkeypatch.setattr(asyncio, "sleep", stop_after_tick)
+    asyncio.run(runner._wf_watcher(interval=1))
+
+    conn = kanban_db.connect(board="workflow")
+    try:
+        row = conn.execute(
+            "SELECT event_type, status, matched_task_id FROM wf_event WHERE source = 'email'"
+        ).fetchone()
+        assert tuple(row) == ("reply", "applied", task_id)
+        assert conn.execute(
+            "SELECT current_step_key FROM tasks WHERE id = ?", (task_id,)
+        ).fetchone()[0] == "done"
+    finally:
+        conn.close()
+    assert len(observed) == 1
+
+
+def test_gateway_email_extractor_uses_configured_auxiliary_runtime(
+    isolated_email_env, monkeypatch
+):
+    """The live extractor uses the host auxiliary slot, never a second client."""
+    from agent import auxiliary_client
+
+    body_path = isolated_email_env / "workflow" / "ingress" / "email" / "bodies" / "body.txt"
+    body_path.parent.mkdir(parents=True, exist_ok=True)
+    body_path.write_text("typed input", encoding="utf-8")
+    calls = {}
+
+    class Completions:
+        def create(self, **kwargs):
+            calls.update(kwargs)
+            return SimpleNamespace(
+                choices=[SimpleNamespace(
+                    message=SimpleNamespace(content=json.dumps({
+                        "event_type": "reply", "payload": {"result": "ok"}, "corr": {"case": "one"},
+                    }))
+                )]
+            )
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+    monkeypatch.setattr(
+        auxiliary_client, "get_text_auxiliary_client", lambda task: (client, "host-aux-model")
+    )
+    monkeypatch.setattr(auxiliary_client, "get_auxiliary_extra_body", lambda: {})
+    monkeypatch.setattr(auxiliary_client, "auxiliary_max_tokens_param", lambda n: {"max_tokens": n})
+
+    extracted = _runner()._extract_workflow_email(
+        {"schema": "email-reply-v1", "instruction": "return a typed reply"},
+        {
+            "payload": {
+                "body_ref": str(body_path), "external_id": "<one@example.test>",
+                "sender": "user@example.test", "subject": "status",
+            }
+        },
+    )
+    assert extracted == {"event_type": "reply", "payload": {"result": "ok"}, "corr": {"case": "one"}}
+    assert calls["model"] == "host-aux-model"
+    assert calls["response_format"] == {"type": "json_object"}
+    assert calls["max_tokens"] == 800
+    assert "return a typed reply" in calls["messages"][1]["content"]
+    assert "candidates" not in calls["messages"][1]["content"]

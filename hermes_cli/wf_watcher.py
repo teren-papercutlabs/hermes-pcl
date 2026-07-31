@@ -229,6 +229,25 @@ def _drive_matched_event(
         return True
 
 
+
+def resolve_email_extraction_brief(conn: sqlite3.Connection) -> dict | str | None:
+    """Resolve the sole catalog extraction contract; never inspect instances."""
+    contracts: dict[str, dict | str] = {}
+    for row in conn.execute("SELECT spec FROM wf_template ORDER BY slug, version").fetchall():
+        try:
+            spec = wf_engine._load_json(row["spec"], None)
+            workflow = wf_engine._workflow_spec(spec) if isinstance(spec, dict) else {}
+            if "email_extraction" not in workflow:
+                continue
+            brief = workflow["email_extraction"]
+            if not isinstance(brief, (dict, str)):
+                return None
+            wf_engine._extraction_schema(brief)
+            contracts[wf_engine._json(brief)] = brief
+        except Exception:
+            return None
+    return next(iter(contracts.values())) if len(contracts) == 1 else None
+
 def _raw_received_email_events(
     conn: sqlite3.Connection,
 ) -> tuple[sqlite3.Row, ...]:
@@ -349,8 +368,20 @@ def run_tick(
     conn: sqlite3.Connection,
     now: int,
     extractor_boundary: ExtractorBoundary | None = None,
+    *,
+    email_extractor: Callable[[dict | str, Mapping[str, Any]], dict] | None = None,
+    email_schema_validator: Any = None,
 ) -> WatchTickResult:
     """Run one complete timer/probe/sweeper cycle against one board."""
+
+    # Compatibility seam for existing host callers while they move to the
+    # explicit boundary. The brief remains catalog-derived here.
+    if extractor_boundary is None and email_extractor is not None:
+        extractor_boundary = lambda _event: ExtractionRequest(
+            brief=resolve_email_extraction_brief(conn) or {},
+            extractor=email_extractor,
+            schema_validator=email_schema_validator,
+        )
 
     timers = tuple(wf_engine.fire_due_timers(conn, int(now)))
     pending_timers = tuple(
