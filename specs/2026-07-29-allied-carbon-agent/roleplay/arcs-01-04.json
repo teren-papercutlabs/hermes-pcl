@@ -89,16 +89,15 @@
               "verdict": "matched",
               "target": "RP1-JOB-0101",
               "match_method": "deterministic",
-              "candidate_count_before_filter": 2,
-              "step_compatible_candidate_count": 1,
               "candidates_rejected": [
                 "RP1-JOB-0102"
               ],
               "selection_reason": "step_compatibility",
               "prose_discriminator": {
-                "customer": "Northstar Foods Pte Ltd",
-                "equipment_type": "40HC"
-              }
+                "customer": "Northstar Foods Pte Ltd"
+              },
+              "candidate_count": 2,
+              "compatible_candidate_count": 1
             },
             "agent_action": {
               "kind": "resume",
@@ -116,7 +115,7 @@
           "message_id": "rpa01-002@rp1.synthetic.test",
           "from_display": "Daniel Ortiz | Pacific Meridian Lines",
           "subject": "[RP1-A01] Correction only: PM-REL-8841 stays with Northstar",
-          "body": "Maya, small correction to the pickup thread. We rechecked the carrier screen and PM-REL-8841 is still the Northstar Foods 40HC release on RP1-BK-SHARED-01. Harbor Lab's 20GP is a different live job and has no pickup advice in this message.\n\nPlease leave the first pickup event as filed; this is not a new depot or a new window. The sentence in my previous follow-up saying \"20GP release copied below\" was wrong, just a bad paste from another file. No new seal number. If already moved on your side, no action needed apart from the note.\n\nThanks,\nDaniel",
+          "body": "Maya, small correction to the pickup thread. We rechecked the carrier screen and PM-REL-8841 is still the Northstar Foods 40HC release on RP1-BK-SHARED-01. Harbor Lab's 20GP is a different live job and has no pickup advice in this message.\n\nPlease leave the first pickup event as filed; this is not a new depot or a new window. A stray sentence in the carrier draft said \"20GP release copied below\"; that line is not part of this release and was a bad paste from another file. No new seal number. If already moved on your side, no action needed apart from the note.\n\nThanks,\nDaniel",
           "answer_key": {
             "event_type": "pickup_advice",
             "payload": {
@@ -264,8 +263,18 @@
               "match_method": "deterministic",
               "created_instance": true,
               "held_event_released": "rpa02-001@rp1.synthetic.test",
-              "candidate_count_after_create": 1,
-              "creation_mode": "signal_with_start"
+              "creation_mode": "signal_with_start",
+              "candidate_count": 0,
+              "candidate_count_after_creation": 1,
+              "created_step": "ingest",
+              "created_step_advance": {
+                "from": "ingest",
+                "to": "await_pickup"
+              },
+              "held_event_transition": {
+                "from": "await_pickup",
+                "to": "create_job"
+              }
             },
             "agent_action": {
               "kind": "resume",
@@ -382,10 +391,10 @@
                 "RP1-JOB-0302"
               ],
               "match_method": "deterministic",
-              "candidate_count_before_filter": 2,
-              "step_compatible_candidate_count": 2,
               "usable_discriminator_count": 0,
-              "reason": "Both open instances accept pickup_advice and the event has no job_no, container_no, customer_order, or other declared disambiguator."
+              "reason": "The event has no customer value, while the declared disambiguators vessel and direction are present but equal on both candidates; customer_order is not a declared disambiguator and is absent from the event.",
+              "candidate_count": 2,
+              "compatible_candidate_count": 2
             },
             "agent_action": {
               "kind": "review",
@@ -405,32 +414,36 @@
           "subject": "[RP1-A03] Re: pickup release still has no job discriminator",
           "body": "Sara, received the repost. We have checked the tracker and both RP1-JOB-0301 and RP1-JOB-0302 are Meridian Home Goods export moves on MV Silver Pine, both 40HC, both waiting for pickup.\n\nThe release number BSS-44120 is not written against either internal file, and there is still no container number or customer order in the carrier note. Please leave this in review. Do not attach it to the first row just because it appears first in the sheet.\n\nQuoted for the record: \"there is no honest way for us to say whether this belongs to the first or second job.\" Correct. We will pick it when the customer confirms which order is moving. Until then, no ITOS update and no pickup email out.\n\nOwen",
           "answer_key": {
-            "event_type": "manual_review_note",
+            "event_type": "pickup_advice",
             "payload": {
               "booking_ref": "RP1-BK-AMB-03",
               "pickup_reference": "BSS-44120",
-              "candidate_jobs": [
-                "RP1-JOB-0301",
-                "RP1-JOB-0302"
-              ],
-              "review_reason": "carrier_release_has_no_job_or_container_discriminator"
+              "empty_depot": "Eastlink Empty Yard",
+              "pickup_window_start": "2026-08-07T08:00:00+08:00",
+              "pickup_window_end": "2026-08-07T14:00:00+08:00",
+              "vessel": "MV Silver Pine",
+              "direction": "export",
+              "equipment_type": "40HC"
             },
             "corr": {
               "booking_ref": "RP1-BK-AMB-03"
             },
             "correlation": {
-              "verdict": "needs_review",
+              "verdict": "ambiguous",
               "target": [
                 "RP1-JOB-0301",
                 "RP1-JOB-0302"
               ],
-              "match_method": "human",
-              "review_item_key": "pickup:RP1-BK-AMB-03:BSS-44120",
-              "reason": "The customer_ops note confirms that the existing ambiguous pickup still has no human selection."
+              "match_method": "deterministic",
+              "candidate_count": 2,
+              "compatible_candidate_count": 2,
+              "usable_discriminator_count": 0,
+              "logical_event_key": "pickup:RP1-BK-AMB-03:BSS-44120",
+              "reason": "The re-forward repeats the same booking-only release and still contains no field that selects either job."
             },
             "agent_action": {
               "kind": "review",
-              "action": "Keep the existing human-pick proposal open for RP1-BK-AMB-03 and wait for an explicit selection of RP1-JOB-0301 or RP1-JOB-0302; do not create a second intake or transition.",
+              "action": "Append the re-forward to the existing human-pick proposal for RP1-BK-AMB-03 and wait for an explicit selection of RP1-JOB-0301 or RP1-JOB-0302; do not apply or create a second transition.",
               "constraints": [
                 "Do not auto-apply based on the customer_ops sender.",
                 "Do not infer the target from the phrase first row.",
@@ -442,7 +455,10 @@
       ],
       "state_probes": [],
       "expected_final": {
-        "event_status": "ambiguous",
+        "event_status": {
+          "rpa03-001@rp1.synthetic.test": "ambiguous",
+          "rpa03-002@rp1.synthetic.test": "ambiguous"
+        },
         "instance_state": {
           "RP1-JOB-0301": "parked",
           "RP1-JOB-0302": "parked"
@@ -604,7 +620,7 @@
         "buffered_event_status": "applied",
         "transition_order": [
           "vgm_reply",
-          "gate_in_confirmation"
+          "gate_in"
         ]
       }
     }
