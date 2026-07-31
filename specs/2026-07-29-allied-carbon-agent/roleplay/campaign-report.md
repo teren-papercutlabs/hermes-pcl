@@ -15,13 +15,13 @@ The interpretation layer classified most messages and usually recovered the prim
 | Extraction fields | 89 | 219 | 0 | 28.9% (89/308) |
 | Correlation | 38 | 42 | 19 | 47.5% (38/80) |
 | Action / proposal | 0 | 0 | 75 | n/a |
-| Expected final state | 34 | 14 | 70 | 70.8% (34/48) |
+| Expected final state | 34 | 27 | 57 | 55.7% (34/61) |
 | State probe | 4 | 0 | 1 | 100.0% (4/4) |
 
-- Arc population: **12 executed / 12 authored**; all 12 had at least one observable email failure. Final-state scoring separately found **9 failed / 3 evidence-limited / 0 passed**.
+- Arc population: **12 executed / 12 authored**; all 12 had at least one observable email failure. Final-state scoring separately found **10 failed / 2 evidence-limited / 0 passed**.
 - Email population: **25 observed / 25 sent**; **0 passed, 25 failed**.
 - Probe population: **1 observed / 1 planned**; **0 failed, 1 evidence-limited**. Four observable probe claims matched; the expected proposal was not durably observable.
-- Email-level miss classifications: extraction **25**, correlation **20**, decision **0**. One email can carry more than one class.
+- Email-level miss classifications: extraction **25**, correlation **20**, decision **0**. One email can carry more than one class. Decision is zero because the proposal surface was not durable; the A08 safety miss is scored in expected final state.
 
 ## Field-level results
 
@@ -155,77 +155,78 @@ The interpretation layer classified most messages and usually recovered the prim
 
 | Arc | Emails | Extraction | Correlation | Action | Final state | Miss taxonomy |
 |---|---:|---:|---:|---:|---:|---|
-| RP1-A01 | 2 | 27.3% (6/22) | 85.7% (6/7) + 7 limited | n/a | 100.0% (4/4) | correlation, extraction |
-| RP1-A02 | 2 | 36.4% (8/22) | 38.5% (5/13) + 3 limited | n/a | 75.0% (3/4) | correlation, extraction |
-| RP1-A03 | 2 | 20.0% (4/20) | 42.9% (3/7) + 8 limited | n/a | 75.0% (3/4) | correlation, extraction |
-| RP1-A04 | 2 | 43.5% (10/23) | 54.5% (6/11) + 1 limited | n/a | 66.7% (2/3) | correlation, extraction |
-| RP1-A05 | 2 | 34.0% (16/47) | 100.0% (4/4) + 0 limited | n/a | 100.0% (3/3) | extraction |
-| RP1-A06 | 2 | 25.0% (8/32) | 50.0% (2/4) + 0 limited | n/a | 66.7% (2/3) | correlation, extraction |
-| RP1-A07 | 3 | 9.8% (4/41) | 16.7% (1/6) + 0 limited | n/a | 33.3% (1/3) | correlation, extraction |
-| RP1-A08 | 2 | 24.1% (7/29) | 75.0% (3/4) + 0 limited | n/a | 33.3% (1/3) | correlation, extraction |
-| RP1-A09 | 3 | 37.5% (9/24) | 33.3% (3/9) + 0 limited | n/a | 71.4% (5/7) | correlation, extraction |
-| RP1-A10 | 1 | 20.0% (1/5) | 66.7% (2/3) + 0 limited | n/a | 100.0% (4/4) | correlation, extraction |
-| RP1-A11 | 2 | 44.4% (8/18) | 16.7% (1/6) + 0 limited | n/a | 50.0% (2/4) | correlation, extraction |
-| RP1-A12 | 2 | 32.0% (8/25) | 33.3% (2/6) + 0 limited | n/a | 66.7% (4/6) | correlation, extraction |
+| RP1-A01 | 2 | 27.3% (6/22) | 85.7% (6/7) + 7 limited | n/a | 57.1% (4/7) + 2 limited | correlation, extraction |
+| RP1-A02 | 2 | 36.4% (8/22) | 38.5% (5/13) + 3 limited | n/a | 75.0% (3/4) + 4 limited | correlation, extraction |
+| RP1-A03 | 2 | 20.0% (4/20) | 42.9% (3/7) + 8 limited | n/a | 75.0% (3/4) + 4 limited | correlation, extraction |
+| RP1-A04 | 2 | 43.5% (10/23) | 54.5% (6/11) + 1 limited | n/a | 66.7% (2/3) + 4 limited | correlation, extraction |
+| RP1-A05 | 2 | 34.0% (16/47) | 100.0% (4/4) + 0 limited | n/a | 100.0% (3/3) + 9 limited | extraction |
+| RP1-A06 | 2 | 25.0% (8/32) | 50.0% (2/4) + 0 limited | n/a | 66.7% (2/3) + 9 limited | correlation, extraction |
+| RP1-A07 | 3 | 9.8% (4/41) | 16.7% (1/6) + 0 limited | n/a | 33.3% (1/3) + 7 limited | correlation, extraction |
+| RP1-A08 | 2 | 24.1% (7/29) | 75.0% (3/4) + 0 limited | n/a | 33.3% (1/3) + 5 limited | correlation, extraction |
+| RP1-A09 | 3 | 37.5% (9/24) | 33.3% (3/9) + 0 limited | n/a | 33.3% (5/15) + 3 limited | correlation, extraction |
+| RP1-A10 | 1 | 20.0% (1/5) | 66.7% (2/3) + 0 limited | n/a | 100.0% (4/4) + 3 limited | correlation, extraction |
+| RP1-A11 | 2 | 44.4% (8/18) | 16.7% (1/6) + 0 limited | n/a | 33.3% (2/6) + 3 limited | correlation, extraction |
+| RP1-A12 | 2 | 32.0% (8/25) | 33.3% (2/6) + 0 limited | n/a | 66.7% (4/6) + 4 limited | correlation, extraction |
 
 ### RP1-A01
 **Coverage:** shared_booking_ref, step_compatibility_selects_one, prose_discriminator, deterministic_match, past_step_noop.
-**Result:** FAIL. Extraction 27.3% (6/22); correlation 85.7% (6/7) with 7 evidence-limited comparisons; action n/a; final-state 100.0% (4/4). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 27.3% (6/22); correlation 85.7% (6/7) with 7 evidence-limited comparisons; action n/a; final-state 57.1% (4/7) with 2 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `rpa01-001@rp1.synthetic.test` → `pickup_advice` / `matched` / `job:RP1-JOB-0101`; `rpa01-002@rp1.synthetic.test` → `pickup_advice` / `superseded` / `job:RP1-JOB-0101`.
 **DB citations:** `wf_event.id=6`; `wf_event.id=7`; `wf_instance.entity_key=job:RP1-JOB-0101`; `wf_instance.entity_key=job:RP1-JOB-0102`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A02
 **Coverage:** unmatched_event, signal_with_start, late_heal, deterministic_rematch_sweep.
-**Result:** FAIL. Extraction 36.4% (8/22); correlation 38.5% (5/13) with 3 evidence-limited comparisons; action n/a; final-state 75.0% (3/4). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 36.4% (8/22); correlation 38.5% (5/13) with 3 evidence-limited comparisons; action n/a; final-state 75.0% (3/4) with 4 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `rpa02-001@rp1.synthetic.test` → `pickup_advice` / `unmatched` / `None`; `rpa02-002@rp1.synthetic.test` → `trucking_instruction` / `matched` / `RP1-JOB-0201`.
 **DB citations:** `wf_event.id=9`; `wf_event.id=10`; `wf_instance.entity_key=job:RP1-JOB-0201`; `wf_instance.entity_key=RP1-JOB-0201`; `wf_event.external_id in arc wire Message-IDs`.
+**Key-format note:** The deterministic create path stored bare `RP1-JOB-0201`, unlike the seeded `job:` form. Comparison normalizes the prefix, but the durable engine-side inconsistency remains a campaign finding.
 ### RP1-A03
 **Coverage:** shared_booking_ref, two_plausible_matches, ambiguous_match, human_pick_required, no_auto_apply.
-**Result:** FAIL. Extraction 20.0% (4/20); correlation 42.9% (3/7) with 8 evidence-limited comparisons; action n/a; final-state 75.0% (3/4). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 20.0% (4/20); correlation 42.9% (3/7) with 8 evidence-limited comparisons; action n/a; final-state 75.0% (3/4) with 4 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `rpa03-001@rp1.synthetic.test` → `pickup_advice` / `ambiguous` / `None`; `rpa03-002@rp1.synthetic.test` → `None` / `routed_out` / `None`.
 **DB citations:** `wf_event.id=13`; `wf_event.id=14`; `wf_instance.entity_key=job:RP1-JOB-0301`; `wf_instance.entity_key=job:RP1-JOB-0302`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A04
 **Coverage:** out_of_order_event, future_step_buffer, compatible_step_advance, buffer_consumed_on_advance.
-**Result:** FAIL. Extraction 43.5% (10/23); correlation 54.5% (6/11) with 1 evidence-limited comparisons; action n/a; final-state 66.7% (2/3). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 43.5% (10/23); correlation 54.5% (6/11) with 1 evidence-limited comparisons; action n/a; final-state 66.7% (2/3) with 4 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `rpa04-001@rp1.synthetic.test` → `gate_in` / `buffered` / `job:RP1-JOB-0401`; `rpa04-002@rp1.synthetic.test` → `vgm_reply` / `matched` / `job:RP1-JOB-0401`.
 **DB citations:** `wf_event.id=16`; `wf_event.id=17`; `wf_instance.entity_key=job:RP1-JOB-0401`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A05
 **Coverage:** duplicate_message_id, forwarded_duplicate, content_dedupe, superseded_noop.
-**Result:** FAIL. Extraction 34.0% (16/47); correlation 100.0% (4/4) with 0 evidence-limited comparisons; action n/a; final-state 100.0% (3/3). Miss classes: extraction.
+**Result:** FAIL. Extraction 34.0% (16/47); correlation 100.0% (4/4) with 0 evidence-limited comparisons; action n/a; final-state 100.0% (3/3) with 9 evidence-limited comparisons. Miss classes: extraction.
 **Observed email outcomes:** `<rp1-a05-forwarded-0501@rp1.synthetic.test>` → `pickup_advice` / `superseded` / `job:RP1-JOB-0501`; `<rp1-a05-original-0501@rp1.synthetic.test>` → `pickup_advice` / `matched` / `job:RP1-JOB-0501`.
 **DB citations:** `wf_event.id=20`; `wf_event.id=19`; `wf_instance.entity_key=job:RP1-JOB-0501`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A06
 **Coverage:** mid_thread_correction, bill_of_lading_change, contradiction, needs_review_no_silent_overwrite.
-**Result:** FAIL. Extraction 25.0% (8/32); correlation 50.0% (2/4) with 0 evidence-limited comparisons; action n/a; final-state 66.7% (2/3). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 25.0% (8/32); correlation 50.0% (2/4) with 0 evidence-limited comparisons; action n/a; final-state 66.7% (2/3) with 9 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `<rp1-a06-correction-0601b@rp1.synthetic.test>` → `container_assigned` / `buffered` / `job:RP1-JOB-0601`; `<rp1-a06-initial-0601@rp1.synthetic.test>` → `pickup_advice` / `buffered` / `job:RP1-JOB-0601`.
 **DB citations:** `wf_event.id=23`; `wf_event.id=22`; `wf_instance.entity_key=job:RP1-JOB-0601`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A07
 **Coverage:** chase, angry_customer_escalation, urgency_extraction, tone_extraction, proposed_reply, no_autonomous_send.
-**Result:** FAIL. Extraction 9.8% (4/41); correlation 16.7% (1/6) with 0 evidence-limited comparisons; action n/a; final-state 33.3% (1/3). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 9.8% (4/41); correlation 16.7% (1/6) with 0 evidence-limited comparisons; action n/a; final-state 33.3% (1/3) with 7 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `<rp1-a07-carrier-0701@rp1.synthetic.test>` → `gate_in` / `buffered` / `job:RP1-JOB-0701`; `<rp1-a07-chase-0701@rp1.synthetic.test>` → `None` / `routed_out` / `None`; `<rp1-a07-customer-escalation-0701@rp1.synthetic.test>` → `None` / `routed_out` / `None`.
 **DB citations:** `wf_event.id=25`; `wf_event.id=26`; `wf_event.id=27`; `wf_instance.entity_key=job:RP1-JOB-0701`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A08
 **Coverage:** itos_state_mismatch, email_claim_gate_in, state_poll_not_gate_in, needs_review, exception_proposal.
-**Result:** FAIL. Extraction 24.1% (7/29); correlation 75.0% (3/4) with 0 evidence-limited comparisons; action n/a; final-state 33.3% (1/3). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 24.1% (7/29); correlation 75.0% (3/4) with 0 evidence-limited comparisons; action n/a; final-state 33.3% (1/3) with 5 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>` → `gate_in` / `matched` / `job:RP1-JOB-0801`; `<rp1-a08-forward-0801@rp1.synthetic.test>` → `gate_in` / `superseded` / `job:RP1-JOB-0801`.
 **DB citations:** `wf_event.id=29`; `wf_event.id=30`; `wf_instance.entity_key=job:RP1-JOB-0801`; `wf_event.external_id in arc wire Message-IDs`; `wf_event.id=31`; `state_poll.entity_key=job:RP1-JOB-0801`.
 ### RP1-A09
 **Coverage:** partial_info_dribble, cumulative_extraction, no_invention, buffered_future_event.
-**Result:** FAIL. Extraction 37.5% (9/24); correlation 33.3% (3/9) with 0 evidence-limited comparisons; action n/a; final-state 71.4% (5/7). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 37.5% (9/24); correlation 33.3% (3/9) with 0 evidence-limited comparisons; action n/a; final-state 33.3% (5/15) with 3 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `rp1-a09-1@rp1.synthetic.test` → `pickup_advice` / `buffered` / `job:RP1-JOB-0901`; `rp1-a09-2@rp1.synthetic.test` → `container_assigned` / `buffered` / `job:RP1-JOB-0901`; `rp1-a09-3@rp1.synthetic.test` → `vgm_reply` / `unmatched` / `None`.
 **DB citations:** `wf_event.id=33`; `wf_event.id=34`; `wf_event.id=35`; `wf_instance.entity_key=job:RP1-JOB-0901`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A10
 **Coverage:** wrong_recipient, noise_mail, routed_out, no_mutation.
-**Result:** FAIL. Extraction 20.0% (1/5); correlation 66.7% (2/3) with 0 evidence-limited comparisons; action n/a; final-state 100.0% (4/4). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 20.0% (1/5); correlation 66.7% (2/3) with 0 evidence-limited comparisons; action n/a; final-state 100.0% (4/4) with 3 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `rp1-a10-1@rp1.synthetic.test` → `None` / `routed_out` / `None`.
 **DB citations:** `wf_event.id=36`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A11
 **Coverage:** clean_happy_path, strong_unique_keys, create_job_proposal.
-**Result:** FAIL. Extraction 44.4% (8/18); correlation 16.7% (1/6) with 0 evidence-limited comparisons; action n/a; final-state 50.0% (2/4). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 44.4% (8/18); correlation 16.7% (1/6) with 0 evidence-limited comparisons; action n/a; final-state 33.3% (2/6) with 3 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `rp1-a11-1@rp1.synthetic.test` → `trucking_instruction` / `unmatched` / `None`; `rp1-a11-2@rp1.synthetic.test` → `pickup_advice` / `buffered` / `job:RP1-JOB-1101`.
 **DB citations:** `wf_event.id=38`; `wf_event.id=39`; `wf_instance.entity_key=job:RP1-JOB-1101`; `wf_event.external_id in arc wire Message-IDs`.
 ### RP1-A12
 **Coverage:** clean_happy_path, vgm_progress, gate_in_progress, strong_unique_keys, customer_update_proposal.
-**Result:** FAIL. Extraction 32.0% (8/25); correlation 33.3% (2/6) with 0 evidence-limited comparisons; action n/a; final-state 66.7% (4/6). Miss classes: correlation, extraction.
+**Result:** FAIL. Extraction 32.0% (8/25); correlation 33.3% (2/6) with 0 evidence-limited comparisons; action n/a; final-state 66.7% (4/6) with 4 evidence-limited comparisons. Miss classes: correlation, extraction.
 **Observed email outcomes:** `rp1-a12-1@rp1.synthetic.test` → `vgm_reply` / `matched` / `job:RP1-JOB-1201`; `rp1-a12-2@rp1.synthetic.test` → `gate_in` / `unmatched` / `None`.
 **DB citations:** `wf_event.id=41`; `wf_event.id=42`; `wf_instance.entity_key=job:RP1-JOB-1201`; `wf_event.external_id in arc wire Message-IDs`.
 
@@ -236,7 +237,7 @@ The interpretation layer classified most messages and usually recovered the prim
 3. **Recorder defects — campaign harness defects, repaired without changing capability.** Empty classified payloads and seedless arcs originally aborted the measurement instead of recording misses. The helper now captures those outcomes and preserves DB citations; it does not affect engine decisions or answer keys.
 4. **Gmail canonicalizes plus aliases — staging integration fact.** Display-name personas remained available, but the envelope/header sender collapsed to dorm1. A default-off, tenant-neutral self-ingress test capability was used in staging; the production echo-prevention default stayed unchanged.
 5. **Board-global template resolution — platform gap, deliberately not built in-campaign.** Create matching and email-extraction contract selection resolve across the board rather than to a template-scoped/latest-per-slug target. Allied will run multiple workflows, so ambiguity is certain rather than hypothetical. This needs a post-campaign platform WB; changing it during the campaign would contaminate the measurement.
-6. **Interpretation capability line — extraction and correlation misses.** `event_type` classification was 15/25 and primary correlation keys were often recovered, but typed payload retention was weak and correlation target/verdict frequently differed from the locked key. After normalizing the storage-only `job:` entity prefix, correlation accuracy was 38/80 (47.5%); the prefix mismatch was an answer-key representation defect, not charged to the engine. Action/proposal comparisons are 75/75 evidence-limited because no durable approval row exposed them; no action-accuracy claim is made.
+6. **Interpretation capability line — extraction and correlation misses.** `event_type` classification was 15/25 and primary correlation keys were often recovered, but typed payload retention was weak and correlation target/verdict frequently differed from the locked key. Comparison-only normalization of the `job:` entity prefix puts correlation accuracy at 38/80 (47.5%) without rewriting observed values. Most prefix differences are answer-key representation, but A02 exposed a real engine-side inconsistency: its deterministic create path stored `RP1-JOB-0201` while seeded instances use `job:RP1-JOB-0201`. The normalized score does not charge that formatting inconsistency, so it is disclosed here rather than hidden. Action/proposal comparisons are 75/75 evidence-limited because no durable approval row exposed them; no action-accuracy claim is made.
 7. **A08 advanced against contradictory state evidence — high-severity decision result.** Email `wf_event.id=29` applied a `gate_in` claim to `job:RP1-JOB-0801`; the read-only ITOS probe `wf_event.id=31` then reported `not_gate_in` / `gate_in=false`. The final durable instance was nevertheless `advancing` at `invoice`, while the locked safety result required `needs_review` at `await_gatein` with invoice and customer confirmation held. This is the most consequential observable miss in the campaign.
 8. **Final-state and probe scorer projection — measurement-plumbing repair.** The first score draft compared locked business vocabulary directly to generic `instances` rows and treated missing action records as failures. Cold review caught it. The scorer now projects only fields supported by durable rows, normalizes the storage-only entity prefix, and places absent fields in the evidence-limited bucket. The one probe now has four observable matches and one unobservable action claim.
 9. **One locked key omitted a wrong extraction — key defect, not silently edited.** A01's second message placed pickup reference `PM-REL-8841` in `corr.container_no`, but that answer key did not compare `corr.container_no`. The locked key remains unchanged, so the reported container-number rate does not include this visible false positive. Record it as a key defect when interpreting the aggregate.
@@ -244,13 +245,14 @@ The interpretation layer classified most messages and usually recovered the prim
 ## Evidence contract
 
 - Locked stories and answer keys: `arcs-01-04.json`, `arcs-05-08.json`, `arcs-09-12.json`.
+- Lock integrity: the three files remain byte-identical to lock commit `9670003c7c08df9d2e640ca246927e883bd7aa99`; their SHA-256 values still match the original `LOCKED_FIXTURES` constants (`10f969…`, `ba62f2…`, `371ca9…`).
 - Exact execution plan: `evidence/rp1-plan.json`.
 - As-it-happens ingress journal: `evidence/rp1-live-journal.jsonl` (**230 rows**; 25 sends, 25 observations, two preflights, and the resumed-wave history).
 - Durable DB observations: `evidence/rp1-observed.json`. Its top-level chronological capture log contains **84 records**, comprising **63 distinct full observation objects** and **48 distinct table+identity keys**; repeated preflight polls and pre/final snapshots are intentionally retained rather than counted as distinct facts.
 - Mechanical scorer output: `evidence/rp1-score.json`.
 - Campaign decision/finding log: `dive-records/rp.jsonl`.
 - Preflight failure journals are preserved under `evidence/`; they were not rewritten into success.
-- Citations name durable staging row identities such as `wf_event.id=N` and `wf_instance.entity_key=…`. Arc-scoped `_citations` bind each scorecard to its email and final snapshot; the top-level array is the chronological capture log and can contain the same identity at multiple phases. Candidate/reason/action details absent from the DB are marked evidence-limited rather than inferred.
+- Citations name durable staging row identities such as `wf_event.id=N` and `wf_instance.entity_key=…`. Arc-scoped `_citations` bind each scorecard to its email and final snapshot; the top-level array is the chronological capture log and can contain the same identity at multiple phases. Candidate/reason/action details absent from the DB are marked evidence-limited rather than inferred. Missing fields inside durable `corr` and `vars` objects are observable non-retention and score as failures, not evidence limits.
 
 ## Conclusion
 

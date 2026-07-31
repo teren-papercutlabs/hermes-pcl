@@ -356,6 +356,55 @@ def test_target_comparison_normalizes_job_prefix_and_none() -> None:
     assert len(none_target["matched"]) == 1
 
 
+def test_final_projection_preserves_durable_entity_key_shape() -> None:
+    projected = campaign._project_final_observation(
+        {"entity_key": "job:RP1-JOB-1"},
+        {
+            "instances": {
+                "RP1-JOB-1": {
+                    "step": "pickup",
+                    "state": "advancing",
+                    "corr": {},
+                    "vars": {},
+                }
+            }
+        },
+        {},
+    )
+    assert projected["entity_key"] == "RP1-JOB-1"
+    comparison = campaign.compare_subset(
+        {"entity_key": "job:RP1-JOB-1"}, projected, "expected_final"
+    )
+    assert comparison["failed"] == []
+    assert comparison["matched"][0]["observed"] == "RP1-JOB-1"
+
+
+def test_missing_key_in_durable_corr_is_an_observed_failure() -> None:
+    projected = campaign._project_final_observation(
+        {"entity_key": "job:RP1-JOB-1", "corr": {"container_no": "MSCU1"}},
+        {
+            "instances": {
+                "job:RP1-JOB-1": {
+                    "step": "pickup",
+                    "state": "advancing",
+                    "corr": {"booking_ref": "BK1"},
+                    "vars": {},
+                }
+            }
+        },
+        {},
+    )
+    comparison = campaign.compare_subset(
+        {"entity_key": "job:RP1-JOB-1", "corr": {"container_no": "MSCU1"}},
+        projected,
+        "expected_final",
+    )
+    assert [row["path"] for row in comparison["failed"]] == [
+        "expected_final.corr.container_no"
+    ]
+    assert comparison["unobservable"] == []
+
+
 def test_missing_expected_null_is_an_observed_null_match() -> None:
     result = campaign.compare_subset(
         {"booking_ref": None}, {}, "corr"

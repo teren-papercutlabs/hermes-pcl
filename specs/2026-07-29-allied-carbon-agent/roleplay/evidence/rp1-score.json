@@ -1,7 +1,7 @@
 {
   "arc_counts": {
-    "evidence-limited": 3,
-    "fail": 9,
+    "evidence-limited": 2,
+    "fail": 10,
     "pass": 0
   },
   "arcs": [
@@ -304,7 +304,23 @@
       ],
       "expected_final": {
         "comparison": {
-          "failed": [],
+          "failed": [
+            {
+              "expected": "PM-REL-8841",
+              "observed": null,
+              "path": "expected_final.jobs.RP1-JOB-0101.pickup_reference"
+            },
+            {
+              "expected": "applied_once",
+              "observed": null,
+              "path": "expected_final.jobs.RP1-JOB-0101.last_event_effect"
+            },
+            {
+              "expected": false,
+              "observed": null,
+              "path": "expected_final.jobs.RP1-JOB-0102.changed_by_arc"
+            }
+          ],
           "matched": [
             {
               "expected": "create_job",
@@ -329,21 +345,6 @@
           ],
           "unobservable": [
             {
-              "expected": "PM-REL-8841",
-              "observed": null,
-              "path": "expected_final.jobs.RP1-JOB-0101.pickup_reference"
-            },
-            {
-              "expected": "applied_once",
-              "observed": null,
-              "path": "expected_final.jobs.RP1-JOB-0101.last_event_effect"
-            },
-            {
-              "expected": false,
-              "observed": null,
-              "path": "expected_final.jobs.RP1-JOB-0102.changed_by_arc"
-            },
-            {
               "expected": "RP1-JOB-0101_only",
               "observed": null,
               "path": "expected_final.shared_booking_resolution"
@@ -355,7 +356,7 @@
             }
           ]
         },
-        "status": "evidence-limited"
+        "status": "fail"
       },
       "id": "RP1-A01",
       "state_probes": []
@@ -686,7 +687,7 @@
             },
             {
               "expected": "job:RP1-JOB-0201",
-              "observed": "job:RP1-JOB-0201",
+              "observed": "RP1-JOB-0201",
               "path": "expected_final.entity_key"
             },
             {
@@ -3478,36 +3479,7 @@
               "expected": "create_job",
               "observed": "ingest",
               "path": "expected_final.step"
-            }
-          ],
-          "matched": [
-            {
-              "expected": "RP1-JOB-0901",
-              "observed": "RP1-JOB-0901",
-              "path": "expected_final.target"
             },
-            {
-              "expected": "BK-0901-SEA",
-              "observed": "BK-0901-SEA",
-              "path": "expected_final.corr.booking_ref"
-            },
-            {
-              "expected": "Northstar Foods Pte Ltd",
-              "observed": "Northstar Foods Pte Ltd",
-              "path": "expected_final.vars.customer"
-            },
-            {
-              "expected": "export",
-              "observed": "export",
-              "path": "expected_final.vars.direction"
-            },
-            {
-              "expected": "1x40HC",
-              "observed": "1x40HC",
-              "path": "expected_final.vars.equipment"
-            }
-          ],
-          "unobservable": [
             {
               "expected": "MSCU4827312",
               "observed": null,
@@ -3547,7 +3519,36 @@
               "expected": "MSCU4827312",
               "observed": null,
               "path": "expected_final.vars.container_no"
+            }
+          ],
+          "matched": [
+            {
+              "expected": "RP1-JOB-0901",
+              "observed": "RP1-JOB-0901",
+              "path": "expected_final.target"
             },
+            {
+              "expected": "BK-0901-SEA",
+              "observed": "BK-0901-SEA",
+              "path": "expected_final.corr.booking_ref"
+            },
+            {
+              "expected": "Northstar Foods Pte Ltd",
+              "observed": "Northstar Foods Pte Ltd",
+              "path": "expected_final.vars.customer"
+            },
+            {
+              "expected": "export",
+              "observed": "export",
+              "path": "expected_final.vars.direction"
+            },
+            {
+              "expected": "1x40HC",
+              "observed": "1x40HC",
+              "path": "expected_final.vars.equipment"
+            }
+          ],
+          "unobservable": [
             {
               "expected": [
                 "job_no",
@@ -3989,6 +3990,16 @@
               "expected": "create_job",
               "observed": "ingest",
               "path": "expected_final.step"
+            },
+            {
+              "expected": "MSCU5938049",
+              "observed": null,
+              "path": "expected_final.corr.container_no"
+            },
+            {
+              "expected": "EB-1101-7842",
+              "observed": null,
+              "path": "expected_final.corr.job_no"
             }
           ],
           "matched": [
@@ -4004,16 +4015,6 @@
             }
           ],
           "unobservable": [
-            {
-              "expected": "MSCU5938049",
-              "observed": null,
-              "path": "expected_final.corr.container_no"
-            },
-            {
-              "expected": "EB-1101-7842",
-              "observed": null,
-              "path": "expected_final.corr.job_no"
-            },
             {
               "expected": "job_create",
               "observed": null,

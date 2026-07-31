@@ -343,7 +343,14 @@ def compare_subset(
     }
     if isinstance(expected, dict):
         observed_dict = observed if isinstance(observed, dict) else {}
-        limited = _limited or observed_dict.get("evidence_status") == "EVIDENCE-LIMITED"
+        evidence_status = observed_dict.get("evidence_status")
+        limited = (
+            True
+            if evidence_status == "EVIDENCE-LIMITED"
+            else False
+            if evidence_status == "OBSERVED"
+            else _limited
+        )
         for key, value in expected.items():
             child = f"{path}.{key}" if path else key
             if key not in observed_dict:
@@ -367,7 +374,9 @@ def compare_subset(
             for bucket in result:
                 result[bucket].extend(nested[bucket])
         return result
-    normalized_entity_path = path == "correlation.target"
+    normalized_entity_path = path == "correlation.target" or path.endswith(
+        ".entity_key"
+    )
     values_match = (
         _entity_value(expected) == _entity_value(observed)
         if normalized_entity_path
@@ -420,11 +429,7 @@ def _project_final_observation(
     if instance is not None and entity_key is not None:
         bare = _entity_value(entity_key)
         if "entity_key" in expected:
-            projected["entity_key"] = (
-                f"job:{bare}"
-                if str(expected["entity_key"]).startswith("job:")
-                else bare
-            )
+            projected["entity_key"] = entity_key
         if "instance" in expected:
             projected["instance"] = bare
         if "target" in expected:
@@ -439,12 +444,12 @@ def _project_final_observation(
             projected["workflow_state"] = instance.get("state")
         if "corr" in expected:
             projected["corr"] = {
-                "evidence_status": "EVIDENCE-LIMITED",
+                "evidence_status": "OBSERVED",
                 **_json_clone(instance.get("corr", {})),
             }
         if "vars" in expected:
             projected["vars"] = {
-                "evidence_status": "EVIDENCE-LIMITED",
+                "evidence_status": "OBSERVED",
                 **_json_clone(instance.get("vars", {})),
             }
     elif not instances:
@@ -474,7 +479,7 @@ def _project_final_observation(
             )
             if match is not None:
                 projected_jobs[expected_key] = {
-                    "evidence_status": "EVIDENCE-LIMITED",
+                    "evidence_status": "OBSERVED",
                     "step": match.get("step"),
                     "state": match.get("state"),
                     **_json_clone(match.get("corr", {})),
@@ -483,23 +488,29 @@ def _project_final_observation(
         projected["jobs"] = projected_jobs
     if isinstance(expected.get("instance_state"), dict):
         projected["instance_state"] = {
-            expected_key: next(
-                (
-                    value.get("state")
-                    for key, value in instances.items()
-                    if _entity_value(key) == _entity_value(expected_key)
-                    and isinstance(value, dict)
-                ),
-                None,
-            )
-            for expected_key in expected["instance_state"]
+            "evidence_status": "OBSERVED",
+            **{
+                expected_key: next(
+                    (
+                        value.get("state")
+                        for key, value in instances.items()
+                        if _entity_value(key) == _entity_value(expected_key)
+                        and isinstance(value, dict)
+                    ),
+                    None,
+                )
+                for expected_key in expected["instance_state"]
+            },
         }
     if isinstance(expected.get("event_status"), dict):
         projected["event_status"] = {
-            message_id: observed_emails.get(message_id, {})
-            .get("correlation", {})
-            .get("verdict")
-            for message_id in expected["event_status"]
+            "evidence_status": "OBSERVED",
+            **{
+                message_id: observed_emails.get(message_id, {})
+                .get("correlation", {})
+                .get("verdict")
+                for message_id in expected["event_status"]
+            },
         }
     return projected
 
