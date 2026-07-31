@@ -588,6 +588,8 @@ def _service_proof(tmp_path: Path, db_path: Path) -> Path:
                 "environment": execute.TARGET_ENVIRONMENT,
                 "service": execute.SERVICE_NAME,
                 "database": str(db_path.resolve()),
+                "ingress_board": execute.RP1_BOARD,
+                "kanban_db_override": None,
                 "deployed_release": "test-release-123",
                 "executor_sha256": execute.hashlib.sha256(
                     Path(execute.__file__).read_bytes()

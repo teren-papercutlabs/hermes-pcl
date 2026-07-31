@@ -393,12 +393,13 @@ def score_answer_key(
     taxonomies: list[str] = []
     if disposition in {"not-observed", "boundary-failure"}:
         taxonomies.append("engine-defect")
-    if statuses["extraction"] == "fail" and disposition != "boundary-failure":
-        taxonomies.append("extraction")
-    if statuses["correlation"] == "fail":
-        taxonomies.append("correlation")
-    if statuses["action"] == "fail":
-        taxonomies.append("decision")
+    else:
+        if statuses["extraction"] == "fail":
+            taxonomies.append("extraction")
+        if statuses["correlation"] == "fail":
+            taxonomies.append("correlation")
+        if statuses["action"] == "fail":
+            taxonomies.append("decision")
     return {
         "status": overall,
         "section_status": statuses,

@@ -41,6 +41,7 @@ RECIPIENT_ENV = "WF_RP1_RECIPIENT"
 STAGING_DB_ENV = "WF_RP1_STAGING_DB"
 SERVICE_PROOF_ENV = "WF_RP1_SERVICE_PROOF_PATH"
 SERVICE_NAME = "pa-workflow-dev-hermes.service"
+RP1_BOARD = "workflow-rp1"
 REMOTE_SSH_TARGET = "pa-staging@100.87.146.11"
 REMOTE_EXECUTOR_PATH = (
     "/home/pa-staging/apps/hermes-pcl/current/scripts/wf_rp1_execute.py"
@@ -382,6 +383,8 @@ class StagingHelper:
             "environment": TARGET_ENVIRONMENT,
             "service": SERVICE_NAME,
             "database": str(self.db_path),
+            "ingress_board": RP1_BOARD,
+            "kanban_db_override": None,
         }
         for key, expected in required.items():
             if proof.get(key) != expected:
@@ -437,14 +440,18 @@ class StagingHelper:
              LIMIT 500
             """
         ).fetchall()
-        for row in rows:
-            payload = _json_object(row["payload"])
-            message_id = str(
-                payload.get("message_id")
-                or payload.get("Message-ID")
-                or row["external_id"]
-                or ""
-            )
+        parsed = [(row, _json_object(row["payload"])) for row in rows]
+        if wire_message_id:
+            for row, payload in parsed:
+                message_id = str(
+                    payload.get("message_id")
+                    or payload.get("Message-ID")
+                    or row["external_id"]
+                    or ""
+                )
+                if message_id == wire_message_id:
+                    return row, payload
+        for row, payload in parsed:
             subject = str(payload.get("subject") or "")
             headers = payload.get("headers")
             header_token = ""
@@ -454,8 +461,6 @@ class StagingHelper:
                     or headers.get("x-rp1-token")
                     or ""
                 )
-            if wire_message_id and message_id == wire_message_id:
-                return row, payload
             if subject_token and subject_token in subject:
                 return row, payload
             if subject_token and subject_token in json.dumps(
@@ -477,6 +482,7 @@ class StagingHelper:
             extraction_disposition = (
                 "boundary-failure"
                 if row["status"] == "needs_review"
+                and row["matched_task_id"] is None
                 else "declared-no-fit"
             )
         else:
@@ -621,7 +627,11 @@ class StagingHelper:
                     "wf_template",
                     f"wf_template.slug={template['slug']}@{template['version']}",
                     "SELECT latest registered workflow template",
-                    dict(template),
+                    {
+                        "slug": template["slug"],
+                        "version": int(template["version"]),
+                        "content_hash": template["content_hash"],
+                    },
                 ),
                 _citation(
                     "wf_template",
