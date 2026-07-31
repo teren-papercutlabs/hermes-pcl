@@ -1,0 +1,4009 @@
+{
+  "arcs": {
+    "RP1-A01": {
+      "emails": {
+        "rpa01-001@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=6",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rpa01-001@rp1.synthetic.test>",
+                "id": 6,
+                "match_method": "deterministic",
+                "matched_task_id": "t_7fcaf79d",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "applied"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BK-SHARED-01"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0101",
+            "verdict": "matched"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "Northstar Foods",
+            "direction": "export",
+            "vessel": "MV Cedar Bay"
+          }
+        },
+        "rpa01-002@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=7",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rpa01-002@rp1.synthetic.test>",
+                "id": 7,
+                "match_method": "deterministic",
+                "matched_task_id": "t_7fcaf79d",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "superseded"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BK-SHARED-01",
+            "container_no": "PM-REL-8841",
+            "job_no": "RP1-JOB-0101"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0101",
+            "verdict": "superseded"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "Northstar Foods"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0101",
+            "observed": {
+              "corr": {
+                "booking_ref": "RP1-BK-SHARED-01",
+                "job_no": "RP1-JOB-0101"
+              },
+              "current_step_key": "create_job",
+              "entity_key": "job:RP1-JOB-0101",
+              "state": "advancing",
+              "task_id": "t_7fcaf79d",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Northstar Foods",
+                "direction": "export",
+                "equipment_type": "40HC",
+                "port": "PSA Singapore",
+                "vessel": "MV Cedar Bay"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0102",
+            "observed": {
+              "corr": {
+                "booking_ref": "RP1-BK-SHARED-01",
+                "job_no": "RP1-JOB-0102"
+              },
+              "current_step_key": "await_vgm",
+              "entity_key": "job:RP1-JOB-0102",
+              "state": "parked",
+              "task_id": "t_e9b56fbb",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Harbor Lab Supplies Pte Ltd",
+                "direction": "export",
+                "equipment_type": "20GP",
+                "port": "PSA Singapore",
+                "vessel": "MV Cedar Bay"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rpa01-001@rp1.synthetic.test>",
+                "<rpa01-002@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "job:RP1-JOB-0101",
+                  "external_id": "<rpa01-001@rp1.synthetic.test>",
+                  "id": 6,
+                  "matched_task_id": "t_7fcaf79d",
+                  "status": "applied"
+                },
+                {
+                  "entity_key": "job:RP1-JOB-0101",
+                  "external_id": "<rpa01-002@rp1.synthetic.test>",
+                  "id": 7,
+                  "matched_task_id": "t_7fcaf79d",
+                  "status": "superseded"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-0101": {
+            "corr": {
+              "booking_ref": "RP1-BK-SHARED-01",
+              "job_no": "RP1-JOB-0101"
+            },
+            "state": "advancing",
+            "step": "create_job",
+            "vars": {
+              "customer": "Northstar Foods",
+              "direction": "export",
+              "equipment_type": "40HC",
+              "port": "PSA Singapore",
+              "vessel": "MV Cedar Bay"
+            }
+          },
+          "job:RP1-JOB-0102": {
+            "corr": {
+              "booking_ref": "RP1-BK-SHARED-01",
+              "job_no": "RP1-JOB-0102"
+            },
+            "state": "parked",
+            "step": "await_vgm",
+            "vars": {
+              "customer": "Harbor Lab Supplies Pte Ltd",
+              "direction": "export",
+              "equipment_type": "20GP",
+              "port": "PSA Singapore",
+              "vessel": "MV Cedar Bay"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A02": {
+      "emails": {
+        "rpa02-001@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=9",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rpa02-001@rp1.synthetic.test>",
+                "id": 9,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "unmatched"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BK-LATE-02"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "unmatched"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "vessel": "MV River Kestrel"
+          }
+        },
+        "rpa02-002@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=10",
+              "observed": {
+                "event_type": "trucking_instruction",
+                "external_id": "<rpa02-002@rp1.synthetic.test>",
+                "id": 10,
+                "match_method": "deterministic:create",
+                "matched_task_id": "t_c8f1fff0",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "matched"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BK-LATE-02",
+            "job_no": "RP1-JOB-0201"
+          },
+          "correlation": {
+            "match_method": "deterministic:create",
+            "target": "RP1-JOB-0201",
+            "verdict": "matched"
+          },
+          "event_type": "trucking_instruction",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "Northwind Fixtures Pte Ltd",
+            "direction": "export",
+            "vessel": "MV River Kestrel"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0201",
+            "observed": {
+              "entity_key": "job:RP1-JOB-0201",
+              "found": false
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_instance.entity_key=RP1-JOB-0201",
+            "observed": {
+              "corr": {
+                "booking_ref": "RP1-BK-LATE-02",
+                "job_no": "RP1-JOB-0201"
+              },
+              "current_step_key": "ingest",
+              "entity_key": "RP1-JOB-0201",
+              "state": "advancing",
+              "task_id": "t_c8f1fff0",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Northwind Fixtures Pte Ltd",
+                "direction": "export",
+                "vessel": "MV River Kestrel"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rpa02-001@rp1.synthetic.test>",
+                "<rpa02-002@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "RP1-JOB-0201",
+                  "external_id": "<rpa02-001@rp1.synthetic.test>",
+                  "id": 9,
+                  "matched_task_id": "t_c8f1fff0",
+                  "status": "buffered"
+                },
+                {
+                  "entity_key": "RP1-JOB-0201",
+                  "external_id": "<rpa02-002@rp1.synthetic.test>",
+                  "id": 10,
+                  "matched_task_id": "t_c8f1fff0",
+                  "status": "matched"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "RP1-JOB-0201": {
+            "corr": {
+              "booking_ref": "RP1-BK-LATE-02",
+              "job_no": "RP1-JOB-0201"
+            },
+            "state": "advancing",
+            "step": "ingest",
+            "vars": {
+              "customer": "Northwind Fixtures Pte Ltd",
+              "direction": "export",
+              "vessel": "MV River Kestrel"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A03": {
+      "emails": {
+        "rpa03-001@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=13",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rpa03-001@rp1.synthetic.test>",
+                "id": 13,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "ambiguous"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BK-AMB-03"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "ambiguous"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "direction": "export",
+            "pickup_location": "Eastlink Empty Yard",
+            "release_number": "BSS-44120",
+            "vessel": "MV Silver Pine"
+          }
+        },
+        "rpa03-002@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=14",
+              "observed": {
+                "event_type": null,
+                "external_id": "<rpa03-002@rp1.synthetic.test>",
+                "id": 14,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "routed_out"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {},
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "routed_out"
+          },
+          "event_type": null,
+          "extraction_disposition": "declared-no-fit",
+          "payload": {}
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0301",
+            "observed": {
+              "corr": {
+                "booking_ref": "RP1-BK-AMB-03",
+                "job_no": "RP1-JOB-0301"
+              },
+              "current_step_key": "await_pickup",
+              "entity_key": "job:RP1-JOB-0301",
+              "state": "parked",
+              "task_id": "t_6952ae1c",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Meridian Home Goods Pte Ltd",
+                "customer_order": "MHG-881",
+                "direction": "export",
+                "equipment_type": "40HC",
+                "port": "PSA Singapore",
+                "vessel": "MV Silver Pine"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0302",
+            "observed": {
+              "corr": {
+                "booking_ref": "RP1-BK-AMB-03",
+                "job_no": "RP1-JOB-0302"
+              },
+              "current_step_key": "await_pickup",
+              "entity_key": "job:RP1-JOB-0302",
+              "state": "parked",
+              "task_id": "t_2950095b",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Meridian Home Goods Pte Ltd",
+                "customer_order": "MHG-882",
+                "direction": "export",
+                "equipment_type": "40HC",
+                "port": "PSA Singapore",
+                "vessel": "MV Silver Pine"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rpa03-001@rp1.synthetic.test>",
+                "<rpa03-002@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": null,
+                  "external_id": "<rpa03-001@rp1.synthetic.test>",
+                  "id": 13,
+                  "matched_task_id": null,
+                  "status": "ambiguous"
+                },
+                {
+                  "entity_key": null,
+                  "external_id": "<rpa03-002@rp1.synthetic.test>",
+                  "id": 14,
+                  "matched_task_id": null,
+                  "status": "routed_out"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-0301": {
+            "corr": {
+              "booking_ref": "RP1-BK-AMB-03",
+              "job_no": "RP1-JOB-0301"
+            },
+            "state": "parked",
+            "step": "await_pickup",
+            "vars": {
+              "customer": "Meridian Home Goods Pte Ltd",
+              "customer_order": "MHG-881",
+              "direction": "export",
+              "equipment_type": "40HC",
+              "port": "PSA Singapore",
+              "vessel": "MV Silver Pine"
+            }
+          },
+          "job:RP1-JOB-0302": {
+            "corr": {
+              "booking_ref": "RP1-BK-AMB-03",
+              "job_no": "RP1-JOB-0302"
+            },
+            "state": "parked",
+            "step": "await_pickup",
+            "vars": {
+              "customer": "Meridian Home Goods Pte Ltd",
+              "customer_order": "MHG-882",
+              "direction": "export",
+              "equipment_type": "40HC",
+              "port": "PSA Singapore",
+              "vessel": "MV Silver Pine"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A04": {
+      "emails": {
+        "rpa04-001@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=16",
+              "observed": {
+                "event_type": "gate_in",
+                "external_id": "<rpa04-001@rp1.synthetic.test>",
+                "id": 16,
+                "match_method": "deterministic",
+                "matched_task_id": "t_3ded6ea3",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "buffered"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BK-OOO-04",
+            "container_no": "CMAU4819207",
+            "job_no": "RP1-JOB-0401"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0401",
+            "verdict": "buffered"
+          },
+          "event_type": "gate_in",
+          "extraction_disposition": "classified",
+          "payload": {
+            "gate_in_time": "08 Aug 09:18 SGT",
+            "receipt_no": "CLT-GI-9402",
+            "terminal": "PSA Singapore",
+            "vessel": "MV Ocean Juniper"
+          }
+        },
+        "rpa04-002@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=17",
+              "observed": {
+                "event_type": "vgm_reply",
+                "external_id": "<rpa04-002@rp1.synthetic.test>",
+                "id": 17,
+                "match_method": "deterministic",
+                "matched_task_id": "t_3ded6ea3",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "applied"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BK-OOO-04",
+            "container_no": "CMAU4819207",
+            "job_no": "RP1-JOB-0401"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0401",
+            "verdict": "matched"
+          },
+          "event_type": "vgm_reply",
+          "extraction_disposition": "classified",
+          "payload": {
+            "submission_time": "08 Aug at 09:42 SGT",
+            "submitted_by": "Saffron Retail",
+            "vgm_method": "SOLAS-2",
+            "vgm_weight": "18,640 kg",
+            "weighing_ticket": "SR-VM-18804"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0401",
+            "observed": {
+              "corr": {
+                "booking_ref": "RP1-BK-OOO-04",
+                "container_no": "CMAU4819207",
+                "job_no": "RP1-JOB-0401"
+              },
+              "current_step_key": "await_gatein",
+              "entity_key": "job:RP1-JOB-0401",
+              "state": "advancing",
+              "task_id": "t_3ded6ea3",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Saffron Retail Pte Ltd",
+                "direction": "export",
+                "equipment_type": "40HC",
+                "port": "PSA Singapore",
+                "submission_time": "08 Aug at 09:42 SGT",
+                "submitted_by": "Saffron Retail",
+                "vessel": "MV Ocean Juniper",
+                "vgm_method": "SOLAS-2",
+                "vgm_status": "missing",
+                "vgm_weight": "18,640 kg",
+                "weighing_ticket": "SR-VM-18804"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rpa04-001@rp1.synthetic.test>",
+                "<rpa04-002@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "job:RP1-JOB-0401",
+                  "external_id": "<rpa04-001@rp1.synthetic.test>",
+                  "id": 16,
+                  "matched_task_id": "t_3ded6ea3",
+                  "status": "buffered"
+                },
+                {
+                  "entity_key": "job:RP1-JOB-0401",
+                  "external_id": "<rpa04-002@rp1.synthetic.test>",
+                  "id": 17,
+                  "matched_task_id": "t_3ded6ea3",
+                  "status": "applied"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-0401": {
+            "corr": {
+              "booking_ref": "RP1-BK-OOO-04",
+              "container_no": "CMAU4819207",
+              "job_no": "RP1-JOB-0401"
+            },
+            "state": "advancing",
+            "step": "await_gatein",
+            "vars": {
+              "customer": "Saffron Retail Pte Ltd",
+              "direction": "export",
+              "equipment_type": "40HC",
+              "port": "PSA Singapore",
+              "submission_time": "08 Aug at 09:42 SGT",
+              "submitted_by": "Saffron Retail",
+              "vessel": "MV Ocean Juniper",
+              "vgm_method": "SOLAS-2",
+              "vgm_status": "missing",
+              "vgm_weight": "18,640 kg",
+              "weighing_ticket": "SR-VM-18804"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A05": {
+      "emails": {
+        "<rp1-a05-forwarded-0501@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=20",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+                "id": 20,
+                "match_method": "deterministic",
+                "matched_task_id": "t_db4e14be",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "superseded"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BKG-0501",
+            "container_no": "MSCU0501001",
+            "job_no": "RP1-JOB-0501"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0501",
+            "verdict": "superseded"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "seal_no": "MS0501A",
+            "vessel": "MV Meridian Dawn",
+            "voyage": "MD118E"
+          }
+        },
+        "<rp1-a05-original-0501@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=19",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+                "id": 19,
+                "match_method": "deterministic",
+                "matched_task_id": "t_db4e14be",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "applied"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BKG-0501",
+            "container_no": "MSCU0501001",
+            "job_no": "RP1-JOB-0501"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0501",
+            "verdict": "matched"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "booking_ref": "RP1-BKG-0501",
+            "container_no": "MSCU0501001",
+            "seal_no": "MS0501A",
+            "vessel": "MV Meridian Dawn",
+            "voyage": "MD118E"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0501",
+            "observed": {
+              "corr": {
+                "bill_of_lading": "RP1-BL-0501",
+                "booking_ref": "RP1-BKG-0501",
+                "container_no": "MSCU0501001",
+                "job_no": "RP1-JOB-0501"
+              },
+              "current_step_key": "create_job",
+              "entity_key": "job:RP1-JOB-0501",
+              "state": "advancing",
+              "task_id": "t_db4e14be",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "booking_ref": "RP1-BKG-0501",
+                "container_no": "MSCU0501001",
+                "customer": "Northstar Home Goods",
+                "direction": "export",
+                "pickup_status": "awaiting_advice",
+                "seal_no": "MS0501A",
+                "vessel": "MV Meridian Dawn",
+                "voyage": "MD118E"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rp1-a05-original-0501@rp1.synthetic.test>",
+                "<rp1-a05-forwarded-0501@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "job:RP1-JOB-0501",
+                  "external_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+                  "id": 19,
+                  "matched_task_id": "t_db4e14be",
+                  "status": "applied"
+                },
+                {
+                  "entity_key": "job:RP1-JOB-0501",
+                  "external_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+                  "id": 20,
+                  "matched_task_id": "t_db4e14be",
+                  "status": "superseded"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-0501": {
+            "corr": {
+              "bill_of_lading": "RP1-BL-0501",
+              "booking_ref": "RP1-BKG-0501",
+              "container_no": "MSCU0501001",
+              "job_no": "RP1-JOB-0501"
+            },
+            "state": "advancing",
+            "step": "create_job",
+            "vars": {
+              "booking_ref": "RP1-BKG-0501",
+              "container_no": "MSCU0501001",
+              "customer": "Northstar Home Goods",
+              "direction": "export",
+              "pickup_status": "awaiting_advice",
+              "seal_no": "MS0501A",
+              "vessel": "MV Meridian Dawn",
+              "voyage": "MD118E"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A06": {
+      "emails": {
+        "<rp1-a06-correction-0601b@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=23",
+              "observed": {
+                "event_type": "container_assigned",
+                "external_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>",
+                "id": 23,
+                "match_method": "deterministic",
+                "matched_task_id": "t_f9478015",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "buffered"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BKG-0601",
+            "container_no": "TGHU0601006",
+            "job_no": "JOB-0601"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0601",
+            "verdict": "buffered"
+          },
+          "event_type": "container_assigned",
+          "extraction_disposition": "classified",
+          "payload": {
+            "bill_of_lading": "RP1-BL-0601B"
+          }
+        },
+        "<rp1-a06-initial-0601@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=22",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+                "id": 22,
+                "match_method": "deterministic",
+                "matched_task_id": "t_f9478015",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "buffered"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BKG-0601",
+            "container_no": "TGHU0601006",
+            "job_no": "RP1-JOB-0601"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0601",
+            "verdict": "buffered"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "Cedar & Finch Retail",
+            "direction": "export",
+            "vessel": "MV Eastern Lantern"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0601",
+            "observed": {
+              "corr": {
+                "bill_of_lading": "RP1-BL-0601",
+                "booking_ref": "RP1-BKG-0601",
+                "container_no": "TGHU0601006",
+                "job_no": "RP1-JOB-0601"
+              },
+              "current_step_key": "ingest",
+              "entity_key": "job:RP1-JOB-0601",
+              "state": "advancing",
+              "task_id": "t_f9478015",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "bill_of_lading_status": "initial_reference",
+                "customer": "Cedar & Finch Retail",
+                "direction": "export",
+                "vessel": "MV Eastern Lantern"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rp1-a06-initial-0601@rp1.synthetic.test>",
+                "<rp1-a06-correction-0601b@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "job:RP1-JOB-0601",
+                  "external_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+                  "id": 22,
+                  "matched_task_id": "t_f9478015",
+                  "status": "buffered"
+                },
+                {
+                  "entity_key": "job:RP1-JOB-0601",
+                  "external_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>",
+                  "id": 23,
+                  "matched_task_id": "t_f9478015",
+                  "status": "buffered"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-0601": {
+            "corr": {
+              "bill_of_lading": "RP1-BL-0601",
+              "booking_ref": "RP1-BKG-0601",
+              "container_no": "TGHU0601006",
+              "job_no": "RP1-JOB-0601"
+            },
+            "state": "advancing",
+            "step": "ingest",
+            "vars": {
+              "bill_of_lading_status": "initial_reference",
+              "customer": "Cedar & Finch Retail",
+              "direction": "export",
+              "vessel": "MV Eastern Lantern"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A07": {
+      "emails": {
+        "<rp1-a07-carrier-0701@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=25",
+              "observed": {
+                "event_type": "gate_in",
+                "external_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+                "id": 25,
+                "match_method": "deterministic",
+                "matched_task_id": "t_75ccd9c9",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "buffered"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BKG-0701",
+            "container_no": "MSCU0701007",
+            "job_no": "RP1-JOB-0701"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0701",
+            "verdict": "buffered"
+          },
+          "event_type": "gate_in",
+          "extraction_disposition": "classified",
+          "payload": {
+            "direction": "export",
+            "vessel": "MV Coral Wind"
+          }
+        },
+        "<rp1-a07-chase-0701@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=26",
+              "observed": {
+                "event_type": null,
+                "external_id": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+                "id": 26,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "routed_out"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {},
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "routed_out"
+          },
+          "event_type": null,
+          "extraction_disposition": "declared-no-fit",
+          "payload": {}
+        },
+        "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=27",
+              "observed": {
+                "event_type": null,
+                "external_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>",
+                "id": 27,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "routed_out"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {},
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "routed_out"
+          },
+          "event_type": null,
+          "extraction_disposition": "declared-no-fit",
+          "payload": {}
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0701",
+            "observed": {
+              "corr": {
+                "booking_ref": "RP1-BKG-0701",
+                "container_no": "MSCU0701007",
+                "job_no": "RP1-JOB-0701"
+              },
+              "current_step_key": "await_pickup",
+              "entity_key": "job:RP1-JOB-0701",
+              "state": "parked",
+              "task_id": "t_75ccd9c9",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Blue Arc Retail",
+                "customer_cutoff": "2026-07-31T15:00:00+08:00",
+                "direction": "export",
+                "urgency": "normal",
+                "vessel": "MV Coral Wind"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+                "<rp1-a07-chase-0701@rp1.synthetic.test>",
+                "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "job:RP1-JOB-0701",
+                  "external_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+                  "id": 25,
+                  "matched_task_id": "t_75ccd9c9",
+                  "status": "buffered"
+                },
+                {
+                  "entity_key": null,
+                  "external_id": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+                  "id": 26,
+                  "matched_task_id": null,
+                  "status": "routed_out"
+                },
+                {
+                  "entity_key": null,
+                  "external_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>",
+                  "id": 27,
+                  "matched_task_id": null,
+                  "status": "routed_out"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-0701": {
+            "corr": {
+              "booking_ref": "RP1-BKG-0701",
+              "container_no": "MSCU0701007",
+              "job_no": "RP1-JOB-0701"
+            },
+            "state": "parked",
+            "step": "await_pickup",
+            "vars": {
+              "customer": "Blue Arc Retail",
+              "customer_cutoff": "2026-07-31T15:00:00+08:00",
+              "direction": "export",
+              "urgency": "normal",
+              "vessel": "MV Coral Wind"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A08": {
+      "emails": {
+        "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=29",
+              "observed": {
+                "event_type": "gate_in",
+                "external_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+                "id": 29,
+                "match_method": "deterministic",
+                "matched_task_id": "t_409a06f1",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "applied"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BKG-0801",
+            "container_no": "TGHU0808008",
+            "job_no": "RP1-JOB-0801"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0801",
+            "verdict": "matched"
+          },
+          "event_type": "gate_in",
+          "extraction_disposition": "classified",
+          "payload": {
+            "direction": "export",
+            "vessel": "MV Southern Star"
+          }
+        },
+        "<rp1-a08-forward-0801@rp1.synthetic.test>": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=30",
+              "observed": {
+                "event_type": "gate_in",
+                "external_id": "<rp1-a08-forward-0801@rp1.synthetic.test>",
+                "id": 30,
+                "match_method": "deterministic",
+                "matched_task_id": "t_409a06f1",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "superseded"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "RP1-BKG-0801",
+            "container_no": "TGHU0808008",
+            "job_no": "RP1-JOB-0801"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0801",
+            "verdict": "superseded"
+          },
+          "event_type": "gate_in",
+          "extraction_disposition": "classified",
+          "payload": {
+            "eir_number": "HP-0801-1642",
+            "gate_in_time": "16:42 yesterday"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0801",
+            "observed": {
+              "corr": {
+                "booking_ref": "RP1-BKG-0801",
+                "container_no": "TGHU0808008",
+                "job_no": "RP1-JOB-0801"
+              },
+              "current_step_key": "invoice",
+              "entity_key": "job:RP1-JOB-0801",
+              "state": "advancing",
+              "task_id": "t_409a06f1",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Lattice Kitchenware",
+                "direction": "export",
+                "gate_in_status": "awaiting_state_confirmation",
+                "vessel": "MV Southern Star"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+                "<rp1-a08-forward-0801@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "job:RP1-JOB-0801",
+                  "external_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+                  "id": 29,
+                  "matched_task_id": "t_409a06f1",
+                  "status": "applied"
+                },
+                {
+                  "entity_key": "job:RP1-JOB-0801",
+                  "external_id": "<rp1-a08-forward-0801@rp1.synthetic.test>",
+                  "id": 30,
+                  "matched_task_id": "t_409a06f1",
+                  "status": "superseded"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-0801": {
+            "corr": {
+              "booking_ref": "RP1-BKG-0801",
+              "container_no": "TGHU0808008",
+              "job_no": "RP1-JOB-0801"
+            },
+            "state": "advancing",
+            "step": "invoice",
+            "vars": {
+              "customer": "Lattice Kitchenware",
+              "direction": "export",
+              "gate_in_status": "awaiting_state_confirmation",
+              "vessel": "MV Southern Star"
+            }
+          }
+        }
+      },
+      "state_probes": [
+        {
+          "_citations": [
+            {
+              "identity": "wf_event.id=31",
+              "observed": {
+                "event_type": "gate_in",
+                "external_id": "rp1:job:RP1-JOB-0801:gate_in",
+                "id": 31,
+                "match_method": "deterministic",
+                "matched_task_id": "t_409a06f1",
+                "payload_column_present": true,
+                "source": "state_poll",
+                "status": "superseded"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            },
+            {
+              "identity": "state_poll.entity_key=job:RP1-JOB-0801",
+              "observed": {
+                "poll_duplicates": 0,
+                "poll_events": [
+                  31
+                ],
+                "probe_errors": 0
+              },
+              "query": "register_state_probe(read_only=True), then run_tick",
+              "table": "wf_watcher.run_tick"
+            }
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "container_no": "TGHU0808008",
+            "job_no": "RP1-JOB-0801"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0801",
+            "verdict": "superseded"
+          },
+          "event_type": "gate_in",
+          "extraction_disposition": "classified",
+          "payload": {
+            "container_no": "TGHU0808008",
+            "gate_in": false,
+            "job_no": "RP1-JOB-0801",
+            "last_known_state": "container_assigned",
+            "last_updated": "2026-07-31T08:42:11+08:00",
+            "status": "not_gate_in"
+          },
+          "process_local_isolation": "probe registered and ticked in this staging helper process against the same SQLite board",
+          "state_poll": {
+            "container_no": "TGHU0808008",
+            "gate_in": false,
+            "job_no": "RP1-JOB-0801",
+            "last_known_state": "container_assigned",
+            "last_updated": "2026-07-31T08:42:11+08:00",
+            "status": "not_gate_in"
+          }
+        }
+      ]
+    },
+    "RP1-A09": {
+      "emails": {
+        "rp1-a09-1@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=33",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rp1-a09-1@rp1.synthetic.test>",
+                "id": 33,
+                "match_method": "deterministic",
+                "matched_task_id": "t_e98403f1",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "buffered"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "BK-0901-SEA"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0901",
+            "verdict": "buffered"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "Northstar Foods Pte Ltd",
+            "direction": "export"
+          }
+        },
+        "rp1-a09-2@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=34",
+              "observed": {
+                "event_type": "container_assigned",
+                "external_id": "<rp1-a09-2@rp1.synthetic.test>",
+                "id": 34,
+                "match_method": "deterministic",
+                "matched_task_id": "t_e98403f1",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "buffered"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "BK-0901-SEA",
+            "container_no": "MSCU4827312"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-0901",
+            "verdict": "buffered"
+          },
+          "event_type": "container_assigned",
+          "extraction_disposition": "classified",
+          "payload": {
+            "direction": "export",
+            "vessel": "MV Cedar Horizon"
+          }
+        },
+        "rp1-a09-3@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=35",
+              "observed": {
+                "event_type": "vgm_reply",
+                "external_id": "<rp1-a09-3@rp1.synthetic.test>",
+                "id": 35,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "unmatched"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "container_no": "MSCU4827312"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "unmatched"
+          },
+          "event_type": "vgm_reply",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "Northstar Foods Pte Ltd",
+            "pickup_date": "04 Aug",
+            "vgm_method": "weighbridge",
+            "vgm_weight": "18,340 kg"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-0901",
+            "observed": {
+              "corr": {
+                "booking_ref": "BK-0901-SEA"
+              },
+              "current_step_key": "ingest",
+              "entity_key": "job:RP1-JOB-0901",
+              "state": "advancing",
+              "task_id": "t_e98403f1",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "Northstar Foods Pte Ltd",
+                "direction": "export",
+                "equipment": "1x40HC"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rp1-a09-1@rp1.synthetic.test>",
+                "<rp1-a09-2@rp1.synthetic.test>",
+                "<rp1-a09-3@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "job:RP1-JOB-0901",
+                  "external_id": "<rp1-a09-1@rp1.synthetic.test>",
+                  "id": 33,
+                  "matched_task_id": "t_e98403f1",
+                  "status": "buffered"
+                },
+                {
+                  "entity_key": "job:RP1-JOB-0901",
+                  "external_id": "<rp1-a09-2@rp1.synthetic.test>",
+                  "id": 34,
+                  "matched_task_id": "t_e98403f1",
+                  "status": "buffered"
+                },
+                {
+                  "entity_key": null,
+                  "external_id": "<rp1-a09-3@rp1.synthetic.test>",
+                  "id": 35,
+                  "matched_task_id": null,
+                  "status": "unmatched"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-0901": {
+            "corr": {
+              "booking_ref": "BK-0901-SEA"
+            },
+            "state": "advancing",
+            "step": "ingest",
+            "vars": {
+              "customer": "Northstar Foods Pte Ltd",
+              "direction": "export",
+              "equipment": "1x40HC"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A10": {
+      "emails": {
+        "rp1-a10-1@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=36",
+              "observed": {
+                "event_type": null,
+                "external_id": "<rp1-a10-1@rp1.synthetic.test>",
+                "id": 36,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "routed_out"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {},
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "routed_out"
+          },
+          "event_type": null,
+          "extraction_disposition": "declared-no-fit",
+          "payload": {}
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rp1-a10-1@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": null,
+                  "external_id": "<rp1-a10-1@rp1.synthetic.test>",
+                  "id": 36,
+                  "matched_task_id": null,
+                  "status": "routed_out"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {}
+      },
+      "state_probes": []
+    },
+    "RP1-A11": {
+      "emails": {
+        "rp1-a11-1@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=38",
+              "observed": {
+                "event_type": "trucking_instruction",
+                "external_id": "<rp1-a11-1@rp1.synthetic.test>",
+                "id": 38,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "unmatched"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "BK-1101-RED"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "unmatched"
+          },
+          "event_type": "trucking_instruction",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "EastBridge Foods Pte Ltd",
+            "direction": "export",
+            "vessel": "MV Pacific Ember"
+          }
+        },
+        "rp1-a11-2@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=39",
+              "observed": {
+                "event_type": "pickup_advice",
+                "external_id": "<rp1-a11-2@rp1.synthetic.test>",
+                "id": 39,
+                "match_method": "deterministic",
+                "matched_task_id": "t_cc304588",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "buffered"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "BK-1101-RED",
+            "container_no": "MSCU5938049",
+            "job_no": "EB-1101-7842"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-1101",
+            "verdict": "buffered"
+          },
+          "event_type": "pickup_advice",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "EastBridge",
+            "direction": null,
+            "vessel": "MV Pacific Ember"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-1101",
+            "observed": {
+              "corr": {
+                "booking_ref": "BK-1101-RED"
+              },
+              "current_step_key": "ingest",
+              "entity_key": "job:RP1-JOB-1101",
+              "state": "advancing",
+              "task_id": "t_cc304588",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "EastBridge Foods Pte Ltd",
+                "direction": "export",
+                "equipment": "1x40HC",
+                "vessel_name": "MV Pacific Ember"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rp1-a11-1@rp1.synthetic.test>",
+                "<rp1-a11-2@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": null,
+                  "external_id": "<rp1-a11-1@rp1.synthetic.test>",
+                  "id": 38,
+                  "matched_task_id": null,
+                  "status": "unmatched"
+                },
+                {
+                  "entity_key": "job:RP1-JOB-1101",
+                  "external_id": "<rp1-a11-2@rp1.synthetic.test>",
+                  "id": 39,
+                  "matched_task_id": "t_cc304588",
+                  "status": "buffered"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-1101": {
+            "corr": {
+              "booking_ref": "BK-1101-RED"
+            },
+            "state": "advancing",
+            "step": "ingest",
+            "vars": {
+              "customer": "EastBridge Foods Pte Ltd",
+              "direction": "export",
+              "equipment": "1x40HC",
+              "vessel_name": "MV Pacific Ember"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    },
+    "RP1-A12": {
+      "emails": {
+        "rp1-a12-1@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=41",
+              "observed": {
+                "event_type": "vgm_reply",
+                "external_id": "<rp1-a12-1@rp1.synthetic.test>",
+                "id": 41,
+                "match_method": "deterministic",
+                "matched_task_id": "t_217af94a",
+                "payload_column_present": true,
+                "source": "email",
+                "status": "applied"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "BK-1201-BLUE",
+            "container_no": "MSCU8172656",
+            "job_no": "ITOS-1201-5508"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": "job:RP1-JOB-1201",
+            "verdict": "matched"
+          },
+          "event_type": "vgm_reply",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "HarbourFresh",
+            "method": "weighbridge",
+            "vessel": "MV Eastern Laurel",
+            "vgm_weight": "21,480 kg"
+          }
+        },
+        "rp1-a12-2@rp1.synthetic.test": {
+          "_citations": [
+            {
+              "identity": "wf_event.id=42",
+              "observed": {
+                "event_type": "gate_in",
+                "external_id": "<rp1-a12-2@rp1.synthetic.test>",
+                "id": 42,
+                "match_method": "deterministic",
+                "matched_task_id": null,
+                "payload_column_present": true,
+                "source": "email",
+                "status": "unmatched"
+              },
+              "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+              "table": "wf_event"
+            }
+          ],
+          "_evidence_limited_paths": [
+            "correlation.candidate_count",
+            "correlation.compatible_candidate_count",
+            "correlation.candidates_rejected",
+            "correlation.selection_reason",
+            "correlation.position",
+            "correlation.reason",
+            "correlation.usable_discriminator_count",
+            "agent_action.review.options"
+          ],
+          "agent_action": {
+            "evidence_status": "EVIDENCE-LIMITED",
+            "reason": "no durable wf_approval row for this event"
+          },
+          "corr": {
+            "booking_ref": "BK-1201-BLUE",
+            "container_no": "MSCU8172656",
+            "job_no": "ITOS-1201-5508"
+          },
+          "correlation": {
+            "match_method": "deterministic",
+            "target": null,
+            "verdict": "unmatched"
+          },
+          "event_type": "gate_in",
+          "extraction_disposition": "classified",
+          "payload": {
+            "customer": "HarbourFresh",
+            "vessel": "MV Eastern Laurel",
+            "vgm_weight": "21,480 kg"
+          }
+        }
+      },
+      "expected_final": {
+        "_citations": [
+          {
+            "identity": "wf_instance.entity_key=job:RP1-JOB-1201",
+            "observed": {
+              "corr": {
+                "booking_ref": "BK-1201-BLUE",
+                "container_no": "MSCU8172656",
+                "job_no": "ITOS-1201-5508"
+              },
+              "current_step_key": "await_gatein",
+              "entity_key": "job:RP1-JOB-1201",
+              "state": "advancing",
+              "task_id": "t_217af94a",
+              "template_id": "synthetic-freight-loop@1",
+              "vars": {
+                "customer": "HarbourFresh",
+                "direction": "export",
+                "method": "weighbridge",
+                "vessel": "MV Eastern Laurel",
+                "vessel_name": "MV Eastern Laurel",
+                "vgm_weight": "21,480 kg",
+                "voyage": "EL509"
+              }
+            },
+            "query": "SELECT workflow instance and current task step by entity_key",
+            "table": "wf_instance+tasks"
+          },
+          {
+            "identity": "wf_event.external_id in arc wire Message-IDs",
+            "observed": {
+              "requested_external_ids": [
+                "<rp1-a12-1@rp1.synthetic.test>",
+                "<rp1-a12-2@rp1.synthetic.test>"
+              ],
+              "rows": [
+                {
+                  "entity_key": "job:RP1-JOB-1201",
+                  "external_id": "<rp1-a12-1@rp1.synthetic.test>",
+                  "id": 41,
+                  "matched_task_id": "t_217af94a",
+                  "status": "applied"
+                },
+                {
+                  "entity_key": null,
+                  "external_id": "<rp1-a12-2@rp1.synthetic.test>",
+                  "id": 42,
+                  "matched_task_id": null,
+                  "status": "unmatched"
+                }
+              ]
+            },
+            "query": "SELECT email events and linked workflow instances by external_id",
+            "table": "wf_event+wf_instance"
+          }
+        ],
+        "evidence_status": "EVIDENCE-LIMITED",
+        "instances": {
+          "job:RP1-JOB-1201": {
+            "corr": {
+              "booking_ref": "BK-1201-BLUE",
+              "container_no": "MSCU8172656",
+              "job_no": "ITOS-1201-5508"
+            },
+            "state": "advancing",
+            "step": "await_gatein",
+            "vars": {
+              "customer": "HarbourFresh",
+              "direction": "export",
+              "method": "weighbridge",
+              "vessel": "MV Eastern Laurel",
+              "vessel_name": "MV Eastern Laurel",
+              "vgm_weight": "21,480 kg",
+              "voyage": "EL509"
+            }
+          }
+        }
+      },
+      "state_probes": []
+    }
+  },
+  "campaign": "rp1",
+  "citation_contract": {
+    "format": [
+      "table",
+      "identity",
+      "query",
+      "observed"
+    ],
+    "style": "P5a"
+  },
+  "citations": [
+    {
+      "identity": "service=pa-workflow-dev-hermes.service release=cd70f6adbde963c364c0d088882a10e0a298614b",
+      "observed": {
+        "database": "/home/pa-staging/.hermes-p0/kanban/boards/workflow-rp1/kanban.db",
+        "deployed_release": "cd70f6adbde963c364c0d088882a10e0a298614b",
+        "environment": "staging",
+        "executor_sha256": "792235e1ee2b272f9787db76fd168162934fab2454bb594bd7deab246dbabd32",
+        "ingress_board": "workflow-rp1",
+        "kanban_db_override": null,
+        "service": "pa-workflow-dev-hermes.service",
+        "target": "pa-workflow-dev",
+        "verified_at": "2026-07-31T14:06:54.189437+00:00"
+      },
+      "query": "read /home/pa-staging/.hermes-p0/kanban/wf-rp1-service-proof.json",
+      "table": "runtime_service_proof"
+    },
+    {
+      "identity": "wf_template.slug=synthetic-freight-loop@1",
+      "observed": {
+        "content_hash": "7a2b43a80e5ce185f66c508f5e28fae832369f6538114068ba5232d0b791441d",
+        "slug": "synthetic-freight-loop",
+        "version": 1
+      },
+      "query": "SELECT latest registered workflow template",
+      "table": "wf_template"
+    },
+    {
+      "identity": "wf_template.slug=synthetic-freight-loop@1.email_extraction",
+      "observed": {
+        "contract_sha256": "2cd7054556133c1f098dca563f20abf53678b9b03f77431bdf7eda88b1e3d4d3",
+        "correlation_keys": [
+          "container_no",
+          "job_no",
+          "booking_ref"
+        ],
+        "disambiguators": [
+          "customer",
+          "vessel",
+          "direction"
+        ],
+        "event_types": [
+          "container_assigned",
+          "gate_in",
+          "pickup_advice",
+          "trucking_instruction",
+          "vgm_reply"
+        ],
+        "instruction_sha256": "d6f6ee4f8866bb71443e6d950a972362e46b4ada648c3ceb6b87de2876efbeb8",
+        "schema": "synthetic-freight-email-event-v1"
+      },
+      "query": "resolve the sole registered email_extraction contract",
+      "table": "wf_template"
+    },
+    {
+      "identity": "database=/home/pa-staging/.hermes-p0/kanban/boards/workflow-rp1/kanban.db",
+      "observed": {
+        "probe_errors": 0,
+        "sweep_processed": 5,
+        "timer_errors": 0
+      },
+      "query": "run wf_watcher.run_tick against the staging database",
+      "table": "wf_watcher.run_tick"
+    },
+    {
+      "identity": "wf_event.id=8",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "unmatched"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=8 ingress-envelope",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+        "id": 8,
+        "payload": {
+          "body_ref": "/home/pa-staging/.hermes-p0/workflow/ingress/email/bodies/e37669ed03f13953fa2da14b04be6f315c7219580a38a64e0111dcae1c1f8a59.txt",
+          "date": "Fri, 31 Jul 2026 07:08:18 -0700 (PDT)",
+          "external_id": "<rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f@rp1.synthetic.test>",
+          "in_reply_to": "",
+          "references": "",
+          "sender": "dorm1@papercut-labs.com",
+          "source": "email",
+          "subject": "[rp1-preflight-5e1c5211db5d46ec92e1ca8ff7ef986f] RP1 staging ingress\r\n preflight"
+        },
+        "source": "email"
+      },
+      "query": "SELECT unclassified email envelope by stable keys",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0101",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-SHARED-01",
+          "job_no": "RP1-JOB-0101"
+        },
+        "current_step_key": "create_job",
+        "entity_key": "job:RP1-JOB-0101",
+        "state": "advancing",
+        "task_id": "t_7fcaf79d",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Northstar Foods",
+          "direction": "export",
+          "equipment_type": "40HC",
+          "port": "PSA Singapore",
+          "vessel": "MV Cedar Bay"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0102",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-SHARED-01",
+          "job_no": "RP1-JOB-0102"
+        },
+        "current_step_key": "await_vgm",
+        "entity_key": "job:RP1-JOB-0102",
+        "state": "parked",
+        "task_id": "t_e9b56fbb",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Harbor Lab Supplies Pte Ltd",
+          "direction": "export",
+          "equipment_type": "20GP",
+          "port": "PSA Singapore",
+          "vessel": "MV Cedar Bay"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=6",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rpa01-001@rp1.synthetic.test>",
+        "id": 6,
+        "match_method": "deterministic",
+        "matched_task_id": "t_7fcaf79d",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "applied"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=7",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rpa01-002@rp1.synthetic.test>",
+        "id": 7,
+        "match_method": "deterministic",
+        "matched_task_id": "t_7fcaf79d",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "superseded"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0101",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-SHARED-01",
+          "job_no": "RP1-JOB-0101"
+        },
+        "current_step_key": "create_job",
+        "entity_key": "job:RP1-JOB-0101",
+        "state": "advancing",
+        "task_id": "t_7fcaf79d",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Northstar Foods",
+          "direction": "export",
+          "equipment_type": "40HC",
+          "port": "PSA Singapore",
+          "vessel": "MV Cedar Bay"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0102",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-SHARED-01",
+          "job_no": "RP1-JOB-0102"
+        },
+        "current_step_key": "await_vgm",
+        "entity_key": "job:RP1-JOB-0102",
+        "state": "parked",
+        "task_id": "t_e9b56fbb",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Harbor Lab Supplies Pte Ltd",
+          "direction": "export",
+          "equipment_type": "20GP",
+          "port": "PSA Singapore",
+          "vessel": "MV Cedar Bay"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rpa01-001@rp1.synthetic.test>",
+          "<rpa01-002@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "job:RP1-JOB-0101",
+            "external_id": "<rpa01-001@rp1.synthetic.test>",
+            "id": 6,
+            "matched_task_id": "t_7fcaf79d",
+            "status": "applied"
+          },
+          {
+            "entity_key": "job:RP1-JOB-0101",
+            "external_id": "<rpa01-002@rp1.synthetic.test>",
+            "id": 7,
+            "matched_task_id": "t_7fcaf79d",
+            "status": "superseded"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_event.id=9",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rpa02-001@rp1.synthetic.test>",
+        "id": 9,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "unmatched"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=10",
+      "observed": {
+        "event_type": "trucking_instruction",
+        "external_id": "<rpa02-002@rp1.synthetic.test>",
+        "id": 10,
+        "match_method": "deterministic:create",
+        "matched_task_id": "t_c8f1fff0",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "matched"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0201",
+      "observed": {
+        "entity_key": "job:RP1-JOB-0201",
+        "found": false
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_instance.entity_key=RP1-JOB-0201",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-LATE-02",
+          "job_no": "RP1-JOB-0201"
+        },
+        "current_step_key": "ingest",
+        "entity_key": "RP1-JOB-0201",
+        "state": "advancing",
+        "task_id": "t_c8f1fff0",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Northwind Fixtures Pte Ltd",
+          "direction": "export",
+          "vessel": "MV River Kestrel"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rpa02-001@rp1.synthetic.test>",
+          "<rpa02-002@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "RP1-JOB-0201",
+            "external_id": "<rpa02-001@rp1.synthetic.test>",
+            "id": 9,
+            "matched_task_id": "t_c8f1fff0",
+            "status": "buffered"
+          },
+          {
+            "entity_key": "RP1-JOB-0201",
+            "external_id": "<rpa02-002@rp1.synthetic.test>",
+            "id": 10,
+            "matched_task_id": "t_c8f1fff0",
+            "status": "matched"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0301",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-AMB-03",
+          "job_no": "RP1-JOB-0301"
+        },
+        "current_step_key": "await_pickup",
+        "entity_key": "job:RP1-JOB-0301",
+        "state": "parked",
+        "task_id": "t_6952ae1c",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Meridian Home Goods Pte Ltd",
+          "customer_order": "MHG-881",
+          "direction": "export",
+          "equipment_type": "40HC",
+          "port": "PSA Singapore",
+          "vessel": "MV Silver Pine"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0302",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-AMB-03",
+          "job_no": "RP1-JOB-0302"
+        },
+        "current_step_key": "await_pickup",
+        "entity_key": "job:RP1-JOB-0302",
+        "state": "parked",
+        "task_id": "t_2950095b",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Meridian Home Goods Pte Ltd",
+          "customer_order": "MHG-882",
+          "direction": "export",
+          "equipment_type": "40HC",
+          "port": "PSA Singapore",
+          "vessel": "MV Silver Pine"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=13",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rpa03-001@rp1.synthetic.test>",
+        "id": 13,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "ambiguous"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=14",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rpa03-002@rp1.synthetic.test>",
+        "id": 14,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "routed_out"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0301",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-AMB-03",
+          "job_no": "RP1-JOB-0301"
+        },
+        "current_step_key": "await_pickup",
+        "entity_key": "job:RP1-JOB-0301",
+        "state": "parked",
+        "task_id": "t_6952ae1c",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Meridian Home Goods Pte Ltd",
+          "customer_order": "MHG-881",
+          "direction": "export",
+          "equipment_type": "40HC",
+          "port": "PSA Singapore",
+          "vessel": "MV Silver Pine"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0302",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-AMB-03",
+          "job_no": "RP1-JOB-0302"
+        },
+        "current_step_key": "await_pickup",
+        "entity_key": "job:RP1-JOB-0302",
+        "state": "parked",
+        "task_id": "t_2950095b",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Meridian Home Goods Pte Ltd",
+          "customer_order": "MHG-882",
+          "direction": "export",
+          "equipment_type": "40HC",
+          "port": "PSA Singapore",
+          "vessel": "MV Silver Pine"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rpa03-001@rp1.synthetic.test>",
+          "<rpa03-002@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": null,
+            "external_id": "<rpa03-001@rp1.synthetic.test>",
+            "id": 13,
+            "matched_task_id": null,
+            "status": "ambiguous"
+          },
+          {
+            "entity_key": null,
+            "external_id": "<rpa03-002@rp1.synthetic.test>",
+            "id": 14,
+            "matched_task_id": null,
+            "status": "routed_out"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0401",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-OOO-04",
+          "container_no": "CMAU4819207",
+          "job_no": "RP1-JOB-0401"
+        },
+        "current_step_key": "await_vgm",
+        "entity_key": "job:RP1-JOB-0401",
+        "state": "parked",
+        "task_id": "t_3ded6ea3",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Saffron Retail Pte Ltd",
+          "direction": "export",
+          "equipment_type": "40HC",
+          "port": "PSA Singapore",
+          "vessel": "MV Ocean Juniper",
+          "vgm_status": "missing"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=16",
+      "observed": {
+        "event_type": "gate_in",
+        "external_id": "<rpa04-001@rp1.synthetic.test>",
+        "id": 16,
+        "match_method": "deterministic",
+        "matched_task_id": "t_3ded6ea3",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "buffered"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=17",
+      "observed": {
+        "event_type": "vgm_reply",
+        "external_id": "<rpa04-002@rp1.synthetic.test>",
+        "id": 17,
+        "match_method": "deterministic",
+        "matched_task_id": "t_3ded6ea3",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "applied"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0401",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BK-OOO-04",
+          "container_no": "CMAU4819207",
+          "job_no": "RP1-JOB-0401"
+        },
+        "current_step_key": "await_gatein",
+        "entity_key": "job:RP1-JOB-0401",
+        "state": "advancing",
+        "task_id": "t_3ded6ea3",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Saffron Retail Pte Ltd",
+          "direction": "export",
+          "equipment_type": "40HC",
+          "port": "PSA Singapore",
+          "submission_time": "08 Aug at 09:42 SGT",
+          "submitted_by": "Saffron Retail",
+          "vessel": "MV Ocean Juniper",
+          "vgm_method": "SOLAS-2",
+          "vgm_status": "missing",
+          "vgm_weight": "18,640 kg",
+          "weighing_ticket": "SR-VM-18804"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rpa04-001@rp1.synthetic.test>",
+          "<rpa04-002@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "job:RP1-JOB-0401",
+            "external_id": "<rpa04-001@rp1.synthetic.test>",
+            "id": 16,
+            "matched_task_id": "t_3ded6ea3",
+            "status": "buffered"
+          },
+          {
+            "entity_key": "job:RP1-JOB-0401",
+            "external_id": "<rpa04-002@rp1.synthetic.test>",
+            "id": 17,
+            "matched_task_id": "t_3ded6ea3",
+            "status": "applied"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0501",
+      "observed": {
+        "corr": {
+          "bill_of_lading": "RP1-BL-0501",
+          "booking_ref": "RP1-BKG-0501",
+          "container_no": "MSCU0501001",
+          "job_no": "RP1-JOB-0501"
+        },
+        "current_step_key": "await_pickup",
+        "entity_key": "job:RP1-JOB-0501",
+        "state": "parked",
+        "task_id": "t_db4e14be",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Northstar Home Goods",
+          "direction": "export",
+          "pickup_status": "awaiting_advice",
+          "vessel": "MV Meridian Dawn"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=19",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+        "id": 19,
+        "match_method": "deterministic",
+        "matched_task_id": "t_db4e14be",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "applied"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=20",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+        "id": 20,
+        "match_method": "deterministic",
+        "matched_task_id": "t_db4e14be",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "superseded"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0501",
+      "observed": {
+        "corr": {
+          "bill_of_lading": "RP1-BL-0501",
+          "booking_ref": "RP1-BKG-0501",
+          "container_no": "MSCU0501001",
+          "job_no": "RP1-JOB-0501"
+        },
+        "current_step_key": "create_job",
+        "entity_key": "job:RP1-JOB-0501",
+        "state": "advancing",
+        "task_id": "t_db4e14be",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "booking_ref": "RP1-BKG-0501",
+          "container_no": "MSCU0501001",
+          "customer": "Northstar Home Goods",
+          "direction": "export",
+          "pickup_status": "awaiting_advice",
+          "seal_no": "MS0501A",
+          "vessel": "MV Meridian Dawn",
+          "voyage": "MD118E"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rp1-a05-original-0501@rp1.synthetic.test>",
+          "<rp1-a05-forwarded-0501@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "job:RP1-JOB-0501",
+            "external_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+            "id": 19,
+            "matched_task_id": "t_db4e14be",
+            "status": "applied"
+          },
+          {
+            "entity_key": "job:RP1-JOB-0501",
+            "external_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
+            "id": 20,
+            "matched_task_id": "t_db4e14be",
+            "status": "superseded"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0601",
+      "observed": {
+        "corr": {
+          "bill_of_lading": "RP1-BL-0601",
+          "booking_ref": "RP1-BKG-0601",
+          "container_no": "TGHU0601006",
+          "job_no": "RP1-JOB-0601"
+        },
+        "current_step_key": "ingest",
+        "entity_key": "job:RP1-JOB-0601",
+        "state": "advancing",
+        "task_id": "t_f9478015",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "bill_of_lading_status": "initial_reference",
+          "customer": "Cedar & Finch Retail",
+          "direction": "export",
+          "vessel": "MV Eastern Lantern"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=22",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+        "id": 22,
+        "match_method": "deterministic",
+        "matched_task_id": "t_f9478015",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "buffered"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=23",
+      "observed": {
+        "event_type": "container_assigned",
+        "external_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>",
+        "id": 23,
+        "match_method": "deterministic",
+        "matched_task_id": "t_f9478015",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "buffered"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0601",
+      "observed": {
+        "corr": {
+          "bill_of_lading": "RP1-BL-0601",
+          "booking_ref": "RP1-BKG-0601",
+          "container_no": "TGHU0601006",
+          "job_no": "RP1-JOB-0601"
+        },
+        "current_step_key": "ingest",
+        "entity_key": "job:RP1-JOB-0601",
+        "state": "advancing",
+        "task_id": "t_f9478015",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "bill_of_lading_status": "initial_reference",
+          "customer": "Cedar & Finch Retail",
+          "direction": "export",
+          "vessel": "MV Eastern Lantern"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rp1-a06-initial-0601@rp1.synthetic.test>",
+          "<rp1-a06-correction-0601b@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "job:RP1-JOB-0601",
+            "external_id": "<rp1-a06-initial-0601@rp1.synthetic.test>",
+            "id": 22,
+            "matched_task_id": "t_f9478015",
+            "status": "buffered"
+          },
+          {
+            "entity_key": "job:RP1-JOB-0601",
+            "external_id": "<rp1-a06-correction-0601b@rp1.synthetic.test>",
+            "id": 23,
+            "matched_task_id": "t_f9478015",
+            "status": "buffered"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0701",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BKG-0701",
+          "container_no": "MSCU0701007",
+          "job_no": "RP1-JOB-0701"
+        },
+        "current_step_key": "await_pickup",
+        "entity_key": "job:RP1-JOB-0701",
+        "state": "parked",
+        "task_id": "t_75ccd9c9",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Blue Arc Retail",
+          "customer_cutoff": "2026-07-31T15:00:00+08:00",
+          "direction": "export",
+          "urgency": "normal",
+          "vessel": "MV Coral Wind"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=25",
+      "observed": {
+        "event_type": "gate_in",
+        "external_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+        "id": 25,
+        "match_method": "deterministic",
+        "matched_task_id": "t_75ccd9c9",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "buffered"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=26",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+        "id": 26,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "routed_out"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=27",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>",
+        "id": 27,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "routed_out"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0701",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BKG-0701",
+          "container_no": "MSCU0701007",
+          "job_no": "RP1-JOB-0701"
+        },
+        "current_step_key": "await_pickup",
+        "entity_key": "job:RP1-JOB-0701",
+        "state": "parked",
+        "task_id": "t_75ccd9c9",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Blue Arc Retail",
+          "customer_cutoff": "2026-07-31T15:00:00+08:00",
+          "direction": "export",
+          "urgency": "normal",
+          "vessel": "MV Coral Wind"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+          "<rp1-a07-chase-0701@rp1.synthetic.test>",
+          "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "job:RP1-JOB-0701",
+            "external_id": "<rp1-a07-carrier-0701@rp1.synthetic.test>",
+            "id": 25,
+            "matched_task_id": "t_75ccd9c9",
+            "status": "buffered"
+          },
+          {
+            "entity_key": null,
+            "external_id": "<rp1-a07-chase-0701@rp1.synthetic.test>",
+            "id": 26,
+            "matched_task_id": null,
+            "status": "routed_out"
+          },
+          {
+            "entity_key": null,
+            "external_id": "<rp1-a07-customer-escalation-0701@rp1.synthetic.test>",
+            "id": 27,
+            "matched_task_id": null,
+            "status": "routed_out"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0801",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BKG-0801",
+          "container_no": "TGHU0808008",
+          "job_no": "RP1-JOB-0801"
+        },
+        "current_step_key": "await_gatein",
+        "entity_key": "job:RP1-JOB-0801",
+        "state": "parked",
+        "task_id": "t_409a06f1",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Lattice Kitchenware",
+          "direction": "export",
+          "gate_in_status": "awaiting_state_confirmation",
+          "vessel": "MV Southern Star"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=29",
+      "observed": {
+        "event_type": "gate_in",
+        "external_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+        "id": 29,
+        "match_method": "deterministic",
+        "matched_task_id": "t_409a06f1",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "applied"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=30",
+      "observed": {
+        "event_type": "gate_in",
+        "external_id": "<rp1-a08-forward-0801@rp1.synthetic.test>",
+        "id": 30,
+        "match_method": "deterministic",
+        "matched_task_id": "t_409a06f1",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "superseded"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=31",
+      "observed": {
+        "event_type": "gate_in",
+        "external_id": "rp1:job:RP1-JOB-0801:gate_in",
+        "id": 31,
+        "match_method": "deterministic",
+        "matched_task_id": "t_409a06f1",
+        "payload_column_present": true,
+        "source": "state_poll",
+        "status": "superseded"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "state_poll.entity_key=job:RP1-JOB-0801",
+      "observed": {
+        "poll_duplicates": 0,
+        "poll_events": [
+          31
+        ],
+        "probe_errors": 0
+      },
+      "query": "register_state_probe(read_only=True), then run_tick",
+      "table": "wf_watcher.run_tick"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0801",
+      "observed": {
+        "corr": {
+          "booking_ref": "RP1-BKG-0801",
+          "container_no": "TGHU0808008",
+          "job_no": "RP1-JOB-0801"
+        },
+        "current_step_key": "invoice",
+        "entity_key": "job:RP1-JOB-0801",
+        "state": "advancing",
+        "task_id": "t_409a06f1",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Lattice Kitchenware",
+          "direction": "export",
+          "gate_in_status": "awaiting_state_confirmation",
+          "vessel": "MV Southern Star"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+          "<rp1-a08-forward-0801@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "job:RP1-JOB-0801",
+            "external_id": "<rp1-a08-carrier-gatein-0801@rp1.synthetic.test>",
+            "id": 29,
+            "matched_task_id": "t_409a06f1",
+            "status": "applied"
+          },
+          {
+            "entity_key": "job:RP1-JOB-0801",
+            "external_id": "<rp1-a08-forward-0801@rp1.synthetic.test>",
+            "id": 30,
+            "matched_task_id": "t_409a06f1",
+            "status": "superseded"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0901",
+      "observed": {
+        "corr": {
+          "booking_ref": "BK-0901-SEA"
+        },
+        "current_step_key": "ingest",
+        "entity_key": "job:RP1-JOB-0901",
+        "state": "advancing",
+        "task_id": "t_e98403f1",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Northstar Foods Pte Ltd",
+          "direction": "export",
+          "equipment": "1x40HC"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=33",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rp1-a09-1@rp1.synthetic.test>",
+        "id": 33,
+        "match_method": "deterministic",
+        "matched_task_id": "t_e98403f1",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "buffered"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=34",
+      "observed": {
+        "event_type": "container_assigned",
+        "external_id": "<rp1-a09-2@rp1.synthetic.test>",
+        "id": 34,
+        "match_method": "deterministic",
+        "matched_task_id": "t_e98403f1",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "buffered"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=35",
+      "observed": {
+        "event_type": "vgm_reply",
+        "external_id": "<rp1-a09-3@rp1.synthetic.test>",
+        "id": 35,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "unmatched"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-0901",
+      "observed": {
+        "corr": {
+          "booking_ref": "BK-0901-SEA"
+        },
+        "current_step_key": "ingest",
+        "entity_key": "job:RP1-JOB-0901",
+        "state": "advancing",
+        "task_id": "t_e98403f1",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "Northstar Foods Pte Ltd",
+          "direction": "export",
+          "equipment": "1x40HC"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rp1-a09-1@rp1.synthetic.test>",
+          "<rp1-a09-2@rp1.synthetic.test>",
+          "<rp1-a09-3@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "job:RP1-JOB-0901",
+            "external_id": "<rp1-a09-1@rp1.synthetic.test>",
+            "id": 33,
+            "matched_task_id": "t_e98403f1",
+            "status": "buffered"
+          },
+          {
+            "entity_key": "job:RP1-JOB-0901",
+            "external_id": "<rp1-a09-2@rp1.synthetic.test>",
+            "id": 34,
+            "matched_task_id": "t_e98403f1",
+            "status": "buffered"
+          },
+          {
+            "entity_key": null,
+            "external_id": "<rp1-a09-3@rp1.synthetic.test>",
+            "id": 35,
+            "matched_task_id": null,
+            "status": "unmatched"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_event.id=36",
+      "observed": {
+        "event_type": null,
+        "external_id": "<rp1-a10-1@rp1.synthetic.test>",
+        "id": 36,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "routed_out"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rp1-a10-1@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": null,
+            "external_id": "<rp1-a10-1@rp1.synthetic.test>",
+            "id": 36,
+            "matched_task_id": null,
+            "status": "routed_out"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-1101",
+      "observed": {
+        "corr": {
+          "booking_ref": "BK-1101-RED"
+        },
+        "current_step_key": "ingest",
+        "entity_key": "job:RP1-JOB-1101",
+        "state": "advancing",
+        "task_id": "t_cc304588",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "EastBridge Foods Pte Ltd",
+          "direction": "export",
+          "equipment": "1x40HC",
+          "vessel_name": "MV Pacific Ember"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=38",
+      "observed": {
+        "event_type": "trucking_instruction",
+        "external_id": "<rp1-a11-1@rp1.synthetic.test>",
+        "id": 38,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "unmatched"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=39",
+      "observed": {
+        "event_type": "pickup_advice",
+        "external_id": "<rp1-a11-2@rp1.synthetic.test>",
+        "id": 39,
+        "match_method": "deterministic",
+        "matched_task_id": "t_cc304588",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "buffered"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-1101",
+      "observed": {
+        "corr": {
+          "booking_ref": "BK-1101-RED"
+        },
+        "current_step_key": "ingest",
+        "entity_key": "job:RP1-JOB-1101",
+        "state": "advancing",
+        "task_id": "t_cc304588",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "EastBridge Foods Pte Ltd",
+          "direction": "export",
+          "equipment": "1x40HC",
+          "vessel_name": "MV Pacific Ember"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rp1-a11-1@rp1.synthetic.test>",
+          "<rp1-a11-2@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": null,
+            "external_id": "<rp1-a11-1@rp1.synthetic.test>",
+            "id": 38,
+            "matched_task_id": null,
+            "status": "unmatched"
+          },
+          {
+            "entity_key": "job:RP1-JOB-1101",
+            "external_id": "<rp1-a11-2@rp1.synthetic.test>",
+            "id": 39,
+            "matched_task_id": "t_cc304588",
+            "status": "buffered"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-1201",
+      "observed": {
+        "corr": {
+          "booking_ref": "BK-1201-BLUE",
+          "container_no": "MSCU8172656",
+          "job_no": "ITOS-1201-5508"
+        },
+        "current_step_key": "await_vgm",
+        "entity_key": "job:RP1-JOB-1201",
+        "state": "parked",
+        "task_id": "t_217af94a",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "HarbourFresh Trading Pte Ltd",
+          "direction": "export",
+          "vessel_name": "MV Eastern Laurel",
+          "voyage": "EL509"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.id=41",
+      "observed": {
+        "event_type": "vgm_reply",
+        "external_id": "<rp1-a12-1@rp1.synthetic.test>",
+        "id": 41,
+        "match_method": "deterministic",
+        "matched_task_id": "t_217af94a",
+        "payload_column_present": true,
+        "source": "email",
+        "status": "applied"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_event.id=42",
+      "observed": {
+        "event_type": "gate_in",
+        "external_id": "<rp1-a12-2@rp1.synthetic.test>",
+        "id": 42,
+        "match_method": "deterministic",
+        "matched_task_id": null,
+        "payload_column_present": true,
+        "source": "email",
+        "status": "unmatched"
+      },
+      "query": "SELECT email event by Message-ID, X-RP1-Token, or subject token",
+      "table": "wf_event"
+    },
+    {
+      "identity": "wf_instance.entity_key=job:RP1-JOB-1201",
+      "observed": {
+        "corr": {
+          "booking_ref": "BK-1201-BLUE",
+          "container_no": "MSCU8172656",
+          "job_no": "ITOS-1201-5508"
+        },
+        "current_step_key": "await_gatein",
+        "entity_key": "job:RP1-JOB-1201",
+        "state": "advancing",
+        "task_id": "t_217af94a",
+        "template_id": "synthetic-freight-loop@1",
+        "vars": {
+          "customer": "HarbourFresh",
+          "direction": "export",
+          "method": "weighbridge",
+          "vessel": "MV Eastern Laurel",
+          "vessel_name": "MV Eastern Laurel",
+          "vgm_weight": "21,480 kg",
+          "voyage": "EL509"
+        }
+      },
+      "query": "SELECT workflow instance and current task step by entity_key",
+      "table": "wf_instance+tasks"
+    },
+    {
+      "identity": "wf_event.external_id in arc wire Message-IDs",
+      "observed": {
+        "requested_external_ids": [
+          "<rp1-a12-1@rp1.synthetic.test>",
+          "<rp1-a12-2@rp1.synthetic.test>"
+        ],
+        "rows": [
+          {
+            "entity_key": "job:RP1-JOB-1201",
+            "external_id": "<rp1-a12-1@rp1.synthetic.test>",
+            "id": 41,
+            "matched_task_id": "t_217af94a",
+            "status": "applied"
+          },
+          {
+            "entity_key": null,
+            "external_id": "<rp1-a12-2@rp1.synthetic.test>",
+            "id": 42,
+            "matched_task_id": null,
+            "status": "unmatched"
+          }
+        ]
+      },
+      "query": "SELECT email events and linked workflow instances by external_id",
+      "table": "wf_event+wf_instance"
+    }
+  ],
+  "database_mutated": true,
+  "environment": "staging",
+  "evidence_limited_paths": [
+    "correlation.candidate_count",
+    "correlation.compatible_candidate_count",
+    "correlation.candidates_rejected",
+    "correlation.selection_reason",
+    "correlation.position",
+    "correlation.reason",
+    "correlation.usable_discriminator_count",
+    "agent_action.review.options"
+  ],
+  "evidence_note": "Only durable staging rows cited below are observations; scorer-designated candidate/reason fields remain EVIDENCE-LIMITED when absent.",
+  "evidence_status": "EVIDENCE-LIMITED",
+  "mode": "observed",
+  "network_performed": true,
+  "population": {
+    "arcs": 12,
+    "emails": 25,
+    "probes": 1
+  },
+  "target": "pa-workflow-dev"
+}
