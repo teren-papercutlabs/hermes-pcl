@@ -160,6 +160,26 @@ def test_smtp_message_has_plus_sender_signature_and_thread_headers() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("expected", "received", "matches"),
+    [
+        ("dorm1+rp1-a05@example.test", "dorm1+rp1-a05@example.test", True),
+        ("dorm1+rp1-a05@example.test", "dorm1@example.test", True),
+        ("dorm1+rp1-a05@example.test", "other@example.test", False),
+        ("dorm1+rp1-a05@example.test", "dorm1@other.test", False),
+        ("dorm1@example.test", "dorm1+rp1-a05@example.test", False),
+        ("dorm1+rp1-a05@example.test", "not-a-mailbox", False),
+    ],
+)
+def test_plus_sender_canonicalization_is_exactly_bounded(
+    expected: str, received: str, matches: bool
+) -> None:
+    assert (
+        execute._same_sender_after_plus_canonicalization(expected, received)
+        is matches
+    )
+
+
 def test_applied_event_retains_matched_correlation_verdict() -> None:
     assert execute._correlation_verdict(
         {"status": "applied", "matched_task_id": "task-1"}

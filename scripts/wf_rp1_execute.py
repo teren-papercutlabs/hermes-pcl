@@ -1057,6 +1057,28 @@ def _plus_address(base: str, arc_id: str) -> str:
     return f"{local}+{arc_id.lower()}@{domain}"
 
 
+def _same_sender_after_plus_canonicalization(
+    expected: str, received: str
+) -> bool:
+    """Accept Gmail's exact plus-tag collapse, and no other identity drift."""
+    try:
+        expected = _mailbox(expected, "expected sender")
+        received = _mailbox(received, "received sender")
+    except ExecutionContractError:
+        return False
+    expected_local, expected_domain = expected.casefold().rsplit("@", 1)
+    received_local, received_domain = received.casefold().rsplit("@", 1)
+    if expected_local == received_local and expected_domain == received_domain:
+        return True
+    expected_base, separator, expected_tag = expected_local.partition("+")
+    return bool(
+        separator
+        and expected_tag
+        and expected_domain == received_domain
+        and expected_base == received_local
+    )
+
+
 def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -1512,7 +1534,10 @@ def execute_plan(
         )
         loopback_observed["stable_keys"] = sorted(stable)
     received = _mapping(loopback_observed.get("received"), "preflight received")
-    if received.get("from") != loopback_sender:
+    received_from = received.get("from")
+    if not isinstance(received_from, str) or not _same_sender_after_plus_canonicalization(
+        loopback_sender, received_from
+    ):
         raise ExecutionContractError("preflight received From does not match sender")
     stable_keys = loopback_observed.get("stable_keys")
     if (
