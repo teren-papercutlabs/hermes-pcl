@@ -344,6 +344,31 @@ def test_missing_citations_fail_closed() -> None:
         execute._citations(response, "test")
 
 
+def test_citations_accept_exact_schema_after_sorted_json_transport() -> None:
+    response = json.loads(json.dumps(_ready("x"), sort_keys=True))
+
+    citations = execute._citations(response, "test")
+
+    assert set(citations[0]) == {"table", "identity", "query", "observed"}
+
+
+@pytest.mark.parametrize("field", ["table", "identity", "query", "observed"])
+def test_citations_reject_missing_schema_field(field: str) -> None:
+    response = _ready("x")
+    del response["citations"][0][field]
+
+    with pytest.raises(execute.ExecutionContractError, match="invalid P5a citation"):
+        execute._citations(response, "test")
+
+
+def test_citations_reject_extra_schema_field() -> None:
+    response = _ready("x")
+    response["citations"][0]["extra"] = True
+
+    with pytest.raises(execute.ExecutionContractError, match="invalid P5a citation"):
+        execute._citations(response, "test")
+
+
 def test_timeout_is_journaled_before_failure(tmp_path: Path) -> None:
     class NeverReady:
         def request(self, action: str, payload: Any) -> dict[str, Any]:
@@ -586,6 +611,7 @@ def test_staging_stdio_enforces_schema_and_returns_real_preflight(
     response = json.loads(stdout.getvalue())
     assert response["ok"] is True
     assert response["deployed_release"] == "test-release-123"
+    assert execute._citations(response, "preflight")
 
 
 def test_remote_client_rejects_local_helper_even_when_shipped() -> None:
