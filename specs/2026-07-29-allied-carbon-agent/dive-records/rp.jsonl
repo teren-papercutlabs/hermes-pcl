@@ -10,3 +10,4 @@
 {"ts":"2026-07-31T06:46:09.773458+00:00","event":"wave_gate_pass","campaign":"RP1","wave":"author","arcs":12,"answer_keys_locked":true,"coverage_classes":12}
 {"ts":"2026-07-31T06:50:53.282916+00:00","event":"contract_gap_confirmed","campaign":"RP1","classification":"engine-defect","detail":"current live-path source has no LM extraction caller; raw received email transitions to routed_out on watcher tick"}
 {"ts":"2026-07-31T06:50:53.282916+00:00","event":"bug_filed","campaign":"RP1","bug_id":"dbbab08a-a4c3-4343-80f8-373907c1537b","severity":"high","detail":"LM extraction is absent from live email workflow path; distinct from stale-release bug 314b3736"}
+{"ts":"2026-07-31T06:54:05.169174+00:00","event":"orchestrator_ruling","campaign":"RP1","directive_verified":true,"detail":"dbbab08a confirmed missing cross-cutting live LM contract leg; build at terra rung after stale-release fix, then execute campaign; one-path dedup required"}
