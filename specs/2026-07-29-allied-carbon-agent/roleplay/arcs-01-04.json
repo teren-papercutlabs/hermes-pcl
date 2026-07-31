@@ -1,0 +1,632 @@
+{
+  "campaign": "rp1",
+  "unit": "u1",
+  "answer_key_locked_before_execution": true,
+  "arcs": [
+    {
+      "id": "RP1-A01",
+      "coverage_tags": [
+        "shared_booking_ref",
+        "step_compatibility_selects_one",
+        "prose_discriminator",
+        "deterministic_match",
+        "past_step_noop"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Maya Chen",
+          "company": "Allied Freight Services",
+          "voice": "terse, practical, and quick to correct the move details inline"
+        },
+        "carrier": {
+          "name": "Daniel Ortiz",
+          "company": "Pacific Meridian Lines",
+          "voice": "fragmented carrier notices with copied references, caps, and occasional typos"
+        },
+        "itos_state": {
+          "name": "ITOS synthetic tenant",
+          "company": "Allied Freight Services",
+          "voice": "structured operational state with two concurrent live jobs"
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "RP1-JOB-0101",
+          "entity_key": "job:RP1-JOB-0101",
+          "step": "await_pickup",
+          "corr": {
+            "booking_ref": "RP1-BK-SHARED-01",
+            "job_no": "RP1-JOB-0101"
+          },
+          "vars": {
+            "customer": "Northstar Foods Pte Ltd",
+            "vessel": "MV Cedar Bay",
+            "direction": "export",
+            "equipment_type": "40HC",
+            "port": "PSA Singapore"
+          }
+        },
+        {
+          "target": "RP1-JOB-0102",
+          "entity_key": "job:RP1-JOB-0102",
+          "step": "await_vgm",
+          "corr": {
+            "booking_ref": "RP1-BK-SHARED-01",
+            "job_no": "RP1-JOB-0102"
+          },
+          "vars": {
+            "customer": "Harbor Lab Supplies Pte Ltd",
+            "vessel": "MV Cedar Bay",
+            "direction": "export",
+            "equipment_type": "20GP",
+            "port": "PSA Singapore"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "rpa01-001@rp1.synthetic.test",
+          "from_display": "Daniel Ortiz | Pacific Meridian Lines",
+          "subject": "[RP1-A01] Pickup advice: RP1-BK-SHARED-01 / Northstar 40HC",
+          "body": "Hi Maya,\n\nPickup advice for booking RP1-BK-SHARED-01 is below. Please use the 40HC move for Northstar Foods, not the other 20GP movement under the same booking ref. Empty release PM-REL-8841 is ready at Westport Empty Depot, collection window 04 Aug 0800 to 1600. Vessel is MV Cedar Bay, export to PSA Singapore.\n\nQuoted from the earlier note: \"booking ref shared across the two files, please check before posting.\" The line release is for Northstar only. Seal is not issued yet, and the depot spelling in the first mail was wrong. Sorry, carrier system copied it bad.\n\nRegards,\nDaniel",
+          "answer_key": {
+            "event_type": "pickup_advice",
+            "payload": {
+              "booking_ref": "RP1-BK-SHARED-01",
+              "pickup_reference": "PM-REL-8841",
+              "customer": "Northstar Foods Pte Ltd",
+              "equipment_type": "40HC",
+              "vessel": "MV Cedar Bay",
+              "empty_depot": "Westport Empty Depot",
+              "pickup_window_start": "2026-08-04T08:00:00+08:00",
+              "pickup_window_end": "2026-08-04T16:00:00+08:00"
+            },
+            "corr": {
+              "booking_ref": "RP1-BK-SHARED-01"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-0101",
+              "match_method": "deterministic",
+              "candidates_rejected": [
+                "RP1-JOB-0102"
+              ],
+              "selection_reason": "step_compatibility",
+              "prose_discriminator": {
+                "customer": "Northstar Foods Pte Ltd"
+              },
+              "candidate_count": 2,
+              "compatible_candidate_count": 1
+            },
+            "agent_action": {
+              "kind": "resume",
+              "action": "Apply the pickup advice to RP1-JOB-0101 and advance it from await_pickup to create_job.",
+              "constraints": [
+                "Do not apply the event to RP1-JOB-0102.",
+                "Do not tie-break by recency because the booking reference is shared.",
+                "Keep seal_number absent because the carrier did not provide one."
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "rpa01-002@rp1.synthetic.test",
+          "from_display": "Daniel Ortiz | Pacific Meridian Lines",
+          "subject": "[RP1-A01] Correction only: PM-REL-8841 stays with Northstar",
+          "body": "Maya, small correction to the pickup thread. We rechecked the carrier screen and PM-REL-8841 is still the Northstar Foods 40HC release for internal job RP1-JOB-0101 on RP1-BK-SHARED-01. Harbor Lab's 20GP is a different live job and has no pickup advice in this message.\n\nPlease leave the first pickup event as filed; this is not a new depot or a new window. A stray sentence in the carrier draft said \"20GP release copied below\"; that line is not part of this release and was a bad paste from another file. No new seal number. If already moved on your side, no action needed apart from the note.\n\nThanks,\nDaniel",
+          "answer_key": {
+            "event_type": "pickup_advice",
+            "payload": {
+              "booking_ref": "RP1-BK-SHARED-01",
+              "pickup_reference": "PM-REL-8841",
+              "customer": "Northstar Foods Pte Ltd",
+              "equipment_type": "40HC",
+              "vessel": "MV Cedar Bay",
+              "empty_depot": "Westport Empty Depot",
+              "pickup_window_start": "2026-08-04T08:00:00+08:00",
+              "pickup_window_end": "2026-08-04T16:00:00+08:00",
+              "job_no": "RP1-JOB-0101"
+            },
+            "corr": {
+              "job_no": "RP1-JOB-0101",
+              "booking_ref": "RP1-BK-SHARED-01"
+            },
+            "correlation": {
+              "verdict": "superseded",
+              "target": "RP1-JOB-0101",
+              "match_method": "deterministic",
+              "candidate_count": 1,
+              "position": "past",
+              "reason": "The exact job_no selects RP1-JOB-0101 and its pickup wait was already satisfied by the first carrier message; this correction is a past-step no-op."
+            },
+            "agent_action": {
+              "kind": "no_action",
+              "action": "Record the correction as a past-step no-op and preserve the existing pickup advice on RP1-JOB-0101.",
+              "constraints": [
+                "Do not create a second pickup transition.",
+                "Do not touch RP1-JOB-0102.",
+                "Do not invent a seal number or change the pickup window."
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "jobs": {
+          "RP1-JOB-0101": {
+            "step": "create_job",
+            "state": "advancing",
+            "pickup_reference": "PM-REL-8841",
+            "last_event_effect": "applied_once"
+          },
+          "RP1-JOB-0102": {
+            "step": "await_vgm",
+            "state": "parked",
+            "changed_by_arc": false
+          }
+        },
+        "shared_booking_resolution": "RP1-JOB-0101_only",
+        "duplicate_transition_count": 0
+      }
+    },
+    {
+      "id": "RP1-A02",
+      "coverage_tags": [
+        "unmatched_event",
+        "signal_with_start",
+        "late_heal",
+        "deterministic_rematch_sweep"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Priya Nair",
+          "company": "Allied Freight Services",
+          "voice": "calm operations shorthand, with explicit asks when an event is early"
+        },
+        "carrier": {
+          "name": "Lewis Hart",
+          "company": "Ocean Crest Line",
+          "voice": "polite but rushed, forwarding line notices before the customer instruction"
+        },
+        "itos_state": {
+          "name": "ITOS synthetic tenant",
+          "company": "Allied Freight Services",
+          "voice": "no matching live job at first, then one job created from the instruction"
+        }
+      },
+      "initial_instances": [],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "rpa02-001@rp1.synthetic.test",
+          "from_display": "Lewis Hart | Ocean Crest Line",
+          "subject": "[RP1-A02] Early pickup advice before instruction: RP1-BK-LATE-02",
+          "body": "Priya, sending this ahead of the customer instruction because the line portal released it before their paperwork landed.\n\nBooking RP1-BK-LATE-02 has pickup reference OCL-PU-7718. Empty pickup is at Jurong Container Depot on 06 Aug, 0900 to 1500, for a 40HC on MV River Kestrel. The customer name is not shown on this carrier notice and there is no job number yet.\n\nQuoted portal text: \"release active, forward to ops immediately\". Please park this against the booking until the instruction arrives; do not create a guessed job just from the pickup note. I know this is early and slightly backwards, sorry.\n\nLewis",
+          "answer_key": {
+            "event_type": "pickup_advice",
+            "payload": {
+              "booking_ref": "RP1-BK-LATE-02",
+              "pickup_reference": "OCL-PU-7718",
+              "equipment_type": "40HC",
+              "vessel": "MV River Kestrel",
+              "empty_depot": "Jurong Container Depot",
+              "pickup_window_start": "2026-08-06T09:00:00+08:00",
+              "pickup_window_end": "2026-08-06T15:00:00+08:00"
+            },
+            "corr": {
+              "booking_ref": "RP1-BK-LATE-02"
+            },
+            "correlation": {
+              "verdict": "unmatched",
+              "target": null,
+              "match_method": "deterministic",
+              "candidate_count": 0,
+              "reason": "The pickup advice is not a create_on event and no open instance exists yet."
+            },
+            "agent_action": {
+              "kind": "park",
+              "action": "Store the pickup advice as an unmatched held event and wait for the instruction to create the instance.",
+              "constraints": [
+                "Do not invent RP1-JOB-0201 from the booking reference alone.",
+                "Retain the event for the bounded deterministic re-match sweep.",
+                "Do not route it out as foreign because the booking-shaped key is valid."
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "rpa02-002@rp1.synthetic.test",
+          "from_display": "Priya Nair | Allied Freight Services",
+          "subject": "[RP1-A02] New trucking instruction creates RP1-JOB-0201",
+          "body": "Lewis's pickup note came in before this instruction, so please join the two rather than opening a second move.\n\nCreate internal job RP1-JOB-0201 for Northwind Fixtures Pte Ltd, export from Singapore to Port Klang, booking RP1-BK-LATE-02, 40HC, vessel MV River Kestrel. Customer instruction is to collect the empty at Jurong Container Depot on 06 Aug and return the laden box for the booked sailing.\n\nThe earlier carrier mail says, \"release active, forward to ops immediately\" and gives pickup ref OCL-PU-7718. That is the same move. The instruction creates the instance; after creation, re-match the held pickup advice by booking_ref and pickup_reference, then continue with the pickup step. Please don't make me reconcile two jobs for one booking later.\n\nPriya",
+          "answer_key": {
+            "event_type": "trucking_instruction",
+            "payload": {
+              "requested_job_id": "RP1-JOB-0201",
+              "booking_ref": "RP1-BK-LATE-02",
+              "customer": "Northwind Fixtures Pte Ltd",
+              "direction": "export",
+              "origin": "Singapore",
+              "destination": "Port Klang",
+              "equipment_type": "40HC",
+              "vessel": "MV River Kestrel",
+              "empty_depot": "Jurong Container Depot",
+              "pickup_date": "2026-08-06",
+              "pickup_reference": "OCL-PU-7718"
+            },
+            "corr": {
+              "booking_ref": "RP1-BK-LATE-02"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-0201",
+              "match_method": "deterministic",
+              "created_instance": true,
+              "held_event_released": "rpa02-001@rp1.synthetic.test",
+              "creation_mode": "signal_with_start",
+              "candidate_count": 0,
+              "candidate_count_after_creation": 1,
+              "created_step": "ingest",
+              "created_step_advance": {
+                "from": "ingest",
+                "to": "await_pickup"
+              },
+              "held_event_transition": {
+                "from": "await_pickup",
+                "to": "create_job"
+              }
+            },
+            "agent_action": {
+              "kind": "resume",
+              "action": "Create RP1-JOB-0201 from the trucking instruction, then deterministically re-match and apply the held pickup advice by booking_ref and pickup_advice step compatibility to that new instance.",
+              "constraints": [
+                "Use the declared booking_ref and the pickup_advice wait; do not use an LM guess or recency.",
+                "Apply the held event once and preserve its original message id.",
+                "Do not create a second instance for RP1-BK-LATE-02."
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "instance": "RP1-JOB-0201",
+        "entity_key": "job:RP1-JOB-0201",
+        "step": "create_job",
+        "state": "advancing",
+        "held_pickup_event": "applied",
+        "healing": "deterministic_on_instance_creation",
+        "instance_count_for_booking": 1,
+        "new_job_created_by": "trucking_instruction"
+      }
+    },
+    {
+      "id": "RP1-A03",
+      "coverage_tags": [
+        "shared_booking_ref",
+        "two_plausible_matches",
+        "ambiguous_match",
+        "human_pick_required",
+        "no_auto_apply"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Owen Tan",
+          "company": "Allied Freight Services",
+          "voice": "direct and slightly impatient, but explicit about not guessing"
+        },
+        "carrier": {
+          "name": "Sara Mbeki",
+          "company": "Blue Strait Shipping",
+          "voice": "short forwarding notes that omit the fields the carrier system does not hold"
+        },
+        "itos_state": {
+          "name": "ITOS synthetic tenant",
+          "company": "Allied Freight Services",
+          "voice": "two open jobs share the booking and remain parked at the same compatible step"
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "RP1-JOB-0301",
+          "entity_key": "job:RP1-JOB-0301",
+          "step": "await_pickup",
+          "corr": {
+            "booking_ref": "RP1-BK-AMB-03",
+            "job_no": "RP1-JOB-0301"
+          },
+          "vars": {
+            "customer": "Meridian Home Goods Pte Ltd",
+            "vessel": "MV Silver Pine",
+            "direction": "export",
+            "equipment_type": "40HC",
+            "port": "PSA Singapore",
+            "customer_order": "MHG-881"
+          }
+        },
+        {
+          "target": "RP1-JOB-0302",
+          "entity_key": "job:RP1-JOB-0302",
+          "step": "await_pickup",
+          "corr": {
+            "booking_ref": "RP1-BK-AMB-03",
+            "job_no": "RP1-JOB-0302"
+          },
+          "vars": {
+            "customer": "Meridian Home Goods Pte Ltd",
+            "vessel": "MV Silver Pine",
+            "direction": "export",
+            "equipment_type": "40HC",
+            "port": "PSA Singapore",
+            "customer_order": "MHG-882"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "rpa03-001@rp1.synthetic.test",
+          "from_display": "Sara Mbeki | Blue Strait Shipping",
+          "subject": "[RP1-A03] Pickup release reposted for RP1-BK-AMB-03",
+          "body": "Owen, reposting the release because the first forwarding dropped the attachment.\n\nBooking RP1-BK-AMB-03 is released for pickup at Eastlink Empty Yard, window 07 Aug 0800 to 1400. Vessel MV Silver Pine, export from Singapore, one 40HC. Release number BSS-44120.\n\nOur carrier screen only shows the booking reference; it does not carry your internal job number, customer order, or a container number yet. The line has two records under this same booking, so there is no honest way for us to say whether this belongs to the first or second job. Please check the two open files before posting. Sorry, not very helpful, but guessing would be worse.\n\nSara",
+          "answer_key": {
+            "event_type": "pickup_advice",
+            "payload": {
+              "booking_ref": "RP1-BK-AMB-03",
+              "pickup_reference": "BSS-44120",
+              "empty_depot": "Eastlink Empty Yard",
+              "pickup_window_start": "2026-08-07T08:00:00+08:00",
+              "pickup_window_end": "2026-08-07T14:00:00+08:00",
+              "vessel": "MV Silver Pine",
+              "direction": "export",
+              "equipment_type": "40HC"
+            },
+            "corr": {
+              "booking_ref": "RP1-BK-AMB-03"
+            },
+            "correlation": {
+              "verdict": "ambiguous",
+              "target": [
+                "RP1-JOB-0301",
+                "RP1-JOB-0302"
+              ],
+              "match_method": "deterministic",
+              "usable_discriminator_count": 0,
+              "reason": "The event has no customer value, while the declared disambiguators vessel and direction are present but equal on both candidates; customer_order is not a declared disambiguator and is absent from the event.",
+              "candidate_count": 2,
+              "compatible_candidate_count": 2
+            },
+            "agent_action": {
+              "kind": "review",
+              "action": "Create a needs_review pick showing RP1-JOB-0301 and RP1-JOB-0302 with the pickup summary, and ask a human to choose one.",
+              "constraints": [
+                "Never apply the pickup advice to both jobs.",
+                "Never choose by recency, list order, or a guessed customer order.",
+                "Keep both instances parked until the human pick is recorded."
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "rpa03-002@rp1.synthetic.test",
+          "from_display": "Owen Tan | Allied Freight Services",
+          "subject": "[RP1-A03] Re: pickup release still has no job discriminator",
+          "body": "Sara, received the repost. We have checked the tracker and both RP1-JOB-0301 and RP1-JOB-0302 are Meridian Home Goods export moves on MV Silver Pine, both 40HC, both waiting for pickup.\n\nThe release number BSS-44120 is not written against either internal file, and there is still no container number or customer order in the carrier note. Please leave this in review. Do not attach it to the first row just because it appears first in the sheet.\n\nQuoted for the record: \"there is no honest way for us to say whether this belongs to the first or second job.\" Correct. We will pick it when the customer confirms which order is moving. Until then, no ITOS update and no pickup email out.\n\nOwen",
+          "answer_key": {
+            "event_type": "pickup_advice",
+            "payload": {
+              "booking_ref": "RP1-BK-AMB-03",
+              "pickup_reference": "BSS-44120",
+              "empty_depot": "Eastlink Empty Yard",
+              "pickup_window_start": "2026-08-07T08:00:00+08:00",
+              "pickup_window_end": "2026-08-07T14:00:00+08:00",
+              "vessel": "MV Silver Pine",
+              "direction": "export",
+              "equipment_type": "40HC"
+            },
+            "corr": {
+              "booking_ref": "RP1-BK-AMB-03"
+            },
+            "correlation": {
+              "verdict": "ambiguous",
+              "target": [
+                "RP1-JOB-0301",
+                "RP1-JOB-0302"
+              ],
+              "match_method": "deterministic",
+              "candidate_count": 2,
+              "compatible_candidate_count": 2,
+              "usable_discriminator_count": 0,
+              "logical_event_key": "pickup:RP1-BK-AMB-03:BSS-44120",
+              "reason": "The re-forward repeats the same booking-only release and still contains no field that selects either job."
+            },
+            "agent_action": {
+              "kind": "review",
+              "action": "Append the re-forward to the existing human-pick proposal for RP1-BK-AMB-03 and wait for an explicit selection of RP1-JOB-0301 or RP1-JOB-0302; do not apply or create a second transition.",
+              "constraints": [
+                "Do not auto-apply based on the customer_ops sender.",
+                "Do not infer the target from the phrase first row.",
+                "Do not send an external pickup update while the event is ambiguous."
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "event_status": {
+          "rpa03-001@rp1.synthetic.test": "ambiguous",
+          "rpa03-002@rp1.synthetic.test": "ambiguous"
+        },
+        "instance_state": {
+          "RP1-JOB-0301": "parked",
+          "RP1-JOB-0302": "parked"
+        },
+        "human_pick_required": true,
+        "candidate_jobs": [
+          "RP1-JOB-0301",
+          "RP1-JOB-0302"
+        ],
+        "auto_applied": false,
+        "external_side_effects": 0
+      }
+    },
+    {
+      "id": "RP1-A04",
+      "coverage_tags": [
+        "out_of_order_event",
+        "future_step_buffer",
+        "compatible_step_advance",
+        "buffer_consumed_on_advance"
+      ],
+      "personas": {
+        "customer_ops": {
+          "name": "Elena Rossi",
+          "company": "Allied Freight Services",
+          "voice": "careful terminal and VGM updates, with corrections called out rather than hidden"
+        },
+        "carrier": {
+          "name": "Marcus Lim",
+          "company": "Crestline Terminals",
+          "voice": "terminal status prose with timestamps, operational shorthand, and incomplete VGM context"
+        },
+        "itos_state": {
+          "name": "ITOS synthetic tenant",
+          "company": "Allied Freight Services",
+          "voice": "one job waiting on VGM while a later gate-in signal arrives first"
+        }
+      },
+      "initial_instances": [
+        {
+          "target": "RP1-JOB-0401",
+          "entity_key": "job:RP1-JOB-0401",
+          "step": "await_vgm",
+          "corr": {
+            "booking_ref": "RP1-BK-OOO-04",
+            "job_no": "RP1-JOB-0401",
+            "container_no": "CMAU4819207"
+          },
+          "vars": {
+            "customer": "Saffron Retail Pte Ltd",
+            "vessel": "MV Ocean Juniper",
+            "direction": "export",
+            "equipment_type": "40HC",
+            "port": "PSA Singapore",
+            "vgm_status": "missing"
+          }
+        }
+      ],
+      "emails": [
+        {
+          "step": 1,
+          "message_id": "rpa04-001@rp1.synthetic.test",
+          "from_display": "Marcus Lim | Crestline Terminals",
+          "subject": "[RP1-A04] Gate-in already recorded for RP1-JOB-0401",
+          "body": "Elena, terminal status came through before your VGM reply, so this is an early gate-in notice.\n\nRP1-JOB-0401 / booking RP1-BK-OOO-04 / container CMAU4819207 was gated in at PSA Singapore on 08 Aug 09:18 SGT for MV Ocean Juniper. Terminal receipt CLT-GI-9402 is attached in the original portal record.\n\nVGM is still showing pending on our screen; this mail is only the gate-in event, not a weight declaration. Quoted status: \"box accepted at gate, VGM follow-up required\". Please record it somewhere safe but do not move the job past the VGM checkpoint until the signed weight arrives. The terminal feed is annoyingly ahead of the paperwork today.\n\nMarcus",
+          "answer_key": {
+            "event_type": "gate_in",
+            "payload": {
+              "job_no": "RP1-JOB-0401",
+              "booking_ref": "RP1-BK-OOO-04",
+              "container_no": "CMAU4819207",
+              "gate_in_at": "2026-08-08T09:18:00+08:00",
+              "terminal": "PSA Singapore",
+              "terminal_receipt": "CLT-GI-9402",
+              "vgm_status": "pending"
+            },
+            "corr": {
+              "job_no": "RP1-JOB-0401",
+              "container_no": "CMAU4819207",
+              "booking_ref": "RP1-BK-OOO-04"
+            },
+            "correlation": {
+              "verdict": "buffered",
+              "target": "RP1-JOB-0401",
+              "match_method": "deterministic",
+              "current_step": "await_vgm",
+              "event_compatible_step": "await_gatein",
+              "reason": "The job identity is exact, but gate_in is valid for the future await_gatein step and cannot apply while await_vgm is active."
+            },
+            "agent_action": {
+              "kind": "park",
+              "action": "Buffer the gate-in event against RP1-JOB-0401 and leave the current VGM wait armed.",
+              "constraints": [
+                "Do not advance the job on gate-in alone.",
+                "Do not treat vgm_status pending as a VGM value.",
+                "Consume the buffered event only after a compatible VGM advance enters await_gatein."
+              ]
+            }
+          }
+        },
+        {
+          "step": 2,
+          "message_id": "rpa04-002@rp1.synthetic.test",
+          "from_display": "Elena Rossi | Allied Freight Services",
+          "subject": "[RP1-A04] VGM reply unlocks the buffered gate-in event",
+          "body": "Marcus, VGM is now confirmed for the same box.\n\nFor RP1-JOB-0401, booking RP1-BK-OOO-04, container CMAU4819207: verified gross mass is 18,640 kg, method SOLAS-2, weighing ticket SR-VM-18804, submitted by Saffron Retail on 08 Aug at 09:42 SGT. Please use this reply for the VGM step only.\n\nYour earlier note said, \"box accepted at gate, VGM follow-up required\". We held that gate-in event because it arrived first. Once VGM is applied, the job can enter await_gatein and the buffered CLT-GI-9402 event should be consumed against the exact job and container. Do not re-match it to another booking; there is only one candidate here.\n\nElena",
+          "answer_key": {
+            "event_type": "vgm_reply",
+            "payload": {
+              "job_no": "RP1-JOB-0401",
+              "booking_ref": "RP1-BK-OOO-04",
+              "container_no": "CMAU4819207",
+              "gross_mass_kg": 18640,
+              "method": "SOLAS-2",
+              "weighing_ticket": "SR-VM-18804",
+              "submitted_by": "Saffron Retail Pte Ltd",
+              "submitted_at": "2026-08-08T09:42:00+08:00"
+            },
+            "corr": {
+              "job_no": "RP1-JOB-0401",
+              "container_no": "CMAU4819207",
+              "booking_ref": "RP1-BK-OOO-04"
+            },
+            "correlation": {
+              "verdict": "matched",
+              "target": "RP1-JOB-0401",
+              "match_method": "deterministic",
+              "current_step": "await_vgm",
+              "next_step": "await_gatein",
+              "buffered_event_to_consume": "rpa04-001@rp1.synthetic.test"
+            },
+            "agent_action": {
+              "kind": "resume",
+              "action": "Apply the VGM reply, advance RP1-JOB-0401 from await_vgm to await_gatein, then consume and apply the buffered gate-in event CLT-GI-9402 exactly once.",
+              "constraints": [
+                "Use gross_mass_kg 18640 and method SOLAS-2; do not substitute the terminal's pending status.",
+                "Apply the buffered gate-in only after the compatible step is entered.",
+                "Do not create a second gate-in transition or re-read the event as unmatched."
+              ]
+            }
+          }
+        }
+      ],
+      "state_probes": [],
+      "expected_final": {
+        "instance": "RP1-JOB-0401",
+        "step": "invoice",
+        "state": "advancing",
+        "vgm": {
+          "gross_mass_kg": 18640,
+          "method": "SOLAS-2",
+          "weighing_ticket": "SR-VM-18804"
+        },
+        "gate_in": {
+          "terminal_receipt": "CLT-GI-9402",
+          "gate_in_at": "2026-08-08T09:18:00+08:00",
+          "applied_after_buffer": true
+        },
+        "buffered_event_status": "applied",
+        "transition_order": [
+          "vgm_reply",
+          "gate_in"
+        ]
+      }
+    }
+  ]
+}
