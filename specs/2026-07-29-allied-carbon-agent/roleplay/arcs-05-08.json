@@ -54,7 +54,7 @@
           "message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
           "from_display": "Arun Mehta - Meridian Line Documentation Desk",
           "subject": "[RP1-A05] Pickup advice - JOB-0501 / BL RP1-BL-0501",
-          "body": "Hi Rhea,\n\nPickup advice for RP1-JOB-0501 below. The empty box MSCU0501001 was collected from the depot this morning against booking RP1-BKG-0501, seal MS0501A, for MV Meridian Dawn, voyage MD118E. Please use the booking reference rather than the customer's internal PO when you log the movement.\n\nThe trucker confirmed the box and seal at 09:18, although the depot receipt says 09:16 - nothing operationally different, just a two-minute paperwork mismatch. We will send the EIR when the driver returns. Pls acknowledge receipt so the export desk does not chase this twice.\n\nRegards,\nArun",
+          "body": "Hi Rhea,\n\nPickup advice for RP1-JOB-0501 below. The empty box MSCU0501001 was collected from the depot this morning against booking RP1-BKG-0501, seal MS0501A, for MV Meridian Dawn, voyage MD118E. Please use the booking reference rather than the customer's internal PO when you log the movement.\n\nThe trucker confirmed the box and seal at 09:18, although the depot receipt says 09:16 - nothing operationally different, just a two-minute paperwork mismatch. We will send the EIR when the driver returns. Please log receipt in your queue so the export desk does not chase this twice; no reply is needed, and the line will send the EIR separately.\n\nRegards,\nArun",
           "answer_key": {
             "event_type": "pickup_advice",
             "payload": {
@@ -66,14 +66,21 @@
               "vessel": "MV Meridian Dawn",
               "voyage": "MD118E",
               "content_key": "RP1-A05-PICKUP-0501",
-              "source_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>"
+              "source_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+              "bill_of_lading": "RP1-BL-0501",
+              "driver_confirmed_at": "09:18",
+              "depot_receipt_at": "09:16",
+              "timestamp_discrepancy_minutes": 2,
+              "timestamp_discrepancy_status": "administrative_only",
+              "acknowledgement_request": "log_only_no_reply"
             },
             "corr": {
               "entity_key": "job:RP1-JOB-0501",
               "job_no": "RP1-JOB-0501",
               "booking_ref": "RP1-BKG-0501",
               "container_no": "MSCU0501001",
-              "normalized_content_key": "RP1-A05-PICKUP-0501"
+              "normalized_content_key": "RP1-A05-PICKUP-0501",
+              "bill_of_lading": "RP1-BL-0501"
             },
             "correlation": {
               "verdict": "matched",
@@ -84,12 +91,15 @@
               "action": {
                 "transition": "apply pickup_advice once",
                 "next_step": "create_job",
-                "intake_record": "primary message"
+                "intake_record": "primary message",
+                "from_step": "await_pickup",
+                "to_step": "create_job"
               },
               "constraints": [
-                "dedupe on the exact source Message-ID",
+                "dedupe on exact source Message-ID first, then on normalized content key for forwarded copies",
+                "treat the 09:18 versus 09:16 difference as administrative_only per the carrier note",
                 "retain booking and container correlation fields",
-                "do not create a second workflow instance"
+                "do not create a second workflow instance or send a reply"
               ]
             }
           }
@@ -97,9 +107,9 @@
         {
           "step": 2,
           "message_id": "<rp1-a05-forwarded-0501@rp1.synthetic.test>",
-          "from_display": "Rhea Lim - Allied Export Desk",
+          "from_display": "Rhea Lim - Allied Freight Services Export Desk",
           "subject": "[RP1-A05] Fwd: Pickup advice - JOB-0501 / duplicate received",
-          "body": "Arun's note landed in my inbox after I had already asked the line desk to resend it, so forwarding the copy here for the record. The freight text is unchanged; please do not open another job or send a second acknowledgement.\n\n---------- Forwarded message ----------\nFrom: Arun Mehta - Meridian Line Documentation Desk\nMessage-ID: <rp1-a05-original-0501@rp1.synthetic.test>\nSubject: Pickup advice - JOB-0501 / BL RP1-BL-0501\n\nPickup advice for RP1-JOB-0501: empty container MSCU0501001 collected against booking RP1-BKG-0501, seal MS0501A, vessel MV Meridian Dawn, voyage MD118E. Driver confirmation was 09:18 and the depot receipt was 09:16.\n\nThanks,\nRhea",
+          "body": "Arun's note landed in my inbox after I had already asked the line desk to resend it, so forwarding the copy here for the record. The freight text is unchanged; please do not open another job or send a reply.\n\n---------- Forwarded message ----------\nFrom: Arun Mehta - Meridian Line Documentation Desk\nMessage-ID: <rp1-a05-original-0501@rp1.synthetic.test>\nSubject: Pickup advice - JOB-0501 / BL RP1-BL-0501\n\nPickup advice for RP1-JOB-0501: empty container MSCU0501001 collected against booking RP1-BKG-0501, seal MS0501A, vessel MV Meridian Dawn, voyage MD118E. Driver confirmation was 09:18 and the depot receipt was 09:16.\n\nThanks,\nRhea",
           "answer_key": {
             "event_type": "pickup_advice",
             "payload": {
@@ -112,7 +122,14 @@
               "voyage": "MD118E",
               "content_key": "RP1-A05-PICKUP-0501",
               "copy_kind": "forwarded_duplicate",
-              "duplicate_of_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>"
+              "duplicate_of_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
+              "bill_of_lading": "RP1-BL-0501",
+              "driver_confirmed_at": "09:18",
+              "depot_receipt_at": "09:16",
+              "timestamp_discrepancy_minutes": 2,
+              "timestamp_discrepancy_status": "administrative_only",
+              "acknowledgement_request": "log_only_no_reply",
+              "dedupe_strategy": "exact_message_id_then_normalized_content_key"
             },
             "corr": {
               "entity_key": "job:RP1-JOB-0501",
@@ -120,7 +137,8 @@
               "booking_ref": "RP1-BKG-0501",
               "container_no": "MSCU0501001",
               "forwarded_original_message_id": "<rp1-a05-original-0501@rp1.synthetic.test>",
-              "normalized_content_key": "RP1-A05-PICKUP-0501"
+              "normalized_content_key": "RP1-A05-PICKUP-0501",
+              "bill_of_lading": "RP1-BL-0501"
             },
             "correlation": {
               "verdict": "superseded",
@@ -134,8 +152,9 @@
                 "external_send": "none"
               },
               "constraints": [
-                "do not apply a second transition",
-                "do not create a second task or job",
+                "dedupe on normalized content key after the forwarded envelope receives a new Message-ID",
+                "treat the 09:18 versus 09:16 difference as administrative_only, not a new freight event",
+                "do not apply a second transition or send a reply",
                 "preserve both envelope Message-IDs for audit"
               ]
             }
@@ -152,7 +171,10 @@
         "transition_count": 1,
         "external_send_count": 0,
         "workflow_state": "advancing",
-        "current_step": "create_job"
+        "current_step": "create_job",
+        "normalized_content_key": "RP1-A05-PICKUP-0501",
+        "timestamp_discrepancy_status": "administrative_only",
+        "acknowledgement_status": "log_only_no_reply"
       }
     },
     {
@@ -236,7 +258,9 @@
               "action": {
                 "operation": "record booking instruction",
                 "bill_of_lading_candidate": "RP1-BL-0601",
-                "advance_candidate": "await_pickup"
+                "advance_candidate": "await_pickup",
+                "from_step": "ingest",
+                "to_step": "await_pickup"
               },
               "constraints": [
                 "treat the BL as a candidate until the carrier thread settles",
@@ -303,12 +327,18 @@
         "entity_key": "job:RP1-JOB-0601",
         "workflow_state": "needs_review",
         "current_step": "ingest",
-        "committed_bill_of_lading": "RP1-BL-0601",
         "candidate_bill_of_lading": "RP1-BL-0601B",
         "contradiction": true,
         "silent_overwrite": false,
         "customer_send_count": 0,
-        "review_reason": "mid-thread carrier correction changed the BL reference"
+        "review_reason": "mid-thread carrier correction changed the BL reference",
+        "bill_of_lading_resolution": "unresolved",
+        "stored_value_before_review": "RP1-BL-0601",
+        "candidate_values": [
+          "RP1-BL-0601",
+          "RP1-BL-0601B"
+        ],
+        "committed_change": false
       }
     },
     {
@@ -337,6 +367,11 @@
           "container_no": "MSCU0701007",
           "vessel_status": "rollover_risk",
           "source": "state_poll"
+        },
+        "customer": {
+          "name": "Maya D'Souza",
+          "company": "Blue Arc Retail",
+          "voice": "frustrated customer operations lead; direct about deadlines and unwilling to accept provisional status"
         }
       },
       "initial_instances": [
@@ -668,8 +703,11 @@
             "verdict": "mismatch",
             "email_claim": "gate_in",
             "state_poll": "not_gate_in",
-            "agent_action": "needs_review_exception_proposal"
-          }
+            "agent_action": "needs_review_exception_proposal",
+            "after_email_step": 2
+          },
+          "step": 3,
+          "after_email_step": 2
         }
       ],
       "expected_final": {
