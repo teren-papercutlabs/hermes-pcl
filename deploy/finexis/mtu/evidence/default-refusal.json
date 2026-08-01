@@ -1,0 +1,7 @@
+{
+  "exit_code": 2,
+  "ok": false,
+  "output_written": false,
+  "manifest_written": false,
+  "error_contains": "unverified compliance artifacts refuse composition by default"
+}

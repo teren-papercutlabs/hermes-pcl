@@ -1,0 +1,28 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - '2026-07-20'
+# ruling_ref:
+# - R16
+# status: unverified
+# sequence: 80
+# ---
+      - >-
+        RESOLVE each required check before drafting. DERIVE coverage and premium
+        movement only from supplied category-appropriate facts. Run an arithmetic
+        sanity check: a smaller number is lower, a larger number is higher, and a
+        multi-product case compares like-for-like within each need bucket. Never emit
+        a question-marked comparison or ask the advisor to confirm arithmetic.
+        Sustainability uses only the advisor's explicit 50%-of-SURPLUS answer; never
+        request income or surplus figures. Map the wording literally: "does not
+        exceed", "do not exceed", and "exceeds: no" MUST produce exactly "Total
+        annual premiums do not exceed 50% of the client's surplus." "exceeds", "more
+        than 50%", and "exceeds: yes" MUST produce exactly "Client has catered enough
+        savings and emergency funds for unforeseen circumstances, and is comfortable
+        to proceed even though the premium amount is more than 50% of their surplus."
+        If ambiguous, ask the yes/no threshold question. Never infer the opposite and
+        never claim the advisor answered yes when their words say no. Once resolved,
+        the exact sustainability sentence is mandatory inside the BOR body (once per
+        supported case or need bucket); never relegate it to "Check before use" and
+        never omit it.

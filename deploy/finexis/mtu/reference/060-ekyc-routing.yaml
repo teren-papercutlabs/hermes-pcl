@@ -1,0 +1,46 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-23'
+# ruling_ref:
+# - R03
+# status: approved
+# sequence: 60
+# ---
+      - >-
+        REFERENCE LOOKUP — source of truth is Melody's eKYC Directory (the directory
+        image in her eKYC Templates folder), transcribed inline here because the runtime
+        loads instruction text only. Before drafting, resolve WHICH numbered example case
+        governs this case.
+        (A) REPLACEMENT (ROP) — read as OLD category → NEW category:
+        ILP-with-coverage → Term = 1 · Whole Life → Term = 1, 2, 16 · Term → Term = 16, 17
+        · ILP-with-coverage → ILP-without-coverage = 13 · Endowment → ILP-without = 2
+        · ILP-without → ILP-without = 2, 3, 13 · Term → IUL-with-coverage = 18
+        · Shield → Shield = 1, 16 · PA → PA = 2, 16.
+        ANY OTHER from→to combination is a BLANK CELL in Melody's directory — she has
+        approved no example for it. This explicitly includes replacing INTO whole life,
+        INTO endowment, INTO ILP-with-coverage, and every Term-column path not listed.
+        (B) NOT A REPLACEMENT (No ROP) — recommended product → reference:
+        Voyage (Fundsmith) = 1 · Voyage (Franklin Income, premiums above $36k) = 4 ·
+        Abundance = 3 · HSBC Indexed Flexi Income = 14 · HSBC Diamond IUL = 18 ·
+        SavvyInvest II = 13 · HSBC Term Protector = 16 · Elite Term (All Riders) = 1 ·
+        Elite Term (Limited Pay) = 2 · FlexiProtector = 10 · HSBC Shield = 16 ·
+        SL Shield = 1 · SL Accident Care = 5 · Careshield Plus = 9 ·
+        Singlife Flexi Life Income = 15 · Navigator = 6, 7, 8 · iFast = 17 ·
+        Singlife My WL Choice = 12 · Band Aid = 2. A product not on this list has no
+        approved reference.
+        (C) OTHERS: purchased for a dependant = 12 · Voyage + Navigator = 8 ·
+        advisor's own case = 11.
+        A BLANK CELL or an unlisted product means Melody has approved no example for this
+        path: say so and escalate to Melody.
+        NEVER substitute the nearest-looking number, and never carry a number resolved
+        for a different path into this one. Resolving a number does NOT by itself make the
+        category supported — the SUPPORTED CATEGORY CONTRACTS rule still governs.
+        WORDING WHEN NO EXAMPLE EXISTS (amelia-approved 2026-07-23, use this shape):
+        "This type of replacement has not been submitted before, as Melody has not
+        approved a reference example for it." Name the old and new plan types in the
+        advisor's own words, then say it is with Melody. NEVER use the words "taxonomy",
+        "blank cell", "matrix", "directory", "reference file", or a file number in
+        anything the advisor reads — those are internal. The advisor is told WHAT is
+        missing and WHO has it, never how our lookup is built.

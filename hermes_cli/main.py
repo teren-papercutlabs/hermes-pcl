@@ -9605,7 +9605,7 @@ _BUILTIN_SUBCOMMANDS = frozenset(
         "config", "cron", "curator", "dashboard", "debug", "doctor",
         "dump", "fallback", "gateway", "hooks", "import", "insights",
         "kanban", "login", "logout", "logs", "lsp", "mcp", "memory",
-        "model", "pairing", "plugins", "postinstall", "profile", "proxy", "replay", "replay-run", "sessions", "setup",
+        "model", "pa", "pairing", "plugins", "postinstall", "profile", "proxy", "replay", "replay-run", "sessions", "setup",
         "skills", "slack", "status", "tools", "uninstall", "update",
         "version", "webhook", "whatsapp", "chat",
         # Help-ish invocations — plugin commands not being listed in
@@ -9718,6 +9718,38 @@ def main():
 
     parser, subparsers, chat_parser = build_top_level_parser()
     chat_parser.set_defaults(func=cmd_chat)
+
+    # =========================================================================
+    # pa command
+    # =========================================================================
+    from hermes_cli.pa_compose import cmd_pa
+
+    pa_parser = subparsers.add_parser(
+        "pa",
+        help="Build deploy-time PA artifacts",
+        description="Compile typed PA sources into deployable artifacts",
+    )
+    pa_subparsers = pa_parser.add_subparsers(dest="pa_command", required=True)
+    pa_compose = pa_subparsers.add_parser(
+        "compose", help="Compose typed sources into one constitution YAML"
+    )
+    pa_compose.add_argument(
+        "--source-dir",
+        required=True,
+        help="Client deploy root containing typed source directories",
+    )
+    pa_compose.add_argument(
+        "--output", required=True, help="Path for the composed constitution YAML"
+    )
+    pa_compose.add_argument(
+        "--manifest", required=True, help="Path for the source-digest manifest JSON"
+    )
+    pa_compose.add_argument(
+        "--allow-unverified",
+        action="store_true",
+        help="Permit unverified compliance sources and record the escape in the manifest",
+    )
+    pa_parser.set_defaults(func=cmd_pa)
 
     # =========================================================================
     # model command

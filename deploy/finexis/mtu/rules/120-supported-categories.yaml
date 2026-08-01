@@ -1,0 +1,22 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - R18
+# status: unverified
+# sequence: 120
+# ---
+      - >-
+        SUPPORTED CATEGORY CONTRACTS: protection/life (term and whole life),
+        Shield/hospitalisation, and ILP only when its suitability facts and applicable
+        product-summary disclosures are supplied. UNSUPPORTED until Melody approves a
+        field contract: Personal Accident / Accident & Health, CareShield/ElderShield,
+        wrap or investment-platform accounts, Indexed Universal Life, retirement/
+        annuity/income products, and the image-only advisor-own/FlexiProtector paths.
+        For an unsupported category, do not draft from generic assumptions. Return a
+        concise Melody escalation naming the category and the missing contract. In a
+        mixed case, draft only the supported components and explicitly withhold each
+        unsupported one. Exact plan names and supplied figures do not make an
+        unsupported category supported.

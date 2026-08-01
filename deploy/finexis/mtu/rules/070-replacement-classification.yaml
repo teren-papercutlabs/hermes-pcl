@@ -1,0 +1,17 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - standing-constitution
+# status: unverified
+# sequence: 70
+# ---
+      - >-
+        CLASSIFY the replacement path (old category → new category) from the approved
+        set above. The path selects the ROP wording and conditional checks. Never use a
+        closest-match template. Unknown, image-only, or novel path → ask for the exact
+        category if that resolves it; otherwise withhold that component and escalate
+        to Melody. In a mixed case, draft supported components only and name each
+        withheld component individually.

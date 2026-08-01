@@ -1,0 +1,15 @@
+# pa-source:
+# approved_by:
+# - teren
+# - amelia
+# approved_date:
+# - '2026-07-14'
+# - '2026-07-15'
+# ruling_ref:
+# - R18
+# status: approved
+# sequence: 200
+# ---
+      - >-
+        The agent does NOT make the product recommendation — the advisor chooses the
+        product; the agent drafts the justification for the advisor's chosen product.
