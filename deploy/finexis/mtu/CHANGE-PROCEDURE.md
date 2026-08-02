@@ -47,8 +47,9 @@ around the gate and do not represent a source edit as corrected behavior.
 ## Deploy gate table
 
 `scripts/deploy_guarded.py` is the only MTU deploy entry. The underlying
-`bootstrap_local.sh` refuses direct use without a receipt produced by that
-command. The gate classes are source-enforced from `eval-policy.yaml`:
+writer lives in that same process after the gate passes; the retired
+`bootstrap_local.sh` always refuses and accepts no receipt. The gate classes
+are source-enforced from `eval-policy.yaml`:
 
 - rule, compliance, wording, template, or job-brief edit: infer the affected
   tags from every changed file, then require that union plus the smoke tags;

@@ -2,6 +2,8 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,9 +44,26 @@ def _passing_rule_report():
     report["corpus"]["tags"] = [
         "intake", "rop", "never-ask", "fabrication", "compliance", "client-surface"
     ]
+    semantic_turns = semantic_assertions = 0
+    for case in report["cases"]:
+        for turn in case["turns"]:
+            semantic = [
+                item for item in turn["assertions"]
+                if item["kind"] in {"must", "must_not"}
+            ]
+            semantic_turns += int(bool(semantic))
+            semantic_assertions += len(semantic)
+            for item in semantic:
+                item.update(
+                    status="passed", passed=True, review_needed=False,
+                    judge_why="fixture semantic pass",
+                )
     report["judge_summary"] = {
         "status": "passed", "model": "gpt-5.6-sol",
         "reasoning_effort": "medium", "schema": "evals/mtu-judge.schema.json",
+        "turns_scored": semantic_turns, "turns_total": semantic_turns,
+        "assertions_scored": semantic_assertions, "failed": 0,
+        "review_needed": 0,
     }
     runtime = report["execution"]["runtime"]
     runtime["source_config_sha256"] = hashlib.sha256(
@@ -134,6 +153,43 @@ def test_rule_gate_refuses_deliberately_broken_canary():
         )
 
 
+def test_retired_bootstrap_refuses_even_a_forged_receipt(tmp_path):
+    receipt = tmp_path / "receipt.json"
+    receipt.write_text('{"ok":true,"gate":"mtu-deploy-eval"}')
+    proc = subprocess.run(
+        [str(ROOT / "deploy/finexis/mtu/scripts/bootstrap_local.sh")],
+        env={**os.environ, "MTU_EVAL_GATE_RECEIPT": str(receipt)},
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    assert proc.returncode == 2
+    assert "direct bootstrap is retired" in proc.stderr
+
+
+def test_guarded_installer_writes_candidate_and_mode_600_secrets(tmp_path):
+    deploy = _module("deploy_guarded")
+    token = tmp_path / "token"
+    token.write_text("test-telegram-token\n")
+    secrets = tmp_path / "secrets.env"
+    secrets.write_text("export OPENAI_API_KEY='test-openai-key'\n")
+    target = tmp_path / "runtime"
+    deploy.install_runtime(
+        target_home=target, token_file=token, allowed_users="123", secrets_file=secrets,
+    )
+    assert (target / "config.yaml").read_bytes() == (
+        ROOT / "deploy/finexis/mtu/config.yaml"
+    ).read_bytes()
+    assert "TELEGRAM_BOT_TOKEN=test-telegram-token" in (target / ".env").read_text()
+    assert oct((target / ".env").stat().st_mode & 0o777) == "0o600"
+
+
+def test_nightly_removes_previous_report_before_runner(tmp_path):
+    nightly = _module("run_nightly")
+    report = tmp_path / "latest-report.json"
+    report.write_text('{"regression":{"status":"green"}}')
+    nightly._prepare_report_path(report)
+    assert not report.exists()
+
+
 def test_rule_gate_refuses_declared_tag_population_with_a_missing_case():
     deploy = _module("deploy_guarded")
     report = _passing_rule_report()
@@ -154,6 +210,19 @@ def test_rule_gate_refuses_unpinned_judge_claim():
     report = _passing_rule_report()
     report["judge_summary"]["model"] = "some-other-model"
     with pytest.raises(deploy.DeployRefused, match="pinned model/schema"):
+        deploy.evaluate_gate(
+            change_class="rule",
+            changed_files=["deploy/finexis/mtu/rules/040-intake.yaml"],
+            report=report, nightly=_nightly(), policy=load_policy(POLICY),
+            baseline=_baseline(),
+        )
+
+
+def test_rule_gate_refuses_stripped_assertions_even_when_summary_claims_pass():
+    deploy = _module("deploy_guarded")
+    report = _passing_rule_report()
+    report["cases"][0]["turns"][0]["assertions"] = []
+    with pytest.raises(deploy.DeployRefused, match="incomplete assertion coverage"):
         deploy.evaluate_gate(
             change_class="rule",
             changed_files=["deploy/finexis/mtu/rules/040-intake.yaml"],

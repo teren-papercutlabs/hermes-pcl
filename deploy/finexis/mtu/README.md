@@ -16,8 +16,8 @@ Advisor DMs a rough case (existing plan, proposed plan, is-it-a-replacement) →
 | `config.yaml` | Gateway config: model (openai-direct-primary/gpt-5.4-mini) + `pa.enabled/job_type/constitution_path` + `platforms.telegram`. |
 | `SOUL.md` | Generated: the 4 knowledge files concatenated. **This is the load-bearing KB channel** — the constitution's `knowledge:` key is NOT parsed by the engine (verified). |
 | `knowledge/` | The 4 source KB files (provenance): BOR checks table, replacement-path taxonomy, draft template, standard disclosures. |
-| `scripts/deploy_guarded.py` | The only deploy entry. Applies the change-class eval gate before calling the internal bootstrap writer. |
-| `scripts/bootstrap_local.sh` | Internal writer used only after a verified gate receipt. Direct invocation refuses. |
+| `scripts/deploy_guarded.py` | The only deploy entry and writer. Applies the change-class eval gate before installing runtime files. |
+| `scripts/bootstrap_local.sh` | Retired legacy entry that always refuses, including forged receipt input. |
 | `eval-policy.yaml`, `evals/`, `scripts/run_nightly.py` | Pinned judge, deploy gate table, canonical corpus, and nightly regression. |
 | `OPS-NOTE.md` | Deploy specifics + what remains + rollback. |
 

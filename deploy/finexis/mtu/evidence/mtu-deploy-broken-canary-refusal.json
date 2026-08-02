@@ -1,5 +1,5 @@
 {
-  "tested_at": "2026-08-02T21:42:00+08:00",
+  "tested_at": "2026-08-02T22:46:00+08:00",
   "command_surface": "scripts/deploy_guarded.py --change-class rule --check-only",
   "canary_mutation": "one previously-passing exact assertion changed to failed in a fresh candidate-bound copy of the accepted S4 report",
   "exit_code": 2,
@@ -8,5 +8,9 @@
     "error": "eval has 1 new deterministic failures",
     "ok": false
   },
-  "target_exists_after_refusal": false
+  "target_exists_after_refusal": false,
+  "legacy_bootstrap_forged_receipt": {
+    "exit_code": 2,
+    "result": "MTU_DEPLOY_EVAL_REFUSED: direct bootstrap is retired"
+  }
 }

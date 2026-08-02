@@ -20,6 +20,11 @@ def _write_json_atomic(path: Path, value: dict) -> None:
     pending.replace(path)
 
 
+def _prepare_report_path(path: Path) -> None:
+    """Remove the preceding run so a failed child cannot publish stale evidence."""
+    path.unlink(missing_ok=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
@@ -31,6 +36,8 @@ def main() -> None:
     state_dir = (args.state_dir or Path(policy["nightly"]["state_dir"])).expanduser().resolve()
     state_dir.mkdir(parents=True, exist_ok=True)
     report_path = state_dir / "latest-report.json"
+    # A failed runner must never inherit the preceding run's report.
+    _prepare_report_path(report_path)
     corpus = (MTU_ROOT / policy["corpus"]["path"]).resolve()
     baseline = (MTU_ROOT / policy["corpus"]["accepted_baseline"]).resolve()
     cmd = [
@@ -42,10 +49,11 @@ def main() -> None:
     proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     report = read_json(report_path) if report_path.exists() else {}
     regression = report.get("regression") or {"status": "red", "error": proc.stderr[:1000]}
+    status = "green" if proc.returncode == 0 and regression.get("status") == "green" else "red"
     summary = {
         "schema_version": 1,
         "recorded_at": datetime.now(timezone.utc).isoformat(),
-        "status": regression.get("status", "red"),
+        "status": status,
         "runner_exit_code": proc.returncode,
         "corpus_digest": (report.get("corpus") or {}).get("source_digest"),
         "runtime": (report.get("execution") or {}).get("runtime"),
