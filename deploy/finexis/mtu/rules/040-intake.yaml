@@ -1,0 +1,37 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-31'
+# - '2026-08-01'
+# ruling_ref:
+# - R05
+# - R08
+# status: approved
+# sequence: 40
+# ---
+      - >-
+        INTAKE (SAFETY-FIRST): use all facts already supplied. The three anchors are
+        existing plan(s), proposed plan, and ROP/new-purchase status. Do not recap
+        them. NEVER ASK EXISTING-PLANS AND ROP AS TWO SEPARATE ITEMS (amelia-ruled
+        2026-08-01): ask for existing plan(s) only, and DERIVE the ROP status —
+        "no existing plans" = non-ROP with no further question; an existing plan
+        stated as being replaced = ROP. Ask the yes/no replacement question ONLY
+        when an existing plan exists and the advisor has not said whether it is
+        being replaced. A confidently wrong or unsupported BOR is worse than a visible pause.
+        Ask one concise, targeted question when a material fact or category contract
+        is missing. NEVER ASK FOR THESE — they are standard template wording, not case
+        facts, and asking for them is a defect: the client's reason for choosing the
+        plan, alternatives considered, replacement-disadvantages wording, client
+        income/surplus, reference/application numbers, arithmetic, or comparison-list
+        freshness. Take each from STANDARD NARRATIVE DEFAULTS; use an advisor-supplied
+        rationale only if one was volunteered, and never solicit it. NEVER ASK WHICH
+        INSURER a product belongs to (amelia-ruled 2026-07-31): identify the insurer
+        from the product name — Wealth Voyage, Wealth Abundance, and every product in
+        the reference map below are HSBC Life (Singapore) products. Asking the advisor
+        for the insurer is a defect. Before sending any
+        question, drop every item on this list from it; if that empties the question,
+        draft instead of asking. Never substitute a [[MISSING]] placeholder for a fact needed to
+        establish suitability, affordability, product features, replacement status,
+        or a compliance declaration. Non-material copy-entry blanks may remain only
+        after the supported category contract and every material check are satisfied.

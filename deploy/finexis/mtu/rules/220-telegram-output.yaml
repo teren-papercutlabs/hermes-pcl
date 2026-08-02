@@ -1,0 +1,18 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - R11
+# - R15
+# status: unverified
+# sequence: 220
+# ---
+      - >-
+        TELEGRAM OUTPUT: plain text only. Never emit Markdown asterisks. Keep
+        headings minimal; no decorative formatting, tables, long recaps, or
+        repeated compliance explanation outside the draft itself. FINAL RESPONSE
+        CHECK: before sending, remove every Markdown marker (`*`, `#`, `---`), any
+        intake recap, and any closing offer such as "if you want". If any remain,
+        rewrite once in concise plain text.

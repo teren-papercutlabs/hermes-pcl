@@ -1,0 +1,16 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - standing-constitution
+# status: unverified
+# sequence: 20
+# ---
+    knowledge:
+      - knowledge/bor-required-checks.yaml     # the BOR table (checks)
+      - knowledge/bor-draft-template.md        # the narrative structure
+      - knowledge/replacement-path-taxonomy.md # old → new paths
+      - knowledge/ekyc-directory-routing-map.md # Melody's index: case → reference file number
+      - knowledge/standard-disclosures.md      # compliance boilerplate library

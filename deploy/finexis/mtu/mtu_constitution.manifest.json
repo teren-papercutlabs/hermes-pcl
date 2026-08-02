@@ -1,0 +1,479 @@
+{
+  "allow_unverified": true,
+  "constitution_sha256": "9e54801ce51cbf9109c912285c86e8b9dba1a7a938f40cea13c7d429b3a5b4b7",
+  "schema_version": 1,
+  "source_count": 26,
+  "source_root": "mtu",
+  "sources": [
+    {
+      "approved_by": [
+        "teren",
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-14",
+        "2026-07-15"
+      ],
+      "body_sha256": "cb27072a3ddc0f133e3462db3636d6a1aaf197bfdb8bc450ec8566870ec90426",
+      "path": "rules/000-identity-job-preamble.yaml",
+      "ruling_ref": [
+        "R18"
+      ],
+      "sequence": 0,
+      "source_sha256": "c245f265e71cb89b31e8676a0284f4e2a21c18674e579159aa49bcef335dac7b",
+      "status": "approved",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-23"
+      ],
+      "body_sha256": "b842a497dd0946aec3dedb1f40166e67ab0e82ba617d00cee723c1e5ce5cde3f",
+      "path": "compliance/010-sustainability-enforcement.yaml",
+      "ruling_ref": [
+        "R02"
+      ],
+      "sequence": 10,
+      "source_sha256": "f332a662a708f1d85997b1358859e2be72f458584c1206dfc6d563cdb071d1b6",
+      "status": "approved",
+      "type": "compliance"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "c69e24035582e99dee64462f020a4676f4de94326334d83d7ca6c74bacf38cb9",
+      "path": "reference/020-knowledge-manifest.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 20,
+      "source_sha256": "7f0877aa0f90f9ac426f3d494d028e7421c32b48117ffa6c3cdd055248d4ae2d",
+      "status": "unverified",
+      "type": "reference"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "0c5d5702cf260f18d504babe539ca7b555b71041b9f2854b20d38076653a27f7",
+      "path": "job-briefs/030-instructions-prefix.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 30,
+      "source_sha256": "f58d4624e6a1755b23c2e566116139ef2e16295eb3989d2220298b18bfa63058",
+      "status": "unverified",
+      "type": "job-briefs"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-31",
+        "2026-08-01"
+      ],
+      "body_sha256": "15d163e5674d77f28c2a81413c639e8ac4ca5c31a1f119906b96fa956ad838f1",
+      "path": "rules/040-intake.yaml",
+      "ruling_ref": [
+        "R05",
+        "R08"
+      ],
+      "sequence": 40,
+      "source_sha256": "fcec2f1c13dc382253a3f020c10e8a538e0b96dc27bbcab18b8db3f59c5c163e",
+      "status": "approved",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "55d69fdc8338733b3ca485115194b9be3b897190932aa694fadb0148040dbb63",
+      "path": "rules/050-new-case-boundary.yaml",
+      "ruling_ref": [
+        "R14"
+      ],
+      "sequence": 50,
+      "source_sha256": "96e78bc607ebedb7d29c932ea5fd9a96ca9b1a8b305009ec483ed64a860b9ef6",
+      "status": "unverified",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-23"
+      ],
+      "body_sha256": "1cae36d4faad170ae8e717bd067d80438eaf1448303f90d7b310d3fd5bb07011",
+      "path": "reference/060-ekyc-routing.yaml",
+      "ruling_ref": [
+        "R03"
+      ],
+      "sequence": 60,
+      "source_sha256": "b25ca39318197c92938e4a415ae474111581e4a8e4354ed2ce1eba6fde87e59b",
+      "status": "approved",
+      "type": "reference"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "d0693471dffd0b32ee1df4f7ea89c923611feab025647deb04250cb9a6c9df51",
+      "path": "rules/070-replacement-classification.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 70,
+      "source_sha256": "aab295840e466e5499fdb0cfde5d033eb3ae49c3f41cb5e94d19e779b3a1301d",
+      "status": "unverified",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "2026-07-20"
+      ],
+      "body_sha256": "ec0b8dcc79103f6b2d931256cecf097c5a3010199177e34103c07329510b524d",
+      "path": "rules/080-resolution-and-arithmetic.yaml",
+      "ruling_ref": [
+        "R16"
+      ],
+      "sequence": 80,
+      "source_sha256": "334effc52637c9dc8eed61ffba4c817e10a65fb9fcff098a7b08b7076b88b02d",
+      "status": "unverified",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "7f41b65bf265cb55e2b74226bf120354ab6612b4ff0cb12fdc4079e7459f9369",
+      "path": "rules/090-shield-contract.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 90,
+      "source_sha256": "a714eebc6b179237a3edd014e0420d4c9aae2beae13dd62e83321bec08cc3e17",
+      "status": "unverified",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "cfd17fdac59f7f07ced76d7bad24fffba14b6e1e73891ae2449e89df7e51e843",
+      "path": "rules/100-category-comparison.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 100,
+      "source_sha256": "59b339546d4d979099e8db130016f04c54d81c2d868e75c93b0e6e54a8c47c22",
+      "status": "unverified",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "9428e7b87a8f79ae118992a12b572f5349ba13b399404a959f847fc2b7f8600a",
+      "path": "templates/110-standard-narrative-defaults.yaml",
+      "ruling_ref": [
+        "R13",
+        "untraceable-amelia-approval"
+      ],
+      "sequence": 110,
+      "source_sha256": "5266d641d984a91b9f59a71eee9d41addb5f0008503c9f5643ad876cedb5bce3",
+      "status": "unverified",
+      "type": "templates"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "41f5872db431ed318437942289b5c2898cbafd16facae8301d9400f7899c7778",
+      "path": "rules/120-supported-categories.yaml",
+      "ruling_ref": [
+        "R18"
+      ],
+      "sequence": 120,
+      "source_sha256": "40c8b35cd4f691e00ea312c84fc07930c404af22eb82324010761381ecccb398",
+      "status": "unverified",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-23"
+      ],
+      "body_sha256": "5ab43188ffad3982cbfddcbfa2bc56aad1b2f477f08469e07cbdea8bb598ffeb",
+      "path": "rules/130-material-missing-gate.yaml",
+      "ruling_ref": [
+        "R01"
+      ],
+      "sequence": 130,
+      "source_sha256": "4085b382905d60d755a718ca9944d8483d94bb12e87b60dd43e55502dfa9b248",
+      "status": "approved",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "2026-07-29",
+        "2026-07-30"
+      ],
+      "body_sha256": "79cfe2a2352f5847396b48082c1601f3cc5ccae04cdaab423e4c241d18ec6230",
+      "path": "rules/140-no-invention.yaml",
+      "ruling_ref": [
+        "R17"
+      ],
+      "sequence": 140,
+      "source_sha256": "a14ed6a626e978bd8aaf1118b4d3999dee4640ddf0045f01acbcac7dc11fb530",
+      "status": "unverified",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-31",
+        "unverified"
+      ],
+      "body_sha256": "232d3d3ff585f2c9d6ed1f5bd0263866c4b26c8245f8e0da37164e4ac5a0cd5c",
+      "path": "compliance/150-rop-gate-and-default.yaml",
+      "ruling_ref": [
+        "R06",
+        "untraceable-amelia-approval"
+      ],
+      "sequence": 150,
+      "source_sha256": "d9af6775176f842fcbd01c125bcfe0fe434760e6869239dde5e36edc7f896d45",
+      "status": "unverified",
+      "type": "compliance"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-23",
+        "2026-07-30",
+        "2026-07-31",
+        "2026-08-01"
+      ],
+      "body_sha256": "ff1d6d22faeb2d3456dd351a8c8d36b40cf91e88bf4ecfc41b3fbad55782a72f",
+      "path": "rules/160-ilp-suitability.yaml",
+      "ruling_ref": [
+        "R04",
+        "R07",
+        "R09",
+        "R10"
+      ],
+      "sequence": 160,
+      "source_sha256": "df295b2b5d6490081d8493a81aa7e86c1c844945bec1c7b15b8978f333315b1e",
+      "status": "approved",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "055bb30ee3e1e489e3d2604464cce4fc35f4721adbc278e60f3dd35566292754",
+      "path": "templates/170-draft-procedure.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 170,
+      "source_sha256": "6655a1a576734e84d85c15a5108fbaddaa0b21472701199466b90b3025aff3de",
+      "status": "unverified",
+      "type": "templates"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "d8b57da714c777ef9b0df14a24cddb1e83e2282b20fcc6a7a631cd294f47a46e",
+      "path": "compliance/180-general-disclosures.yaml",
+      "ruling_ref": [
+        "R13",
+        "untraceable-amelia-approval"
+      ],
+      "sequence": 180,
+      "source_sha256": "dc71962d4ce67cabf75646580049d08dcf4e5f8866a9ba79d745cb134b00235c",
+      "status": "unverified",
+      "type": "compliance"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "ed0a6b300b02f01b63b137bbb5aad9d53862467adce09cb3361ddef273914c76",
+      "path": "compliance/190-rop-disadvantages.yaml",
+      "ruling_ref": [
+        "R13",
+        "untraceable-amelia-approval"
+      ],
+      "sequence": 190,
+      "source_sha256": "0eba0efec901719d37dd0ecd776a524a82667ff8ebbd6a4140ff7cc78bdf567c",
+      "status": "unverified",
+      "type": "compliance"
+    },
+    {
+      "approved_by": [
+        "teren",
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-14",
+        "2026-07-15"
+      ],
+      "body_sha256": "2c4c1c313617165bde7bb892529d08173ce850846ce224273f32a19e7245857e",
+      "path": "rules/200-advisor-authority.yaml",
+      "ruling_ref": [
+        "R18"
+      ],
+      "sequence": 200,
+      "source_sha256": "31d8e47453bc93cdfd4df06d92f8db69b833fc4c0580583ecce71f496e95c4ac",
+      "status": "approved",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "0658d90d400c6ae2f17664dff7771cf0a498909219043a2ad0cf4a31030412c9",
+      "path": "templates/210-return-contract.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 210,
+      "source_sha256": "07b23e8b48b98aa70f2b62a4ab73a8f6392db818088c1e312abfa15fabc13940",
+      "status": "unverified",
+      "type": "templates"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "f605fc292e53fcc3b87ef85a14ddec5c8104f3de767fc6c803050ee86d32305c",
+      "path": "rules/220-telegram-output.yaml",
+      "ruling_ref": [
+        "R11",
+        "R15"
+      ],
+      "sequence": 220,
+      "source_sha256": "0de2402182a7d35e2fbc731c311a456ee3748c7c8ceee0664e37241220f267b9",
+      "status": "unverified",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "teren",
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-14",
+        "2026-07-15"
+      ],
+      "body_sha256": "dcecf456002494780f7f6ff6d39f1d1e1ae0dab41864116bee239f1a7680ccf2",
+      "path": "rules/230-escalation.yaml",
+      "ruling_ref": [
+        "R18"
+      ],
+      "sequence": 230,
+      "source_sha256": "5292906e47df3920964e59e5dfe42052064e6e19f7fc61ef11dad1d0a1efa7b1",
+      "status": "approved",
+      "type": "rules"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "4223aef536230420653e14f01f2fc670b9bc5e0865a2acecf572bdc4dd10052c",
+      "path": "job-briefs/240-turn-event.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 240,
+      "source_sha256": "df716dbfb4721ec8c90265e3073ff6bb1aeec003ef292ee9ff092dcc83a268cf",
+      "status": "unverified",
+      "type": "job-briefs"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-14",
+        "2026-07-15"
+      ],
+      "body_sha256": "05db3b9bcd7baef9281b095591e6613b5bcdc53c256b593da7f9ad4fd34e5bba",
+      "path": "job-briefs/990-later-phases-and-deploy-gates.yaml",
+      "ruling_ref": [
+        "R18"
+      ],
+      "sequence": 990,
+      "source_sha256": "322a3cdc4a8cb3f41fac7aea07621680735881fabe94529ecaa0039005088ff7",
+      "status": "pending",
+      "type": "job-briefs"
+    }
+  ],
+  "sources_sha256": "0b0aec53403e3a6898a0e0b3780f51016642d9fda4b194e057af022ae3c13ddb",
+  "unverified_compliance": [
+    "compliance/150-rop-gate-and-default.yaml",
+    "compliance/180-general-disclosures.yaml",
+    "compliance/190-rop-disadvantages.yaml"
+  ]
+}

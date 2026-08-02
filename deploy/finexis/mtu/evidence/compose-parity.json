@@ -1,0 +1,10 @@
+{
+  "comparison": "byte-for-byte and whitespace-normalized",
+  "composed_sha256": "9e54801ce51cbf9109c912285c86e8b9dba1a7a938f40cea13c7d429b3a5b4b7",
+  "live_source": "~/.hermes-mtu/mtu_constitution.yaml",
+  "live_source_sha256": "9e54801ce51cbf9109c912285c86e8b9dba1a7a938f40cea13c7d429b3a5b4b7",
+  "normalized_diff": "compose-parity.normalized.diff",
+  "normalized_diff_lines": 0,
+  "parity": true,
+  "unverified_escape_recorded_in": "../mtu_constitution.manifest.json"
+}
