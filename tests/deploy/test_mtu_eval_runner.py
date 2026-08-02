@@ -54,3 +54,13 @@ def test_stage_runtime_refuses_live_mtu_target(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="must not be ~/.hermes-mtu"):
         module._stage_runtime(source, module.LIVE_MTU_HOME)
+
+
+def test_deterministic_failures_make_runner_fail_closed():
+    module = _module()
+    assert module._deterministic_exit_code({
+        "deterministic_summary": {"failed": 0},
+    }) == 0
+    assert module._deterministic_exit_code({
+        "deterministic_summary": {"failed": 1},
+    }) == 1

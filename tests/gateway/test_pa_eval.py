@@ -103,12 +103,19 @@ def test_bundle_runner_preserves_per_turn_outputs_and_assertions(tmp_path):
                 text = "What is the missing fact?"
             else:
                 text = "Required\n sentence."
+            outbound = [{"kwargs": {"content": text}, "args": [], "kind": "send"}]
+            if plan.attempt_id.endswith("turn-2"):
+                outbound = [
+                    {"kwargs": {"content": "**progress**"}, "args": [], "kind": "send"},
+                    {"kwargs": {"content": text}, "args": [], "kind": "send"},
+                    {"kwargs": {}, "args": ["chat-id"], "kind": "delete_message"},
+                ]
             return ReplayResult(
                 run_id=plan.run_id,
                 attempt_id=plan.attempt_id,
                 platform=plan.platform,
                 processed=1,
-                outbound=[{"kwargs": {"content": text}, "args": []}],
+                outbound=outbound,
                 blocked_commands=[],
                 delivery_mode="capture",
             )
@@ -122,6 +129,8 @@ def test_bundle_runner_preserves_per_turn_outputs_and_assertions(tmp_path):
     assert report["turns"][0]["assertions"][0]["status"] == "pending_judge"
     assert report["turns"][1]["assertions"][1]["status"] == "passed"
     assert report["turns"][1]["assertions"][2]["status"] == "passed"
+    assert report["turns"][1]["response"] == "Required\n sentence."
+    assert report["turns"][1]["response_source"]["outbound_index"] == 1
     assert report["deterministic"] == {
         "status": "passed",
         "assertion_count": 2,

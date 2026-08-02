@@ -372,17 +372,30 @@ def run_exact_assertion(
     }
 
 
-def _outbound_text(outbound: Sequence[Mapping[str, Any]]) -> str:
-    chunks: list[str] = []
-    for entry in outbound:
-        kwargs = entry.get("kwargs") if isinstance(entry, Mapping) else None
-        args = entry.get("args") if isinstance(entry, Mapping) else None
+def _final_outbound_text(
+    outbound: Sequence[Mapping[str, Any]],
+) -> tuple[str, dict[str, Any]]:
+    """Return the last captured outbound body, not progress/interim chatter."""
+    for index in range(len(outbound) - 1, -1, -1):
+        entry = outbound[index]
+        if not isinstance(entry, Mapping):
+            continue
+        kwargs = entry.get("kwargs")
+        args = entry.get("args")
         content = kwargs.get("content") if isinstance(kwargs, Mapping) else None
         if content is None and isinstance(args, list) and len(args) >= 2:
             content = args[1]
         if content is not None:
-            chunks.append(str(content))
-    return "\n".join(chunks)
+            return str(content), {
+                "outbound_index": index,
+                "kind": str(entry.get("kind") or ""),
+                "message_id": entry.get("message_id"),
+            }
+    return "", {
+        "outbound_index": None,
+        "kind": None,
+        "message_id": None,
+    }
 
 
 async def run_replay_bundle(runner: Any, bundle: PAEvalReplayBundle) -> dict[str, Any]:
@@ -394,7 +407,7 @@ async def run_replay_bundle(runner: Any, bundle: PAEvalReplayBundle) -> dict[str
     turn_results: list[dict[str, Any]] = []
     for turn in bundle.turns:
         replay_result = await runner.replay(turn.plan)
-        response = _outbound_text(replay_result.outbound)
+        response, response_source = _final_outbound_text(replay_result.outbound)
         assertions: list[dict[str, Any]] = []
         for expectation in turn.expectations:
             if expectation.kind in EXACT_KINDS:
@@ -411,6 +424,7 @@ async def run_replay_bundle(runner: Any, bundle: PAEvalReplayBundle) -> dict[str
             "processed": replay_result.processed,
             "response": response,
             "response_digest": canonical_digest(response),
+            "response_source": response_source,
             "outbound_count": len(replay_result.outbound),
             "assertions": assertions,
         })

@@ -129,6 +129,11 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _deterministic_exit_code(report: dict[str, Any]) -> int:
+    failed = int((report.get("deterministic_summary") or {}).get("failed") or 0)
+    return 1 if failed else 0
+
+
 def main() -> None:
     args = _parser().parse_args()
     runtime_copy = (
@@ -149,13 +154,16 @@ def main() -> None:
             json.dumps(report, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
+        exit_code = _deterministic_exit_code(report)
         print(json.dumps({
-            "ok": True,
+            "ok": exit_code == 0,
             "report": str(args.report.resolve()),
             "selected_case_count": report["corpus"]["selected_case_count"],
             "turn_count": report["execution"]["turn_count"],
             "deterministic_summary": report["deterministic_summary"],
         }, sort_keys=True))
+        if exit_code:
+            raise SystemExit(exit_code)
     finally:
         if runtime_copy.exists() and not args.keep_runtime_copy:
             shutil.rmtree(runtime_copy)
