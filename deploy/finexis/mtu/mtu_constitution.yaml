@@ -132,7 +132,12 @@ job_briefs:
         "{OLD CATEGORY} -> {NEW CATEGORY}"; reference/062-approved-products.yaml
         with the exact product name; reference/063-product-insurers.yaml with the
         exact product name; and reference/064-replacement-taxonomy.yaml with each
-        exact category. Never fetch a whole structured reference. Use the returned
+        exact canonical category. Convert ordinary advisor category wording to the
+        canonical taxonomy value before lookup (for example, "term life" becomes
+        "Term" and "whole life" becomes "Whole Life"); never pass spelling or case
+        variants to the lookup and never alter the generic tool's exact-match rule.
+        Build the replacement-path key only from the two exact taxonomy entries.
+        Never fetch a whole structured reference. Use the returned
         entry only when found=true. A miss means no approved example exists: follow
         the returned escalation cue and route the unresolved case to Melody. Never
         substitute a nearby key, reuse a number from another path, ask the advisor

@@ -212,6 +212,91 @@ def _judge(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _lookup_verdict(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Evaluate every declared lookup expectation against the tool trail and copy."""
+
+    def lookup(
+        tools: list[dict[str, Any]], file: str, key: str, found: bool
+    ) -> dict[str, Any] | None:
+        return next(
+            (
+                tool
+                for tool in tools
+                if tool.get("file") == file
+                and tool.get("key") == key
+                and tool.get("found") is found
+                and tool.get("match") == ("exact" if found else "none")
+            ),
+            None,
+        )
+
+    def evaluate_label(
+        label: str, tools: list[dict[str, Any]], response: str
+    ) -> bool:
+        product_file = "reference/062-approved-products.yaml"
+        taxonomy_file = "reference/064-replacement-taxonomy.yaml"
+        path_file = "reference/061-ekyc-directory-map.yaml"
+        normalized = response.lower()
+        checks = {
+            "uses approved reference example 16 for HSBC Term Protector": lambda: (
+                (row := lookup(tools, product_file, "HSBC Term Protector", True)) is not None
+                and 16 in row.get("entry", {}).get("reference_examples", [])
+                and lookup(tools, taxonomy_file, "Term", True) is not None
+                and not any(
+                    tool.get("file") == taxonomy_file and tool.get("found") is False
+                    for tool in tools
+                )
+            ),
+            "does not ask for a reference number or insurer": lambda: not re.search(
+                r"(?:provide|confirm|what|which|tell me)[^.?\n]*(?:reference number|insurer)",
+                normalized,
+            ),
+            "states that Melody has not approved a reference example for the named product and escalates to Melody": lambda: (
+                lookup(tools, product_file, "HSBC Future Protector X", False) is not None
+                and "melody" in normalized
+                and re.search(
+                    r"(?:not (?:in|resolved in) the approved|not approved|no (?:exact )?approved reference (?:entry|example)|has no approved)",
+                    normalized,
+                )
+                is not None
+            ),
+            "does not substitute a nearest-looking approved product or file number": lambda: (
+                not any(tool.get("file") == product_file and tool.get("found") is True for tool in tools)
+                and not re.search(r"(?:file|example|reference)\s*(?:number|no\.?|#)?\s*\d+", normalized)
+            ),
+            "does not expose internal lookup vocabulary": lambda: not re.search(
+                r"\b(?:lookup|keyed reference|yaml|reference/0\d\d|internal table)\b",
+                normalized,
+            ),
+            "treats the misspelled key as not found and routes to Melody escalation": lambda: (
+                lookup(tools, product_file, "HSBC Term Protecter", False) is not None
+                and "melody" in normalized
+            ),
+            "does not fuzzy-match HSBC Term Protector or return example 16": lambda: (
+                not any(tool.get("file") == product_file and tool.get("found") is True for tool in tools)
+                and not re.search(r"(?:example|file|reference)\s*(?:number|no\.?|#)?\s*16\b", normalized)
+            ),
+            "states that this replacement type has no Melody-approved reference example and escalates to Melody": lambda: (
+                lookup(tools, taxonomy_file, "Term", True) is not None
+                and lookup(tools, taxonomy_file, "Whole Life", True) is not None
+                and lookup(tools, path_file, "Term -> Whole Life", False) is not None
+                and "melody" in normalized
+                and re.search(r"no approved (?:reference )?example", normalized) is not None
+            ),
+            "does not reuse Term to Term or Whole Life to Term examples": lambda: (
+                not any(
+                    tool.get("file") == path_file
+                    and tool.get("key") in {"Term -> Term", "Whole Life -> Term"}
+                    and tool.get("found") is True
+                    for tool in tools
+                )
+                and not re.search(r"(?:example|file|reference)\s*(?:number|no\.?|#)?\s*(?:1|2|16|17)\b", normalized)
+            ),
+        }
+        check = checks.get(label)
+        if check is None:
+            raise ValueError(f"lookup evaluator has no predicate for declared label: {label}")
+        return bool(check())
+
     cases = []
     for item in outcomes:
         tools = []
@@ -220,30 +305,23 @@ def _lookup_verdict(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
                 tools.append(json.loads(row["content"]))
             except (KeyError, json.JSONDecodeError):
                 pass
-        combined = "\n".join(item["responses"]).lower()
-        case_id = item["case_id"]
-        if case_id.startswith("MTU-044"):
-            passed = any(
-                tool.get("file") == "reference/062-approved-products.yaml"
-                and tool.get("key") == "HSBC Term Protector"
-                and tool.get("found") is True
-                and 16 in tool.get("entry", {}).get("reference_examples", [])
-                for tool in tools
-            )
-            reason = "exact product row example 16 returned" if passed else "exact product row missing"
-        else:
-            passed = (
-                any(tool.get("found") is False and tool.get("match") == "none" for tool in tools)
-                and "melody" in combined
-                and not any(
-                    tool.get("found") is True
-                    and tool.get("key") in {"HSBC Term Protector", "Term_to_Term", "Whole Life_to_Term"}
-                    for tool in tools
-                    if case_id.startswith(("MTU-045", "MTU-046", "MTU-047"))
-                )
-            )
-            reason = "exact miss returned none and response escalated" if passed else "miss/escalation contract failed"
-        cases.append({"case_id": case_id, "draw": item["draw"], "pass": passed, "reason": reason})
+        combined = "\n".join(item["responses"])
+        failed_labels = [
+            expected["label"]
+            for expected in item["expected"]
+            if not evaluate_label(expected["label"], tools, combined)
+        ]
+        passed = not failed_labels
+        reason = "all declared labels passed" if passed else "failed declared lookup expectations"
+        cases.append(
+            {
+                "case_id": item["case_id"],
+                "draw": item["draw"],
+                "pass": passed,
+                "failed_labels": failed_labels,
+                "reason": reason,
+            }
+        )
     return {"cases": cases}
 
 

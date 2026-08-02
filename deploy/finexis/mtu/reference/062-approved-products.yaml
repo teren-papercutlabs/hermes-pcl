@@ -17,8 +17,10 @@ escalation_cue: >-
   product in the advisor's own words and say the case is with Melody. Do not
   choose the nearest product or expose lookup mechanics or a file number.
 entries:
+  - {key: "Wealth Voyage", reference_examples: [1]}
   - {key: "Voyage (Fundsmith)", reference_examples: [1]}
   - {key: "Voyage (Franklin Income, premiums above $36k)", reference_examples: [4]}
+  - {key: "Wealth Abundance", reference_examples: [3]}
   - {key: "Abundance", reference_examples: [3]}
   - {key: "HSBC Indexed Flexi Income", reference_examples: [14]}
   - {key: "HSBC Diamond IUL", reference_examples: [18]}
