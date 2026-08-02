@@ -16792,6 +16792,13 @@ class GatewayRunner:
         from run_agent import AIAgent
         import queue
 
+        try:
+            from gateway.replay import current_replay_context
+
+            _replay_active = current_replay_context() is not None
+        except Exception:
+            _replay_active = False
+
         def _run_still_current() -> bool:
             if run_generation is None or not session_key:
                 return True
@@ -17660,6 +17667,11 @@ class GatewayRunner:
             # rather than hang forever).
             # ------------------------------------------------------------------
             def _clarify_callback_sync(question: str, choices) -> str:
+                if _replay_active:
+                    # Replay has no human receiver. A blocking clarify would
+                    # turn a deterministic corpus turn into the live timeout.
+                    return "[clarify unavailable during replay; respond to the user directly]"
+
                 from tools import clarify_gateway as _clarify_mod
                 import uuid as _uuid
 
@@ -18126,7 +18138,7 @@ class GatewayRunner:
             # namespaces are already named by run/case, and a title request is
             # an unrelated second model call that can contend with the next
             # deterministic replay turn.
-            if final_response and self._session_db and _replay_ctx is None:
+            if final_response and self._session_db and not _replay_active:
                 try:
                     from agent.title_generator import maybe_auto_title
                     all_msgs = result_holder[0].get("messages", []) if result_holder[0] else []
