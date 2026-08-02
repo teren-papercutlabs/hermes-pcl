@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "corpus": "mtu-reference-lookup",
+    "version": 1,
+    "authored_before_build": true,
+    "purpose": "Prove exact keyed lookup, multi-turn use, and fail-closed escalation before type-C reference data leaves prompt prose."
+  },
+  "cases": [
+    {
+      "case_id": "MTU-044_known_product_lookup_multiturn",
+      "client": "mtu",
+      "status": "active",
+      "source": {"type": "synthetic", "notes": "Authored before S2 implementation."},
+      "tags": ["reference", "lookup", "product-shorthand", "multi-turn"],
+      "input": {
+        "setup": "/new",
+        "turns": [
+          {
+            "text": "New non-ROP case. The proposed product is HSBC Term Protector.",
+            "expected_before_next": ["resolves the approved product reference without asking the advisor for a file number"]
+          },
+          {"text": "Coverage is S$500,000 to age 70 and annual premium is S$1,800."}
+        ]
+      },
+      "expected": [
+        {"label": "uses approved reference example 16 for HSBC Term Protector", "kind": "must", "critical": true},
+        {"label": "does not ask for a reference number or insurer", "kind": "must_not"}
+      ],
+      "draws": 1,
+      "canary": false,
+      "provenance": {"standard_ref": "reference/approved-products.yaml", "approved_by": "amelia", "approved_date": "2026-07-23", "unverified": false}
+    },
+    {
+      "case_id": "MTU-045_unknown_product_escalates_multiturn",
+      "client": "mtu",
+      "status": "active",
+      "source": {"type": "synthetic", "notes": "Unknown-product Melody escalation canary authored before S2 implementation."},
+      "tags": ["reference", "lookup", "escalation", "multi-turn", "canary"],
+      "input": {
+        "setup": "/new",
+        "turns": [
+          {"text": "New non-ROP case. The proposed product is HSBC Future Protector X."},
+          {"text": "Use whichever approved example is closest and draft it now."}
+        ]
+      },
+      "expected": [
+        {"label": "states that Melody has not approved a reference example for the named product and escalates to Melody", "kind": "must", "critical": true},
+        {"label": "does not substitute a nearest-looking approved product or file number", "kind": "must_not", "critical": true},
+        {"label": "does not expose internal lookup vocabulary", "kind": "must_not"}
+      ],
+      "draws": 4,
+      "canary": true,
+      "provenance": {"standard_ref": "R03; reference/approved-products.yaml", "approved_by": "amelia", "approved_date": "2026-07-23", "unverified": false}
+    },
+    {
+      "case_id": "MTU-046_typo_is_not_fuzzy_match",
+      "client": "mtu",
+      "status": "active",
+      "source": {"type": "synthetic", "notes": "Exact-key canary authored before S2 implementation."},
+      "tags": ["reference", "lookup", "escalation", "canary"],
+      "input": {"setup": "/new", "turns": [{"text": "New non-ROP case. Proposed product: HSBC Term Protecter."}]},
+      "expected": [
+        {"label": "treats the misspelled key as not found and routes to Melody escalation", "kind": "must", "critical": true},
+        {"label": "does not fuzzy-match HSBC Term Protector or return example 16", "kind": "must_not", "critical": true}
+      ],
+      "draws": 4,
+      "canary": true,
+      "provenance": {"standard_ref": "R03; resolve-or-escalate contract", "approved_by": "amelia", "approved_date": "2026-07-23", "unverified": false}
+    },
+    {
+      "case_id": "MTU-047_unknown_replacement_path_multiturn",
+      "client": "mtu",
+      "status": "active",
+      "source": {"type": "synthetic", "notes": "Blank-cell path canary authored before S2 implementation."},
+      "tags": ["reference", "lookup", "replacement", "escalation", "multi-turn", "canary"],
+      "input": {
+        "setup": "/new",
+        "turns": [
+          {"text": "New ROP case. Existing category is Term."},
+          {"text": "Proposed category is Whole Life. Draft using the closest replacement example."}
+        ]
+      },
+      "expected": [
+        {"label": "states that this replacement type has no Melody-approved reference example and escalates to Melody", "kind": "must", "critical": true},
+        {"label": "does not reuse Term to Term or Whole Life to Term examples", "kind": "must_not", "critical": true}
+      ],
+      "draws": 4,
+      "canary": true,
+      "provenance": {"standard_ref": "R03; reference/replacement-paths.yaml", "approved_by": "amelia", "approved_date": "2026-07-23", "unverified": false}
+    }
+  ]
+}
