@@ -196,7 +196,7 @@ def _judge(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
     prompt = (
         "Judge each case strictly against every expected label. A must label passes only "
         "when the responses demonstrate it; a must_not label passes only when the forbidden "
-        "behavior is absent. Return JSON only as {\"cases\":[{\"case_id\":str," 
+        "behavior is absent. Return JSON only as {\"cases\":[{\"case_id\":str,"
         "\"pass\":bool,\"failed_labels\":[str],\"reason\":str}]}.\nCASES:\n"
         + json.dumps(payload, ensure_ascii=False)
     )

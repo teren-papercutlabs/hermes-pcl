@@ -1,7 +1,7 @@
 # MTU S2 ablation round 1
 
-Model: `gpt-5.6-luna`  
-Path: non-live `GatewayRunner.replay` copy; zero writes to `~/.hermes-mtu`  
+Model: `gpt-5.6-luna`
+Path: non-live `GatewayRunner.replay` copy; zero writes to `~/.hermes-mtu`
 Decision: delete only on a complete affected-case pass.
 
 - `derive_rop_without_reasking` — 1/9 passed — **KEEP**. affected-tag battery did not pass with the rule ablated.
