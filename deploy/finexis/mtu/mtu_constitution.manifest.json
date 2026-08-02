@@ -1,8 +1,9 @@
 {
   "allow_unverified": true,
-  "constitution_sha256": "9e54801ce51cbf9109c912285c86e8b9dba1a7a938f40cea13c7d429b3a5b4b7",
+  "composed_source_count": 26,
+  "constitution_sha256": "d065b94158c4b4dbe73ed3b98442b90acfcc6262776cedf01623702a6d01765e",
   "schema_version": 1,
-  "source_count": 26,
+  "source_count": 30,
   "source_root": "mtu",
   "sources": [
     {
@@ -15,6 +16,7 @@
         "2026-07-15"
       ],
       "body_sha256": "cb27072a3ddc0f133e3462db3636d6a1aaf197bfdb8bc450ec8566870ec90426",
+      "included_in_constitution": true,
       "path": "rules/000-identity-job-preamble.yaml",
       "ruling_ref": [
         "R18"
@@ -32,6 +34,7 @@
         "2026-07-23"
       ],
       "body_sha256": "b842a497dd0946aec3dedb1f40166e67ab0e82ba617d00cee723c1e5ce5cde3f",
+      "included_in_constitution": true,
       "path": "compliance/010-sustainability-enforcement.yaml",
       "ruling_ref": [
         "R02"
@@ -48,13 +51,14 @@
       "approved_date": [
         "unverified"
       ],
-      "body_sha256": "c69e24035582e99dee64462f020a4676f4de94326334d83d7ca6c74bacf38cb9",
+      "body_sha256": "3fb9d01618c61803c5f66ac15f73d350efd7d58042a295230fedaba7b1bf33ed",
+      "included_in_constitution": true,
       "path": "reference/020-knowledge-manifest.yaml",
       "ruling_ref": [
         "standing-constitution"
       ],
       "sequence": 20,
-      "source_sha256": "7f0877aa0f90f9ac426f3d494d028e7421c32b48117ffa6c3cdd055248d4ae2d",
+      "source_sha256": "aaac4daff4f814341944c7f95c5458c5939fa5dba968b62ab67263ab6c8f5ab3",
       "status": "unverified",
       "type": "reference"
     },
@@ -66,6 +70,7 @@
         "unverified"
       ],
       "body_sha256": "0c5d5702cf260f18d504babe539ca7b555b71041b9f2854b20d38076653a27f7",
+      "included_in_constitution": true,
       "path": "job-briefs/030-instructions-prefix.yaml",
       "ruling_ref": [
         "standing-constitution"
@@ -84,6 +89,7 @@
         "2026-08-01"
       ],
       "body_sha256": "15d163e5674d77f28c2a81413c639e8ac4ca5c31a1f119906b96fa956ad838f1",
+      "included_in_constitution": true,
       "path": "rules/040-intake.yaml",
       "ruling_ref": [
         "R05",
@@ -102,6 +108,7 @@
         "unverified"
       ],
       "body_sha256": "55d69fdc8338733b3ca485115194b9be3b897190932aa694fadb0148040dbb63",
+      "included_in_constitution": true,
       "path": "rules/050-new-case-boundary.yaml",
       "ruling_ref": [
         "R14"
@@ -118,13 +125,68 @@
       "approved_date": [
         "2026-07-23"
       ],
-      "body_sha256": "1cae36d4faad170ae8e717bd067d80438eaf1448303f90d7b310d3fd5bb07011",
+      "body_sha256": "c6ed743cbc1a718596df5fbce1f6cb88111f58d11758a3a6583140b9d10cb2f5",
+      "included_in_constitution": true,
       "path": "reference/060-ekyc-routing.yaml",
       "ruling_ref": [
         "R03"
       ],
       "sequence": 60,
-      "source_sha256": "b25ca39318197c92938e4a415ae474111581e4a8e4354ed2ce1eba6fde87e59b",
+      "source_sha256": "0e073bc53607e5505cfd0eb1db0c77bbdd9bcab326e6514fbeb5d3194e548294",
+      "status": "approved",
+      "type": "reference"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-23"
+      ],
+      "body_sha256": "cf9e97f9a6f501250b059705f4e5c24017515ebc1410f6c1511a0d6e3b22f0dc",
+      "included_in_constitution": false,
+      "path": "reference/061-ekyc-directory-map.yaml",
+      "ruling_ref": [
+        "R03"
+      ],
+      "sequence": 61,
+      "source_sha256": "57788734ccc5b6e356d64cc0375c342c9d946a46edda09bc06858f8d84fab042",
+      "status": "approved",
+      "type": "reference"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-23"
+      ],
+      "body_sha256": "01ed25711bf0f2340eb5095511c0d987d35d0628c4d4d54d61dc850fff28e8d7",
+      "included_in_constitution": false,
+      "path": "reference/062-approved-products.yaml",
+      "ruling_ref": [
+        "R03"
+      ],
+      "sequence": 62,
+      "source_sha256": "e7e046db697b870afdfc7b1348f83c9fa335eb07418a04a1e2dc7de8311c8fae",
+      "status": "approved",
+      "type": "reference"
+    },
+    {
+      "approved_by": [
+        "amelia"
+      ],
+      "approved_date": [
+        "2026-07-31"
+      ],
+      "body_sha256": "a6829118617a32d75e65271dff5a0b977ebf3d43d2dcabc855174d95ff5f5395",
+      "included_in_constitution": false,
+      "path": "reference/063-product-insurers.yaml",
+      "ruling_ref": [
+        "R05"
+      ],
+      "sequence": 63,
+      "source_sha256": "11f818cb20e2c13bda66e56d747aefa7e1f176f5b14f4b34d49499c86e72ec97",
       "status": "approved",
       "type": "reference"
     },
@@ -135,7 +197,26 @@
       "approved_date": [
         "unverified"
       ],
+      "body_sha256": "7a91497b6d87a502b53a3cc903e5ff48efbc7392b2f523ba5e7f552fb771b348",
+      "included_in_constitution": false,
+      "path": "reference/064-replacement-taxonomy.yaml",
+      "ruling_ref": [
+        "standing-constitution"
+      ],
+      "sequence": 64,
+      "source_sha256": "109c80917f26d05b1000506fac436cf620fc9093a53821fc3c2c4fb97db94e92",
+      "status": "unverified",
+      "type": "reference"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
       "body_sha256": "d0693471dffd0b32ee1df4f7ea89c923611feab025647deb04250cb9a6c9df51",
+      "included_in_constitution": true,
       "path": "rules/070-replacement-classification.yaml",
       "ruling_ref": [
         "standing-constitution"
@@ -153,6 +234,7 @@
         "2026-07-20"
       ],
       "body_sha256": "ec0b8dcc79103f6b2d931256cecf097c5a3010199177e34103c07329510b524d",
+      "included_in_constitution": true,
       "path": "rules/080-resolution-and-arithmetic.yaml",
       "ruling_ref": [
         "R16"
@@ -170,6 +252,7 @@
         "unverified"
       ],
       "body_sha256": "7f41b65bf265cb55e2b74226bf120354ab6612b4ff0cb12fdc4079e7459f9369",
+      "included_in_constitution": true,
       "path": "rules/090-shield-contract.yaml",
       "ruling_ref": [
         "standing-constitution"
@@ -187,6 +270,7 @@
         "unverified"
       ],
       "body_sha256": "cfd17fdac59f7f07ced76d7bad24fffba14b6e1e73891ae2449e89df7e51e843",
+      "included_in_constitution": true,
       "path": "rules/100-category-comparison.yaml",
       "ruling_ref": [
         "standing-constitution"
@@ -204,6 +288,7 @@
         "unverified"
       ],
       "body_sha256": "9428e7b87a8f79ae118992a12b572f5349ba13b399404a959f847fc2b7f8600a",
+      "included_in_constitution": true,
       "path": "templates/110-standard-narrative-defaults.yaml",
       "ruling_ref": [
         "R13",
@@ -222,6 +307,7 @@
         "unverified"
       ],
       "body_sha256": "41f5872db431ed318437942289b5c2898cbafd16facae8301d9400f7899c7778",
+      "included_in_constitution": true,
       "path": "rules/120-supported-categories.yaml",
       "ruling_ref": [
         "R18"
@@ -239,6 +325,7 @@
         "2026-07-23"
       ],
       "body_sha256": "5ab43188ffad3982cbfddcbfa2bc56aad1b2f477f08469e07cbdea8bb598ffeb",
+      "included_in_constitution": true,
       "path": "rules/130-material-missing-gate.yaml",
       "ruling_ref": [
         "R01"
@@ -257,6 +344,7 @@
         "2026-07-30"
       ],
       "body_sha256": "79cfe2a2352f5847396b48082c1601f3cc5ccae04cdaab423e4c241d18ec6230",
+      "included_in_constitution": true,
       "path": "rules/140-no-invention.yaml",
       "ruling_ref": [
         "R17"
@@ -275,6 +363,7 @@
         "unverified"
       ],
       "body_sha256": "232d3d3ff585f2c9d6ed1f5bd0263866c4b26c8245f8e0da37164e4ac5a0cd5c",
+      "included_in_constitution": true,
       "path": "compliance/150-rop-gate-and-default.yaml",
       "ruling_ref": [
         "R06",
@@ -296,6 +385,7 @@
         "2026-08-01"
       ],
       "body_sha256": "ff1d6d22faeb2d3456dd351a8c8d36b40cf91e88bf4ecfc41b3fbad55782a72f",
+      "included_in_constitution": true,
       "path": "rules/160-ilp-suitability.yaml",
       "ruling_ref": [
         "R04",
@@ -316,6 +406,7 @@
         "unverified"
       ],
       "body_sha256": "055bb30ee3e1e489e3d2604464cce4fc35f4721adbc278e60f3dd35566292754",
+      "included_in_constitution": true,
       "path": "templates/170-draft-procedure.yaml",
       "ruling_ref": [
         "standing-constitution"
@@ -333,6 +424,7 @@
         "unverified"
       ],
       "body_sha256": "d8b57da714c777ef9b0df14a24cddb1e83e2282b20fcc6a7a631cd294f47a46e",
+      "included_in_constitution": true,
       "path": "compliance/180-general-disclosures.yaml",
       "ruling_ref": [
         "R13",
@@ -351,6 +443,7 @@
         "unverified"
       ],
       "body_sha256": "ed0a6b300b02f01b63b137bbb5aad9d53862467adce09cb3361ddef273914c76",
+      "included_in_constitution": true,
       "path": "compliance/190-rop-disadvantages.yaml",
       "ruling_ref": [
         "R13",
@@ -371,6 +464,7 @@
         "2026-07-15"
       ],
       "body_sha256": "2c4c1c313617165bde7bb892529d08173ce850846ce224273f32a19e7245857e",
+      "included_in_constitution": true,
       "path": "rules/200-advisor-authority.yaml",
       "ruling_ref": [
         "R18"
@@ -388,6 +482,7 @@
         "unverified"
       ],
       "body_sha256": "0658d90d400c6ae2f17664dff7771cf0a498909219043a2ad0cf4a31030412c9",
+      "included_in_constitution": true,
       "path": "templates/210-return-contract.yaml",
       "ruling_ref": [
         "standing-constitution"
@@ -405,6 +500,7 @@
         "unverified"
       ],
       "body_sha256": "f605fc292e53fcc3b87ef85a14ddec5c8104f3de767fc6c803050ee86d32305c",
+      "included_in_constitution": true,
       "path": "rules/220-telegram-output.yaml",
       "ruling_ref": [
         "R11",
@@ -425,6 +521,7 @@
         "2026-07-15"
       ],
       "body_sha256": "dcecf456002494780f7f6ff6d39f1d1e1ae0dab41864116bee239f1a7680ccf2",
+      "included_in_constitution": true,
       "path": "rules/230-escalation.yaml",
       "ruling_ref": [
         "R18"
@@ -442,6 +539,7 @@
         "unverified"
       ],
       "body_sha256": "4223aef536230420653e14f01f2fc670b9bc5e0865a2acecf572bdc4dd10052c",
+      "included_in_constitution": true,
       "path": "job-briefs/240-turn-event.yaml",
       "ruling_ref": [
         "standing-constitution"
@@ -460,6 +558,7 @@
         "2026-07-15"
       ],
       "body_sha256": "05db3b9bcd7baef9281b095591e6613b5bcdc53c256b593da7f9ad4fd34e5bba",
+      "included_in_constitution": true,
       "path": "job-briefs/990-later-phases-and-deploy-gates.yaml",
       "ruling_ref": [
         "R18"
@@ -470,7 +569,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "0b0aec53403e3a6898a0e0b3780f51016642d9fda4b194e057af022ae3c13ddb",
+  "sources_sha256": "d95f363545bd2f7f1b1e4320640f3295989de22bf51cea514c9d774dfacd35fa",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml",
     "compliance/180-general-disclosures.yaml",

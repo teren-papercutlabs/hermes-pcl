@@ -1,0 +1,41 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-23'
+# ruling_ref:
+# - R03
+# status: approved
+# sequence: 62
+# compose: false
+# ---
+kind: keyed-reference
+schema_version: 1
+key_semantics: exact approved product name
+escalation_cue: >-
+  Melody has not approved a reference example for this product. Name the
+  product in the advisor's own words and say the case is with Melody. Do not
+  choose the nearest product or expose lookup mechanics or a file number.
+entries:
+  - {key: "Voyage (Fundsmith)", reference_examples: [1]}
+  - {key: "Voyage (Franklin Income, premiums above $36k)", reference_examples: [4]}
+  - {key: "Abundance", reference_examples: [3]}
+  - {key: "HSBC Indexed Flexi Income", reference_examples: [14]}
+  - {key: "HSBC Diamond IUL", reference_examples: [18]}
+  - {key: "SavvyInvest II", reference_examples: [13]}
+  - {key: "HSBC Term Protector", reference_examples: [16]}
+  - {key: "Elite Term (All Riders)", reference_examples: [1]}
+  - {key: "Elite Term (Limited Pay)", reference_examples: [2]}
+  - {key: "FlexiProtector", reference_examples: [10]}
+  - {key: "HSBC Shield", reference_examples: [16]}
+  - {key: "SL Shield", reference_examples: [1]}
+  - {key: "SL Accident Care", reference_examples: [5]}
+  - {key: "Careshield Plus", reference_examples: [9]}
+  - {key: "Singlife Flexi Life Income", reference_examples: [15]}
+  - {key: "Navigator", reference_examples: [6, 7, 8]}
+  - {key: "iFast", reference_examples: [17]}
+  - {key: "Singlife My WL Choice", reference_examples: [12]}
+  - {key: "Band Aid", reference_examples: [2]}
+  - {key: "purchased for a dependant", reference_examples: [12]}
+  - {key: "Voyage + Navigator", reference_examples: [8]}
+  - {key: "advisor's own case", reference_examples: [11]}

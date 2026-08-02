@@ -5,11 +5,31 @@ from pathlib import Path
 import pytest
 import yaml
 
-from hermes_cli.pa_compose import PaComposeError, compose_pa_constitution, load_typed_sources
+from hermes_cli.pa_compose import (
+    PaComposeError,
+    compose_pa_constitution,
+    load_typed_sources,
+    sync_pa_knowledge,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
 MTU = ROOT / "deploy" / "finexis" / "mtu"
+
+
+def _test_constitution(knowledge: str) -> str:
+    return (
+        "id: test\n"
+        "agent_name: Test\n"
+        "identity:\n  role: test\n"
+        "client:\n  name: Test\n"
+        "job_briefs:\n"
+        "  test:\n"
+        "    title: Test\n"
+        "    purpose: Test knowledge sync.\n"
+        "    knowledge:\n"
+        f"      - {knowledge}\n"
+    )
 
 
 def _normalise_yaml(path: Path):
@@ -21,7 +41,7 @@ def test_loader_reads_all_typed_directories_with_unique_sequence():
     assert {source.source_type for source in sources} == {
         "rules", "compliance", "reference", "templates", "job-briefs"
     }
-    assert len(sources) == 26
+    assert len(sources) == 30
     assert [source.sequence for source in sources] == sorted(
         source.sequence for source in sources
     )
@@ -60,7 +80,19 @@ def test_allow_unverified_composes_parity_and_records_escape(tmp_path):
     assert manifest == result
     assert manifest["allow_unverified"] is True
     assert manifest["unverified_compliance"]
-    assert manifest["source_count"] == 26
+    assert manifest["source_count"] == 30
+    assert manifest["composed_source_count"] == 26
+    excluded = [
+        source["path"]
+        for source in manifest["sources"]
+        if not source["included_in_constitution"]
+    ]
+    assert excluded == [
+        "reference/061-ekyc-directory-map.yaml",
+        "reference/062-approved-products.yaml",
+        "reference/063-product-insurers.yaml",
+        "reference/064-replacement-taxonomy.yaml",
+    ]
     assert all(len(source["source_sha256"]) == 64 for source in manifest["sources"])
 
 
@@ -81,3 +113,53 @@ def test_missing_provenance_field_fails_closed(tmp_path):
         )
     with pytest.raises(PaComposeError, match="missing provenance fields: ruling_ref"):
         load_typed_sources(tmp_path)
+
+
+def test_sync_knowledge_copies_only_manifest_entries(tmp_path):
+    source = tmp_path / "source"
+    (source / "reference").mkdir(parents=True)
+    (source / "reference" / "declared.yaml").write_text("kind: keyed-reference\n")
+    (source / "reference" / "not-declared.yaml").write_text("private: true\n")
+    constitution = tmp_path / "constitution.yaml"
+    constitution.write_text(_test_constitution("reference/declared.yaml"))
+    target = tmp_path / "runtime" / "knowledge"
+    manifest = tmp_path / "runtime" / "knowledge-sync.manifest.json"
+
+    result = sync_pa_knowledge(source, constitution, target, manifest)
+
+    assert result["file_count"] == 1
+    assert (target / "reference" / "declared.yaml").read_text() == "kind: keyed-reference\n"
+    assert not (target / "reference" / "not-declared.yaml").exists()
+    assert json.loads(manifest.read_text()) == result
+
+
+def test_sync_knowledge_supports_deploy_knowledge_source_directory(tmp_path):
+    source = tmp_path / "source"
+    (source / "knowledge").mkdir(parents=True)
+    (source / "knowledge" / "guide.md").write_text("grounded guidance\n")
+    constitution = tmp_path / "constitution.yaml"
+    constitution.write_text(_test_constitution("guide.md"))
+
+    sync_pa_knowledge(
+        source,
+        constitution,
+        tmp_path / "runtime",
+        tmp_path / "manifest.json",
+    )
+
+    assert (tmp_path / "runtime" / "guide.md").read_text() == "grounded guidance\n"
+
+
+def test_sync_knowledge_refuses_missing_declared_entry(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    constitution = tmp_path / "constitution.yaml"
+    constitution.write_text(_test_constitution("reference/missing.yaml"))
+
+    with pytest.raises(PaComposeError, match="declared knowledge entry is missing"):
+        sync_pa_knowledge(
+            source,
+            constitution,
+            tmp_path / "runtime",
+            tmp_path / "manifest.json",
+        )

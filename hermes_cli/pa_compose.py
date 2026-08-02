@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +33,10 @@ class SourceArtifact:
     provenance: dict[str, Any]
     raw: bytes
     body: bytes
+
+    @property
+    def included_in_constitution(self) -> bool:
+        return self.provenance.get("compose", True) is not False
 
 
 def _sha256(data: bytes) -> str:
@@ -167,7 +172,8 @@ def compose_pa_constitution(
             f"{joined}; pass --allow-unverified to record and accept this escape"
         )
 
-    composed = b"".join(item.body for item in artifacts)
+    composed_artifacts = [item for item in artifacts if item.included_in_constitution]
+    composed = b"".join(item.body for item in composed_artifacts)
     try:
         parsed = yaml.safe_load(composed.decode("utf-8"))
     except (UnicodeDecodeError, yaml.YAMLError) as exc:
@@ -186,6 +192,7 @@ def compose_pa_constitution(
             "ruling_ref": item.provenance["ruling_ref"],
             "source_sha256": _sha256(item.raw),
             "body_sha256": _sha256(item.body),
+            "included_in_constitution": item.included_in_constitution,
         }
         for item in artifacts
     ]
@@ -196,6 +203,7 @@ def compose_pa_constitution(
         "allow_unverified": allow_unverified,
         "unverified_compliance": unverified_compliance,
         "source_count": len(entries),
+        "composed_source_count": len(composed_artifacts),
         "sources_sha256": _sha256(digest_input),
         "constitution_sha256": _sha256(composed),
         "sources": entries,
@@ -207,33 +215,110 @@ def compose_pa_constitution(
     return manifest_data
 
 
+def sync_pa_knowledge(
+    source_dir: Path | str,
+    constitution_path: Path | str,
+    target_dir: Path | str,
+    manifest_path: Path | str,
+) -> dict[str, Any]:
+    """Copy only constitution-declared knowledge into a runtime knowledge root."""
+    from agent.pa_constitution import load_constitution
+
+    source = Path(source_dir).expanduser().resolve()
+    target = Path(target_dir).expanduser().resolve()
+    manifest = Path(manifest_path).expanduser().resolve()
+    try:
+        constitution = load_constitution(constitution_path)
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        raise PaComposeError(f"cannot load constitution: {exc}") from exc
+    declared = sorted(
+        {entry for brief in constitution.job_briefs.values() for entry in brief.knowledge}
+    )
+    if not declared:
+        raise PaComposeError("constitution declares no knowledge entries")
+
+    copied: list[dict[str, Any]] = []
+    for entry in declared:
+        relative = Path(entry)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise PaComposeError(f"knowledge entry must be relative and cannot traverse: {entry}")
+        source_candidates = [source / relative, source / "knowledge" / relative]
+        existing = [candidate.resolve() for candidate in source_candidates if candidate.is_file()]
+        if len(existing) > 1:
+            raise PaComposeError(f"declared knowledge entry is ambiguous in source: {entry}")
+        if not existing:
+            raise PaComposeError(f"declared knowledge entry is missing: {entry}")
+        source_path = existing[0]
+        try:
+            source_path.relative_to(source)
+        except ValueError as exc:
+            raise PaComposeError(f"knowledge entry escapes source directory: {entry}") from exc
+        target_path = (target / relative).resolve()
+        try:
+            target_path.relative_to(target)
+        except ValueError as exc:
+            raise PaComposeError(f"knowledge entry escapes target directory: {entry}") from exc
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, target_path)
+        copied.append(
+            {
+                "path": entry,
+                "bytes": source_path.stat().st_size,
+                "sha256": _sha256(source_path.read_bytes()),
+            }
+        )
+
+    result = {
+        "schema_version": 1,
+        "source_root": source.name,
+        "target_root": target.name,
+        "file_count": len(copied),
+        "files": copied,
+    }
+    _atomic_write(
+        manifest,
+        (json.dumps(result, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+    )
+    return result
+
+
 def cmd_pa(args: Any) -> None:
     """Dispatch ``hermes pa`` commands."""
-    if getattr(args, "pa_command", None) != "compose":
-        raise PaComposeError("a PA subcommand is required")
+    command = getattr(args, "pa_command", None)
     try:
-        result = compose_pa_constitution(
-            args.source_dir,
-            args.output,
-            args.manifest,
-            allow_unverified=args.allow_unverified,
-        )
+        if command == "compose":
+            result = compose_pa_constitution(
+                args.source_dir,
+                args.output,
+                args.manifest,
+                allow_unverified=args.allow_unverified,
+            )
+        elif command == "sync-knowledge":
+            result = sync_pa_knowledge(
+                args.source_dir,
+                args.constitution,
+                args.target_dir,
+                args.manifest,
+            )
+        else:
+            raise PaComposeError("a PA subcommand is required")
     except PaComposeError as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True), file=os.sys.stderr)
         raise SystemExit(2) from exc
-    print(
-        json.dumps(
-            {
-                "ok": True,
-                "data": {
-                    "output": str(Path(args.output).expanduser().resolve()),
-                    "manifest": str(Path(args.manifest).expanduser().resolve()),
-                    "source_count": result["source_count"],
-                    "constitution_sha256": result["constitution_sha256"],
-                    "sources_sha256": result["sources_sha256"],
-                    "allow_unverified": result["allow_unverified"],
-                },
-            },
-            sort_keys=True,
-        )
-    )
+    if command == "compose":
+        data = {
+            "output": str(Path(args.output).expanduser().resolve()),
+            "manifest": str(Path(args.manifest).expanduser().resolve()),
+            "source_count": result["source_count"],
+            "composed_source_count": result["composed_source_count"],
+            "constitution_sha256": result["constitution_sha256"],
+            "sources_sha256": result["sources_sha256"],
+            "allow_unverified": result["allow_unverified"],
+        }
+    else:
+        data = {
+            "target_dir": str(Path(args.target_dir).expanduser().resolve()),
+            "manifest": str(Path(args.manifest).expanduser().resolve()),
+            "file_count": result["file_count"],
+        }
+    print(json.dumps({"ok": True, "data": data}, sort_keys=True))
