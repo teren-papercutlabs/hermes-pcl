@@ -23,7 +23,7 @@ agent:
 pa:
   enabled: true
   job_type: bor_generation                 # REQUIRED — MTU declares no selectors; without this the constitution is silently ignored
-  constitution_path: /Users/pcloffice/.hermes-mtu/mtu_constitution.yaml
+  constitution_path: ${HERMES_HOME}/mtu_constitution.yaml
   # Empty/omitted defaults to $HERMES_HOME/knowledge. The bootstrap/deploy sync
   # installs manifest-declared knowledge and reference files beneath this root.
   knowledge_path: knowledge

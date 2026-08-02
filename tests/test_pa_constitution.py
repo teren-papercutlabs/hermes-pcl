@@ -44,6 +44,25 @@ def test_fixture_loads() -> None:
     assert constitution.job_briefs["tgg_management"].response_policy["max_output_tokens"] == 8192
 
 
+def test_constitution_path_expands_environment_variables(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "constitution.yaml"
+    target.write_text(FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setenv("TEST_PA_HOME", str(tmp_path))
+
+    resolved = resolve_context(
+        {
+            "constitution_path": "${TEST_PA_HOME}/constitution.yaml",
+            "job_type": "tgg_ops_ingest",
+        },
+        {},
+    )
+
+    assert resolved is not None
+    assert resolved.job_type == "tgg_ops_ingest"
+
+
 def test_invalid_fixture_fails_loudly() -> None:
     with pytest.raises(ValueError, match="agent_name"):
         load_constitution_data(

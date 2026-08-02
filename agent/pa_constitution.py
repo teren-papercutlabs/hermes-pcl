@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
@@ -381,6 +382,8 @@ def _constitution_from_config(config: Mapping[str, Any]) -> PAConstitution | Non
     if isinstance(raw, Mapping):
         return load_constitution_data(raw, client_overlay=overlay)
     if isinstance(raw, str | Path):
+        if isinstance(raw, str):
+            raw = os.path.expandvars(raw)
         constitution = load_constitution(raw)
         return apply_client_overlay(constitution, overlay) if overlay else constitution
     raise ValueError("PA constitution config must be a path, mapping, or PAConstitution")

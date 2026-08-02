@@ -16,7 +16,7 @@ Advisor DMs a rough case (existing plan, proposed plan, is-it-a-replacement) →
 | `config.yaml` | Gateway config: model (openai-direct-primary/gpt-5.4-mini) + `pa.enabled/job_type/constitution_path` + `platforms.telegram`. |
 | `SOUL.md` | Thin operating rule only. Reference tables are deliberately absent from the prompt. |
 | `knowledge/`, `reference/` | Manifest-declared prose and exact-key structured references. `compose: false` reference artifacts are validated and digested but excluded from constitution prose. |
-| `scripts/bootstrap_local.sh` | Builds `~/.hermes-mtu` (HERMES_HOME) from this dir + writes `.env` (token + allowlist + OPENAI key sourced from secrets). Idempotent. Secrets never committed. |
+| `scripts/bootstrap_local.sh` | Builds the explicitly supplied `HERMES_HOME` from this dir + writes `.env` (token + allowlist + OPENAI key sourced from secrets). It has no production-profile default. Idempotent. Secrets never committed. |
 | `OPS-NOTE.md` | Deploy specifics + what remains + rollback. |
 
 ## Typed constitution compose

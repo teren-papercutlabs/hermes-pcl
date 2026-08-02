@@ -40,9 +40,31 @@ def _knowledge_root(
     return path.resolve()
 
 
+def _current_selector_metadata() -> dict[str, Any]:
+    """Build selector metadata from the concurrency-safe gateway turn context."""
+    try:
+        from gateway.session_context import get_session_env
+    except ImportError:
+        return {}
+
+    source = {
+        "platform": get_session_env("HERMES_SESSION_PLATFORM", ""),
+        "chat_id": get_session_env("HERMES_SESSION_CHAT_ID", ""),
+        "chat_name": get_session_env("HERMES_SESSION_CHAT_NAME", ""),
+        "thread_id": get_session_env("HERMES_SESSION_THREAD_ID", ""),
+        "user_id": get_session_env("HERMES_SESSION_USER_ID", ""),
+        "user_name": get_session_env("HERMES_SESSION_USER_NAME", ""),
+    }
+    return {
+        "source": {key: value for key, value in source.items() if value != ""},
+        "session_key": get_session_env("HERMES_SESSION_KEY", ""),
+        "session_id": get_session_env("HERMES_SESSION_ID", ""),
+    }
+
+
 def _active_brief(config: Mapping[str, Any] | None = None) -> PAJobBrief:
     loaded = config if config is not None else load_config()
-    resolved = resolve_context(loaded, None)
+    resolved = resolve_context(loaded, _current_selector_metadata())
     if resolved is None:
         raise ValueError("PA knowledge tools require an enabled, resolvable PA job brief")
     return resolved.job_brief

@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from agent.pa_constitution import PAJobBrief
-from tools.pa_tools import fetch_knowledge, lookup_reference
+from gateway.session_context import clear_session_vars, set_session_vars
+from tools.pa_tools import _active_brief, fetch_knowledge, lookup_reference
 
 
 def _brief(*entries: str) -> PAJobBrief:
@@ -132,3 +133,42 @@ def test_lookup_rejects_duplicate_keys(tmp_path: Path) -> None:
             brief=_brief("reference/duplicate.yaml"),
             hermes_home=tmp_path,
         )
+
+
+def test_active_brief_resolves_selector_from_current_gateway_turn() -> None:
+    config = {
+        "pa": {
+            "enabled": True,
+            "constitution": {
+                "id": "selector-test",
+                "agent_name": "Test Agent",
+                "identity": {},
+                "client": {},
+                "job_briefs": {
+                    "advisor": {
+                        "title": "Advisor",
+                        "purpose": "Answer the selected advisor.",
+                        "instructions": ["Use exact reference data."],
+                        "knowledge": ["reference/products.yaml"],
+                    }
+                },
+                "selectors": [
+                    {
+                        "job_type": "advisor",
+                        "match": {
+                            "source.platform": "whatsapp",
+                            "source.chat_id": "advisor-chat",
+                        },
+                    }
+                ],
+            },
+        }
+    }
+    tokens = set_session_vars(platform="whatsapp", chat_id="advisor-chat")
+    try:
+        brief = _active_brief(config)
+    finally:
+        clear_session_vars(tokens)
+
+    assert brief.job_type == "advisor"
+    assert brief.knowledge == ("reference/products.yaml",)

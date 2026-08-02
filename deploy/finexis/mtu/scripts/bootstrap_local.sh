@@ -2,9 +2,9 @@
 # bootstrap_local.sh — build the hermes-mtu Studio-local pilot HERMES_HOME from this deploy dir.
 #
 # Usage:
-#   bootstrap_local.sh <telegram_bot_token_file> <allowed_user_ids_csv>
+#   HERMES_HOME=/path/to/profile bootstrap_local.sh <telegram_bot_token_file> <allowed_user_ids_csv>
 #
-# - Copies config.yaml / mtu_constitution.yaml / SOUL.md into $HERMES_HOME (~/.hermes-mtu)
+# - Copies config.yaml / mtu_constitution.yaml / SOUL.md into the explicitly set $HERMES_HOME
 #   and syncs only the constitution-declared knowledge files.
 # - Writes $HERMES_HOME/.env (chmod 600) with the Telegram bot token, the allowlist, and the
 #   OpenAI key sourced from ~/.marshal/secrets.env. NO secret value is hardcoded here.
@@ -15,7 +15,7 @@ set -euo pipefail
 
 TOKEN_FILE="${1:-$HOME/.hermes-mtu-token.tmp}"
 ALLOWED_USERS="${2:-}"
-HERMES_HOME="${HERMES_HOME:-$HOME/.hermes-mtu}"
+: "${HERMES_HOME:?set HERMES_HOME explicitly; this script never defaults to a live profile}"
 DEP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="$(cd "$DEP/../../.." && pwd)"
 SECRETS="$HOME/.marshal/secrets.env"
