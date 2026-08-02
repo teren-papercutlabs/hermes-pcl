@@ -18122,8 +18122,11 @@ class GatewayRunner:
             # Reset to 0 so the gateway writes ALL compressed messages.
             _effective_history_offset = 0 if _session_was_split else len(agent_history)
 
-            # Auto-generate session title after first exchange (non-blocking)
-            if final_response and self._session_db:
+            # Auto-generate session titles only for live conversations. Replay
+            # namespaces are already named by run/case, and a title request is
+            # an unrelated second model call that can contend with the next
+            # deterministic replay turn.
+            if final_response and self._session_db and _replay_ctx is None:
                 try:
                     from agent.title_generator import maybe_auto_title
                     all_msgs = result_holder[0].get("messages", []) if result_holder[0] else []
