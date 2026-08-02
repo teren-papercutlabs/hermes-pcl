@@ -8,9 +8,25 @@
 # - Writes $HERMES_HOME/.env (chmod 600) with the Telegram bot token, the allowlist, and the
 #   OpenAI key sourced from ~/.marshal/secrets.env. NO secret value is hardcoded here.
 # - Idempotent: safe to re-run (overwrites config/SOUL/.env from source-of-truth).
+# - Internal deploy writer only. deploy_guarded.py supplies the verified receipt.
 #
 # The runtime executes with:  HERMES_HOME=~/.hermes-mtu <hermes-venv>/python <hermes>/hermes gateway run
 set -euo pipefail
+
+RECEIPT="${MTU_EVAL_GATE_RECEIPT:-}"
+[ -n "$RECEIPT" ] && [ -f "$RECEIPT" ] || {
+  echo "ERROR: MTU_DEPLOY_EVAL_REFUSED: use scripts/deploy_guarded.py" >&2
+  exit 2
+}
+python3 - "$RECEIPT" <<'PY' || {
+import json, sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+if data.get("ok") is not True or data.get("gate") != "mtu-deploy-eval":
+    raise SystemExit(1)
+PY
+  echo "ERROR: MTU_DEPLOY_EVAL_REFUSED: invalid gate receipt" >&2
+  exit 2
+}
 
 TOKEN_FILE="${1:-$HOME/.hermes-mtu-token.tmp}"
 ALLOWED_USERS="${2:-}"

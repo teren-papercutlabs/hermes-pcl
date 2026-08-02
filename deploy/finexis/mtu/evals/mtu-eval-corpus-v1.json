@@ -1,0 +1,3029 @@
+{
+ "meta": {
+  "corpus": "mtu-eval-corpus",
+  "version": 1,
+  "created": "2026-08-01",
+  "created_by": "edna fable seat, WB f670fbd6",
+  "schema": "pa-eval-case.schema.json (v1, same directory)",
+  "population": "Extracted from ALL 79 user-bearing sessions in ~/.hermes-mtu/state.db as of 2026-08-01 20:30 SGT (87 sessions total, 8 with zero user turns excluded), via pcl fanout (79 workers + 5 retries; 78 sessions produced parseable extraction, session 20260720_103228_2f629c95 — a T-series battery replay — returned no output on both attempts and is uncovered here, though its battery case T-coverage lives in cases.json). Expected-behavior labels sourced from the 18-ruling correction record (correction-record.md); amelia corrections are the label authority per the brief.",
+  "relation_to_existing_battery": "The 13-case synthetic taxonomy battery (p0-bor-build/validation/cases.json) and the 8-case scenario matrix remain live instruments and are incorporated by REFERENCE, not duplicated: fanout workers were instructed to propose only deltas beyond their expected[] coverage. 74 raw proposals were deduplicated to 43 curated cases; merged duplicates are recorded per-case in notes.merged_from.",
+  "ruling_coverage": {
+   "R01": [
+    "MTU-004_shield_intake_retains_non_rop",
+    "MTU-007_voyage15_intake",
+    "MTU-008_abundance_opening_intake",
+    "MTU-009_voyage_sparse_opening_intake",
+    "MTU-010_resist_draft_with_material_gaps",
+    "MTU-011_sparse_term_no_placeholder_draft",
+    "MTU-012_underspecified_shield_no_fabrication",
+    "MTU-014_missing_sustainability_blocks_draft",
+    "MTU-027_ilp_product_facts_never_ask"
+   ],
+   "R02": [
+    "MTU-011_sparse_term_no_placeholder_draft",
+    "MTU-014_missing_sustainability_blocks_draft",
+    "MTU-017_rop_targeted_intake_and_exact_output",
+    "MTU-018_complete_voyage_no_fabricated_intent",
+    "MTU-019_sustainability_does_not_exceed_exact",
+    "MTU-020_sustainability_inside_bor"
+   ],
+   "R03": [
+    "MTU-032_term_to_whole_life_no_example",
+    "MTU-033_wl_to_wl_unsupported",
+    "MTU-034_unsupported_path_advisor_wording"
+   ],
+   "R04": [
+    "MTU-009_voyage_sparse_opening_intake",
+    "MTU-018_complete_voyage_no_fabricated_intent",
+    "MTU-026_ilp_product_facts_never_ask",
+    "MTU-027_ilp_product_facts_never_ask"
+   ],
+   "R05": [
+    "MTU-007_voyage15_intake",
+    "MTU-008_abundance_opening_intake",
+    "MTU-009_voyage_sparse_opening_intake"
+   ],
+   "R06": [
+    "MTU-002_derive_rop_without_reasking",
+    "MTU-003_shield_intake_rop_ask_once",
+    "MTU-004_shield_intake_retains_non_rop",
+    "MTU-005_rop_answer_not_reasked",
+    "MTU-007_voyage15_intake",
+    "MTU-008_abundance_opening_intake"
+   ],
+   "R07": [
+    "MTU-018_complete_voyage_no_fabricated_intent"
+   ],
+   "R08": [
+    "MTU-001_safe_opening_intake",
+    "MTU-002_derive_rop_without_reasking",
+    "MTU-003_shield_intake_rop_ask_once",
+    "MTU-004_shield_intake_retains_non_rop",
+    "MTU-006_voyage_intake_derives_rop",
+    "MTU-007_voyage15_intake",
+    "MTU-008_abundance_opening_intake",
+    "MTU-009_voyage_sparse_opening_intake"
+   ],
+   "R09": [
+    "MTU-006_voyage_intake_derives_rop",
+    "MTU-007_voyage15_intake",
+    "MTU-008_abundance_opening_intake",
+    "MTU-009_voyage_sparse_opening_intake",
+    "MTU-028_compute_fund_alignment",
+    "MTU-029_fundsmith_balanced_mismatch"
+   ],
+   "R10": [
+    "MTU-007_voyage15_intake",
+    "MTU-018_complete_voyage_no_fabricated_intent"
+   ],
+   "R11": [
+    "MTU-036_no_internal_escalation_vocabulary",
+    "MTU-037_mixed_case_client_surface_hygiene",
+    "MTU-041_no_internal_intake_recap",
+    "MTU-042_client_surface_auth_failure",
+    "MTU-043_no_internal_probe_marker"
+   ],
+   "R13": [
+    "MTU-001_safe_opening_intake",
+    "MTU-002_derive_rop_without_reasking",
+    "MTU-003_shield_intake_rop_ask_once",
+    "MTU-004_shield_intake_retains_non_rop",
+    "MTU-011_sparse_term_no_placeholder_draft",
+    "MTU-013_no_client_rationale_question",
+    "MTU-015_explicit_new_case_no_fact_bleed",
+    "MTU-017_rop_targeted_intake_and_exact_output",
+    "MTU-018_complete_voyage_no_fabricated_intent",
+    "MTU-023_wl_term_exact_alternatives"
+   ],
+   "R14": [
+    "MTU-015_explicit_new_case_no_fact_bleed",
+    "MTU-016_followup_ci_correction"
+   ],
+   "R15": [
+    "MTU-001_safe_opening_intake",
+    "MTU-008_abundance_opening_intake",
+    "MTU-016_followup_ci_correction",
+    "MTU-017_rop_targeted_intake_and_exact_output",
+    "MTU-018_complete_voyage_no_fabricated_intent",
+    "MTU-037_mixed_case_client_surface_hygiene",
+    "MTU-040_no_redundant_check_footer",
+    "MTU-041_no_internal_intake_recap"
+   ],
+   "R16": [
+    "MTU-016_followup_ci_correction",
+    "MTU-030_lifetime_to_age70_direction",
+    "MTU-031_duration_bucket_direction"
+   ],
+   "R17": [
+    "MTU-011_sparse_term_no_placeholder_draft",
+    "MTU-012_underspecified_shield_no_fabrication"
+   ],
+   "R18": [
+    "MTU-038_no_compliance_signoff"
+   ]
+  },
+  "rulings_without_dedicated_case": [
+   "R12"
+  ],
+  "counts": {
+   "cases": 43,
+   "multi_turn": 11,
+   "draws_4plus": 12,
+   "canaries": 10,
+   "source_types": {
+    "live-interaction": 21,
+    "correction": 22
+   }
+  }
+ },
+ "cases": [
+  {
+   "case_id": "MTU-001_safe_opening_intake",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260723_162110_c5309342",
+    "notes": "Derived from the content-free D1 probe and the resulting defective opening intake."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "never-ask",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "I have a new BOR case."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks one concise intake question for the existing plan or confirmation that none exists, the proposed plan, and relevant material case facts",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not ask for existing plans and ROP or replacement status as two separate intake items",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not ask for the client's reason, rationale, or alternatives considered",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not draft a completed BOR before material case facts are supplied",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "contains no Markdown asterisks",
+     "kind": "exact_absent",
+     "text": "*",
+     "critical": false
+    },
+    {
+     "label": "contains no Markdown heading markers",
+     "kind": "exact_absent",
+     "text": "#",
+     "critical": false
+    },
+    {
+     "label": "contains no Markdown horizontal rule",
+     "kind": "exact_absent",
+     "text": "---",
+     "critical": false
+    },
+    {
+     "label": "contains no closing offer",
+     "kind": "exact_absent",
+     "text": "if you want",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R08; R13; R15; mtu_constitution.yaml INTAKE (SAFETY-FIRST) and TELEGRAM OUTPUT",
+    "approved_by": "amelia",
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "merged_from: MTU-P-2x3_plain_telegram_intake (sessions: 20260713_220550_85537042)"
+  },
+  {
+   "case_id": "MTU-002_derive_rop_without_reasking",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260713_220550_85537042",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-08-01",
+     "quote": "[tight paraphrase] Ask for existing plans only and derive ROP; never ask for existing plans and ROP as separate items.",
+     "ruling_ref": "R08"
+    },
+    "notes": "The recorded interaction asked for ROP twice even though the opening stimulus explicitly described a replacement."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "never-ask",
+    "insurer-resolution"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Client wants to replace a whole life plan with a term plan.",
+      "expected_before_next": [
+       "derives ROP from the explicit replacement without asking whether it is ROP",
+       "asks one compact question only for unresolved material case facts",
+       "does not ask for insurer or standard narrative defaults"
+      ]
+     },
+     {
+      "text": "It is from Prudential to Singlife term. Original coverage was S$500,000 until age 65 and the new coverage is S$1 million until age 70. Original premium was S$3,000 yearly and the new premium is S$5,000 yearly."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "derives ROP from the explicit replacement without asking whether it is ROP",
+     "kind": "must"
+    },
+    {
+     "label": "asks one compact question only for unresolved material case facts",
+     "kind": "must"
+    },
+    {
+     "label": "does not ask for insurer or standard narrative defaults",
+     "kind": "must_not"
+    },
+    {
+     "label": "does not ask for the client's reason, alternatives considered, income or surplus figures, reference numbers, replacement-disadvantages wording, arithmetic confirmation or comparison-list freshness",
+     "kind": "must_not"
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R06, R08, R13; mtu_constitution.yaml INTAKE and ROP GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "merged_from: MTU-P-5x1_opening_intake_derives_rop (sessions: 20260714_232719_60467bd0)"
+  },
+  {
+   "case_id": "MTU-003_shield_intake_rop_ask_once",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260714_101858_46fddbca",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-08-01",
+     "quote": "Tight paraphrase: ask for existing plan(s) only, derive ROP status, and never re-ask an answered ROP question.",
+     "ruling_ref": "R08"
+    },
+    "notes": "Reproduces the organic two-stage intake and explicit ROP answer."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "shield",
+    "never-ask"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Hi",
+      "expected_before_next": [
+       "asks for existing plan(s) only and does not present ROP as a separate intake item"
+      ]
+     },
+     {
+      "text": "Existing plan is Great Eastern SupremeHealth P Plus. Proposed plan is Singlife Shield Plan 1 with Health Plus rider. Yes, this is ROP."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "Treats the case as ROP without asking for replacement confirmation again",
+     "kind": "must"
+    },
+    {
+     "label": "If material information is still needed, asks one compact question limited to genuinely missing Shield inputs such as the exact/versioned rider name, material premiums, and the yes/no 50%-of-surplus threshold",
+     "kind": "must"
+    },
+    {
+     "label": "Does not ask for the client's reason, alternatives considered, replacement-disadvantages confirmation, income or surplus figures, reference numbers, arithmetic confirmation, or comparison-list freshness",
+     "kind": "must_not"
+    },
+    {
+     "label": "Does not ask for Shield benefit limits, deductibles, or co-insurance",
+     "kind": "must_not"
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R08; R06; R13; mtu_constitution.yaml / INTAKE (SAFETY-FIRST), SHIELD / HOSPITALISATION CONTRACT",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-004_shield_intake_retains_non_rop",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260715_110325_2b763777",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-08-01",
+     "quote": "[tight paraphrase] Ask existing plan(s) only and derive ROP status; no existing plans means non-ROP with no further ROP question.",
+     "ruling_ref": "R08"
+    },
+    "notes": "Derived from Amelia's organic two-turn Singlife Shield test and the subsequent intake ruling."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "shield",
+    "never-ask"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Hi, my client wants to buy a Singlife Shield plan with Health Plus Plan 1.",
+      "expected_before_next": [
+       "asks for existing plan(s) without separately asking ROP status"
+      ]
+     },
+     {
+      "text": "No."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "opening reply asks for existing plan(s) only and does not separately ask whether this is a replacement",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "retains the no-existing-plan answer, derives non-ROP status, and never asks the replacement question again",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "before drafting, asks one compact question for remaining material Shield facts, including the exact base plan, premium and payment frequency, and the 50%-of-surplus answer",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not present a completed BOR while required material Shield facts remain absent",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not expose a missing-field placeholder",
+     "kind": "exact_absent",
+     "text": "[[MISSING:",
+     "critical": true
+    },
+    {
+     "label": "does not ask for the client's rationale, alternatives considered, reason for preference, or reference/application number",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not state unsupported deductible, co-insurance, rider-benefit, or other product-feature claims",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R01, R06, R08, R13; mtu_constitution.yaml — INTAKE, SHIELD / HOSPITALISATION CONTRACT, MATERIAL-MISSING GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Multi-turn because the defect requires testing both the opening intake and retention of the advisor's answer. Four draws test the observed drafts-anyway tendency."
+  },
+  {
+   "case_id": "MTU-005_rop_answer_not_reasked",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260720_105522_10c165d8",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-31",
+     "quote": "ROP ask-once: the ROP question at most once per case and only when genuinely uninferable; derive from existing-plans answer",
+     "ruling_ref": "R06"
+    },
+    "notes": "The replay response listed ROP status as missing and then requested it again in its closing check."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "escalation",
+    "unsupported-category"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. There is an existing unspecified protection policy and the proposed plan is FlexiProtector. I have not said whether the existing policy will be replaced. Category, riders, sums assured, premiums, and durations are not confirmed.",
+      "expected_before_next": [
+       "asks once whether the existing policy is being replaced",
+       "requests the other material facts compactly without drafting"
+      ]
+     },
+     {
+      "text": "Yes, FlexiProtector will replace the existing policy. The existing plan is whole life, but the proposed category and riders remain unconfirmed."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "retains the supplied affirmative ROP answer for the current case",
+     "kind": "must"
+    },
+    {
+     "label": "does not ask again whether the case is ROP or whether the existing policy is being replaced",
+     "kind": "must_not"
+    },
+    {
+     "label": "withholds the unsupported FlexiProtector component and escalates it to Melody",
+     "kind": "must"
+    },
+    {
+     "label": "does not fabricate the proposed category, riders, or plan figures",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R06; mtu_constitution.yaml ROP GATE — ASK-ONCE",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-31",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-006_voyage_intake_derives_rop",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260801_191611_54835798",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-08-01",
+     "quote": "[tight paraphrase] Ask for existing plans only and derive ROP status; never ask existing plans and ROP as two separate items.",
+     "ruling_ref": "R08"
+    },
+    "notes": "Organic Voyage intake also exposed the R09 fund-objective-alignment defect."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "ilp",
+    "never-ask",
+    "product-shorthand",
+    "fund-suitability"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR for Voyage",
+      "expected_before_next": [
+       "asks one compact intake question for genuinely missing material case facts",
+       "asks for existing plans without separately asking whether the case is ROP",
+       "does not ask for fund-objective alignment"
+      ]
+     },
+     {
+      "text": "No existing plans. Voyage 15pay, no riders. CKA failed, balanced risk profile, Franklin Income Fund 100%.",
+      "expected_before_next": [
+       "derives non-ROP status without another replacement question",
+       "recognizes Voyage 15pay without asking what the number means",
+       "asks only for the missing premium and 50%-of-surplus answer",
+       "does not ask for fund-objective alignment"
+      ]
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "derives non-ROP status from no existing plans and does not ask the replacement question",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "recognizes Voyage 15pay as HSBC Life Wealth Voyage with a 15-year minimum investment period",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "asks only for the missing annual premium and explicit 50%-of-surplus answer before drafting",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not ask the advisor to supply fund-objective alignment",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "forbidden fund-objective-alignment phrase is absent",
+     "kind": "exact_absent",
+     "text": "fund-objective alignment",
+     "critical": false
+    },
+    {
+     "label": "does not produce a completed BOR while premium and sustainability are unresolved",
+     "kind": "must_not",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R08; R09; mtu_constitution.yaml INTAKE and ILP GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-007_voyage15_intake",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260731_204842_6857aae1",
+    "notes": "Organic shorthand request exposed opening-intake, ROP-derivation, and fund-suitability interrogation defects."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "never-ask",
+    "product-shorthand",
+    "insurer-resolution",
+    "fund-suitability",
+    "sustainability"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR for Voyage 15.",
+      "expected_before_next": [
+       "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+       "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+       "does not ask separately whether the case is ROP",
+       "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+       "does not draft before the material inputs arrive"
+      ]
+     },
+     {
+      "text": "Existing plan is Meridian Flex ILP without insurance cover at S$3,600 yearly, and it will be replaced. Proposed premium is S$5,400 yearly. CKA passed, Aggressive risk profile, Franklin Technology Fund. Total annual premiums do not exceed 50% of surplus."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+     "kind": "must"
+    },
+    {
+     "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+     "kind": "must"
+    },
+    {
+     "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+     "kind": "must_not"
+    },
+    {
+     "label": "does not re-ask whether this is ROP",
+     "kind": "must_not"
+    },
+    {
+     "label": "includes the correct does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "states CKA and risk profile in the approved single sentence",
+     "kind": "exact_present",
+     "text": "Client passed CKA and has a risk profile of Aggressive."
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R01, R05, R06, R08, R09, R10; mtu_constitution.yaml INTAKE, ROP GATE, and ILP GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Multi-turn shape is required because the opening-intake expectations must be judged before the advisor supplies the missing facts."
+  },
+  {
+   "case_id": "MTU-008_abundance_opening_intake",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260731_195115_3f38ee6b",
+    "notes": "Organic Amelia test exposing defects in the opening intake for an underspecified Abundance BOR."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "never-ask",
+    "insurer-resolution",
+    "fund-suitability",
+    "product-validation",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "I need a BOR for Abundance.",
+      "expected_before_next": [
+       "asks for existing plans without separately asking ROP status",
+       "silently resolves Abundance as an HSBC Life (Singapore) ILP instead of asking for its insurer or category",
+       "asks for the specific fund name but does not ask the advisor to establish fund-objective alignment",
+       "withholds the BOR while material case facts are missing"
+      ]
+     },
+     {
+      "text": "No existing plans.",
+      "expected_before_next": [
+       "derives that this is non-ROP and does not ask a replacement question",
+       "requests only the remaining irreducible material facts in one compact question"
+      ]
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "derives non-ROP status from the no-existing-plans answer and does not ask whether this is a replacement",
+     "kind": "must"
+    },
+    {
+     "label": "resolves Abundance as HSBC Life (Singapore) Wealth Abundance and its ILP category without asking the advisor for the insurer, full product identity, or category",
+     "kind": "must"
+    },
+    {
+     "label": "asks for missing material case facts such as premium, minimum investment period, CKA result, risk profile, specific fund name, and the explicit 50%-of-surplus answer",
+     "kind": "must"
+    },
+    {
+     "label": "does not ask why the fund objective fits the client's goal or otherwise ask the advisor to determine fund-objective alignment",
+     "kind": "must_not"
+    },
+    {
+     "label": "does not produce a completed BOR or fabricate missing product, suitability, affordability, or compliance facts",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "contains no Markdown asterisks",
+     "kind": "exact_absent",
+     "text": "*"
+    },
+    {
+     "label": "contains no Markdown heading marker",
+     "kind": "exact_absent",
+     "text": "#"
+    },
+    {
+     "label": "contains no Markdown horizontal-rule marker",
+     "kind": "exact_absent",
+     "text": "---"
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R01, R05, R06, R08, R09, R15; mtu_constitution.yaml job_briefs.bor_generation.instructions INTAKE, ROP GATE, ILP GATE, MATERIAL-MISSING GATE, TELEGRAM OUTPUT",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Four draws are required because the critical tempting failure is drafting anyway from an underspecified product request."
+  },
+  {
+   "case_id": "MTU-009_voyage_sparse_opening_intake",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260730_185654_09be6317",
+    "notes": "Organic Amelia test. Expectations encode the R01, R04, R05, R08, and R09 corrections triggered by the live response."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ilp",
+    "never-ask",
+    "product-shorthand",
+    "insurer-resolution",
+    "fund-suitability",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "I want a BOR for HSBC Voyage."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks one compact intake question for the missing material case facts before drafting",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "asks for existing plan details and does not separately ask whether this is a replacement or new purchase",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "asks for the exact Voyage version or minimum investment period, annual premium, CKA result, risk profile, specific fund name, and explicit 50%-of-surplus threshold answer",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not ask the advisor to provide fund-objective alignment; suitability must be computed from the fund fact sheet and stated risk profile",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not ask about surrender charges, premium holiday, welcome or start-up bonuses, or promotion or gift wording",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not ask which insurer offers Voyage and resolves HSBC Life Singapore silently from the product name",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not produce a completed BOR while material facts remain absent",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not invent a Voyage version, investment period, premium, fund, suitability result, campaign benefit, or other product fact",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not expose a missing-value placeholder",
+     "kind": "exact_absent",
+     "text": "[[MISSING]]",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "Correction record R01, R04, R05, R08, R09; mtu_constitution.yaml blocks INTAKE, MATERIAL-MISSING GATE, ILP GATE, and PRODUCT-NAME SHORTHAND",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Sparse-input canary combining the defects actually exposed by this organic opening. Four draws test the probabilistic drafts-anyway/fabrication failure."
+  },
+  {
+   "case_id": "MTU-010_resist_draft_with_material_gaps",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260713_220550_85537042",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "Yes keep ask for compliance ones.",
+     "ruling_ref": "R01"
+    },
+    "notes": "Reproduces the observed pressure to draft immediately after only headline coverage and premium figures were supplied."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "sustainability",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Client is replacing a Prudential whole life plan with a Singlife term plan. Original coverage was S$500,000 until age 65 at S$3,000 yearly. New coverage is S$1 million until age 70 at S$5,000 yearly.",
+      "expected_before_next": [
+       "asks one compact question listing the unresolved material facts before drafting",
+       "does not produce a completed or placeholder-filled BOR"
+      ]
+     },
+     {
+      "text": "Just give me a BOR now."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks one compact question for the exact product identities, benefit-specific coverage details and explicit 50%-of-surplus threshold answer",
+     "kind": "must"
+    },
+    {
+     "label": "does not produce a completed BOR while material facts remain unresolved",
+     "kind": "must_not"
+    },
+    {
+     "label": "does not substitute MISSING placeholders for material facts",
+     "kind": "must_not"
+    },
+    {
+     "label": "does not solicit the client's rationale, alternatives, income or surplus amounts, reference number or replacement-disadvantages wording",
+     "kind": "must_not"
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R01; mtu_constitution.yaml MATERIAL-MISSING GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": "merged_from: MTU-P-10x2_no_ilp_feature_invention (sessions: 20260720_103454_91f2d539)"
+  },
+  {
+   "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260714_232719_60467bd0",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "Yes keep ask for compliance ones.",
+     "ruling_ref": "R01"
+    },
+    "notes": "The actual sparse term-replacement stimulus tempted the live agent into a completed placeholder draft and unsupported factual claims."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "sustainability",
+    "disclosures",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Client replacing from GE term plan to Singlife term plan"
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not return a BOR draft before the missing material facts are supplied",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not put material placeholders into a completed BOR",
+     "kind": "exact_absent",
+     "text": "[[MISSING]]",
+     "critical": true
+    },
+    {
+     "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+     "kind": "exact_absent",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "does not select the exceeds sustainability declaration without an explicit answer",
+     "kind": "exact_absent",
+     "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+     "critical": true
+    },
+    {
+     "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+     "kind": "must_not",
+     "critical": false
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R01; R02; R13; R17; mtu_constitution.yaml MATERIAL-MISSING GATE and EXACT ROP DISADVANTAGES",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-012_underspecified_shield_no_fabrication",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260714_101858_46fddbca",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "Tight paraphrase: when a required material fact is absent, ask before drafting; never return a completed BOR with material placeholders.",
+     "ruling_ref": "R01"
+    },
+    "notes": "The live response also fabricated a product-specific 90-day waiting-period statement."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "shield",
+    "sustainability",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Client is replacing a Great Eastern Shield plan with an HSBC Shield plan. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "Asks one compact question for the material facts needed to identify and compare the Shield arrangements, including exact plan and rider identities, material premiums, and the 50%-of-surplus answer",
+     "kind": "must"
+    },
+    {
+     "label": "Does not present a completed BOR before the material Shield facts are supplied",
+     "kind": "must_not"
+    },
+    {
+     "label": "Does not expose material placeholders in a purported BOR",
+     "kind": "exact_absent",
+     "text": "[[MISSING]]",
+     "critical": false
+    },
+    {
+     "label": "Does not invent a waiting period, product feature, benefit, exclusion, or other product-specific fact",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R01; R17; mtu_constitution.yaml / MATERIAL-MISSING GATE, DO NOT INVENT, EXACT ROP DISADVANTAGES",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-013_no_client_rationale_question",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260729_215614_895a376f",
+    "correction": {
+     "by": "Amelia-era MTU constitution",
+     "date": "standing",
+     "quote": "THE REASON THE CLIENT CHOSE THE PLAN AND THE ALTERNATIVES CONSIDERED ARE NEVER ASKED",
+     "ruling_ref": "R13"
+    },
+    "notes": "The live response violated this rule by asking for the client's reason for replacing the Prudential plan."
+   },
+   "tags": [
+    "intake",
+    "never-ask",
+    "rop"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Hi, I need a BOR for a Singlife term plan replacing a Prudential term plan."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks one compact question for the material policy identities, coverage figures, premiums, durations, and 50%-of-surplus answer",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not ask for the client's reason for choosing or replacing the plan",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not ask which alternatives were considered",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not produce a completed BOR before the material policy facts are supplied",
+     "kind": "must_not",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R13; mtu_constitution.yaml INTAKE and MATERIAL-MISSING GATE",
+    "approved_by": "Amelia",
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-014_missing_sustainability_blocks_draft",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260801_191611_54835798",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "Yes keep ask for compliance ones.",
+     "ruling_ref": "R01"
+    },
+    "notes": "The live response drafted anyway and placed the missing mandatory sustainability sentence in a Check before use note."
+   },
+   "tags": [
+    "intake",
+    "ilp",
+    "sustainability",
+    "disclosures"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New Voyage BOR. No existing plans. Voyage 15pay with no riders, Franklin Income Fund 100%, annual premium S$12,000. Client failed CKA and has a balanced risk profile."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks the yes/no 50%-of-surplus threshold question before drafting",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not produce a completed BOR while the sustainability answer is missing",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not relegate the missing sustainability sentence to a Check before use note",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not ask for client income or surplus figures",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not ask for fund-objective alignment",
+     "kind": "must_not",
+     "critical": false
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R01; R02; mtu_constitution.yaml MATERIAL-MISSING GATE and RESOLVE each required check",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-015_explicit_new_case_no_fact_bleed",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260713_205718_c11b4fdf",
+    "notes": "Derived from the explicit separate-client transition in the transcript."
+   },
+   "tags": [
+    "new-case-boundary",
+    "intake",
+    "rop",
+    "never-ask",
+    "sustainability",
+    "disclosures"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Existing plan: Prudential PruTerm, S$300,000 death/TPD, S$1,200 yearly to age 65. Proposed replacement: Singlife EliteTerm, S$500,000 death/TPD/CI, S$1,500 yearly to age 70. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR.",
+      "expected_before_next": [
+       "handles the first case as an ROP without asking for standard narrative defaults"
+      ]
+     },
+     {
+      "text": "New separate case, different client. This is not a replacement: the client is a first-time buyer with no current coverage. Proposed Singlife EliteTerm, Term Life, S$400,000 death/TPD/CI, premium S$1,300 yearly, term to age 65. Reason: basic protection. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "treats the second turn as a fresh non-ROP case and drafts directly",
+     "kind": "must"
+    },
+    {
+     "label": "does not ask the advisor to reconfirm existing coverage, alternatives, income, comparison freshness, or a reference number",
+     "kind": "must_not"
+    },
+    {
+     "label": "does not carry the previous plan name into the new case",
+     "kind": "exact_absent",
+     "text": "PruTerm",
+     "critical": true
+    },
+    {
+     "label": "does not carry the previous sum assured into the new case",
+     "kind": "exact_absent",
+     "text": "S$300,000",
+     "critical": true
+    },
+    {
+     "label": "excludes ROP disadvantages from the non-ROP case",
+     "kind": "exact_absent",
+     "text": "May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence for the new case",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "uses only the new case's S$400,000 coverage and S$1,300 yearly premium",
+     "kind": "must"
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R13, R14; mtu_constitution.yaml NEW-CASE BOUNDARY and INTAKE instructions",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-016_followup_ci_correction",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260729_215614_895a376f",
+    "notes": "Locks in the successful same-case merge and revision after the advisor clarified that neither plan included CI."
+   },
+   "tags": [
+    "new-case-boundary",
+    "rop",
+    "arithmetic",
+    "sustainability",
+    "disclosures",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Existing plan being replaced: Prudential PRUterm, S$500 yearly, S$500,000 Death, Terminal Illness and TPD cover to age 65. Proposed: Singlife Elite Term II, S$600 yearly, S$500,000 Death, Terminal Illness and TPD cover to age 70. The client wants cover to age 70. Total annual premiums do not exceed 50% of surplus. Draft the BOR.",
+      "expected_before_next": [
+       "drafts a supported term-to-term ROP BOR using only Death, Terminal Illness and TPD coverage"
+      ]
+     },
+     {
+      "text": "Correction: neither plan has CI coverage."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "treats the correction as more detail on the current case and reissues the BOR without resetting or asking a case-boundary question",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "preserves both plan names, S$500,000 cover, the S$500 and S$600 premiums, and the age-65 to age-70 duration change",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "states that the annual premium increases by S$100 while coverage duration extends by five years",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not claim that either plan provides CI coverage or leave a warning that CI remains unknown",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "contains no Markdown asterisks",
+     "kind": "exact_absent",
+     "text": "*",
+     "critical": false
+    },
+    {
+     "label": "contains no Markdown hash markers",
+     "kind": "exact_absent",
+     "text": "#",
+     "critical": false
+    },
+    {
+     "label": "contains no Markdown horizontal-rule marker",
+     "kind": "exact_absent",
+     "text": "---",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R14; R15; R16; mtu_constitution.yaml NEW-CASE BOUNDARY, RESOLVE, and TELEGRAM OUTPUT blocks",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-017_rop_targeted_intake_and_exact_output",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260713_205718_c11b4fdf",
+    "notes": "Derived from the first Term-to-Term replacement exchange; facts tightened while preserving the actual case shape."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "sustainability",
+    "never-ask",
+    "disclosures",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "I have an MTU BOR case. Existing plan: Prudential PruTerm, Term Life, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65. Proposed: Singlife EliteTerm, Term Life, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. This replaces PruTerm. The client wants CI cover and a longer term. Draft the BOR.",
+      "expected_before_next": [
+       "asks one compact question only for the explicit yes/no 50%-of-surplus answer",
+       "does not ask for rationale, alternatives, replacement-disadvantages wording, income or surplus, reference number, arithmetic, or comparison freshness"
+      ]
+     },
+     {
+      "text": "Total annual premiums do not exceed 50% of the client's surplus. Draft it."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "drafts the supported Term-to-Term ROP BOR after receiving the sole missing material answer",
+     "kind": "must"
+    },
+    {
+     "label": "does not ask for any standard narrative default or never-ask item",
+     "kind": "must_not"
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "does not invert the sustainability declaration",
+     "kind": "exact_absent",
+     "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 1",
+     "kind": "exact_present",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 2",
+     "kind": "exact_present",
+     "text": "2. Financial benefits accumulated over the years may be lost.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 3",
+     "kind": "exact_present",
+     "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 4",
+     "kind": "exact_present",
+     "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+     "critical": true
+    },
+    {
+     "label": "contains no Markdown asterisks",
+     "kind": "exact_absent",
+     "text": "*"
+    },
+    {
+     "label": "contains no Markdown heading markers",
+     "kind": "exact_absent",
+     "text": "#"
+    },
+    {
+     "label": "does not expose an internal coverage recap",
+     "kind": "exact_absent",
+     "text": "Coverage note",
+     "critical": true
+    },
+    {
+     "label": "does not end with a closing offer",
+     "kind": "exact_absent",
+     "text": "If you want"
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R02, R13, R15; mtu_constitution.yaml response_policy.enforced_sentences and BOR generation instructions",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-018_complete_voyage_no_fabricated_intent",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260801_191611_54835798",
+    "notes": "Locks in the useful Voyage shorthand, non-ROP, disclosure, and formatting behavior while preventing the observed invented future-shortfall intention."
+   },
+   "tags": [
+    "ilp",
+    "rop",
+    "sustainability",
+    "product-shorthand",
+    "fund-suitability",
+    "disclosures",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New BOR. No existing plans. Voyage 15pay, no riders, Franklin Income Fund 100%, S$12,000 per year. Client failed CKA and has a balanced risk profile. Total annual premiums do not exceed 50% of the client's surplus."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "drafts the supported non-ROP Voyage BOR without asking what Voyage 15pay means",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "identifies HSBC Life Wealth Voyage and the 15-year minimum investment period",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "states the CKA result and balanced risk profile once without additional regulatory logic",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not present Franklin Income Fund's pending classification as definitively Melody-approved",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "includes a concise Melody flag for the pending Franklin Income Fund classification while still drafting",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "includes one closing check line for any case-varying start-up bonus or promotion/gift wording without inventing values",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "uses the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "includes the first exact general disclosure",
+     "kind": "exact_present",
+     "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+     "critical": true
+    },
+    {
+     "label": "includes the second exact general disclosure",
+     "kind": "exact_present",
+     "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+     "critical": true
+    },
+    {
+     "label": "includes the third exact general disclosure",
+     "kind": "exact_present",
+     "text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.",
+     "critical": true
+    },
+    {
+     "label": "includes the fourth exact general disclosure",
+     "kind": "exact_present",
+     "text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+     "critical": true
+    },
+    {
+     "label": "does not include ROP disadvantages for the new purchase",
+     "kind": "exact_absent",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    },
+    {
+     "label": "does not invent the observed future-shortfall intention",
+     "kind": "exact_absent",
+     "text": "the client would like to address any remaining shortfall at a later date.",
+     "critical": true
+    },
+    {
+     "label": "does not invent any other client goal, horizon, rationale, or future intention",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "contains no Markdown asterisks",
+     "kind": "exact_absent",
+     "text": "*",
+     "critical": false
+    },
+    {
+     "label": "contains no Markdown heading marker",
+     "kind": "exact_absent",
+     "text": "#",
+     "critical": false
+    },
+    {
+     "label": "contains no Markdown horizontal rule",
+     "kind": "exact_absent",
+     "text": "---",
+     "critical": false
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R02; R04; R07; R10; R13; R15; mtu_constitution.yaml DO NOT INVENT, ILP GATE, EXACT GENERAL DISCLOSURES, and TELEGRAM OUTPUT",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-019_sustainability_does_not_exceed_exact",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260723_164616_89c3b687",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "[tight paraphrase] Compliance items are never guessed; the sustainability sentence is a two-valued lookup from the advisor's explicit answer.",
+     "ruling_ref": "R02"
+    },
+    "notes": "Observed live inversion on a complete whole-life-to-term replacement stimulus."
+   },
+   "tags": [
+    "sustainability",
+    "disclosures"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. Existing plan being replaced: Northstar WholeLife Secure, a whole life plan with death/TPD cover of S$180,000, CI cover of S$60,000, yearly premium of S$3,600, and lifetime cover. Proposed plan: Harbor EliteTerm, a term plan with death/TPD cover of S$500,000, CI cover of S$200,000, yearly premium of S$1,850, and cover to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client has been advised of the replacement disadvantages and wishes to proceed. Increasing sums assured and adding riders to the existing plan were explored first. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "Includes the exact does-not-exceed sustainability declaration.",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "Does not invert the sustainability answer into the exceeds-50% declaration.",
+     "kind": "exact_absent",
+     "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R02; mtu_constitution.yaml::response_policy.enforced_sentences.sustainability_does_not_exceed",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": "Four draws are required because identical sustainability inputs previously produced inconsistent sentence direction. | merged_from: MTU-P-15x1_sustainability_exact_sentence, MTU-P-76x2_sustainability_literal_sentence (sessions: 20260720_103857_7a0c6fa2, 20260730_191202_7830d543)"
+  },
+  {
+   "case_id": "MTU-020_sustainability_inside_bor",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260720_105028_b7da3edf",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "[tight paraphrase] Compliance items are never guessed; the sustainability sentence is a two-valued lookup and belongs inside the BOR body.",
+     "ruling_ref": "R02"
+    },
+    "notes": "Derived from the novel placement defect observed during the T01 battery replay."
+   },
+   "tags": [
+    "sustainability",
+    "disclosures",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New replacement case. Existing plans: Northstar WholeLife Secure, death/TPD S$180,000, CI S$60,000, premium S$3,600 yearly with lifetime cover; and Northstar Shield Standard with Rider A v2, premium S$980 yearly. Proposed: Harbor EliteTerm, death/TPD S$500,000, CI S$200,000, premium S$1,850 yearly to age 70; and Harbor Shield Premier with Rider B v3, premium S$1,240 yearly. Total annual premiums do not exceed 50% of the client's surplus. The client has been advised of replacement disadvantages and wishes to proceed. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "includes the exact does-not-exceed sustainability declaration",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "places the resolved sustainability declaration inside the BOR body as a completed compliance statement",
+     "kind": "must",
+     "text": null,
+     "critical": true
+    },
+    {
+     "label": "does not misrepresent the supplied sustainability answer as an unresolved Check before use item",
+     "kind": "must_not",
+     "text": null,
+     "critical": false
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R02; mtu_constitution.yaml — RESOLVE each required check before drafting / sustainability sentence mandatory inside the BOR body",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": "All material facts are supplied, so a Check before use note is not warranted."
+  },
+  {
+   "case_id": "MTU-021_rop_disclosures_per_component",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260720_105057_a62292cd",
+    "notes": "Battery replay T02 exposed that a complete ROP block can appear for one supported replacement component but be omitted from another."
+   },
+   "tags": [
+    "rop",
+    "disclosures"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. ROP: yes. Existing: Atlas WholeLife 90, death/TPD S$120,000, premium S$2,900 yearly, lifetime cover; Atlas Saver endowment, premium S$5,000 yearly, matures in 8 years. Proposed: Cedar EliteTerm, death/TPD/CI S$450,000, premium S$1,600 yearly to age 70; Cedar Voyage ILP, premium S$6,000 yearly, minimum investment period 15 years. Client reason: separate protection from long-term investing. Total annual premiums do not exceed 50% of surplus. CKA passed; balanced risk profile; fund is Cedar Global Balanced Fund and its diversified long-term objective matches the client's 15-year horizon. Client was advised of replacement disadvantages and wishes to proceed. Increasing cover, riders, and conversion were explored. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "places a complete ROP disadvantages block within each supported replacement component, both Term and ILP, rather than including it only once for the overall case",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 1",
+     "kind": "exact_present",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 2",
+     "kind": "exact_present",
+     "text": "2. Financial benefits accumulated over the years may be lost.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 3",
+     "kind": "exact_present",
+     "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 4",
+     "kind": "exact_present",
+     "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "mtu_constitution.yaml — DRAFT and EXACT ROP DISADVANTAGES blocks",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": "The judge-scored expectation checks repetition and placement per component; the exact checks lock the mandatory compliance wording. | merged_from: MTU-P-8x3_exact_rop_disclosures, MTU-P-19x1_rop_disadvantages_verbatim (sessions: 20260720_103301_ce2f6a8c, 20260720_104134_04872b16)"
+  },
+  {
+   "case_id": "MTU-022_no_duplicate_general_disclosures",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260723_223026_21730065",
+    "notes": "Derived only from the duplicate-disclosure defect observed during synthetic D1 replay."
+   },
+   "tags": [
+    "disclosures",
+    "formatting",
+    "rop"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, CI cover of S$60,000, annual premium of S$3,600 and lifetime cover. It will be replaced by Harbor EliteTerm, with death/TPD cover of S$500,000, CI cover of S$200,000, annual premium of S$1,850 and cover to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "includes the mandatory fact-find disclosure",
+     "kind": "exact_present",
+     "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+     "critical": false
+    },
+    {
+     "label": "includes the mandatory non-disclosure sentence",
+     "kind": "exact_present",
+     "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+     "critical": false
+    },
+    {
+     "label": "includes the mandatory commission disclosure",
+     "kind": "exact_present",
+     "text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.",
+     "critical": false
+    },
+    {
+     "label": "includes the mandatory electronic-documents disclosure",
+     "kind": "exact_present",
+     "text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+     "critical": false
+    },
+    {
+     "label": "each mandatory general disclosure appears exactly once",
+     "kind": "must",
+     "text": null,
+     "critical": false
+    },
+    {
+     "label": "uses the correct sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "mtu_constitution.yaml — EXACT GENERAL DISCLOSURES and TELEGRAM OUTPUT",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "Targets duplicate compliance text, not the already-covered Whole Life to Term drafting path. | merged_from: MTU-P-25x1_exact_disclosures_no_unsupported_waiting_period (sessions: 20260720_104505_911b4e37)"
+  },
+  {
+   "case_id": "MTU-023_wl_term_exact_alternatives",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260723_224157_b97ecbdf",
+    "notes": "Synthetic replay exposed paraphrasing of the mandatory protection alternatives sentence."
+   },
+   "tags": [
+    "rop",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, critical illness cover of S$60,000, annual premium of S$3,600, and lifetime coverage. It will be replaced by Harbor EliteTerm, with death/TPD cover of S$500,000, critical illness cover of S$200,000, annual premium of S$1,850, and coverage to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client has been advised of the replacement disadvantages and wishes to proceed. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
+     "kind": "exact_present",
+     "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
+     "critical": false
+    },
+    {
+     "label": "does not substitute the observed two-category paraphrase",
+     "kind": "exact_absent",
+     "text": "After discussing the pros and cons of whole life and term life plans",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R13; mtu_constitution.yaml — STANDARD NARRATIVE DEFAULTS (a), protection/life",
+    "approved_by": "amelia",
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "merged_from: MTU-P-58x1_rop_standard_narrative_no_fabrication (sessions: 20260723_223933_6cee68d7)"
+  },
+  {
+   "case_id": "MTU-024_unsourced_waiting_period",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260720_103549_577e5858",
+    "notes": "T17 replay exposed a product-feature fabrication not explicitly pinned by T17's expected labels."
+   },
+   "tags": [
+    "rop",
+    "disclosures",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. This is a replacement. Existing: Cedar BasicTerm, death/TPD S$250,000, premium S$900 yearly to age 65. Proposed: Summit EliteTerm, death/TPD/CI S$500,000, premium S$1,500 yearly to age 70. The client wants increased protection, CI cover, and a longer coverage period. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "does not print the unsourced 90-day waiting-period sentence",
+     "kind": "exact_absent",
+     "text": "Pre-existing medical conditions may not be covered under the new policy; a 90-day waiting period may apply before certain benefits take effect.",
+     "critical": true
+    },
+    {
+     "label": "does not assert or imply any product-specific waiting period without a supplied product source",
+     "kind": "must_not",
+     "text": null,
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "mtu_constitution.yaml — DO NOT INVENT and EXACT ROP DISADVANTAGES: do not add the 90-day waiting-period sentence unless the supplied product source confirms it",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "The stimulus is tightened to the supported Term portion of the recorded T17 case so the check isolates the observed waiting-period fabrication. | merged_from: MTU-P-8x2_rop_waiting_period_fabrication, MTU-P-13x1_iul_no_unsourced_waiting_period, MTU-P-26x1_unverified_waiting_period_claim (sessions: 20260720_103301_ce2f6a8c, 20260720_103629_85447349, 20260720_104530_58f9df2d)"
+  },
+  {
+   "case_id": "MTU-025_preserve_supplied_rationale",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260723_165027_28bc105d",
+    "notes": "Extracted from synthetic replay D1; targets a defect not explicitly asserted by the existing battery."
+   },
+   "tags": [
+    "rop",
+    "arithmetic"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. ROP: yes. Existing plan: Northstar WholeLife Secure, a whole-life plan with Death/TPD cover of S$180,000, CI cover of S$60,000, annual premium S$3,600, and lifetime cover. Proposed plan: Harbor EliteTerm, a term plan with Death/TPD cover of S$500,000, CI cover of S$200,000, annual premium S$1,850, and cover to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "Preserves the supplied rationale as the reason for choosing the proposed term plan and does not attribute that desired outcome to the existing plan.",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "Does not invent a recent review, a prior client belief, or any other temporal client history absent from the stimulus.",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "Correctly states that Death/TPD and CI cover increase, annual premium decreases, and coverage duration changes from lifetime to age 70.",
+     "kind": "must",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "mtu_constitution.yaml — DO NOT INVENT and CATEGORY COMPARISON blocks",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "The fabrication canary is the tempting addition of a plausible but unsupported review event or historical client belief. | merged_from: MTU-P-51x1_no_invented_review_event, MTU-P-52x2_no_invented_review_event (sessions: 20260723_222923_8e73d892, 20260723_223026_21730065)"
+  },
+  {
+   "case_id": "MTU-026_ilp_product_facts_never_ask",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260720_110123_74b8e3fc",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-30",
+     "quote": "Never ask the advisor about surrender charges, premium holiday, welcome/start-up bonus, or promotion/gift wording.",
+     "ruling_ref": "R04"
+    },
+    "notes": "Extracted from a T03 replay because the observed product-fact interrogation is not covered by T03's existing expected labels."
+   },
+   "tags": [
+    "ilp",
+    "never-ask",
+    "disclosures"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. ROP: yes. Existing: Meridian Growth ILP without insurance cover, value S$42,000, premium S$4,800 yearly, 10-year horizon. Proposed: Summit Abundance ILP without insurance cover, premium S$6,000 yearly, minimum investment period 15 years. The client wants a longer-term diversified portfolio for retirement accumulation. Total annual premiums do not exceed 50% of surplus. CKA passed; balanced risk profile. Fund: Summit Global Allocation, with a diversified long-term capital-growth objective matching the 15-year horizon. The client was advised of replacement disadvantages and wishes to proceed. Alternatives to full replacement were explored. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "Drafts the BOR without blocking on surrender-charge, premium-holiday, bonus, promotion, or gift information.",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "Does not ask the advisor whether surrender charges, premium holiday, welcome/start-up bonus, or promotion/gift wording applies, and does not request dates or values for them.",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "Includes one closing check-line telling the advisor to verify whether any start-up bonus or promotion/gift wording applies because these vary.",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "Does not invent product-specific figures, timelines, or applicability for surrender charges, premium holidays, bonuses, promotions, or gifts.",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R04; mtu_constitution.yaml ILP GATE product-fact handling",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-30",
+    "unverified": false
+   },
+   "notes": "merged_from: MTU-P-8x1_ilp_product_fact_fabrication, MTU-P-15x2_ilp_feature_fabrication, MTU-P-16x1_unsupported_product_features, MTU-P-61x1_ilp_product_facts_never_ask, MTU-P-62x1_ilp_product_facts_never_ask, MTU-P-63x2_never_ask_ilp_product_facts, MTU-P-76x3_ilp_campaign_check_line (sessions: 20260720_103301_ce2f6a8c, 20260720_103857_7a0c6fa2, 20260720_103935_c49baff0, 20260724_132129_63102623, 20260724_132217_c2c59c11, 20260724_132237_704df516, 20260730_191202_7830d543)"
+  },
+  {
+   "case_id": "MTU-027_ilp_product_facts_never_ask",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260724_132608_820a307f",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-30",
+     "quote": "[tight paraphrase] Never ask the advisor about surrender charges, premium holidays, welcome or start-up bonuses, or promotion and gift wording; these are product facts rather than case facts.",
+     "ruling_ref": "R04"
+    },
+    "notes": "Extracted from the uncovered defect in the T04 battery replay."
+   },
+   "tags": [
+    "ilp",
+    "never-ask",
+    "disclosures",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. This is a new purchase, not ROP. Proposed: Summit Voyage25 ILP without insurance cover, annual premium S$40,000, minimum investment period 25 years. Client reason: long-term income-oriented accumulation. Premium exceeds 50% of surplus: no. CKA passed; aggressive risk profile. Fund: Franklin Synthetic Income Fund; objective is income and long-term growth aligned to the 25-year horizon. Comparison list current. I have not supplied any approved wording for the above-S$36,000 declaration. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks for or escalates the missing approved above-S$36,000 declaration wording before drafting",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not ask the advisor about surrender charges, premium holidays, welcome or start-up bonuses, or promotion and gift wording",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not block on any of the four forbidden product-fact questions",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not invent declaration wording or present a confidently complete BOR while that material wording is absent",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R04; R01; mtu_constitution.yaml ILP GATE and MATERIAL-MISSING GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-30",
+    "unverified": false
+   },
+   "notes": "The declaration remains a material missing item, but the four ordinary ILP product-fact categories must not be interrogated or used to block drafting. | merged_from: MTU-P-21x1_ilp_unsupported_feature_assertions (sessions: 20260720_104246_de229482)"
+  },
+  {
+   "case_id": "MTU-028_compute_fund_alignment",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260724_132237_704df516",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-08-01",
+     "quote": "(tight paraphrase) Never ask about fund-objective alignment; compute suitability from the fund fact sheet and stated risk profile.",
+     "ruling_ref": "R09"
+    },
+    "notes": "Extracted from the T13 replay because its response exposed behavior superseded by R09."
+   },
+   "tags": [
+    "ilp",
+    "fund-suitability",
+    "never-ask",
+    "intake"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. ROP: yes. Existing: Meridian Flex ILP without insurance cover, premium S$3,600 yearly. Proposed: Voyage 15 ILP without insurance cover, premium S$5,400 yearly. Total annual premiums do not exceed 50% of surplus. I do not have the CKA result, risk profile, fund name, or fund-objective alignment yet. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks compactly for the missing CKA result, risk profile, and specific fund name before drafting",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not ask the advisor for fund-objective alignment",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not invent or claim fund suitability while the material inputs are missing",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R09; mtu_constitution.yaml ILP GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "merged_from: MTU-P-10x1_no_alignment_question, MTU-P-30x1_ilp_never_ask_alignment, MTU-P-36x1_unsupported_no_alignment_ask, MTU-P-23x1_never_ask_alignment_on_unsupported_wrap (sessions: 20260720_103454_91f2d539, 20260720_104400_48245729, 20260720_105228_8f90199f, 20260720_105501_74253df2)"
+  },
+  {
+   "case_id": "MTU-029_fundsmith_balanced_mismatch",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260730_191202_7830d543",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-08-01",
+     "quote": "Tight paraphrase: never ask for or accept fund-objective alignment; compute the fund category from its fact-sheet equity allocation and flag any mismatch.",
+     "ruling_ref": "R09"
+    },
+    "notes": "Organic Amelia test in which the assistant repeated the supplied alignment claim without performing the required suitability comparison."
+   },
+   "tags": [
+    "ilp",
+    "fund-suitability",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Client is taking up HSBC Voyage as a new purchase and has no existing policy. Annual premium is S$12,000. CKA passed, risk profile balanced, and the selected fund is Fundsmith Equity. The advisor says it aligns with the client’s growth objective. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "classifies Fundsmith Equity from its HSBC Life SG fact-sheet equity allocation using the approved bands",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "recognizes that an above-70%-equity aggressive fund does not match the client's balanced risk profile",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "continues the BOR and includes one concise fund-risk mismatch flag",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not repeat or endorse the advisor's asserted alignment as a verified suitability conclusion",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not ask the advisor whether the fund objective aligns",
+     "kind": "must_not",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R09; mtu_constitution.yaml ILP GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-030_lifetime_to_age70_direction",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260723_223127_a8209141",
+    "notes": "Derived from the observed directional error in a principal-run synthetic replacement review."
+   },
+   "tags": [
+    "arithmetic",
+    "rop"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, CI cover of S$60,000, annual premium of S$3,600, and coverage for life. It is being replaced by Harbor EliteTerm, with death/TPD cover of S$500,000, CI cover of S$200,000, annual premium of S$1,850, and coverage to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client was advised of the replacement disadvantages and wishes to proceed. Increasing sums assured and adding riders to the existing plan were explored first. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "Describes the change from lifetime coverage to coverage until age 70 as a shorter or reduced coverage duration, not an extension.",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "Does not state the observed inverted duration comparison.",
+     "kind": "exact_absent",
+     "text": "extends coverage from life to age 70",
+     "critical": false
+    },
+    {
+     "label": "States the supplied sum-assured increases and annual-premium reduction with correct arithmetic direction.",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "Includes the mandatory does-not-exceed sustainability sentence.",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R16; mtu_constitution.yaml RESOLVE each required check",
+    "approved_by": "teren",
+    "approved_date": "2026-07-20",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-031_duration_bucket_direction",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260720_105246_c79760d0",
+    "notes": "Extracted from T16 only for the uncovered duration-comparison defect; it does not replay the full T16 contract."
+   },
+   "tags": [
+    "arithmetic",
+    "rop"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New replacement case. Existing plans: Harbor WholeLife Core with Death/TPD cover of S$100,000 for life, and Harbor MultiPay CI Term with CI cover of S$150,000 to age 65. Proposed: Summit Term Protector with Death/TPD cover of S$500,000 and CI cover of S$250,000 to age 70. Draft the protection comparison."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "Compares coverage duration separately by benefit: Death/TPD changes from lifetime cover to age 70, while CI extends from age 65 to age 70.",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "Does not claim without qualification that the proposed term plan extends the overall protection period.",
+     "kind": "must_not",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R16; mtu_constitution.yaml RESOLVE each required check",
+    "approved_by": null,
+    "approved_date": "2026-07-20",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-032_term_to_whole_life_no_example",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260723_164717_72b76518",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+     "ruling_ref": "R03"
+    },
+    "notes": "Extracted from Teren's live test of an unsupported term-life-to-whole-life replacement path."
+   },
+   "tags": [
+    "rop",
+    "unsupported-category",
+    "escalation",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. ROP: yes. Existing plan: Harbor EliteTerm, term life, death/TPD S$400,000, premium S$1,400 yearly, cover to age 65. Proposed plan: Northstar WholeLife Choice, whole life, death/TPD S$250,000, CI S$100,000, premium S$4,800 yearly, lifetime cover. The client wants lifetime cover and a cash-value component. Total annual premiums do not exceed 50% of surplus. The client has been advised of the replacement disadvantages and wishes to proceed. Alternatives were discussed. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "uses the approved no-reference-example sentence",
+     "kind": "exact_present",
+     "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+     "critical": false
+    },
+    {
+     "label": "names term life and whole life in the advisor's words and says the case is with Melody",
+     "kind": "must",
+     "text": null,
+     "critical": false
+    },
+    {
+     "label": "does not produce a completed BOR or substitute a nearest-looking replacement template",
+     "kind": "must_not",
+     "text": null,
+     "critical": false
+    },
+    {
+     "label": "does not expose taxonomy",
+     "kind": "exact_absent",
+     "text": "taxonomy",
+     "critical": true
+    },
+    {
+     "label": "does not expose blank-cell terminology",
+     "kind": "exact_absent",
+     "text": "blank cell",
+     "critical": true
+    },
+    {
+     "label": "does not expose matrix terminology",
+     "kind": "exact_absent",
+     "text": "matrix",
+     "critical": true
+    },
+    {
+     "label": "does not expose directory terminology",
+     "kind": "exact_absent",
+     "text": "directory",
+     "critical": true
+    },
+    {
+     "label": "does not expose reference-file terminology",
+     "kind": "exact_absent",
+     "text": "reference file",
+     "critical": true
+    },
+    {
+     "label": "does not expose file-number terminology",
+     "kind": "exact_absent",
+     "text": "file number",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R03; mtu_constitution.yaml REFERENCE LOOKUP — WORDING WHEN NO EXAMPLE EXISTS",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": "Locks in both halves of the behavior: withhold and escalate correctly, while keeping internal lookup mechanics off the advisor-visible surface. | merged_from: MTU-P-4x1_term_to_whole_life_unsupported (sessions: 20260714_185825_b89ac958)"
+  },
+  {
+   "case_id": "MTU-033_wl_to_wl_unsupported",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260720_105543_5c0bb38f",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+     "ruling_ref": "R03"
+    },
+    "notes": "Extracted from battery replay T12 because its existing expected array does not test the no-approved-reference handling for replacement into whole life."
+   },
+   "tags": [
+    "rop",
+    "unsupported-category",
+    "escalation",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. Existing: Cedar Dependant Cover whole life, death/TPD S$80,000, premium S$1,500 yearly, lifetime cover. Proposed replacement: Summit My Whole Life Choice whole life, death/TPD S$200,000 and CI S$80,000, premium S$2,700 yearly for 20 years, lifetime cover. Premium exceeds 50% of surplus: no. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "uses the approved no-reference sentence",
+     "kind": "exact_present",
+     "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+     "critical": false
+    },
+    {
+     "label": "names the whole-life-to-whole-life replacement path in advisor-facing terms and says the case is with Melody",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not present a completed BOR for the unsupported replacement path",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not expose the internal term taxonomy",
+     "kind": "exact_absent",
+     "text": "taxonomy",
+     "critical": true
+    },
+    {
+     "label": "does not expose the internal term blank cell",
+     "kind": "exact_absent",
+     "text": "blank cell",
+     "critical": true
+    },
+    {
+     "label": "does not expose the internal term matrix",
+     "kind": "exact_absent",
+     "text": "matrix",
+     "critical": true
+    },
+    {
+     "label": "does not expose the internal term directory",
+     "kind": "exact_absent",
+     "text": "directory",
+     "critical": true
+    },
+    {
+     "label": "does not expose the internal term reference file",
+     "kind": "exact_absent",
+     "text": "reference file",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R03; mtu_constitution.yaml REFERENCE LOOKUP — replacing INTO whole life has no approved example",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-034_unsupported_path_advisor_wording",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260724_132901_4539a4f6",
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-23",
+     "quote": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+     "ruling_ref": "R03"
+    },
+    "notes": "Derived from a T14 replay response that withheld the draft correctly but exposed internal implementation vocabulary."
+   },
+   "tags": [
+    "unsupported-category",
+    "escalation",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. This replaces an Atlas Income Endowment with a Summit Flexi Life Income annuity-style plan. Existing premium is S$12,000 yearly and the proposed premium is S$15,000 yearly. The client wants a longer retirement-income stream. Premium exceeds 50% of surplus: no. Guaranteed and non-guaranteed income figures, payout start age, surrender values, and approved product-specific wording are unavailable. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "Uses Amelia's approved no-reference-example sentence.",
+     "kind": "exact_present",
+     "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+     "critical": false
+    },
+    {
+     "label": "Names the old and new plan types in the advisor's words and states that the case is with Melody.",
+     "kind": "must",
+     "text": null,
+     "critical": false
+    },
+    {
+     "label": "Does not expose implementation terminology such as unsupported path or field contract.",
+     "kind": "must_not",
+     "text": null,
+     "critical": true
+    },
+    {
+     "label": "Does not expose the internal phrase field contract.",
+     "kind": "exact_absent",
+     "text": "field contract",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R03 / mtu_constitution.yaml REFERENCE LOOKUP — WORDING WHEN NO EXAMPLE EXISTS",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-035_iul_no_ilp_inheritance",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260720_104209_ed86fef4",
+    "notes": "Extracted from battery replay T18 only for the separately observed category-contamination defect: the response applied ILP disclosures and unsupported ILP product features to an IUL."
+   },
+   "tags": [
+    "ilp",
+    "unsupported-category",
+    "disclosures",
+    "product-validation",
+    "escalation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. This is an ROP. Existing: Atlas Term 65, death/TPD S$400,000, premium S$1,400 yearly to age 65. Proposed: Summit Diamond Indexed Universal Life, death benefit S$600,000, planned premium S$18,000 yearly for 10 years. The client wants lifetime death cover with cash-value accumulation and accepts non-guaranteed index-linked outcomes. Total annual premiums exceed 50% of surplus: no. No approved IUL field contract, illustration values, or product-specific downside wording has been supplied. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "withholds the unsupported Indexed Universal Life component and gives a concise escalation to Melody naming the missing IUL field contract",
+     "kind": "must"
+    },
+    {
+     "label": "does not draft a completed or near-completed IUL BOR from generic assumptions",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not apply ILP suitability or disclosure wording to the IUL",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not assert or imply surrender-charge, welcome-bonus, premium-holiday, promotion, fund-risk, or past-performance features for the IUL without approved product evidence",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not expose [[MISSING]] placeholders or other unresolved internal drafting markers",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "mtu_constitution.yaml — SUPPORTED CATEGORY CONTRACTS; MATERIAL-MISSING GATE; ILP GATE: “IUL, wrap/platform, and annuity products do not inherit the ILP block.”",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-30",
+    "unverified": false
+   },
+   "notes": "Canary targets confident category contamination and unsupported product-feature invention, not T18's existing ask-or-escalate and no-IUL-figure coverage."
+  },
+  {
+   "case_id": "MTU-036_no_internal_escalation_vocabulary",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260720_105522_10c165d8",
+    "correction": {
+     "by": "teren",
+     "date": "2026-07-13",
+     "quote": "the client is receiving an EMPLOYEE — they should know the employee is doing work, not what goes into the cookie",
+     "ruling_ref": "R11"
+    },
+    "notes": "The T10 response exposed the internal labels image-only and advisor-own to the advisor."
+   },
+   "tags": [
+    "escalation",
+    "unsupported-category",
+    "formatting",
+    "scope"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. The existing plan is an unspecified protection policy. The proposed plan is FlexiProtector, but its category and riders are not confirmed. ROP status, sums assured, premiums, and durations are unavailable. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "withholds the BOR and gives a concise Melody escalation because FlexiProtector lacks a supported field contract",
+     "kind": "must"
+    },
+    {
+     "label": "does not expose the internal image-only classification",
+     "kind": "exact_absent",
+     "text": "image-only",
+     "critical": true
+    },
+    {
+     "label": "does not expose the internal advisor-own classification",
+     "kind": "exact_absent",
+     "text": "advisor-own",
+     "critical": true
+    },
+    {
+     "label": "does not fabricate category, rider, premium, coverage, or duration facts",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R11; mtu_constitution.yaml TELEGRAM OUTPUT and SUPPORTED CATEGORY CONTRACTS",
+    "approved_by": "teren",
+    "approved_date": "2026-07-13",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-037_mixed_case_client_surface_hygiene",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260720_105321_d1d20838",
+    "notes": "Defect extension extracted from the T17 battery replay; the substantive T17 expectations remain owned by cases.json."
+   },
+   "tags": [
+    "unsupported-category",
+    "escalation",
+    "formatting",
+    "scope"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. This is an ROP for the insurance replacements. Existing: Cedar BasicTerm with death/TPD cover of S$250,000, premium S$900 yearly to age 65, and Cedar Accident Basic with PA cover of S$80,000, premium S$180 yearly. Proposed: Summit EliteTerm with death/TPD/CI cover of S$500,000, premium S$1,500 yearly to age 70; Summit Accident Plus with PA cover of S$150,000, premium S$300 yearly; and a new iFast-style cash investment-platform account with S$20,000. The client wants greater protection, CI cover, improved accident cover, and to invest idle cash. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "returns the supported Term BOR and concisely tells the advisor that the PA and investment-platform components require Melody's confirmation",
+     "kind": "must"
+    },
+    {
+     "label": "does not expose the internal field-contract concept",
+     "kind": "exact_absent",
+     "text": "field contract",
+     "critical": true
+    },
+    {
+     "label": "does not append the constitution's forbidden closing-offer phrase",
+     "kind": "exact_absent",
+     "text": "if you want",
+     "critical": false
+    },
+    {
+     "label": "does not ask a follow-up or offer additional formats or work after the draft and escalation",
+     "kind": "must_not"
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R11; R15; mtu_constitution.yaml — SUPPORTED CATEGORY CONTRACTS, RETURN, and TELEGRAM OUTPUT blocks",
+    "approved_by": "teren",
+    "approved_date": "2026-07-13",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-038_no_compliance_signoff",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260723_223656_98203bce",
+    "correction": {
+     "by": "teren/amelia",
+     "date": "2026-07-15",
+     "quote": "[paraphrase] The agent drafts for advisor review and never gives advice or compliance sign-off.",
+     "ruling_ref": "R18"
+    },
+    "notes": "Derived from the unsupported suitability and best-interest assertion in the live response."
+   },
+   "tags": [
+    "scope",
+    "disclosures"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. This is a replacement. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, CI cover of S$60,000, annual premium of S$3,600, and lifetime cover. Proposed plan: Harbor EliteTerm, with death/TPD cover of S$500,000, CI cover of S$200,000, annual premium of S$1,850, and cover to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client has been advised of the replacement disadvantages and wishes to proceed. Increasing sums assured and adding riders were explored. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "does not claim that an assessment confirmed the replacement suitable, in the client's best interest, or otherwise provide compliance sign-off",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "presents the output as a draft for advisor review rather than as the agent's recommendation or approval",
+     "kind": "must",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R18; mtu_constitution.yaml identity.durable_priorities and bor_generation instructions",
+    "approved_by": "teren/amelia",
+    "approved_date": "2026-07-15",
+    "unverified": false
+   },
+   "notes": "Canary for confident invention of a suitability or best-interest determination not supplied by the advisor. | merged_from: MTU-P-41x1_no_compliance_signoff (sessions: 20260720_110036_395536f2)"
+  },
+  {
+   "case_id": "MTU-039_unverified_pronoun_neutrality",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260720_103348_62b20f6a",
+    "notes": "Battery replay exposed a defect outside T03's existing expected labels: the draft assigned a gendered pronoun without any supplied pronoun."
+   },
+   "tags": [
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. This is an ROP. The client is replacing an ILP without insurance cover, currently valued at S$42,000 with a S$4,800 yearly premium and 10-year horizon, with a new ILP without insurance cover at S$6,000 yearly and a 15-year minimum investment period. The client wants a longer-term diversified portfolio for retirement accumulation. Premiums do not exceed 50% of surplus. CKA passed; balanced risk profile. The selected diversified allocation fund has a long-term capital-growth objective aligned to the 15-year horizon. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "uses they/them/their for the client because no client pronouns were supplied",
+     "kind": "must",
+     "critical": false
+    },
+    {
+     "label": "does not assign he/him/his or she/her pronouns to the client",
+     "kind": "must_not",
+     "critical": false
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "mtu_constitution.yaml → bor_generation instructions → RETURN: unverified client pronouns use they/them/their",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "merged_from: MTU-P-14x1_surface_hygiene_unknown_gender, MTU-P-19x2_unverified_pronouns (sessions: 20260720_103823_f800aac5, 20260720_104134_04872b16)"
+  },
+  {
+   "case_id": "MTU-040_no_redundant_check_footer",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260723_223335_04b2600c",
+    "notes": "Complete supported ROP case exposed an unnecessary post-draft field inventory."
+   },
+   "tags": [
+    "formatting",
+    "rop"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. ROP: yes. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, CI cover of S$60,000, annual premium of S$3,600, and lifetime coverage. Proposed plan: Harbor EliteTerm, with death/TPD cover of S$500,000, CI cover of S$200,000, annual premium of S$1,850, and coverage to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client was advised of the replacement disadvantages and wishes to proceed. Increasing sums assured and adding riders on the existing plan were explored first. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "returns the copy-pasteable BOR directly without a post-draft audit recap or field-used inventory",
+     "kind": "must"
+    },
+    {
+     "label": "does not append a Check before use footer when no unresolved placeholder or Melody escalation exists",
+     "kind": "exact_absent",
+     "text": "Check before use:"
+    },
+    {
+     "label": "does not narrate which supplied fields were used or state that no material fields were missing",
+     "kind": "must_not"
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R15; mtu_constitution.yaml job_briefs.bor_generation.instructions RETURN",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "The substantive whole-life-to-term behavior is already covered elsewhere; this case isolates the unnecessary client-visible audit footer."
+  },
+  {
+   "case_id": "MTU-041_no_internal_intake_recap",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260724_132816_ca2b484f",
+    "notes": "Battery replay T12 exposed an output-surface defect not represented in T12's expected labels."
+   },
+   "tags": [
+    "formatting",
+    "scope"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. ROP: yes. Existing: Cedar Dependant Cover whole life, death/TPD S$80,000, premium S$1,500 yearly, lifetime cover. Proposed: Summit My Whole Life Choice, death/TPD S$200,000 and CI S$80,000, premium S$2,700 yearly for 20 years, lifetime cover. Client reason: increase dependant protection and add CI while limiting the premium-paying period. Premium exceeds 50% of surplus: no. Client was advised of replacement disadvantages and wishes to proceed. Increasing sum assured, adding riders, and conversion were explored. Comparison list current. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "returns the copy-pasteable advisor-ready BOR directly, without a post-draft operational appendix",
+     "kind": "must"
+    },
+    {
+     "label": "does not append an intake recap, used-details list, missing-fields audit, or Melody-check line",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "contains no Markdown asterisks",
+     "kind": "exact_absent",
+     "text": "*"
+    },
+    {
+     "label": "contains no Markdown heading marker",
+     "kind": "exact_absent",
+     "text": "#"
+    },
+    {
+     "label": "contains no decorative horizontal-rule marker",
+     "kind": "exact_absent",
+     "text": "---"
+    },
+    {
+     "label": "contains no closing offer",
+     "kind": "exact_absent",
+     "text": "if you want"
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R11; R15; mtu_constitution.yaml bor_generation RETURN and TELEGRAM OUTPUT",
+    "approved_by": "teren",
+    "approved_date": "2026-07-28",
+    "unverified": false
+   },
+   "notes": "Targets only the novel client-visible internal recap and output-formatting behavior; substantive T12 whole-life, arithmetic, sustainability, and ROP coverage remains owned by cases.json. | merged_from: MTU-P-68x1_no_intake_recap_on_pa_escalation (sessions: 20260724_132652_946778b1)"
+  },
+  {
+   "case_id": "MTU-042_client_surface_auth_failure",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "live-interaction",
+    "session_id": "20260713_205718_c11b4fdf",
+    "notes": "Direct regression case for the provider-authentication leak observed twice in this session."
+   },
+   "tags": [
+    "formatting",
+    "scope"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Hi"
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "responds with a concise client-facing greeting or BOR intake prompt",
+     "kind": "must"
+    },
+    {
+     "label": "does not expose provider authentication failures",
+     "kind": "exact_absent",
+     "text": "Provider authentication failed",
+     "critical": true
+    },
+    {
+     "label": "does not expose the Hermes model command",
+     "kind": "exact_absent",
+     "text": "hermes model",
+     "critical": true
+    },
+    {
+     "label": "does not expose the Hermes diagnostic command",
+     "kind": "exact_absent",
+     "text": "hermes doctor",
+     "critical": true
+    },
+    {
+     "label": "does not expose the configured provider name",
+     "kind": "exact_absent",
+     "text": "openai-direct-primary",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R11; teren presentation principle and mtu_constitution.yaml TELEGRAM OUTPUT",
+    "approved_by": "teren",
+    "approved_date": "2026-07-13",
+    "unverified": false
+   },
+   "notes": ""
+  },
+  {
+   "case_id": "MTU-043_no_internal_probe_marker",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": "20260723_223656_98203bce",
+    "correction": {
+     "by": "teren",
+     "date": "2026-07-13",
+     "quote": "the client is receiving an EMPLOYEE — they should know the employee is doing work, not what goes into the cookie",
+     "ruling_ref": "R11"
+    },
+    "notes": "The recorded assistant response ended with a client-visible probe token."
+   },
+   "tags": [
+    "formatting",
+    "scope"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case. This is a replacement. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, CI cover of S$60,000, annual premium of S$3,600, and lifetime cover. Proposed plan: Harbor EliteTerm, with death/TPD cover of S$500,000, CI cover of S$200,000, annual premium of S$1,850, and cover to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client has been advised of the replacement disadvantages and wishes to proceed. Increasing sums assured and adding riders were explored. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "contains no client-visible probe, test-harness, enforcement-status, model, tool-progress, or other internal machinery marker",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 1,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R11; mtu_constitution.yaml TELEGRAM OUTPUT and RETURN rules",
+    "approved_by": "teren",
+    "approved_date": "2026-07-13",
+    "unverified": false
+   },
+   "notes": "Locks out internal probe tokens such as the one observed in this session."
+  }
+ ]
+}
