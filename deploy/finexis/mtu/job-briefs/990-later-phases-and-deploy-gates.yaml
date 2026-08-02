@@ -1,0 +1,31 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-14'
+# - '2026-07-15'
+# ruling_ref:
+# - R18
+# status: pending
+# sequence: 990
+# ---
+
+  # ── Later phases (declared for shape; NOT built in P0) ──────────────────────
+  # admin_forms (P1): answer common process/form questions, point to latest
+  #   OneDrive docs/links once approved sources are loaded. Inherits singlife-cli
+  #   / finexis-ekyc-cli from the amelia-finexis engagement.
+  # helpdesk_observer (P2): passive observer over the MTU helpdesk group — never
+  #   replies; captures repeated questions + KB candidates for Melody review.
+
+escalation:
+  escalatable: true
+  escalation_to: Melody Tan          # set contact at deploy
+  trigger: agent_judgment            # not config thresholds — the agent decides when to escalate
+
+# ── Deploy preconditions (HELD — Amelia owns the go) ────────────────────────────
+deploy_preconditions:
+  - Amelia's commercial go (nothing reaches Melody/advisors before this).
+  - Melody confirms/edits the BOR table (bor-required-checks.yaml) + approved disclosure wording.
+  - Dedicated WhatsApp number/SIM for the unit (history under Melody's control).
+  - Advisor allowlist (who may use it).
+  - engagement_id + escalation contact set.

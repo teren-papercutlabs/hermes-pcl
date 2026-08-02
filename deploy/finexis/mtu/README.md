@@ -10,12 +10,59 @@ Advisor DMs a rough case (existing plan, proposed plan, is-it-a-replacement) →
 ## Files (source-of-truth; deployed to `$HERMES_HOME`)
 | File | Role |
 |---|---|
-| `mtu_constitution.yaml` | PA constitution (CONFIGURE): identity + `bor_generation` job brief. Model = pilot `gpt-5.4-mini` (design intent gemini-3.1-flash-lite; see OPS-NOTE). |
+| `rules/`, `compliance/`, `reference/`, `templates/`, `job-briefs/` | Typed constitution sources. These are the editable source of truth; each artifact starts with a `pa-source` provenance header. |
+| `mtu_constitution.yaml` | Generated PA constitution. Do not hand-edit. `hermes pa compose` reproduces it from the typed sources before deploy. |
+| `mtu_constitution.manifest.json` | Generated digest manifest binding every source artifact and recording whether the unverified-compliance escape was used. |
 | `config.yaml` | Gateway config: model (openai-direct-primary/gpt-5.4-mini) + `pa.enabled/job_type/constitution_path` + `platforms.telegram`. |
 | `SOUL.md` | Generated: the 4 knowledge files concatenated. **This is the load-bearing KB channel** — the constitution's `knowledge:` key is NOT parsed by the engine (verified). |
 | `knowledge/` | The 4 source KB files (provenance): BOR checks table, replacement-path taxonomy, draft template, standard disclosures. |
 | `scripts/bootstrap_local.sh` | Builds `~/.hermes-mtu` (HERMES_HOME) from this dir + writes `.env` (token + allowlist + OPENAI key sourced from secrets). Idempotent. Secrets never committed. |
 | `OPS-NOTE.md` | Deploy specifics + what remains + rollback. |
+
+## Typed constitution compose
+
+Each YAML artifact under the five typed directories begins with this comment header:
+
+```yaml
+# pa-source:
+# approved_by: [amelia]
+# approved_date: ['2026-07-23']
+# ruling_ref: [R02]
+# status: approved
+# sequence: 10
+# ---
+```
+
+`approved_by`, `approved_date`, `ruling_ref`, and `status` are mandatory. `status` is
+`approved`, `pending`, or `unverified`. `sequence` is a unique non-negative integer and
+defines deterministic assembly order across directories. The correction-record ruling IDs
+are the provenance vocabulary; an approval that cannot be traced stays `unverified` rather
+than being promoted by implication.
+
+Compose is a deploy-time build step, not runtime YAML merging:
+
+```bash
+hermes pa compose \
+  --source-dir deploy/finexis/mtu \
+  --output deploy/finexis/mtu/mtu_constitution.yaml \
+  --manifest deploy/finexis/mtu/mtu_constitution.manifest.json
+```
+
+The default command refuses when any `compliance/` artifact is `unverified` and writes
+neither output. During this parity-only migration, the explicit escape is required:
+
+```bash
+hermes pa compose \
+  --source-dir deploy/finexis/mtu \
+  --output deploy/finexis/mtu/mtu_constitution.yaml \
+  --manifest deploy/finexis/mtu/mtu_constitution.manifest.json \
+  --allow-unverified
+```
+
+The manifest then records `allow_unverified: true` and enumerates the affected compliance
+artifacts. Resolve provenance and remove the escape before a later deploy step. This command
+only writes the two caller-selected output paths; it does not deploy, restart Hermes, or write
+`~/.hermes-mtu`.
 
 ## Run (once a free bot token is available)
 ```bash

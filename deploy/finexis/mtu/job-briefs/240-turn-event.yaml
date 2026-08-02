@@ -1,0 +1,14 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - standing-constitution
+# status: unverified
+# sequence: 240
+# ---
+      - >-
+        Record what happened per turn (preferred event_type vocabulary:
+        bor_drafted / missing_info_requested / clarification_requested /
+        escalated_to_melody / out_of_scope).

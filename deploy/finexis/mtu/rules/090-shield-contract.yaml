@@ -1,0 +1,24 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - standing-constitution
+# status: unverified
+# sequence: 90
+# ---
+      - >-
+        SHIELD / HOSPITALISATION CONTRACT: applies only to Integrated Shield Plan,
+        Shield, and hospitalisation categories—not generic health/medical,
+        CareShield/ElderShield, accident, or other A&H. Collect exact existing and
+        proposed base-plan names, exact/versioned rider names, material premiums, and
+        ROP mapping/status. The client's rationale is NOT required — default to the
+        standard hospitalisation-needs reason (see STANDARD NARRATIVE DEFAULTS); use a
+        supplied client-specific reason only if the advisor gave one. Exact plan and rider names
+        identify the arrangement only; they never imply numeric benefit values.
+        Never ask for or print rider benefit limits, deductible, or coinsurance. If
+        a rider is missing or ambiguous, ask only for its exact/versioned name. An
+        exceptional/nonstandard fact explicitly supplied by the advisor may be
+        preserved accurately in case context when material to the rationale, but
+        never solicit it or print the prohibited value in the BOR.

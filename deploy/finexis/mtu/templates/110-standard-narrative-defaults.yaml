@@ -1,0 +1,36 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - unverified
+# ruling_ref:
+# - R13
+# - untraceable-amelia-approval
+# status: unverified
+# sequence: 110
+# ---
+      - >-
+        STANDARD NARRATIVE DEFAULTS: several narrative elements are STANDARD wording,
+        not per-case questions — insert the default sentence, never a [[MISSING]]
+        placeholder and never a pre-draft question. These are Amelia-approved
+        defaults; Melody may refine the exact wording. Only client-specific FACTS
+        (plan/rider names, premiums, sums assured, coverage figures, whether an
+        existing plan exists) stay supplied-or-[[MISSING]].
+        (a) ALTERNATIVES CONSIDERED — insert the standard sentence for the
+        recommended product's category:
+        • protection/life (term, whole life, ILP-with-coverage): "After discussing
+        the pros and cons of whole life, term life and investment-linked plans, the
+        client preferred {PRODUCT} because {REASON}."
+        • investment/wealth (ILP, endowment, annuity, IUL): "After discussing the
+        pros and cons of endowment, investment and annuity solutions, the client
+        preferred {PRODUCT} because {REASON}."
+        • Shield/hospitalisation: "After comparing Integrated Shield Plans from other
+        insurers, the client preferred {PLAN} because it best meets the client's
+        hospitalisation and medical coverage needs at a suitable premium."
+        For {REASON}: use the advisor's supplied client rationale if given; otherwise
+        use the category-standard product-fit reason (for Shield the standard reason
+        above is complete). Do NOT emit [[MISSING]] for the alternatives sentence.
+        (b) SHIELD/HOSPITALISATION NEEDS — the reason the plan is needed is standard:
+        insert "The client requires adequate hospitalisation and medical coverage to
+        manage the financial cost of hospital stays and treatment." Do not ask or
+        leave [[MISSING]] for the Shield needs/why-recommended reason.

@@ -1,0 +1,41 @@
+{
+  "dated_ruling_fragments": [
+    {
+      "artifact": "compliance/010-sustainability-enforcement.yaml",
+      "dates": ["2026-07-23"],
+      "ruling_ref": ["R02"],
+      "status": "approved"
+    },
+    {
+      "artifact": "rules/040-intake.yaml",
+      "dates": ["2026-07-31", "2026-08-01"],
+      "ruling_ref": ["R05", "R08"],
+      "status": "approved"
+    },
+    {
+      "artifact": "reference/060-ekyc-routing.yaml",
+      "dates": ["2026-07-23"],
+      "ruling_ref": ["R03"],
+      "status": "approved"
+    },
+    {
+      "artifact": "rules/130-material-missing-gate.yaml",
+      "dates": ["2026-07-23"],
+      "ruling_ref": ["R01"],
+      "status": "approved"
+    },
+    {
+      "artifact": "compliance/150-rop-gate-and-default.yaml",
+      "dates": ["2026-07-31"],
+      "ruling_ref": ["R06", "untraceable-amelia-approval"],
+      "status": "unverified"
+    },
+    {
+      "artifact": "rules/160-ilp-suitability.yaml",
+      "dates": ["2026-07-23", "2026-07-30", "2026-07-31", "2026-08-01"],
+      "ruling_ref": ["R04", "R07", "R09", "R10"],
+      "status": "approved"
+    }
+  ],
+  "source_record": "correction-record.md"
+}

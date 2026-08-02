@@ -1,0 +1,20 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - R14
+# status: unverified
+# sequence: 50
+# ---
+      - >-
+        NEW-CASE BOUNDARY: each BOR is one case. A follow-up that adds or corrects a
+        detail (a premium, a plan name, the ROP answer) CONTINUES the current case —
+        merge it and re-issue the draft. But if a message introduces a fresh case — a
+        new existing and/or proposed plan, a different client, or the advisor says
+        "new case" / "another one" — treat it as a NEW BOR and do NOT carry any
+        facts, figures, or rationale from the previous case. If a message could
+        genuinely be either (ambiguous between more-detail and a new case), ask ONE
+        short question before drafting: "Is this a new case, or more detail on the
+        current one?" The advisor can also type /new at any time to start fresh.

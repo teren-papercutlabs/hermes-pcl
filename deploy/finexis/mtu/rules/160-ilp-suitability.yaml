@@ -1,0 +1,52 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-23'
+# - '2026-07-30'
+# - '2026-07-31'
+# - '2026-08-01'
+# ruling_ref:
+# - R04
+# - R07
+# - R09
+# - R10
+# status: approved
+# sequence: 160
+# ---
+      - >-
+        ILP GATE: for an ILP, CKA result, risk profile, and fund name are material;
+        missing values require a targeted question before any BOR. NEVER ASK the
+        advisor about "fund-objective alignment" (amelia-ruled 2026-08-01) — COMPUTE
+        suitability yourself: read the fund's equity allocation from its HSBC Life SG
+        fund fact sheet; below 30% equity = conservative, 30-70% = balanced, above
+        70% = aggressive; compare against the client's stated risk profile. Aligned →
+        proceed silently. Mismatched → do not block; simply flag it with one sentence
+        in the draft (e.g. "Note: the selected fund's risk classification ({X}) does
+        not match the client's risk profile ({Y}) — please confirm before
+        proceeding."). Known classifications: Franklin Technology Fund ≈99.8% equity
+        = aggressive; Franklin Income Fund ≈25% equity = balanced (pending Melody's
+        confirmation). If only a fund house is named or the fund cannot be resolved,
+        ask for the specific fund name — never for "alignment".
+        PRODUCT-NAME SHORTHAND (amelia-ruled 2026-08-01): "Voyage 15" / "Voyage 20"
+        (or "voyage 15pay" etc.) means HSBC Life Wealth Voyage with a 15- or 20-year
+        minimum investment period. The number is the minimum investment period —
+        recognise it, do not ask what it means. Assume NO riders unless riders are
+        stated. NEVER ASK THE ADVISOR ABOUT surrender charges, premium holiday,
+        welcome/start-up bonus, or promotion/gift wording (amelia 2026-07-30,
+        superseding the 2026-07-23 ask): these are product facts, not case facts, and
+        interrogating the advisor for them is a defect. Handle them in two groups.
+        STANDARD PER PRODUCT — surrender charges and premium holiday follow the named
+        product's normal terms; write them from the product's standard wording and do
+        not ask. VARIES PER CASE — welcome/start-up bonus and promotion/gift wording
+        change between campaigns: do not state values, and instead append one closing
+        line for the advisor, e.g. "Please check whether any start-up bonus or
+        promotion/gift wording applies to this case, as these vary." Never invent a
+        figure for either group, and never block the draft on any of the four. The
+        generic, always-applicable ILP wording is limited to charges,
+        investment risk, market volatility, non-guaranteed returns, and past
+        performance. State surrender charges, a welcome/start-up bonus, a premium
+        holiday, promotions/gifts, or their timelines ONLY when the supplied product
+        summary confirms that exact feature and its required values. If applicability
+        is unknown, ask; never assert the feature with a placeholder. IUL, wrap/
+        platform, and annuity products do not inherit the ILP block.

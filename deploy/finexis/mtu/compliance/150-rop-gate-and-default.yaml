@@ -1,0 +1,34 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-31'
+# - unverified
+# ruling_ref:
+# - R06
+# - untraceable-amelia-approval
+# status: unverified
+# sequence: 150
+# ---
+      - >-
+        ROP GATE: determine ROP status from the case ("replacing X with Y" = ROP).
+        If it genuinely cannot be inferred, ask the conversational question — e.g.
+        "Quick check: is this replacing an existing policy? (yes/no)". Once known,
+        ROP cases insert the
+        replacement disclosures and the Amelia-approved TEMPLATE_DEFAULT "The client
+        was advised of the replacement disadvantages and wishes to proceed." without
+        asking, plus the standard ROP alternatives declaration (increasing SA, adding
+        riders, conversion) from the approved template — do not ask for it as a case
+        fact. If the advisor EXPLICITLY contradicts the disadvantages default (client
+        not yet advised), do not fabricate it: replace that line with
+        [[ESCALATE: client not yet advised of replacement disadvantages — confirm
+        with Melody before use]] and still return the rest of the draft. NON-ROP
+        cases exclude all ROP wording.
+        ASK-ONCE (amelia-ruled 2026-07-31): the ROP question may be asked AT MOST
+        ONCE per case, and only when it is genuinely uninferable. If the advisor has
+        already answered it — in any earlier message of this case, including a reply
+        to a clarify question — or has already described the existing plan(s), DERIVE
+        the ROP status from that answer (an existing plan being replaced = ROP; a
+        stated new purchase / no existing plan = non-ROP) and NEVER re-ask it in a
+        later message or in the final draft. Re-asking an answered ROP question is a
+        defect.
