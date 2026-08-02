@@ -245,6 +245,51 @@ def test_job_brief_runtime_is_loaded_and_hashes() -> None:
     assert ops.hash != management.hash
 
 
+def test_job_brief_knowledge_is_rendered_and_changes_behavior_hash() -> None:
+    base = {
+        "id": "knowledge-test",
+        "agent_name": "Knowledge Test",
+        "identity": {"role": "PA"},
+        "client": {"name": "Client"},
+        "job_briefs": {
+            "ops": {
+                "title": "Ops",
+                "purpose": "Use declared knowledge.",
+                "instructions": ["Resolve facts before answering."],
+                "knowledge": ["reference/products.yaml", "documents/guide.md"],
+            }
+        },
+        "selectors": [],
+    }
+    constitution = load_constitution_data(base, source="knowledge.yaml")
+    resolved = resolve_context(
+        {"constitution": constitution, "job_type": "ops"},
+        {},
+    )
+    assert resolved is not None
+    assert resolved.job_brief.knowledge == (
+        "reference/products.yaml",
+        "documents/guide.md",
+    )
+    prompt = render_job_prompt(resolved)
+    assert "## Knowledge Manifest" in prompt
+    assert "- reference/products.yaml" in prompt
+
+    changed = load_constitution_data(
+        {
+            **base,
+            "job_briefs": {
+                "ops": {
+                    **base["job_briefs"]["ops"],
+                    "knowledge": ["reference/products-v2.yaml"],
+                }
+            },
+        },
+        source="knowledge-v2.yaml",
+    )
+    assert constitution.job_briefs["ops"].hash != changed.job_briefs["ops"].hash
+
+
 def test_stable_behavior_hashes() -> None:
     constitution_a = load_constitution(FIXTURE)
     constitution_b = load_constitution(FIXTURE)

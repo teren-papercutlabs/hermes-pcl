@@ -22,6 +22,7 @@ class PAJobBrief:
     title: str
     purpose: str
     instructions: tuple[str, ...]
+    knowledge: tuple[str, ...] = field(default_factory=tuple)
     runtime: Mapping[str, Any] = field(default_factory=dict)
     enabled_toolsets: tuple[str, ...] = field(default_factory=tuple)
     disabled_toolsets: tuple[str, ...] = field(default_factory=tuple)
@@ -234,6 +235,9 @@ def render_job_prompt(resolved: PAResolvedContext) -> str:
     if brief.instructions:
         lines.extend(["", "## Instructions"])
         lines.extend(f"- {instruction}" for instruction in brief.instructions)
+    if brief.knowledge:
+        lines.extend(["", "## Knowledge Manifest"])
+        lines.extend(f"- {path}" for path in brief.knowledge)
     if brief.enabled_toolsets:
         lines.extend(["", "## Enabled Toolsets"])
         lines.extend(f"- {toolset}" for toolset in brief.enabled_toolsets)
@@ -280,6 +284,10 @@ def _load_job_brief(job_type: str, raw_brief: Mapping[str, Any], source: str) ->
     title = _required_str(raw_brief, "title", f"{source}.job_briefs.{job_type}")
     purpose = _required_str(raw_brief, "purpose", f"{source}.job_briefs.{job_type}")
     instructions = _string_tuple(raw_brief.get("instructions", ()), f"{source}.job_briefs.{job_type}.instructions")
+    knowledge = _string_tuple(
+        raw_brief.get("knowledge", ()),
+        f"{source}.job_briefs.{job_type}.knowledge",
+    )
     runtime = _optional_mapping(raw_brief.get("runtime", {}), f"{source}.job_briefs.{job_type}.runtime")
     fact_operations = _optional_mapping(raw_brief.get("fact_operations", {}), f"{source}.job_briefs.{job_type}.fact_operations")
     response_policy = _optional_mapping(raw_brief.get("response_policy", {}), f"{source}.job_briefs.{job_type}.response_policy")
@@ -312,6 +320,7 @@ def _load_job_brief(job_type: str, raw_brief: Mapping[str, Any], source: str) ->
         "title": title,
         "purpose": purpose,
         "instructions": instructions,
+        "knowledge": knowledge,
         "runtime": runtime,
         "enabled_toolsets": enabled_toolsets,
         "disabled_toolsets": disabled_toolsets,
@@ -327,6 +336,7 @@ def _load_job_brief(job_type: str, raw_brief: Mapping[str, Any], source: str) ->
         title=title,
         purpose=purpose,
         instructions=instructions,
+        knowledge=knowledge,
         runtime=dict(runtime),
         enabled_toolsets=enabled_toolsets,
         disabled_toolsets=disabled_toolsets,
