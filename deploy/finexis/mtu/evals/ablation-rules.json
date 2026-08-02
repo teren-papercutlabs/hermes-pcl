@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "model": "gpt-5.6-luna",
+  "draws_per_case": 1,
+  "rules": [
+    {
+      "rule_id": "derive_rop_without_reasking",
+      "description": "Derive replacement status from supplied facts and ask at most once.",
+      "affected_tags": ["intake", "rop", "ask-once", "never-ask"],
+      "affected_case_ids": ["MTU-001_safe_opening_intake", "MTU-002_derive_rop_without_reasking", "MTU-003_shield_intake_rop_ask_once", "MTU-004_shield_intake_retains_non_rop", "MTU-005_rop_answer_not_reasked", "MTU-006_voyage_intake_derives_rop", "MTU-007_voyage15_intake", "MTU-008_abundance_opening_intake", "MTU-009_voyage_sparse_opening_intake"]
+    },
+    {
+      "rule_id": "standard_narrative_defaults_not_asked",
+      "description": "Use standard rationale, alternatives, and replacement wording instead of soliciting them.",
+      "affected_tags": ["intake", "never-ask", "rop"],
+      "affected_case_ids": ["MTU-001_safe_opening_intake", "MTU-002_derive_rop_without_reasking", "MTU-003_shield_intake_rop_ask_once", "MTU-004_shield_intake_retains_non_rop", "MTU-010_resist_draft_with_material_gaps", "MTU-011_sparse_term_no_placeholder_draft", "MTU-013_no_client_rationale_question", "MTU-015_explicit_new_case_no_fact_bleed", "MTU-017_rop_targeted_intake_and_exact_output"]
+    },
+    {
+      "rule_id": "insurer_resolved_not_asked",
+      "description": "Resolve the insurer from approved product data instead of asking the advisor.",
+      "affected_tags": ["insurer-resolution", "never-ask"],
+      "affected_case_ids": ["MTU-002_derive_rop_without_reasking", "MTU-007_voyage15_intake", "MTU-008_abundance_opening_intake", "MTU-009_voyage_sparse_opening_intake"]
+    },
+    {
+      "rule_id": "fund_alignment_computed_not_asked",
+      "description": "Compute fund-risk alignment from approved facts instead of asking the advisor.",
+      "affected_tags": ["fund-suitability", "never-ask"],
+      "affected_case_ids": ["MTU-006_voyage_intake_derives_rop", "MTU-007_voyage15_intake", "MTU-008_abundance_opening_intake", "MTU-009_voyage_sparse_opening_intake", "MTU-014_missing_sustainability_blocks_draft", "MTU-028_compute_fund_alignment", "MTU-029_fundsmith_balanced_mismatch"]
+    },
+    {
+      "rule_id": "ilp_product_facts_not_asked",
+      "description": "Do not ask the advisor for surrender, holiday, bonus, promotion, or gift product facts.",
+      "affected_tags": ["ilp", "never-ask", "disclosures"],
+      "affected_case_ids": ["MTU-009_voyage_sparse_opening_intake", "MTU-026_ilp_product_facts_never_ask", "MTU-027_ilp_product_facts_never_ask"]
+    },
+    {
+      "rule_id": "voyage_shorthand_not_asked",
+      "description": "Resolve Voyage shorthand without asking what it means.",
+      "affected_tags": ["product-shorthand", "never-ask"],
+      "affected_case_ids": ["MTU-006_voyage_intake_derives_rop", "MTU-007_voyage15_intake", "MTU-009_voyage_sparse_opening_intake", "MTU-018_complete_voyage_no_fabricated_intent"]
+    }
+  ]
+}

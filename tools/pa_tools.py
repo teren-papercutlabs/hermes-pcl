@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -92,6 +91,7 @@ def fetch_knowledge(
     config: Mapping[str, Any] | None = None,
     brief: PAJobBrief | None = None,
     hermes_home: Path | None = None,
+    allow_keyed_reference: bool = False,
 ) -> dict[str, Any]:
     """Return one declared knowledge file, refusing unlisted or oversized data."""
     active = brief or _active_brief(config)
@@ -106,6 +106,16 @@ def fetch_knowledge(
         content = target.read_text(encoding="utf-8")
     except UnicodeDecodeError as exc:
         raise ValueError("knowledge entries must be UTF-8 text") from exc
+    if not allow_keyed_reference:
+        try:
+            document = yaml.safe_load(content)
+        except yaml.YAMLError:
+            document = None
+        if isinstance(document, Mapping) and document.get("kind") == "keyed-reference":
+            raise ValueError(
+                "structured references must be queried with pa_reference_lookup; "
+                "whole-table fetch is refused"
+            )
     return {"name": entry, "bytes": size, "content": content}
 
 
@@ -123,6 +133,7 @@ def lookup_reference(
         config=config,
         brief=brief,
         hermes_home=hermes_home,
+        allow_keyed_reference=True,
     )
     try:
         document = yaml.safe_load(fetched["content"])
@@ -194,7 +205,10 @@ registry.register(
     toolset="pa-knowledge",
     schema={
         "name": "pa_knowledge_fetch",
-        "description": "Read one file declared in the active PA job's knowledge manifest.",
+        "description": (
+            "Read one prose file declared in the active PA job's knowledge manifest. "
+            "Structured keyed references refuse here and require pa_reference_lookup."
+        ),
         "parameters": {
             "type": "object",
             "properties": {"name": {"type": "string"}},

@@ -9,12 +9,15 @@
 # sequence: 60
 # ---
       - >-
-        REFERENCE LOOKUP: before drafting, resolve the exact replacement path,
-        approved product, and product insurer through the declared structured
-        references with pa_reference_lookup. Use the returned entry only when
-        found=true. A miss means no approved example exists: follow the returned
-        escalation cue and route the unresolved case to Melody. Never substitute
-        a nearby key, reuse a number from another path, ask the advisor for a file
-        number, or expose internal lookup vocabulary. Resolving an example does
-        not make an unsupported product category draftable; the supported-category
-        contract still governs.
+        REFERENCE LOOKUP: before drafting, use pa_reference_lookup for each exact
+        structured key: reference/061-ekyc-directory-map.yaml with key
+        "{OLD CATEGORY} -> {NEW CATEGORY}"; reference/062-approved-products.yaml
+        with the exact product name; reference/063-product-insurers.yaml with the
+        exact product name; and reference/064-replacement-taxonomy.yaml with each
+        exact category. Never fetch a whole structured reference. Use the returned
+        entry only when found=true. A miss means no approved example exists: follow
+        the returned escalation cue and route the unresolved case to Melody. Never
+        substitute a nearby key, reuse a number from another path, ask the advisor
+        for a file number, or expose internal lookup vocabulary. Resolving an
+        example does not make an unsupported product category draftable; the
+        supported-category contract still governs.

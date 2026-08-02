@@ -1,0 +1,21 @@
+MTU S2 shared-core concept check
+
+Scope checked:
+  agent/pa_constitution.py
+  hermes_cli/config.py
+  hermes_cli/main.py (new PA parser block only)
+  hermes_cli/pa_compose.py
+  tools/pa_tools.py
+  toolsets.py
+
+Query:
+  case-insensitive: MTU|Melody|Finexis|IFA|BOR|insurer|replacement|product
+
+Result:
+  No client/domain concept appears in the added shared implementation. Generic
+  examples in tests use `reference/products.yaml`; client-specific vocabulary is
+  confined to deploy/finexis/mtu and its deploy-specific compose tests.
+
+Shared vocabulary added:
+  knowledge manifest, knowledge root, keyed reference, exact key, entry-or-nothing,
+  escalation cue, source sync, size guard.

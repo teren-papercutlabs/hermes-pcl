@@ -1,7 +1,7 @@
 {
   "allow_unverified": true,
   "composed_source_count": 26,
-  "constitution_sha256": "d065b94158c4b4dbe73ed3b98442b90acfcc6262776cedf01623702a6d01765e",
+  "constitution_sha256": "c1b54bac3d701835d5e5c3b992169c11ab8e62b6e62029056112f300184c9eff",
   "schema_version": 1,
   "source_count": 30,
   "source_root": "mtu",
@@ -125,14 +125,14 @@
       "approved_date": [
         "2026-07-23"
       ],
-      "body_sha256": "c6ed743cbc1a718596df5fbce1f6cb88111f58d11758a3a6583140b9d10cb2f5",
+      "body_sha256": "8a6f9e5942b4296059e7e47938c502ecec394c005d80a7a215fbc8da16826d33",
       "included_in_constitution": true,
       "path": "reference/060-ekyc-routing.yaml",
       "ruling_ref": [
         "R03"
       ],
       "sequence": 60,
-      "source_sha256": "0e073bc53607e5505cfd0eb1db0c77bbdd9bcab326e6514fbeb5d3194e548294",
+      "source_sha256": "7ddf44020bbaf81c355de981d17713a84a1a1b178d830f82456cb74e99139b22",
       "status": "approved",
       "type": "reference"
     },
@@ -569,7 +569,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "d95f363545bd2f7f1b1e4320640f3295989de22bf51cea514c9d774dfacd35fa",
+  "sources_sha256": "338ac65c34b8aa08efe945862eb4b92de78af31bac19d27692eb1c98f6e0558b",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml",
     "compliance/180-general-disclosures.yaml",

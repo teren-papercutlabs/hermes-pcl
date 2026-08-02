@@ -52,6 +52,24 @@ def test_fetch_refuses_manifest_traversal(tmp_path: Path) -> None:
         )
 
 
+def test_fetch_refuses_whole_structured_reference(tmp_path: Path) -> None:
+    root = tmp_path / "knowledge" / "reference"
+    root.mkdir(parents=True)
+    (root / "products.yaml").write_text(
+        "kind: keyed-reference\n"
+        "escalation_cue: Escalate.\n"
+        "entries:\n  - {key: Alpha, value: 1}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="pa_reference_lookup"):
+        fetch_knowledge(
+            "reference/products.yaml",
+            config=_config(),
+            brief=_brief("reference/products.yaml"),
+            hermes_home=tmp_path,
+        )
+
+
 def test_lookup_returns_exact_entry_or_nothing_with_cue(tmp_path: Path) -> None:
     root = tmp_path / "knowledge" / "reference"
     root.mkdir(parents=True)
