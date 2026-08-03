@@ -231,9 +231,21 @@ def sync_pa_knowledge(
         constitution = load_constitution(constitution_path)
     except (OSError, ValueError, yaml.YAMLError) as exc:
         raise PaComposeError(f"cannot load constitution: {exc}") from exc
-    declared = sorted(
-        {entry for brief in constitution.job_briefs.values() for entry in brief.knowledge}
-    )
+    model_visible = {
+        entry for brief in constitution.job_briefs.values() for entry in brief.knowledge
+    }
+    runtime_only = {
+        str(entry)
+        for brief in constitution.job_briefs.values()
+        for entry in (
+            (
+                brief.response_policy.get("output_assembly", {}).get("artifacts", ())
+                if isinstance(brief.response_policy.get("output_assembly"), dict)
+                else ()
+            )
+        )
+    }
+    declared = sorted(model_visible | runtime_only)
     if not declared:
         raise PaComposeError("constitution declares no knowledge entries")
 
@@ -265,6 +277,7 @@ def sync_pa_knowledge(
                 "path": entry,
                 "bytes": source_path.stat().st_size,
                 "sha256": _sha256(source_path.read_bytes()),
+                "visibility": "model" if entry in model_visible else "runtime-only",
             }
         )
 

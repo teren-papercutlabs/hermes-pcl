@@ -34,8 +34,6 @@ class ComplianceBlock:
     block_id: str
     marker: str
     text: str
-    slots: tuple[str, ...]
-    slot_instructions: Mapping[str, str]
     required_tags: frozenset[str]
     exclusive_group: str | None
     artifact: str
@@ -43,10 +41,6 @@ class ComplianceBlock:
 
 
 _SCOPE_RE = re.compile(r"\[\[PA_SCOPE:([^\]]+)\]\]")
-_SLOT_RE = re.compile(
-    r"\[\[PA_SLOT:([A-Z0-9_]+)\]\](.*?)\[\[/PA_SLOT:\1\]\]",
-    re.DOTALL,
-)
 _HEADER_START = "# pa-source:"
 _HEADER_END = "# ---"
 _REQUIRED_PROVENANCE = ("approved_by", "approved_date", "ruling_ref", "status")
@@ -119,12 +113,7 @@ def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBloc
             raise PAOutputAssemblyError(f"{relative_path}: block must be a mapping")
         block_id = str(raw.get("id") or "").strip()
         marker = str(raw.get("marker") or "").strip()
-        block_text = str(raw.get("text") or raw.get("text_template") or "").strip()
-        slots = tuple(str(slot).strip().upper() for slot in raw.get("slots") or ())
-        slot_instructions = {
-            str(name).strip().upper(): str(instruction).strip()
-            for name, instruction in (raw.get("slot_instructions") or {}).items()
-        }
+        block_text = str(raw.get("text") or "").strip()
         tags = frozenset(
             str(tag).strip().upper()
             for tag in raw.get("required_tags") or ()
@@ -142,8 +131,6 @@ def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBloc
                 block_id=block_id,
                 marker=marker,
                 text=block_text,
-                slots=slots,
-                slot_instructions=slot_instructions,
                 required_tags=tags,
                 exclusive_group=exclusive_group,
                 artifact=relative_path,
@@ -228,7 +215,7 @@ def _render_output_instruction(
         ),
     ]
     if policy.get("mode", "marker") == "verbatim":
-        lines.append("Write each applicable protected block exactly as follows, without paraphrasing. Replace only named {{SLOT}} values with supported case facts:")
+        lines.append("Write each applicable protected block exactly as follows, without paraphrasing:")
         for block in blocks:
             tags = ",".join(sorted(block.required_tags))
             lines.append(f"- When scope includes {tags}: {block.text}")
@@ -245,11 +232,6 @@ def _render_output_instruction(
         for block in blocks:
             tags = ",".join(sorted(block.required_tags))
             lines.append(f"- When scope includes {tags}, emit {block.marker}.")
-            for slot in block.slots:
-                instruction = block.slot_instructions.get(slot, "supported case value only")
-                lines.append(
-                    f"  Immediately after it emit [[PA_SLOT:{slot}]]value[[/PA_SLOT:{slot}]]; value = {instruction}."
-                )
         lines.append(
             "A missing scope or required block marker makes the response fail closed and regenerate. Markers are removed by the runtime before delivery."
         )
@@ -334,33 +316,7 @@ def assemble_pa_response(
     for block in blocks:
         count = assembled.count(block.marker)
         if block in required:
-            rendered_text = block.text
-            slot_values: dict[str, str] = {}
-            for slot in block.slots:
-                matches = [
-                    match
-                    for match in _SLOT_RE.finditer(assembled)
-                    if match.group(1) == slot
-                ]
-                if len(matches) != 1:
-                    raise PAOutputAssemblyRetry(
-                        (f"[[PA_SLOT:{slot}]]...[[/PA_SLOT:{slot}]]",),
-                        "required deterministic compliance slot is missing or duplicated",
-                    )
-                value = matches[0].group(2).strip()
-                if not value or "[[PA_" in value:
-                    raise PAOutputAssemblyRetry(
-                        (f"non-empty {slot} slot",),
-                        "compliance slot value is empty or malformed",
-                    )
-                slot_values[slot] = value
-                assembled = assembled[: matches[0].start()] + assembled[matches[0].end() :]
-                rendered_text = rendered_text.replace("{{" + slot + "}}", value)
-            if re.search(r"\{\{[A-Z0-9_]+\}\}", rendered_text):
-                raise PAOutputAssemblyError(
-                    f"{block.artifact}: unresolved approved-template slot in {block.block_id}"
-                )
-            assembled = assembled.replace(block.marker, rendered_text, 1)
+            assembled = assembled.replace(block.marker, block.text, 1)
             inserted.append(
                 {
                     "id": block.block_id,
@@ -373,14 +329,7 @@ def assemble_pa_response(
             )
         elif count:
             assembled = assembled.replace(block.marker, "")
-            for slot in block.slots:
-                assembled = re.sub(
-                    rf"\[\[PA_SLOT:{re.escape(slot)}\]\].*?\[\[/PA_SLOT:{re.escape(slot)}\]\]",
-                    "",
-                    assembled,
-                    flags=re.DOTALL,
-                )
-    if "[[PA_BLOCK:" in assembled or "[[PA_SCOPE:" in assembled or "[[PA_SLOT:" in assembled:
+    if "[[PA_BLOCK:" in assembled or "[[PA_SCOPE:" in assembled:
         raise PAOutputAssemblyRetry(("no residual PA markers",), "unknown marker remains")
     return assembled.strip(), {
         "enabled": True,
