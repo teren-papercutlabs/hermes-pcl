@@ -40,6 +40,36 @@ def test_stage_runtime_rewrites_constitution_to_disposable_home(tmp_path):
     assert oct((target / ".env").stat().st_mode & 0o777) == "0o600"
 
 
+def test_stage_runtime_overlays_candidate_but_borrows_only_live_secrets(tmp_path):
+    module = _module()
+    source = tmp_path / "source"
+    source.mkdir()
+    for name, content in {
+        "config.yaml": "model:\n  default: installed\npa: {}\n",
+        "mtu_constitution.yaml": "version: installed\n",
+        "SOUL.md": "installed\n",
+        ".env": "OPENAI_API_KEY=test-only\n",
+    }.items():
+        (source / name).write_text(content)
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    for name, content in {
+        "config.yaml": "model:\n  default: candidate\npa: {}\n",
+        "mtu_constitution.yaml": "version: candidate\n",
+        "SOUL.md": "candidate\n",
+    }.items():
+        (candidate / name).write_text(content)
+
+    target = tmp_path / "copy"
+    manifest = module._stage_runtime(source, target, candidate)
+
+    assert "candidate" in (target / "config.yaml").read_text()
+    assert (target / "mtu_constitution.yaml").read_text() == "version: candidate\n"
+    assert (target / "SOUL.md").read_text() == "candidate\n"
+    assert (target / ".env").read_text() == "OPENAI_API_KEY=test-only\n"
+    assert manifest["candidate_deploy_dir"] == str(candidate)
+
+
 def test_stage_runtime_refuses_live_mtu_target(tmp_path, monkeypatch):
     module = _module()
     source = tmp_path / "source"

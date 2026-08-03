@@ -39,7 +39,7 @@ import yaml
 
 
 CURSOR_VERSION = 1
-INBOX_SCHEMA_VERSION = 2
+INBOX_SCHEMA_VERSION = 4
 
 
 def _parse_ingress_timestamp(value: Any) -> datetime:
@@ -112,6 +112,10 @@ class ConsumerError(RuntimeError):
 
 class MediaRetentionError(ConsumerError):
     """Retryable failure before a claimed event reaches the model."""
+
+
+class ItemMediaRetentionError(MediaRetentionError):
+    """Per-event permanent failure eligible for bounded quarantine retries."""
 
 
 class SourceEvidenceProjectionError(ConsumerError):
@@ -304,6 +308,7 @@ class InboxRecord:
     end_offset: int
     raw: dict[str, Any]
     retention_state: str | None = None
+    retention_quarantined: bool = False
 
 
 def _initial_retention_state(item: Mapping[str, Any]) -> str:
@@ -409,6 +414,7 @@ class DurableInbox:
                     start_offset INTEGER NOT NULL,
                     end_offset INTEGER NOT NULL,
                     raw_json TEXT NOT NULL,
+                    source_envelope_json TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'pending'
                         CHECK (status IN ('pending','processing','completed','skipped','failed')),
                     attempts INTEGER NOT NULL DEFAULT 0,
@@ -417,6 +423,7 @@ class DurableInbox:
                     retained_media_count INTEGER NOT NULL DEFAULT 0,
                     retention_failures INTEGER NOT NULL DEFAULT 0,
                     retention_attempts INTEGER NOT NULL DEFAULT 0,
+                    retention_quarantine_attempts INTEGER NOT NULL DEFAULT 0,
                     retention_state TEXT NOT NULL DEFAULT 'pending'
                         CHECK (retention_state IN ('pending','complete','bypassed','held')),
                     retention_last_error TEXT,
@@ -426,6 +433,30 @@ class DurableInbox:
                 );
                 CREATE INDEX IF NOT EXISTS ingress_events_status_seq_idx
                     ON ingress_events(status, seq);
+                CREATE TABLE IF NOT EXISTS media_retention_failures (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ingress_seq INTEGER NOT NULL,
+                    attempt INTEGER NOT NULL,
+                    error TEXT NOT NULL,
+                    quarantine_eligible INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(ingress_seq, attempt),
+                    FOREIGN KEY(ingress_seq) REFERENCES ingress_events(seq)
+                );
+                CREATE TABLE IF NOT EXISTS media_retention_quarantine (
+                    ingress_seq INTEGER PRIMARY KEY,
+                    message_id TEXT NOT NULL UNIQUE,
+                    chat_id TEXT NOT NULL,
+                    raw_json TEXT NOT NULL,
+                    failure_history_json TEXT NOT NULL,
+                    terminal_error TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'quarantined'
+                        CHECK (status IN ('quarantined')),
+                    quarantined_at TEXT NOT NULL,
+                    FOREIGN KEY(ingress_seq) REFERENCES ingress_events(seq)
+                );
+                CREATE INDEX IF NOT EXISTS media_retention_quarantine_status_idx
+                    ON media_retention_quarantine(status, quarantined_at);
                 """
             )
             # Existing consumer DBs predate durable provider-outcome detail.
@@ -437,6 +468,14 @@ class DurableInbox:
             ingress_columns = {
                 str(row[1]) for row in conn.execute("PRAGMA table_info(ingress_events)")
             }
+            if "source_envelope_json" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN source_envelope_json TEXT"
+                )
+                conn.execute(
+                    "UPDATE ingress_events SET source_envelope_json=raw_json "
+                    "WHERE source_envelope_json IS NULL"
+                )
             if "retained_media_count" not in ingress_columns:
                 conn.execute(
                     "ALTER TABLE ingress_events ADD COLUMN retained_media_count "
@@ -451,6 +490,23 @@ class DurableInbox:
                 conn.execute(
                     "ALTER TABLE ingress_events ADD COLUMN retention_attempts "
                     "INTEGER NOT NULL DEFAULT 0"
+                )
+            # Quarantine accounting starts with this release.  The lifetime
+            # retention_attempts counter predates quarantine and must never
+            # make a legacy held row terminal on its first post-deploy retry.
+            if "retention_quarantine_attempts" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN "
+                    "retention_quarantine_attempts INTEGER NOT NULL DEFAULT 0"
+                )
+            failure_columns = {
+                str(row[1])
+                for row in conn.execute("PRAGMA table_info(media_retention_failures)")
+            }
+            if "quarantine_eligible" not in failure_columns:
+                conn.execute(
+                    "ALTER TABLE media_retention_failures ADD COLUMN "
+                    "quarantine_eligible INTEGER NOT NULL DEFAULT 0"
                 )
             retention_state_added = "retention_state" not in ingress_columns
             if retention_state_added:
@@ -530,7 +586,7 @@ class DurableInbox:
         if cursor.offset > stat.st_size:
             raise ConsumerError("source JSONL truncated below committed cursor")
 
-        staged: list[tuple[int, int, dict[str, Any]]] = []
+        staged: list[tuple[int, int, dict[str, Any], dict[str, Any]]] = []
         last_message_id = cursor.last_message_id
         with source.open("rb") as handle:
             handle.seek(cursor.offset)
@@ -553,7 +609,7 @@ class DurableInbox:
                 if declared_document_mime and len(item.get("mediaUrls") or []) == 1:
                     item["mediaMimes"] = [declared_document_mime]
                 message_id = str(item["messageId"])
-                staged.append((start, end, item))
+                staged.append((start, end, item, decoded))
                 last_message_id = message_id
 
         if not staged:
@@ -562,14 +618,14 @@ class DurableInbox:
         now = _utc_now()
         with self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            for start, end, item in staged:
+            for start, end, item, source_envelope in staged:
                 conn.execute(
                     """
                     INSERT INTO ingress_events(
                         message_id,chat_id,source_device,source_inode,
-                        start_offset,end_offset,raw_json,status,retention_state,
-                        retention_updated_at,created_at,updated_at
-                    ) VALUES(?,?,?,?,?,?,?,'pending',?,?,?,?)
+                        start_offset,end_offset,raw_json,source_envelope_json,
+                        status,retention_state,retention_updated_at,created_at,updated_at
+                    ) VALUES(?,?,?,?,?,?,?,?,'pending',?,?,?,?)
                     ON CONFLICT(message_id) DO NOTHING
                     """,
                     (
@@ -580,6 +636,7 @@ class DurableInbox:
                         start,
                         end,
                         json.dumps(item, sort_keys=True, separators=(",", ":")),
+                        json.dumps(source_envelope, sort_keys=True, separators=(",", ":")),
                         _initial_retention_state(item),
                         now,
                         now,
@@ -661,10 +718,13 @@ class DurableInbox:
         excluded = set(exclude_chats or ())
         with self.connect() as conn:
             rows = conn.execute(
-                "SELECT seq,message_id,chat_id,start_offset,end_offset,raw_json,"
-                "retention_state "
-                "FROM ingress_events WHERE status='pending' "
-                "AND retention_state IN ('complete','bypassed') ORDER BY seq"
+                "SELECT e.seq,e.message_id,e.chat_id,e.start_offset,e.end_offset,"
+                "e.raw_json,e.retention_state,"
+                "q.ingress_seq IS NOT NULL AS retention_quarantined "
+                "FROM ingress_events e LEFT JOIN media_retention_quarantine q "
+                "ON q.ingress_seq=e.seq AND q.status='quarantined' "
+                "WHERE e.status='pending' "
+                "AND e.retention_state IN ('complete','bypassed') ORDER BY e.seq"
             ).fetchall()
         grouped: dict[str, list[InboxRecord]] = {}
         for row in rows:
@@ -683,6 +743,7 @@ class DurableInbox:
                     end_offset=int(row["end_offset"]),
                     raw=json.loads(row["raw_json"]),
                     retention_state=str(row["retention_state"]),
+                    retention_quarantined=bool(row["retention_quarantined"]),
                 )
             )
         ordered = sorted(grouped.items(), key=lambda item: item[1][0].seq)
@@ -1067,17 +1128,23 @@ class DurableInbox:
             ).fetchall()
         return {str(row["status"]): int(row["n"]) for row in rows}
 
-    def retention_candidates(self, *, limit: int) -> list[InboxRecord]:
-        """Bounded pending-business work, with new rows ahead of retries."""
+    def retention_candidates(
+        self, *, limit: int, retry_interval_seconds: float = 0
+    ) -> list[InboxRecord]:
+        """Bounded pending-business work, with spaced retries behind new rows."""
+        retry_interval = max(0.0, float(retry_interval_seconds))
         with self.connect() as conn:
             rows = conn.execute(
                 "SELECT seq,message_id,chat_id,start_offset,end_offset,raw_json,"
                 "retention_state "
                 "FROM ingress_events WHERE status='pending' "
                 "AND retention_state IN ('pending','held') "
+                "AND (retention_state='pending' OR retention_updated_at IS NULL "
+                "OR julianday(retention_updated_at) <= "
+                "julianday('now', ?)) "
                 "ORDER BY CASE retention_state WHEN 'pending' THEN 0 ELSE 1 END, "
                 "COALESCE(retention_updated_at,created_at),seq LIMIT ?",
-                (max(1, int(limit)),),
+                (f"-{retry_interval:.6f} seconds", max(1, int(limit))),
             ).fetchall()
         return [
             InboxRecord(
@@ -1095,8 +1162,10 @@ class DurableInbox:
     def retention_result(self, record: InboxRecord) -> dict[str, Any] | None:
         with self.connect() as conn:
             row = conn.execute(
-                "SELECT retention_state,retained_media_count "
-                "FROM ingress_events WHERE seq=?",
+                "SELECT e.retention_state,e.retained_media_count,"
+                "q.status AS quarantine_status FROM ingress_events e "
+                "LEFT JOIN media_retention_quarantine q ON q.ingress_seq=e.seq "
+                "WHERE e.seq=?",
                 (record.seq,),
             ).fetchone()
         if row is None:
@@ -1109,6 +1178,7 @@ class DurableInbox:
             "bytes": 0,
             "operation": state == "complete",
             "durable": True,
+            "quarantined": row["quarantine_status"] == "quarantined",
         }
 
     def record_retention(
@@ -1119,19 +1189,96 @@ class DurableInbox:
         bypassed: bool = False,
         refusal: str | None = None,
         error: str | None = None,
-    ) -> None:
+        retry_cap: int | None = None,
+        quarantine_eligible: bool = False,
+    ) -> dict[str, Any]:
+        """Persist one attempt and atomically give up after the configured cap.
+
+        Retryable mandatory-media failures retain an append-only failure history.
+        At the cap the full raw event and that history are copied to quarantine,
+        while the inbox row becomes ``bypassed`` so FIFO business processing can
+        continue without deleting or rewriting the original event.
+        """
         now = _utc_now()
         with self.connect() as conn:
             if error is not None:
+                cap = max(1, int(retry_cap or 1))
+                conn.execute("BEGIN IMMEDIATE")
+                row = conn.execute(
+                    "SELECT message_id,chat_id,raw_json,source_envelope_json,"
+                    "retention_state,retention_attempts,"
+                    "retention_quarantine_attempts FROM ingress_events WHERE seq=?",
+                    (record.seq,),
+                ).fetchone()
+                if row is None:
+                    raise ConsumerError(f"inbox record {record.seq} disappeared")
+                if str(row["retention_state"]) in {"complete", "bypassed"}:
+                    conn.commit()
+                    return {"quarantined": False, "durable": True}
+                attempt = int(row["retention_attempts"] or 0) + 1
+                quarantine_attempt = int(row["retention_quarantine_attempts"] or 0)
+                if quarantine_eligible:
+                    quarantine_attempt += 1
+                failure = (error or "retention failed")[:2000]
                 conn.execute(
-                    "UPDATE ingress_events SET retention_state='held',"
-                    "retention_attempts=retention_attempts+1,"
+                    "INSERT INTO media_retention_failures("
+                    "ingress_seq,attempt,error,quarantine_eligible,created_at) "
+                    "VALUES(?,?,?,?,?)",
+                    (record.seq, attempt, failure, int(quarantine_eligible), now),
+                )
+                quarantined = quarantine_eligible and quarantine_attempt >= cap
+                state = "bypassed" if quarantined else "held"
+                changed = conn.execute(
+                    "UPDATE ingress_events SET retention_state=?,"
+                    "retention_attempts=?,retention_quarantine_attempts=?,"
                     "retention_failures=retention_failures+1,"
                     "retention_last_error=?,retention_updated_at=? "
                     "WHERE seq=? AND retention_state IN ('pending','held')",
-                    ((error or "retention failed")[:2000], now, record.seq),
-                )
-                return
+                    (
+                        state,
+                        attempt,
+                        quarantine_attempt,
+                        failure,
+                        now,
+                        record.seq,
+                    ),
+                ).rowcount
+                if changed != 1:
+                    raise ConsumerError(
+                        f"inbox record {record.seq} could not record retention failure"
+                    )
+                if quarantined:
+                    history = [
+                        dict(history_row)
+                        for history_row in conn.execute(
+                            "SELECT attempt,error,quarantine_eligible,created_at FROM "
+                            "media_retention_failures WHERE ingress_seq=? ORDER BY attempt",
+                            (record.seq,),
+                        ).fetchall()
+                    ]
+                    conn.execute(
+                        "INSERT INTO media_retention_quarantine("
+                        "ingress_seq,message_id,chat_id,raw_json,"
+                        "failure_history_json,terminal_error,status,quarantined_at) "
+                        "VALUES(?,?,?,?,?,?,'quarantined',?) "
+                        "ON CONFLICT(ingress_seq) DO NOTHING",
+                        (
+                            record.seq,
+                            str(row["message_id"]),
+                            str(row["chat_id"]),
+                            str(row["source_envelope_json"] or row["raw_json"]),
+                            json.dumps(history, sort_keys=True, separators=(",", ":")),
+                            failure,
+                            now,
+                        ),
+                    )
+                conn.commit()
+                return {
+                    "quarantined": quarantined,
+                    "attempt": attempt,
+                    "quarantine_attempt": quarantine_attempt,
+                    "retry_cap": cap,
+                }
             state = "bypassed" if bypassed else "complete"
             changed = conn.execute(
                 "UPDATE ingress_events SET retention_state=?,"
@@ -1155,6 +1302,7 @@ class DurableInbox:
                     raise ConsumerError(
                         f"inbox record {record.seq} could not record retention outcome"
                     )
+        return {"quarantined": False}
 
     def retention_counts(self) -> dict[str, int]:
         with self.connect() as conn:
@@ -1170,6 +1318,10 @@ class DurableInbox:
                 "AND retention_state='held' THEN 1 ELSE 0 END),0) "
                 "FROM ingress_events"
             ).fetchone()
+            quarantine_row = conn.execute(
+                "SELECT COUNT(*) FROM media_retention_quarantine "
+                "WHERE status='quarantined'"
+            ).fetchone()
         return {
             "retention_total": int(row[0]),
             "retention_failures": int(row[1]),
@@ -1178,7 +1330,26 @@ class DurableInbox:
             "retention_complete": int(row[4]),
             "retention_bypassed": int(row[5]),
             "retention_held": int(row[6]),
+            "retention_quarantined": int(quarantine_row[0]),
         }
+
+    def retention_quarantine_status(self) -> dict[str, int]:
+        """Queryable terminal give-up population by durable status."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT status,COUNT(*) AS n FROM media_retention_quarantine "
+                "GROUP BY status"
+            ).fetchall()
+        return {str(row["status"]): int(row["n"]) for row in rows}
+
+    def retention_quarantine_message_ids(self) -> list[str]:
+        """Stable row identities for operator-visible terminal retention debt."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT message_id FROM media_retention_quarantine "
+                "WHERE status='quarantined' ORDER BY quarantined_at,ingress_seq"
+            ).fetchall()
+        return [str(row["message_id"]) for row in rows]
 
     def retention_last_error(self) -> str | None:
         """Newest unresolved retention hold, independent across chat lanes."""
@@ -1336,6 +1507,10 @@ def _retention_config(config_path: Path) -> dict[str, Any] | None:
         "operation": operation,
         "ref_prefix": ref_prefix,
         "min_free_percent": float(raw.get("min_free_percent", 20)),
+        "max_attempts": max(1, int(raw.get("max_attempts", 5))),
+        "retry_interval_seconds": max(
+            1.0, float(raw.get("retry_interval_seconds", 60))
+        ),
     }
 
 
@@ -1378,6 +1553,10 @@ def _retention_status(
     return {
         **inbox.retention_counts(),
         **_media_root_metrics(config_path, inspect=inspect_media),
+        "retention_quarantine_status": inbox.retention_quarantine_status(),
+        "retention_quarantine_message_ids": (
+            inbox.retention_quarantine_message_ids()
+        ),
         "retention_hold": inbox.retention_last_error(),
     }
 
@@ -1413,13 +1592,15 @@ def _validated_image_type(path: Path, declared: str | None) -> tuple[str, str]:
         None,
     )
     if detected is None:
-        raise MediaRetentionError(f"retention source is not a supported image: {path.name}")
+        raise ItemMediaRetentionError(
+            f"retention source is not a supported image: {path.name}"
+        )
     mime, ext = detected
     declared = str(declared or "").split(";", 1)[0].strip().lower()
     if declared and "/" in declared and declared != mime:
         # image/jpg is a widespread non-standard spelling for image/jpeg.
         if not (declared == "image/jpg" and mime == "image/jpeg"):
-            raise MediaRetentionError(
+            raise ItemMediaRetentionError(
                 f"PROVENANCE_DIVERGENCE: declared MIME {declared} != {mime}"
             )
     return mime, ext
@@ -1454,9 +1635,11 @@ def _contained_existing_file(value: Any, roots: Sequence[Path]) -> Path:
     try:
         candidate = Path(text).expanduser().resolve(strict=True)
     except (OSError, RuntimeError) as exc:
-        raise MediaRetentionError(f"media source is unavailable: {exc}") from exc
+        raise ItemMediaRetentionError(f"media source is unavailable: {exc}") from exc
     if not candidate.is_file() or not any(candidate.is_relative_to(root) for root in roots):
-        raise MediaRetentionError("media source escapes configured roots or is not a file")
+        raise ItemMediaRetentionError(
+            "media source escapes configured roots or is not a file"
+        )
     return candidate
 
 
@@ -1465,7 +1648,7 @@ def _event_media(item: Mapping[str, Any]) -> list[tuple[Any, str | None]]:
     if isinstance(values, (str, bytes, Mapping)):
         values = [values]
     if not isinstance(values, Sequence):
-        raise MediaRetentionError("event media collection is not a list")
+        raise ItemMediaRetentionError("event media collection is not a list")
     result: list[tuple[Any, str | None]] = []
     event_mime = item.get("mediaType") or item.get("mimeType")
     event_kind = str(event_mime or "").split("/", 1)[0].strip().lower()
@@ -1500,7 +1683,7 @@ def _event_retainable_documents(
     if isinstance(values, (str, bytes, Mapping)):
         values = [values]
     if not isinstance(values, Sequence):
-        raise MediaRetentionError("event media collection is not a list")
+        raise ItemMediaRetentionError("event media collection is not a list")
     declared_mimes = item.get("mediaMimes") or []
     if isinstance(declared_mimes, (str, bytes)):
         declared_mimes = [declared_mimes]
@@ -1610,7 +1793,7 @@ def _retention_identity(
     chat_id = str(item.get("chatId") or record.chat_id)
     message_id = str(item.get("messageId") or record.message_id)
     if chat_id != record.chat_id or message_id != record.message_id:
-        raise MediaRetentionError(
+        raise ItemMediaRetentionError(
             "PROVENANCE_DIVERGENCE: inbox/event identity mismatch"
         )
     identity_digest = hashlib.sha256(
@@ -1704,7 +1887,7 @@ def _retain_record_media_impl(
                 )
             ).resolve()
             if not target.is_relative_to(root):
-                raise MediaRetentionError(
+                raise ItemMediaRetentionError(
                     "derived document retention target escapes configured root"
                 )
             ordinal_candidates = _retained_document_glob(
@@ -1713,13 +1896,13 @@ def _retain_record_media_impl(
                 root, filename_prefix, "document", ordinal
             )
             if ordinal_candidates and target not in ordinal_candidates:
-                raise MediaRetentionError(
+                raise ItemMediaRetentionError(
                     "PROVENANCE_DIVERGENCE: retained document ordinal "
                     f"{ordinal} changed"
                 )
             if target.exists():
                 if hashlib.sha256(target.read_bytes()).hexdigest() != digest:
-                    raise MediaRetentionError(
+                    raise ItemMediaRetentionError(
                         "PROVENANCE_DIVERGENCE: retained document ordinal "
                         f"{ordinal} changed"
                     )
@@ -1762,7 +1945,7 @@ def _retain_record_media_impl(
         if coarse_kind != "image":
             return {"retained": 0, "bytes": 0, "operation": False}
         if item.get("hasMedia") is True:
-            raise MediaRetentionError(
+            raise ItemMediaRetentionError(
                 "mandatory inbound media has no resolvable capture path"
             )
         return {"retained": 0, "bytes": 0, "operation": False}
@@ -1780,17 +1963,19 @@ def _retain_record_media_impl(
         digest = hashlib.sha256(content).hexdigest()
         target = (root / f"{filename_prefix}_{ordinal}.{ext}").resolve()
         if not target.is_relative_to(root):
-            raise MediaRetentionError("derived retention target escapes configured root")
+            raise ItemMediaRetentionError(
+                "derived retention target escapes configured root"
+            )
         ordinal_candidates = list(root.glob(f"{filename_prefix}_{ordinal}.*"))
         if ordinal_candidates and target not in ordinal_candidates:
-            raise MediaRetentionError(
+            raise ItemMediaRetentionError(
                 f"PROVENANCE_DIVERGENCE: retained ordinal {ordinal} MIME changed"
             )
         if target.exists():
             existing = target.read_bytes()
             existing_mime, _ = _validated_image_type(target, mime)
             if hashlib.sha256(existing).hexdigest() != digest or existing_mime != mime:
-                raise MediaRetentionError(
+                raise ItemMediaRetentionError(
                     f"PROVENANCE_DIVERGENCE: retained ordinal {ordinal} changed"
                 )
         else:
@@ -1881,7 +2066,25 @@ def ensure_record_media_retained(
             "reason": str(exc),
         }
     except MediaRetentionError as exc:
-        inbox.record_retention(record, error=f"media-retention-retry: {exc}")
+        config = _retention_config(config_path)
+        retry_cap = int(config["max_attempts"]) if config is not None else 5
+        outcome = inbox.record_retention(
+            record,
+            error=f"media-retention-retry: {exc}",
+            retry_cap=retry_cap,
+            quarantine_eligible=isinstance(exc, ItemMediaRetentionError),
+        )
+        if outcome.get("quarantined"):
+            return {
+                "retained": 0,
+                "bytes": 0,
+                "operation": False,
+                "quarantined": True,
+                "reason": str(exc),
+                "attempt": int(outcome["attempt"]),
+                "quarantine_attempt": int(outcome["quarantine_attempt"]),
+                "retry_cap": int(outcome["retry_cap"]),
+            }
         raise
     inbox.record_retention(
         record,
@@ -1895,8 +2098,20 @@ async def retain_pending_media(
     inbox: DurableInbox, *, config_path: Path, limit: int
 ) -> dict[str, int]:
     """Bounded capture-lane retention independent of business processing."""
-    summary = {"examined": 0, "retained": 0, "bypassed": 0, "held": 0}
-    for record in inbox.retention_candidates(limit=limit):
+    summary = {
+        "examined": 0,
+        "retained": 0,
+        "bypassed": 0,
+        "held": 0,
+        "quarantined": 0,
+    }
+    config = _retention_config(config_path)
+    retry_interval = (
+        float(config["retry_interval_seconds"]) if config is not None else 60.0
+    )
+    for record in inbox.retention_candidates(
+        limit=limit, retry_interval_seconds=retry_interval
+    ):
         summary["examined"] += 1
         try:
             result = await asyncio.to_thread(
@@ -1913,7 +2128,15 @@ async def retain_pending_media(
                 file=sys.stderr,
             )
             continue
-        if result.get("operation") or int(result["retained"]) > 0:
+        if result.get("quarantined"):
+            summary["quarantined"] += 1
+            print(
+                "media retention QUARANTINED: "
+                f"chat={record.chat_id} message={record.message_id} "
+                f"reason={result.get('reason')}",
+                file=sys.stderr,
+            )
+        elif result.get("operation") or int(result["retained"]) > 0:
             summary["retained"] += int(result["retained"])
         else:
             summary["bypassed"] += 1
@@ -2053,6 +2276,11 @@ async def process_replay_records(
         "model": model,
         "processed": int(result.processed),
         "outbound_captured": len(result.outbound),
+        # Fixture callers must inspect the captured payload, not only its
+        # count.  The replay path is outbound-disabled; carrying these
+        # envelopes forward lets consumer-layer checks prove attachment and
+        # exception-receipt content without opening a real delivery path.
+        "captured_outbound": [dict(entry) for entry in result.outbound],
         "blocked_commands": len(result.blocked_commands),
     }
 
@@ -2116,24 +2344,42 @@ def _mutable_bridge_item(value: dict[str, Any]) -> dict[str, Any]:
 def _replay_messages_with_retained_documents(
     records: Sequence[InboxRecord], *, config_path: Path
 ) -> tuple[dict[str, Any], ...]:
-    """Copy records and append jail-visible retained-document paths."""
+    """Copy records and append retention evidence or quarantine warnings."""
     config = _retention_config(config_path)
-    if config is None:
-        return tuple(copy.deepcopy(record.raw) for record in records)
-    root: Path = config["root"]
-    dataset_name = _sandbox_dataset_for_retention_root(config_path, root)
-    if dataset_name is None:
-        return tuple(copy.deepcopy(record.raw) for record in records)
+    root: Path | None = config["root"] if config is not None else None
+    dataset_name = (
+        _sandbox_dataset_for_retention_root(config_path, root)
+        if root is not None
+        else None
+    )
+    python_sandbox_dataset_path = None
+    if dataset_name is not None:
+        from tools.python_sandbox_paths import (
+            python_sandbox_dataset_path as _python_sandbox_dataset_path,
+        )
 
-    from tools.python_sandbox_paths import python_sandbox_dataset_path
+        python_sandbox_dataset_path = _python_sandbox_dataset_path
 
     messages: list[dict[str, Any]] = []
     for record in records:
         message = copy.deepcopy(record.raw)
         messages.append(message)
-        if record.retention_state != "complete":
-            continue
         item = _mutable_bridge_item(message)
+        if record.retention_quarantined:
+            warning = (
+                "[Attachment unavailable: retention quarantine for message "
+                f"{record.message_id}. Do not infer or claim the attachment's contents.]"
+            )
+            body = str(item.get("body") or item.get("text") or "").rstrip()
+            item["body"] = (body + "\n\n" if body else "") + warning
+            continue
+        if (
+            record.retention_state != "complete"
+            or root is None
+            or dataset_name is None
+            or python_sandbox_dataset_path is None
+        ):
+            continue
         documents = _event_retainable_documents(item)
         if not documents:
             continue
@@ -2921,9 +3167,10 @@ async def _process_claimed_chat_batch(
         raise ConsumerError(f"scheduler produced a mixed-chat batch: {sorted(chat_ids)}")
     inbox.claim(records)
     try:
-        # Capture-lane retention normally completed while the row was pending.
-        # This claimed-chat path remains the idempotent safety net: a row can
-        # never reach Hermes until its durable retention outcome is complete.
+        # Capture-lane retention normally terminals while the row is pending.
+        # This claimed-chat path remains the idempotent safety net: Hermes sees
+        # either retained media, an explicit permanent refusal, or an explicit
+        # quarantine warning; it never silently assumes attachment contents.
         for record in records:
             await asyncio.to_thread(
                 ensure_record_media_retained,

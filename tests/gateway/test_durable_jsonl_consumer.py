@@ -790,6 +790,263 @@ def test_permanent_spreadsheet_refusal_is_durable_and_not_retried(tmp_path):
     assert "PROVENANCE_DIVERGENCE" in row["retention_last_error"]
 
 
+def test_mandatory_media_retry_cap_quarantines_full_event_and_history(tmp_path):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    config = _retention_config(tmp_path, capture, tmp_path / "retained")
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"]["max_attempts"] = 2
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source = tmp_path / "events.jsonl"
+    missing = capture / "expired.jpg"
+    raw = _message("MANDATORY-GIVE-UP", "site@g.us")
+    raw.update({
+        "hasMedia": True,
+        "mediaType": "image/jpeg",
+        "mediaUrls": [str(missing)],
+        "providerMetadata": {"opaque": ["must", "survive"]},
+    })
+    source_envelope = {
+        "type": "whatsapp_capture_event",
+        "normalized": raw,
+        "raw": {
+            "message": {
+                "imageMessage": {
+                    "directPath": "/v/t62.7118-24/provider-only",
+                    "mediaKey": "provider-key-must-survive",
+                }
+            },
+            "providerSibling": {"opaque": [1, 2, 3]},
+        },
+    }
+    _write_jsonl(source, [source_envelope])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    record = inbox.retention_candidates(limit=1)[0]
+
+    with pytest.raises(consumer.MediaRetentionError, match="unavailable"):
+        consumer.ensure_record_media_retained(inbox, record, config_path=config)
+    terminal = consumer.ensure_record_media_retained(inbox, record, config_path=config)
+
+    assert terminal["retained"] == 0
+    assert terminal["bytes"] == 0
+    assert terminal["operation"] is False
+    assert terminal["quarantined"] is True
+    assert "media source is unavailable" in terminal["reason"]
+    assert str(missing) in terminal["reason"]
+    assert terminal["attempt"] == 2
+    assert terminal["quarantine_attempt"] == 2
+    assert terminal["retry_cap"] == 2
+    assert inbox.retention_candidates(limit=10) == []
+    assert inbox.retention_quarantine_status() == {"quarantined": 1}
+    assert inbox.retention_quarantine_message_ids() == ["MANDATORY-GIVE-UP"]
+    counts = inbox.retention_counts()
+    assert counts["retention_quarantined"] == 1
+    assert counts["retention_held"] == 0
+    assert counts["retention_bypassed"] == 1
+    with inbox.connect() as conn:
+        event = conn.execute(
+            "SELECT raw_json,source_envelope_json,retention_state,"
+            "retention_attempts,retention_quarantine_attempts,"
+            "retention_failures FROM ingress_events "
+            "WHERE message_id='MANDATORY-GIVE-UP'"
+        ).fetchone()
+        quarantine = conn.execute(
+            "SELECT raw_json,failure_history_json,status,terminal_error "
+            "FROM media_retention_quarantine WHERE message_id='MANDATORY-GIVE-UP'"
+        ).fetchone()
+        failures = conn.execute(
+            "SELECT attempt,error FROM media_retention_failures "
+            "WHERE ingress_seq=? ORDER BY attempt", (record.seq,)
+        ).fetchall()
+    assert tuple(event[2:]) == ("bypassed", 2, 2, 2)
+    assert json.loads(event["raw_json"])["providerMetadata"] == {
+        "opaque": ["must", "survive"]
+    }
+    assert quarantine["raw_json"] == event["source_envelope_json"]
+    preserved_envelope = json.loads(quarantine["raw_json"])
+    assert preserved_envelope == source_envelope
+    assert preserved_envelope["raw"]["message"]["imageMessage"] == {
+        "directPath": "/v/t62.7118-24/provider-only",
+        "mediaKey": "provider-key-must-survive",
+    }
+    assert preserved_envelope["raw"]["providerSibling"] == {"opaque": [1, 2, 3]}
+    history = json.loads(quarantine["failure_history_json"])
+    assert [entry["attempt"] for entry in history] == [1, 2]
+    assert [(row["attempt"], row["error"]) for row in failures] == [
+        (1, history[0]["error"]), (2, history[1]["error"])
+    ]
+    assert quarantine["status"] == "quarantined"
+    assert quarantine["terminal_error"] == history[-1]["error"]
+    assert inbox.retention_result(record)["quarantined"] is True
+
+
+def test_legacy_attempts_do_not_count_toward_new_quarantine_budget(tmp_path):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    config = _retention_config(tmp_path, capture, tmp_path / "retained")
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"]["max_attempts"] = 2
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source = tmp_path / "events.jsonl"
+    raw = _message("LEGACY-ATTEMPTS", "site@g.us")
+    raw.update({
+        "hasMedia": True,
+        "mediaType": "image/jpeg",
+        "mediaUrls": [str(capture / "expired.jpg")],
+    })
+    _write_jsonl(source, [raw])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    record = inbox.retention_candidates(limit=1)[0]
+    with inbox.connect() as conn:
+        conn.execute(
+            "UPDATE ingress_events SET retention_state='held',"
+            "retention_attempts=4,retention_updated_at='2026-01-01T00:00:00+00:00' "
+            "WHERE seq=?",
+            (record.seq,),
+        )
+
+    with pytest.raises(consumer.ItemMediaRetentionError, match="unavailable"):
+        consumer.ensure_record_media_retained(inbox, record, config_path=config)
+
+    with inbox.connect() as conn:
+        row = conn.execute(
+            "SELECT retention_state,retention_attempts,"
+            "retention_quarantine_attempts FROM ingress_events WHERE seq=?",
+            (record.seq,),
+        ).fetchone()
+    assert tuple(row) == ("held", 5, 1)
+    assert inbox.retention_quarantine_status() == {}
+
+
+def test_systemic_failures_are_spaced_and_never_burn_quarantine_budget(
+    tmp_path, monkeypatch
+):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    config = _retention_config(tmp_path, capture, tmp_path / "retained")
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"]["max_attempts"] = 1
+    data["pa"]["media_retention"]["retry_interval_seconds"] = 60
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source = tmp_path / "events.jsonl"
+    raw = _message("SYSTEMIC-FAILURE", "site@g.us")
+    raw.update({
+        "hasMedia": True,
+        "mediaType": "image/jpeg",
+        "mediaUrls": [str(capture / "photo.jpg")],
+    })
+    _write_jsonl(source, [raw])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    record = inbox.retention_candidates(limit=1)[0]
+
+    def fail_systemically(*_args, **_kwargs):
+        raise consumer.MediaRetentionError("provider-wide outage")
+
+    monkeypatch.setattr(consumer, "retain_record_media", fail_systemically)
+    with pytest.raises(consumer.MediaRetentionError, match="provider-wide"):
+        consumer.ensure_record_media_retained(inbox, record, config_path=config)
+
+    assert inbox.retention_candidates(
+        limit=1, retry_interval_seconds=60
+    ) == []
+    with inbox.connect() as conn:
+        row = conn.execute(
+            "SELECT retention_state,retention_attempts,"
+            "retention_quarantine_attempts FROM ingress_events WHERE seq=?",
+            (record.seq,),
+        ).fetchone()
+        conn.execute(
+            "UPDATE ingress_events SET retention_updated_at='2026-01-01T00:00:00+00:00' "
+            "WHERE seq=?",
+            (record.seq,),
+        )
+    assert tuple(row) == ("held", 1, 0)
+    assert inbox.retention_candidates(
+        limit=1, retry_interval_seconds=60
+    )[0].message_id == "SYSTEMIC-FAILURE"
+    assert inbox.retention_quarantine_status() == {}
+
+
+def test_quarantine_is_loud_in_status_and_model_replay(tmp_path, capsys):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    config = _retention_config(tmp_path, capture, tmp_path / "retained")
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"]["max_attempts"] = 1
+    data["pa"]["media_retention"]["retry_interval_seconds"] = 1
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source = tmp_path / "events.jsonl"
+    raw = _message("LOUD-QUARANTINE", "site@g.us")
+    raw.update({
+        "hasMedia": True,
+        "mediaType": "image/jpeg",
+        "mediaUrls": [str(capture / "expired.jpg")],
+    })
+    _write_jsonl(source, [raw])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+
+    summary = asyncio.run(
+        consumer.retain_pending_media(inbox, config_path=config, limit=1)
+    )
+    assert summary["quarantined"] == 1
+    assert "media retention QUARANTINED" in capsys.readouterr().err
+    status = consumer._retention_status(inbox, config, inspect_media=False)
+    assert status["retention_quarantined"] == 1
+    assert status["retention_quarantine_message_ids"] == ["LOUD-QUARANTINE"]
+
+    management, site = inbox.pending_chat_batches(batch_size=10)
+    records = (management or site)[0][1]
+    assert records[0].retention_quarantined is True
+    replay = consumer._replay_messages_with_retained_documents(
+        records, config_path=config
+    )
+    body = consumer._bridge_item(replay[0])["body"]
+    assert "Attachment unavailable: retention quarantine" in body
+    assert "Do not infer or claim the attachment's contents" in body
+
+
+def test_permanent_media_refusal_bypasses_without_quarantine(tmp_path):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    workbook = capture / "bad.xlsx"
+    workbook.write_bytes(b"MZ" + b"\x00" * 100)
+    config = _retention_config(tmp_path, capture, tmp_path / "retained")
+    source = tmp_path / "events.jsonl"
+    raw = _message("PERMANENT-NOT-QUARANTINE")
+    raw.update({
+        "hasMedia": True,
+        "mediaType": "document",
+        "mediaUrls": [str(workbook)],
+        "mediaMimes": [
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ],
+    })
+    _write_jsonl(source, [raw])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    record = inbox.retention_candidates(limit=1)[0]
+
+    result = consumer.ensure_record_media_retained(inbox, record, config_path=config)
+
+    assert result["refused"] is True
+    assert inbox.retention_quarantine_status() == {}
+    assert inbox.retention_counts()["retention_quarantined"] == 0
+
+
 def test_media_retention_normalizes_source_read_oserror(tmp_path, monkeypatch):
     capture = tmp_path / "capture"
     capture.mkdir()
@@ -898,6 +1155,7 @@ async def test_pending_production_video_bypasses_retention_and_completes(
         "retention_complete": 0,
         "retention_bypassed": 1,
         "retention_held": 0,
+        "retention_quarantined": 0,
     }
 
 
@@ -1050,6 +1308,7 @@ async def test_demo_pause_retains_pending_site_image_without_runner_or_delivery(
         "retained": 1,
         "bypassed": 0,
         "held": 0,
+        "quarantined": 0,
     }
     assert status["retention_total"] == 1
     assert status["retention_complete"] == 1
@@ -1092,6 +1351,7 @@ async def test_demo_pause_non_image_bypasses_retention_without_runner(
         "retained": 0,
         "bypassed": 0,
         "held": 0,
+        "quarantined": 0,
     }
 
 
@@ -1166,6 +1426,14 @@ async def test_demo_pause_retention_hold_preserves_management_lane_and_retries(
     assert "media source is unavailable" in status["retention_hold"]
     assert await consumer.run_consumer(args) == 0
     assert processed == ["MANAGEMENT-LIVE"]
+    retry_counts = consumer.DurableInbox(Path(args.inbox)).retention_counts()
+    assert retry_counts["retention_failures"] == 1
+    with consumer.DurableInbox(Path(args.inbox)).connect() as conn:
+        conn.execute(
+            "UPDATE ingress_events SET retention_updated_at='2026-01-01T00:00:00+00:00' "
+            "WHERE message_id='PAUSED-MISSING'"
+        )
+    assert await consumer.run_consumer(args) == 0
     retry_counts = consumer.DurableInbox(Path(args.inbox)).retention_counts()
     assert retry_counts["retention_failures"] == 2
     assert retry_counts["retention_attempts"] == 2
@@ -1409,6 +1677,7 @@ async def test_retention_failure_requeues_before_model(tmp_path, monkeypatch):
         "retention_complete": 0,
         "retention_bypassed": 0,
         "retention_held": 1,
+        "retention_quarantined": 0,
     }
 
 
@@ -1651,21 +1920,27 @@ def test_inbox_v1_migration_classifies_existing_retention_queue(tmp_path):
         columns = {
             row[1] for row in migrated.execute("PRAGMA table_info(ingress_events)")
         }
+        migrated_rows = migrated.execute(
+            "SELECT message_id,retention_state,raw_json,source_envelope_json "
+            "FROM ingress_events"
+        ).fetchall()
         states = {
-            row["message_id"]: row["retention_state"]
-            for row in migrated.execute(
-                "SELECT message_id,retention_state FROM ingress_events"
-            )
+            row["message_id"]: row["retention_state"] for row in migrated_rows
+        }
+        envelope_backfill = {
+            row["message_id"]: (row["raw_json"], row["source_envelope_json"])
+            for row in migrated_rows
         }
         schema_version = migrated.execute(
             "SELECT value FROM ingress_meta WHERE key='schema_version'"
         ).fetchone()[0]
     assert {
         "retention_attempts", "retention_state", "retention_last_error",
-        "retention_updated_at",
+        "retention_updated_at", "source_envelope_json",
     } <= columns
     assert states == {"OLD-IMAGE": "pending", "OLD-TEXT": "bypassed"}
-    assert schema_version == "2"
+    assert all(raw_json == source_envelope_json for raw_json, source_envelope_json in envelope_backfill.values())
+    assert schema_version == "4"
 
 
 def test_partial_line_never_advances_cursor(tmp_path):
@@ -1856,6 +2131,7 @@ def test_fixture_mode_uses_inbox_path_and_marks_completed(tmp_path, monkeypatch)
             "model": "gpt-5.4-mini",
             "processed": 1,
             "outbound_captured": 1,
+            "captured_outbound": [{"kind": "send", "args": ["chat", "fixture"]}],
             "blocked_commands": 0,
         }
 
@@ -1876,6 +2152,9 @@ def test_fixture_mode_uses_inbox_path_and_marks_completed(tmp_path, monkeypatch)
     report = json.loads((tmp_path / "report.json").read_text())
     assert report["ok"] is True
     assert report["result"]["turn_id"] == "pa-turn-fixture"
+    assert report["result"]["captured_outbound"] == [
+        {"kind": "send", "args": ["chat", "fixture"]}
+    ]
 
 
 def test_fixture_mode_rejects_path_outside_test_root(tmp_path):

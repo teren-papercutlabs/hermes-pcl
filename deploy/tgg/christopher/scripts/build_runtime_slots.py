@@ -114,6 +114,8 @@ MEDIA_RETENTION_BLOCK = (
     "    - /var/lib/tgg-capture/whatsapp/media\n"
     "    operation: tgg_media_retention\n"
     "    min_free_percent: 20\n"
+    "    max_attempts: 5\n"
+    "    retry_interval_seconds: 60\n"
 )
 
 # Chat-scoped inbound allowlist (2026-07-20, teren-ratified; WB 0cd5698b).
@@ -544,6 +546,8 @@ def _validate(
         "source_roots": ["/var/lib/tgg-capture/whatsapp/media"],
         "operation": "tgg_media_retention",
         "min_free_percent": 20,
+        "max_attempts": 5,
+        "retry_interval_seconds": 60,
     }
     report_operations = config["pa"]["report_operations"]
     assert report_operations["enabled"] is True
