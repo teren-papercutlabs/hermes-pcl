@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SECRETS_FILE="${PCL_SECRETS_FILE:-$HOME/.marshal/secrets.env}"
 raw="$(pcl service locate --system christopher --domain pa)"
 target="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["data"]["system"]["liveFacts"]["host"]["sshTargetAlias"])' <<<"$raw")"
@@ -23,7 +24,12 @@ set +a
 
 umask 077
 tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
+cleanup() {
+  rm -f "$tmp"
+  ssh "$target" 'rm -f /root/.pcl-secret-staging/christopher.env; rmdir /root/.pcl-secret-staging 2>/dev/null || true' \
+    >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 python3 - "$tmp" <<'PY'
 import json, os, pathlib, sys
 
@@ -62,28 +68,7 @@ scp -q "$tmp" "$target:/root/.pcl-secret-staging/christopher.env"
 ssh "$target" python3 - \
   /home/pclaw/.hermes-christopher-tgg/.env \
   /root/.pcl-secret-staging/christopher.env \
-  CHRISTOPHER_TGG_PS_SERVICE_TOKEN <<'PY'
-import sys
-from pathlib import Path
-
-current = Path(sys.argv[1])
-staged = Path(sys.argv[2])
-key = sys.argv[3]
-
-if current.is_file():
-    matches = [
-        line
-        for line in current.read_text(encoding="utf-8").splitlines()
-        if line.strip().startswith(f"{key}=")
-    ]
-    if len(matches) > 1:
-        raise SystemExit(f"destination env contains duplicate {key}")
-    if matches:
-        staged_text = staged.read_text(encoding="utf-8")
-        if any(line.strip().startswith(f"{key}=") for line in staged_text.splitlines()):
-            raise SystemExit(f"staged env unexpectedly contains {key}")
-        staged.write_text(staged_text.rstrip("\n") + "\n" + matches[0] + "\n", encoding="utf-8")
-PY
+  CHRISTOPHER_TGG_PS_SERVICE_TOKEN < "$SCRIPT_DIR/preserve_env_key.py"
 
 ssh "$target" 'set -euo pipefail
 install -m 0600 -o pclaw -g pclaw \
