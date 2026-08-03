@@ -33,6 +33,7 @@ import json
 import logging
 import re
 import time
+from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -225,7 +226,10 @@ def _get_session_db() -> Optional[Any]:
     if cached is not None:
         return cached
     try:
-        db = SessionDB()
+        # hermes_state.DEFAULT_DB_PATH is resolved at module import time and
+        # can belong to another profile. Bind this cache entry to the live
+        # HERMES_HOME we just resolved instead of that stale module constant.
+        db = SessionDB(Path(home) / "state.db")
     except Exception as exc:  # pragma: no cover
         logger.debug("GoalManager: SessionDB() raised (%s)", exc)
         return None

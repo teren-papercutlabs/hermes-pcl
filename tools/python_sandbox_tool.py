@@ -472,7 +472,9 @@ def _cap_head_tail(text: str, cap: int = STDOUT_CAP) -> tuple[str, bool]:
     omitted = len(data) - cap
     head = data[:head_n].decode("utf-8", errors="replace")
     tail = data[-tail_n:].decode("utf-8", errors="replace")
-    return f"{head}\n\n... [{omitted:,} chars omitted] ...\n\n{tail}", True
+    omitted_entries = max(0, text.count("\n") - head.count("\n") - tail.count("\n"))
+    marker = f"[TRUNCATED: {omitted:,} bytes / {omitted_entries:,} entries omitted]"
+    return f"{head}\n\n{marker}\n\n{tail}", True
 
 
 def _clean(text: str) -> str:

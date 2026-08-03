@@ -245,7 +245,9 @@ def test_stdout_head_tail_truncation_preserves_both_ends():
     assert truncated is True
     assert value.startswith("HEAD")
     assert value.endswith("TAIL")
-    assert "chars omitted" in value
+    assert "[TRUNCATED:" in value
+    assert "bytes /" in value
+    assert "entries omitted]" in value
 
 
 def test_concurrent_drain_handles_output_larger_than_pipe_buffer():

@@ -31,6 +31,20 @@ def hermes_home(tmp_path, monkeypatch):
     goals._DB_CACHE.clear()
 
 
+
+
+def test_goal_db_binds_to_current_profile_after_hermes_state_import(hermes_home):
+    # Full-suite workers import hermes_state before this fixture sets
+    # HERMES_HOME. Its module-level DEFAULT_DB_PATH must not leak through.
+    import hermes_state  # noqa: F401
+    from hermes_cli import goals
+
+    goals._DB_CACHE.clear()
+    db = goals._get_session_db()
+
+    assert db is not None
+    assert db.db_path == hermes_home / "state.db"
+
 # ──────────────────────────────────────────────────────────────────────
 # _parse_judge_response
 # ──────────────────────────────────────────────────────────────────────

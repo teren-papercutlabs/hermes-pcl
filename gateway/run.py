@@ -358,6 +358,12 @@ def _turn_telemetry_fields(result: Any) -> Dict[str, Any]:
     }
 
 
+def _session_meta_system_prompt(agent: Any) -> str:
+    """Return the exact cached prompt snapshot for a fresh JSONL transcript."""
+    prompt = getattr(agent, "_cached_system_prompt", "") if agent is not None else ""
+    return prompt if isinstance(prompt, str) else ""
+
+
 def _last_transcript_timestamp(history: Optional[List[Dict[str, Any]]]) -> Any:
     """Return the ``timestamp`` of the last usable transcript row, if any.
 
@@ -8601,9 +8607,20 @@ class GatewayRunner:
 
         if event.media_urls and event.message_type == MessageType.DOCUMENT:
             import mimetypes as _mimetypes
+            from hermes_cli.config import read_raw_config as _read_raw_config
             from tools.credential_files import to_agent_visible_cache_path
+            from tools.python_sandbox_paths import host_path_to_python_sandbox_path
 
             _TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".log", ".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg"}
+            try:
+                _raw_config = _read_raw_config()
+                _sandbox_config = (
+                    _raw_config.get("python_sandbox", {})
+                    if isinstance(_raw_config, dict)
+                    else {}
+                )
+            except Exception:
+                _sandbox_config = {}
             for i, path in enumerate(event.media_urls):
                 mtype = event.media_types[i] if i < len(event.media_types) else ""
                 if mtype in {"", "application/octet-stream"}:
@@ -8626,12 +8643,19 @@ class GatewayRunner:
                 # This ensures the agent receives a path it can open inside its sandbox, as the
                 # cache directories are auto-mounted at /root/.hermes/cache/* by get_cache_directory_mounts().
                 agent_path = to_agent_visible_cache_path(path)
+                sandbox_path = host_path_to_python_sandbox_path(path, _sandbox_config)
+                location_note = (
+                    f"Original filename: '{basename}'. "
+                    f"Sandbox path: {sandbox_path}. Host path: {agent_path}."
+                    if sandbox_path is not None
+                    else f"Original filename: '{basename}'. Host path: {agent_path}."
+                )
 
                 if mtype.startswith("text/"):
                     context_note = (
                         f"[The user sent a text document: '{display_name}'. "
                         f"Its content has been included below. "
-                        f"The file is also saved at: {agent_path}]"
+                        f"{location_note}]"
                     )
                 else:
                     if mtype in {
@@ -8650,7 +8674,7 @@ class GatewayRunner:
                         action = "Ask the user what they'd like you to do with it."
                     context_note = (
                         f"[The user sent a document: '{display_name}'. "
-                        f"The file is saved at: {agent_path}. "
+                        f"{location_note} "
                         f"{action}]"
                     )
                 message_text = f"{context_note}\n\n{message_text}"
@@ -9699,6 +9723,10 @@ class GatewayRunner:
                         "tools": tool_defs or [],
                         "model": _resolve_gateway_model(),
                         "platform": source.platform.value if source.platform else "",
+                        # Persist the exact first-turn prompt snapshot in the
+                        # JSONL audit trail. SessionDB already stores it; this
+                        # keeps legacy transcript verification equally honest.
+                        "system_prompt": agent_result.get("system_prompt", ""),
                         "timestamp": ts,
                     }
                 )
@@ -18069,6 +18097,7 @@ class GatewayRunner:
                     "provider": _resolved_provider,
                     "estimated_cost_usd": result.get("estimated_cost_usd", 0.0),
                     "context_length": _context_length,
+                    "system_prompt": _session_meta_system_prompt(_agent),
                     # Turn-scoped telemetry passthrough (PA turn-recording).
                     **_turn_telemetry_fields(result),
                 }
@@ -18197,6 +18226,7 @@ class GatewayRunner:
                 "context_length": _context_length,
                 "session_id": effective_session_id,
                 "response_previewed": result.get("response_previewed", False),
+                "system_prompt": _session_meta_system_prompt(_agent),
                 # Turn-scoped telemetry passthrough (PA turn-recording).
                 **_turn_telemetry_fields(result),
             }

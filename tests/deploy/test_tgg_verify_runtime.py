@@ -245,6 +245,13 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     manifest_ref = spec["spec"]["deploy"]["manifestRef"]
     assert manifest_ref == "deploy/tgg/christopher/pa-agent.hermes.manifest.json"
 
+    manifest = json.loads((ROOT / manifest_ref).read_text())
+    bootstrap_hook = manifest["services"][0]["preRestartHooks"][0]["command"]
+    assert "CHRISTOPHER_ENGINE_SLOT=gpt-5.6-luna-xhigh" in bootstrap_hook
+    bootstrap = (DEPLOY_ROOT / "scripts" / "bootstrap_runtime.sh").read_text()
+    assert 'slot_args=(--slot "$CHRISTOPHER_ENGINE_SLOT")' in bootstrap
+    assert '"${slot_args[@]}"' in bootstrap
+
     deploy_script = (DEPLOY_ROOT / "scripts" / "deploy_runtime.sh").read_text()
     assert 'd["spec"]["deploy"]["manifestRef"]' in deploy_script
     assert '--manifest "$manifest_path"' in deploy_script

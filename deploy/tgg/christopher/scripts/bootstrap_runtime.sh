@@ -77,9 +77,14 @@ ln -sfn "$DEPLOY_ROOT/plugins/report-operations" "$HERMES_HOME/plugins/report-op
 chown root:pclaw "$RUNTIME_ROOT/processing-gate.json"
 chmod 0640 "$RUNTIME_ROOT/processing-gate.json"
 
+slot_args=()
+if [[ -n "${CHRISTOPHER_ENGINE_SLOT:-}" ]]; then
+  slot_args=(--slot "$CHRISTOPHER_ENGINE_SLOT")
+fi
 "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" \
   --app-root "$APP_ROOT" \
-  --hermes-home "$HERMES_HOME"
+  --hermes-home "$HERMES_HOME" \
+  "${slot_args[@]}"
 
 if [[ ! -e "$RUNTIME_ROOT/capture-cursor.json" ]]; then
   runuser -u pclaw -- "$APP_ROOT/.venv/bin/python" \
