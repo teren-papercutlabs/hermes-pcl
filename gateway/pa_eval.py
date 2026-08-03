@@ -348,10 +348,33 @@ def adapt_case_to_replay(
 
 _WHITESPACE_RE = re.compile(r"\s+")
 
+# Typographic glyph folds applied before exact assertions. Models emit smart
+# punctuation (curly quotes, en/em dashes, NBSP) in otherwise byte-exact
+# mandated sentences; folding both sides keeps the assertion about wording,
+# not about which glyph the renderer picked.
+_PUNCTUATION_FOLD = {
+    "‘": "'",  # left single quote
+    "’": "'",  # right single quote / curly apostrophe
+    "“": '"',  # left double quote
+    "”": '"',  # right double quote
+    "–": "-",  # en dash
+    "—": "-",  # em dash
+    " ": " ",  # non-breaking space
+}
+_PUNCTUATION_TABLE = str.maketrans(_PUNCTUATION_FOLD)
 
-def normalize_whitespace(value: str) -> str:
-    """Collapse Unicode/Python whitespace while preserving case and wording."""
-    return _WHITESPACE_RE.sub(" ", str(value)).strip()
+
+def normalize_for_exact_match(value: str) -> str:
+    """Fold whitespace and typographic punctuation, preserving case and wording.
+
+    Whitespace runs collapse to a single space, and typographic glyphs fold to
+    their ASCII equivalents (curly quotes -> straight, en/em dash -> hyphen,
+    NBSP -> space). This is glyph folding only: no case change, no rewording,
+    no character removal. Applied to BOTH sides of an exact assertion so
+    authored expectation text may itself use typographic characters.
+    """
+    folded = str(value).translate(_PUNCTUATION_TABLE)
+    return _WHITESPACE_RE.sub(" ", folded).strip()
 
 
 def run_exact_assertion(
@@ -360,8 +383,8 @@ def run_exact_assertion(
 ) -> dict[str, Any]:
     if expectation.kind not in EXACT_KINDS:
         raise PAEvalError(f"{expectation.kind} is not deterministic")
-    normalized_response = normalize_whitespace(response)
-    normalized_text = normalize_whitespace(expectation.text or "")
+    normalized_response = normalize_for_exact_match(response)
+    normalized_text = normalize_for_exact_match(expectation.text or "")
     present = normalized_text in normalized_response
     passed = present if expectation.kind == "exact_present" else not present
     return {
