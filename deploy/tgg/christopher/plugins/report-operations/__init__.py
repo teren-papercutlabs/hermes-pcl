@@ -211,26 +211,40 @@ def _download_ref(item: Mapping[str, Any], *, run_id: str, ordinal: int) -> dict
     ref = str(item.get("ref") or item.get("url") or "").strip()
     if ref.startswith("/"):
         ref = f"{str(_section().get('base_url') or '').rstrip('/')}{ref}"
-    if not ref.startswith(("http://", "https://")):
+    parsed_ref = urllib.parse.urlsplit(ref)
+    if parsed_ref.scheme not in {"http", "https"} or not parsed_ref.netloc:
         raise ValueError("get-reports returned an invalid signed ref")
-    root = Path(str(_section().get("download_root") or "")).expanduser().resolve()
-    if not str(root):
+    section = _section()
+    allowed_hosts = {
+        str(value).strip().lower()
+        for value in (section.get("allowed_download_hosts") or [])
+        if str(value).strip()
+    }
+    if parsed_ref.netloc.lower() not in allowed_hosts:
+        raise ValueError("get-reports returned a signed ref from an unapproved host")
+    if parsed_ref.scheme != "https" and section.get("allow_insecure_downloads") is not True:
+        raise ValueError("get-reports returned a non-HTTPS signed ref")
+    configured_root = str(section.get("download_root") or "").strip()
+    if not configured_root:
         raise ValueError("report download_root is not configured")
+    root = Path(configured_root).expanduser().resolve()
     target_dir = root / run_id
     target_dir.mkdir(parents=True, exist_ok=True, mode=0o750)
     filename = _safe_filename(item.get("file_name") or item.get("filename") or item.get("zone"), ordinal)
     target = target_dir / filename
     request = urllib.request.Request(ref, headers={"Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})
-    with urllib.request.urlopen(request, timeout=float(_section().get("timeout_seconds") or 60)) as response:
+    with urllib.request.urlopen(request, timeout=float(section.get("timeout_seconds") or 60)) as response:
         payload = response.read()
     digest = hashlib.sha256(payload).hexdigest()
     expected = str(item.get("hash") or item.get("sha256") or "").lower().removeprefix("sha256:")
-    if expected and digest != expected:
+    if not expected:
+        raise ValueError(f"signed report omitted a hash for {filename}")
+    if digest != expected:
         raise ValueError(f"signed report hash mismatch for {filename}")
     temporary = target.with_suffix(target.suffix + ".tmp")
     temporary.write_bytes(payload)
     temporary.replace(target)
-    return {**dict(item), "hash": digest, "local_path": str(target), "bytes": len(payload)}
+    return {**dict(item), "verified_hash": digest, "local_path": str(target), "bytes": len(payload)}
 
 
 def _get_reports(args: Mapping[str, Any], **_: Any) -> str:

@@ -21,6 +21,9 @@ pa:
   report_operations:
     enabled: true
     base_url: http://127.0.0.1:5456
+    allowed_download_hosts:
+    - systems.papercut-labs.com
+    allow_insecure_downloads: false
     timeout_seconds: 120
     download_root: /home/pclaw/.systems-pcl/data/media/tgg/hermes/report-runs
     headers:

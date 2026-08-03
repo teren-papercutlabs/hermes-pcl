@@ -164,6 +164,11 @@ def _prepare_home(
     config["pa"]["report_operations"]["download_root"] = str(
         fixture_media / "report-runs"
     )
+    config["pa"]["report_operations"]["base_url"] = stub_url
+    config["pa"]["report_operations"]["allowed_download_hosts"] = [
+        f"127.0.0.1:{urlsplit(stub_url).port}"
+    ]
+    config["pa"]["report_operations"]["allow_insecure_downloads"] = True
     config["pa"]["media_retention"]["media_root"] = str(fixture_media)
     config["pa"]["media_retention"]["source_roots"] = [str(fixture_media)]
     config["python_sandbox"]["media_retention"]["root"] = str(fixture_media)

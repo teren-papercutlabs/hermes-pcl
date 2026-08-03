@@ -91,6 +91,8 @@ def test_six_verbs_round_trip_and_download_four_documents(tmp_path, monkeypatch)
         section = {
             "enabled": True,
             "base_url": f"http://127.0.0.1:{server.server_port}",
+            "allowed_download_hosts": [f"127.0.0.1:{server.server_port}"],
+            "allow_insecure_downloads": True,
             "download_root": str(tmp_path),
             "headers": {"X-PS-Tenant": "tgg"},
             "auth": {"token_env": "CHRISTOPHER_TGG_PS_SERVICE_TOKEN", "scheme": "Bearer"},
@@ -176,8 +178,10 @@ def test_client_surface_config_and_schedule_are_disabled():
 def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path):
     script = DEPLOY / "scripts" / "run_scheduled_report.py"
     source = script.read_text()
+    assert "process_live_records" not in source
+    assert "TGG_REPLY_BRIDGE_URL" not in source
     assert "if not args.dry_run:" in source
-    assert "_deliver(intents)" in source
+    assert "append_record(Path(args.source), record)" in source
     for timer in ("weekly", "monthly"):
         assert "OnCalendar=Mon " in (DEPLOY / "systemd" / f"christopher-tgg-report-{timer}.timer").read_text()
     bootstrap = (DEPLOY / "scripts" / "bootstrap_runtime.sh").read_text()
@@ -190,35 +194,13 @@ def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path)
     runner = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     spec.loader.exec_module(runner)
-    media_root = tmp_path / "media"
-    media_root.mkdir()
-    files = []
-    for zone in ("AMK", "HG", "PG", "SK"):
-        path = media_root / f"{zone}.xlsx"
-        path.write_bytes(b"PK\x03\x04fixture")
-        files.append(path)
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text(yaml.safe_dump({
-        "pa": {"media_retention": {
-            "enabled": True,
-            "media_root": str(media_root),
-            "media_ref_prefix": "/media/tgg/hermes",
-            "source_roots": [str(media_root)],
-            "operation": "fixture_retention",
-        }}
-    }))
-    body = "Verifier pass. Window auto. New 1; updates 2; closures 1.\n" + "\n".join(
-        f"MEDIA:{path}" for path in files
-    )
-    captured = [{
-        "kind": "send",
-        "args": [runner.MANAGEMENT_CHAT, body],
-        "kwargs": {},
-    }]
-    intents = runner._intents(captured, config_path)
-    assert len(intents) == 4
-    assert all(item["endpoint"] == "send-media" for item in intents)
-    assert sum(bool(item["payload"].get("caption")) for item in intents) == 1
+    record = runner.build_record("weekly", now=123)
+    assert record["senderId"] == "system@internal"
+    assert record["body"] == "[system] scheduled weekly report run"
+    assert record["chatId"] == runner.MANAGEMENT_CHAT
+    monkeypatch.setattr(runner, "append_record", lambda *_args: (_ for _ in ()).throw(AssertionError("dry-run appended")))
+    monkeypatch.setattr("sys.argv", [str(script), "--cycle", "weekly", "--dry-run", "--timestamp", "123"])
+    assert runner.main() == 0
 
 
 def test_shared_runtime_files_have_no_new_report_domain_adapter():
