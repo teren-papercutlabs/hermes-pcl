@@ -2131,6 +2131,7 @@ def test_fixture_mode_uses_inbox_path_and_marks_completed(tmp_path, monkeypatch)
             "model": "gpt-5.4-mini",
             "processed": 1,
             "outbound_captured": 1,
+            "captured_outbound": [{"kind": "send", "args": ["chat", "fixture"]}],
             "blocked_commands": 0,
         }
 
@@ -2151,6 +2152,9 @@ def test_fixture_mode_uses_inbox_path_and_marks_completed(tmp_path, monkeypatch)
     report = json.loads((tmp_path / "report.json").read_text())
     assert report["ok"] is True
     assert report["result"]["turn_id"] == "pa-turn-fixture"
+    assert report["result"]["captured_outbound"] == [
+        {"kind": "send", "args": ["chat", "fixture"]}
+    ]
 
 
 def test_fixture_mode_rejects_path_outside_test_root(tmp_path):

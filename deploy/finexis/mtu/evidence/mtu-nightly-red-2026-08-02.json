@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-08-02T13:38:50.234782+00:00",
+  "status": "red",
+  "population": {
+    "cases": 43,
+    "turns": 54,
+    "expected_cases": 43,
+    "selected_cases": 43
+  },
+  "corpus_digest": "sha256:29e77920f2f45afbfcd0583c55f5cf988897f06664559aa6b27abfeed13d857d",
+  "runtime": {
+    "mode": "disposable_copy",
+    "live_home_written": false,
+    "model_provider": "custom",
+    "model": "gpt-5.6-luna"
+  },
+  "regression": {
+    "accepted_failure_count": 10,
+    "current_failure_count": 6,
+    "new_failure_count": 1,
+    "new_failure_keys": [
+      "MTU-017_rop_targeted_intake_and_exact_output|1|1|exact_present|includes the exact does-not-exceed sustainability sentence|Total annual premiums do not exceed 50% of the client's surplus."
+    ]
+  },
+  "judge_status": "calibration_pending",
+  "wb_post": {
+    "exit_code": 0,
+    "delivery_status": "delivered"
+  }
+}

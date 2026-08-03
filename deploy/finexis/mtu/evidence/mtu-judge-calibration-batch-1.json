@@ -1,0 +1,499 @@
+{
+  "schema_version": 1,
+  "reviewer": "amelia",
+  "route_via": "edna-mtu",
+  "judge_pin": {
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "schema": "evals/mtu-judge.schema.json",
+    "turns_scored": 10,
+    "turns_total": 52,
+    "assertions_scored": 32,
+    "failed": 7,
+    "review_needed": 0,
+    "status": "calibration_pending"
+  },
+  "items": [
+    {
+      "case_id": "MTU-001_safe_opening_intake",
+      "draw": 1,
+      "turn_index": 0,
+      "input_turns": [
+        {
+          "text": "I have a new BOR case."
+        }
+      ],
+      "response": "Hi, I’m MTU Assistant. `/help` shows available commands.\n\nPlease share:\n- existing plan(s) — insurer, plan name, category; or say “none”\n- proposed plan — insurer, plan name/riders, category\n\nIf there is an existing plan and it’s being replaced, just say so in the same message.",
+      "machine_results": [
+        {
+          "label": "asks one concise intake question for the existing plan or confirmation that none exists, the proposed plan, and relevant material case facts",
+          "kind": "must",
+          "passed": true,
+          "why": "The response makes one concise intake request covering existing plans or “none,” the proposed plan, plan categories, riders, and replacement status.",
+          "review_needed": false
+        },
+        {
+          "label": "does not ask for existing plans and ROP or replacement status as two separate intake items",
+          "kind": "must_not",
+          "passed": true,
+          "why": "Replacement status is presented as a conditional addition to the same message, not as a separate intake item.",
+          "review_needed": false
+        },
+        {
+          "label": "does not ask for the client's reason, rationale, or alternatives considered",
+          "kind": "must_not",
+          "passed": true,
+          "why": "The response does not request the client’s reasons, rationale, or alternatives.",
+          "review_needed": false
+        },
+        {
+          "label": "does not draft a completed BOR before material case facts are supplied",
+          "kind": "must_not",
+          "passed": true,
+          "why": "The response only requests intake information and does not draft a BOR.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-002_derive_rop_without_reasking",
+      "draw": 1,
+      "turn_index": 0,
+      "input_turns": [
+        {
+          "text": "Client wants to replace a whole life plan with a term plan.",
+          "expected_before_next": [
+            "derives ROP from the explicit replacement without asking whether it is ROP",
+            "asks one compact question only for unresolved material case facts",
+            "does not ask for insurer or standard narrative defaults"
+          ]
+        }
+      ],
+      "response": "Please send these details so I can draft the BOR:\n\n1. Existing whole life plan name\n2. Proposed term plan name and any riders\n3. Before/after coverage for Death, TI, TPD and CI, including coverage till age\n4. Premiums for the existing and proposed plans",
+      "machine_results": [
+        {
+          "label": "derives ROP from the explicit replacement without asking whether it is ROP",
+          "kind": "must",
+          "passed": true,
+          "why": "The response proceeds directly to gathering replacement/BOR details and does not ask whether the case is an ROP.",
+          "review_needed": false
+        },
+        {
+          "label": "asks one compact question only for unresolved material case facts",
+          "kind": "must",
+          "passed": true,
+          "why": "It makes one concise request containing a numbered list of unresolved, material plan, coverage, rider, and premium facts.",
+          "review_needed": false
+        },
+        {
+          "label": "does not ask for insurer or standard narrative defaults",
+          "kind": "must_not",
+          "passed": true,
+          "why": "The response requests neither insurer information nor standard narrative defaults.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-002_derive_rop_without_reasking",
+      "draw": 1,
+      "turn_index": 1,
+      "input_turns": [
+        {
+          "text": "Client wants to replace a whole life plan with a term plan.",
+          "expected_before_next": [
+            "derives ROP from the explicit replacement without asking whether it is ROP",
+            "asks one compact question only for unresolved material case facts",
+            "does not ask for insurer or standard narrative defaults"
+          ]
+        },
+        {
+          "text": "It is from Prudential to Singlife term. Original coverage was S$500,000 until age 65 and the new coverage is S$1 million until age 70. Original premium was S$3,000 yearly and the new premium is S$5,000 yearly."
+        }
+      ],
+      "response": "I have the switch, death coverage, and premiums.\n\nPlease send:\n1. exact existing whole life plan name and exact proposed Singlife term plan name\n2. the before/after coverage details for TI, TPD, and CI, including any coverage till age or duration, if they apply",
+      "machine_results": [
+        {
+          "label": "derives ROP from the explicit replacement without asking whether it is ROP",
+          "kind": "must",
+          "passed": true,
+          "why": "The response recognizes the transaction as a switch and does not ask whether it is a replacement of policy.",
+          "review_needed": false
+        },
+        {
+          "label": "asks one compact question only for unresolved material case facts",
+          "kind": "must",
+          "passed": true,
+          "why": "It makes one concise request covering only the unresolved exact plan names and TI, TPD, and CI coverage details.",
+          "review_needed": false
+        },
+        {
+          "label": "does not ask for insurer or standard narrative defaults",
+          "kind": "must_not",
+          "passed": true,
+          "why": "It asks for exact plan names, not insurer identities or standard narrative defaults.",
+          "review_needed": false
+        },
+        {
+          "label": "does not ask for the client's reason, alternatives considered, income or surplus figures, reference numbers, replacement-disadvantages wording, arithmetic confirmation or comparison-list freshness",
+          "kind": "must_not",
+          "passed": true,
+          "why": "None of the listed forbidden information is requested.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-003_shield_intake_rop_ask_once",
+      "draw": 1,
+      "turn_index": 0,
+      "input_turns": [
+        {
+          "text": "Hi",
+          "expected_before_next": [
+            "asks for existing plan(s) only and does not present ROP as a separate intake item"
+          ]
+        }
+      ],
+      "response": "Hi — please send the existing plan(s) and the proposed plan, with insurer, plan name, and category. If there is no existing plan, just say new purchase.",
+      "machine_results": [
+        {
+          "label": "asks for existing plan(s) only and does not present ROP as a separate intake item",
+          "kind": "must",
+          "passed": false,
+          "why": "The response does not present ROP as a separate intake item, but it asks for both the existing plan(s) and the proposed plan rather than asking for existing plan(s) only.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-003_shield_intake_rop_ask_once",
+      "draw": 1,
+      "turn_index": 1,
+      "input_turns": [
+        {
+          "text": "Hi",
+          "expected_before_next": [
+            "asks for existing plan(s) only and does not present ROP as a separate intake item"
+          ]
+        },
+        {
+          "text": "Existing plan is Great Eastern SupremeHealth P Plus. Proposed plan is Singlife Shield Plan 1 with Health Plus rider. Yes, this is ROP."
+        }
+      ],
+      "response": "Quick check: please send the premium figures for both plans so I can draft the BOR properly.\n\nNeed:\n- Great Eastern SupremeHealth P Plus: current annual premium\n- Singlife Shield Plan 1 + Health Plus rider: annual premium\n\nIf the rider premium is separate, include that too.",
+      "machine_results": [
+        {
+          "label": "Treats the case as ROP without asking for replacement confirmation again",
+          "kind": "must",
+          "passed": true,
+          "why": "The response proceeds with BOR intake and does not ask the user to reconfirm that this is a replacement case.",
+          "review_needed": false
+        },
+        {
+          "label": "If material information is still needed, asks one compact question limited to genuinely missing Shield inputs such as the exact/versioned rider name, material premiums, and the yes/no 50%-of-surplus threshold",
+          "kind": "must",
+          "passed": true,
+          "why": "It makes one compact request limited to the missing annual premium figures, including a separately priced rider premium.",
+          "review_needed": false
+        },
+        {
+          "label": "Does not ask for the client's reason, alternatives considered, replacement-disadvantages confirmation, income or surplus figures, reference numbers, arithmetic confirmation, or comparison-list freshness",
+          "kind": "must_not",
+          "passed": true,
+          "why": "None of the forbidden information or confirmations is requested.",
+          "review_needed": false
+        },
+        {
+          "label": "Does not ask for Shield benefit limits, deductibles, or co-insurance",
+          "kind": "must_not",
+          "passed": true,
+          "why": "The response asks only for premiums and does not request benefit limits, deductibles, or co-insurance.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-004_shield_intake_retains_non_rop",
+      "draw": 1,
+      "turn_index": 0,
+      "input_turns": [
+        {
+          "text": "Hi, my client wants to buy a Singlife Shield plan with Health Plus Plan 1.",
+          "expected_before_next": [
+            "asks for existing plan(s) without separately asking ROP status"
+          ]
+        }
+      ],
+      "response": "Please share the premium for Singlife Shield with Health Plus Plan 1.",
+      "machine_results": [
+        {
+          "label": "asks for existing plan(s) without separately asking ROP status",
+          "kind": "must",
+          "passed": false,
+          "why": "The response asks only for the premium and does not ask about the client's existing plan or plans.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-004_shield_intake_retains_non_rop",
+      "draw": 1,
+      "turn_index": 1,
+      "input_turns": [
+        {
+          "text": "Hi, my client wants to buy a Singlife Shield plan with Health Plus Plan 1.",
+          "expected_before_next": [
+            "asks for existing plan(s) without separately asking ROP status"
+          ]
+        },
+        {
+          "text": "No."
+        }
+      ],
+      "response": "What is the client’s current plan, if any, and what is the annual premium for Health Plus Plan 1? If there is no existing plan, just say “new purchase.”",
+      "machine_results": [
+        {
+          "label": "opening reply asks for existing plan(s) only and does not separately ask whether this is a replacement",
+          "kind": "must",
+          "passed": false,
+          "why": "The reply asks for both the client’s current plan and the annual premium, so it does not ask for existing plans only.",
+          "review_needed": false
+        },
+        {
+          "label": "retains the no-existing-plan answer, derives non-ROP status, and never asks the replacement question again",
+          "kind": "must",
+          "passed": false,
+          "why": "The reply asks again about the client’s current plan and does not derive or state non-ROP status.",
+          "review_needed": false
+        },
+        {
+          "label": "before drafting, asks one compact question for remaining material Shield facts, including the exact base plan, premium and payment frequency, and the 50%-of-surplus answer",
+          "kind": "must",
+          "passed": false,
+          "why": "The reply asks for a current plan and annual premium but omits the exact base plan, a distinct payment-frequency answer, and the 50%-of-surplus answer.",
+          "review_needed": false
+        },
+        {
+          "label": "does not present a completed BOR while required material Shield facts remain absent",
+          "kind": "must_not",
+          "passed": true,
+          "why": "The reply only requests information and does not present a completed BOR.",
+          "review_needed": false
+        },
+        {
+          "label": "does not ask for the client's rationale, alternatives considered, reason for preference, or reference/application number",
+          "kind": "must_not",
+          "passed": true,
+          "why": "None of the forbidden rationale, alternatives, preference-reason, or reference/application-number questions are asked.",
+          "review_needed": false
+        },
+        {
+          "label": "does not state unsupported deductible, co-insurance, rider-benefit, or other product-feature claims",
+          "kind": "must_not",
+          "passed": true,
+          "why": "The reply makes no product-feature claims.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-005_rop_answer_not_reasked",
+      "draw": 1,
+      "turn_index": 0,
+      "input_turns": [
+        {
+          "text": "New case. There is an existing unspecified protection policy and the proposed plan is FlexiProtector. I have not said whether the existing policy will be replaced. Category, riders, sums assured, premiums, and durations are not confirmed.",
+          "expected_before_next": [
+            "asks once whether the existing policy is being replaced",
+            "requests the other material facts compactly without drafting"
+          ]
+        }
+      ],
+      "response": "This FlexiProtector case needs Melody review because there isn’t an approved reference path for FlexiProtector.\n\nQuick check: is the existing protection policy being replaced? Yes or no.",
+      "machine_results": [
+        {
+          "label": "asks once whether the existing policy is being replaced",
+          "kind": "must",
+          "passed": true,
+          "why": "The assistant asks exactly one yes-or-no question about whether the existing protection policy is being replaced.",
+          "review_needed": false
+        },
+        {
+          "label": "requests the other material facts compactly without drafting",
+          "kind": "must",
+          "passed": false,
+          "why": "The assistant does not request the unconfirmed category, riders, sums assured, premiums, or durations.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-005_rop_answer_not_reasked",
+      "draw": 1,
+      "turn_index": 1,
+      "input_turns": [
+        {
+          "text": "New case. There is an existing unspecified protection policy and the proposed plan is FlexiProtector. I have not said whether the existing policy will be replaced. Category, riders, sums assured, premiums, and durations are not confirmed.",
+          "expected_before_next": [
+            "asks once whether the existing policy is being replaced",
+            "requests the other material facts compactly without drafting"
+          ]
+        },
+        {
+          "text": "Yes, FlexiProtector will replace the existing policy. The existing plan is whole life, but the proposed category and riders remain unconfirmed."
+        }
+      ],
+      "response": "Escalate to Melody: this is a replacement of a whole life policy into FlexiProtector, and FlexiProtector is an unsupported category/path for BOR drafting here. The proposed category and riders are still unconfirmed, so I’m withholding the BOR draft for this component.\n\nCheck before use:\n- Proposed category for FlexiProtector\n- Exact rider names, if any",
+      "machine_results": [
+        {
+          "label": "retains the supplied affirmative ROP answer for the current case",
+          "kind": "must",
+          "passed": true,
+          "why": "The response explicitly identifies the case as “a replacement of a whole life policy into FlexiProtector.”",
+          "review_needed": false
+        },
+        {
+          "label": "does not ask again whether the case is ROP or whether the existing policy is being replaced",
+          "kind": "must_not",
+          "passed": true,
+          "why": "It does not repeat the replacement/ROP question; its follow-up checks concern only the proposed category and rider names.",
+          "review_needed": false
+        },
+        {
+          "label": "withholds the unsupported FlexiProtector component and escalates it to Melody",
+          "kind": "must",
+          "passed": true,
+          "why": "It says “Escalate to Melody,” identifies FlexiProtector as unsupported, and states that the BOR draft for the component is being withheld.",
+          "review_needed": false
+        },
+        {
+          "label": "does not fabricate the proposed category, riders, or plan figures",
+          "kind": "must_not",
+          "passed": true,
+          "why": "The response leaves category and riders unconfirmed and supplies no invented sums assured, premiums, durations, or other plan figures.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    },
+    {
+      "case_id": "MTU-006_voyage_intake_derives_rop",
+      "draw": 1,
+      "turn_index": 0,
+      "input_turns": [
+        {
+          "text": "BOR for Voyage",
+          "expected_before_next": [
+            "asks one compact intake question for genuinely missing material case facts",
+            "asks for existing plans without separately asking whether the case is ROP",
+            "does not ask for fund-objective alignment"
+          ]
+        }
+      ],
+      "response": "Please send the case details in one message: existing plan(s), whether this is a replacement, exact Voyage variant and fund name, first-year and subsequent premium, policy term or minimum investment period, CKA result, and risk profile. If it’s a replacement, tell me what plan is being replaced.",
+      "machine_results": [
+        {
+          "label": "asks one compact intake question for genuinely missing material case facts",
+          "kind": "must",
+          "passed": true,
+          "why": "The response requests the missing case details together in one compact intake prompt.",
+          "review_needed": false
+        },
+        {
+          "label": "asks for existing plans without separately asking whether the case is ROP",
+          "kind": "must",
+          "passed": false,
+          "why": "Although it asks for existing plans, it also separately asks whether the case is a replacement and repeats that replacement inquiry conditionally.",
+          "review_needed": false
+        },
+        {
+          "label": "does not ask for fund-objective alignment",
+          "kind": "must",
+          "passed": true,
+          "why": "The response asks for the fund name but does not ask whether the fund aligns with an investment objective.",
+          "review_needed": false
+        }
+      ],
+      "amelia_grade": {
+        "options": [
+          "pass",
+          "fail",
+          "discuss"
+        ],
+        "verdicts": []
+      }
+    }
+  ]
+}

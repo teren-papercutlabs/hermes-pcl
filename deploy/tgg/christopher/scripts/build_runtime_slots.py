@@ -5,7 +5,7 @@ The June baseline files stay byte-exact (provenance-pinned). Every slot is
 baseline + the authored patch layer:
 
   - processing gate forced closed (pa.enabled false, whatsapp gateway off)
-  - memory hard-off (memory_enabled / user_profile_enabled false) — WB b63dd4f0
+  - durable MEMORY.md injection on, USER.md off, bounded to 2200 chars
   - ops-judgment operations (clarification / attention / WC attach) —
     patches/ops-judgment-operations.snippet.yaml
   - ops-ingest judgment rules + structured work_items extraction —
@@ -18,8 +18,8 @@ baseline + the authored patch layer:
     patches/mgmt-business-operations.snippet.yaml
   - per-slot engine: model + optional agent.reasoning_effort
 
-Slots are keyed by slot id, not bare model name: gpt-5.6-luna-low runs
-gpt-5.6-luna at reasoning_effort low.
+Slots are keyed by slot id, not bare model name: the luna low/xhigh slots run
+gpt-5.6-luna with an explicit reasoning effort.
 """
 
 from __future__ import annotations
@@ -42,9 +42,15 @@ SLOTS: dict[str, dict] = {
     "gpt-5.4-mini": {"model": "gpt-5.4-mini", "reasoning_effort": None},
     "gpt-5.6-luna": {"model": "gpt-5.6-luna", "reasoning_effort": None},
     "gpt-5.6-luna-low": {"model": "gpt-5.6-luna", "reasoning_effort": "low"},
+    "gpt-5.6-luna-xhigh": {"model": "gpt-5.6-luna", "reasoning_effort": "xhigh"},
 }
 
-MEMORY_OFF_BLOCK = "memory:\n  memory_enabled: false\n  user_profile_enabled: false\n"
+MEMORY_BLOCK = (
+    "memory:\n"
+    "  memory_enabled: true\n"
+    "  user_profile_enabled: false\n"
+    "  memory_char_limit: 2200\n"
+)
 TIMEZONE_BLOCK = "timezone: Asia/Singapore\n"
 # One persistent session per chat that autocompacts — no daily reset, no idle
 # reset (teren ruling 2026-07-29; WB a9ab2ff5). Context is managed only by the
@@ -66,6 +72,10 @@ PYTHON_SANDBOX_BLOCK = (
     "      type: path\n"
     "      path: /home/pclaw/.systems-pcl/data/media/tgg/hermes\n"
     '      description: "Retained WhatsApp media/attachments (read-only; spreadsheets land here)"\n'
+    "    documents:\n"
+    "      type: path\n"
+    "      path: /var/lib/tgg-capture/whatsapp/media/documents\n"
+    '      description: "Documents uploaded in WhatsApp chats, ORIGINAL filenames matching the saved-at path shown in the message (read-only)"\n'
     "  limits:\n"
     "    wall_seconds: 120\n"
     "    max_wall_seconds: 300\n"
@@ -419,7 +429,7 @@ def _safe_config(source: str, slot: dict) -> str:
     )
     if not rendered.endswith("group_sessions_per_user: false\n"):
         raise RuntimeError("config baseline no longer ends at group_sessions_per_user")
-    rendered += TIMEZONE_BLOCK + SESSION_RESET_BLOCK + MEMORY_OFF_BLOCK + PYTHON_SANDBOX_BLOCK
+    rendered += TIMEZONE_BLOCK + SESSION_RESET_BLOCK + MEMORY_BLOCK + PYTHON_SANDBOX_BLOCK
     rendered += "plugins:\n  enabled:\n  - report-operations\n"
     if effort is not None:
         rendered = _replace_once(
@@ -569,8 +579,9 @@ def _validate(
     for task in ("compression", "session_search", "title_generation"):
         assert config["auxiliary"][task]["model"] == model
     assert config["memory"] == {
-        "memory_enabled": False,
+        "memory_enabled": True,
         "user_profile_enabled": False,
+        "memory_char_limit": 2200,
     }
     assert config["python_sandbox"] == {
         "enabled": True,
@@ -589,6 +600,11 @@ def _validate(
                 "type": "path",
                 "path": "/home/pclaw/.systems-pcl/data/media/tgg/hermes",
                 "description": "Retained WhatsApp media/attachments (read-only; spreadsheets land here)",
+            },
+            "documents": {
+                "type": "path",
+                "path": "/var/lib/tgg-capture/whatsapp/media/documents",
+                "description": "Documents uploaded in WhatsApp chats, ORIGINAL filenames matching the saved-at path shown in the message (read-only)",
             },
         },
         "limits": {

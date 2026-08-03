@@ -23,6 +23,11 @@ fi
 
 install -d -m 0755 -o pclaw -g pclaw /home/pclaw /home/pclaw/apps
 install -d -m 0750 -o pclaw -g pclaw "$HERMES_HOME" "$RUNTIME_ROOT" "$TEST_HOME"
+# pa-agent creates newly introduced parent directories as root mode 0700.
+# Normalize the plugin source path before the runtime user or verifier reads it.
+install -d -m 0755 -o root -g root \
+  "$DEPLOY_ROOT/plugins" \
+  "$DEPLOY_ROOT/plugins/report-operations"
 test -s "$HERMES_HOME/.env" || {
   echo "missing $HERMES_HOME/.env; run prepare_host_secrets.sh first" >&2
   exit 20
@@ -72,9 +77,14 @@ ln -sfn "$DEPLOY_ROOT/plugins/report-operations" "$HERMES_HOME/plugins/report-op
 chown root:pclaw "$RUNTIME_ROOT/processing-gate.json"
 chmod 0640 "$RUNTIME_ROOT/processing-gate.json"
 
+slot_args=()
+if [[ -n "${CHRISTOPHER_ENGINE_SLOT:-}" ]]; then
+  slot_args=(--slot "$CHRISTOPHER_ENGINE_SLOT")
+fi
 "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" \
   --app-root "$APP_ROOT" \
-  --hermes-home "$HERMES_HOME"
+  --hermes-home "$HERMES_HOME" \
+  "${slot_args[@]}"
 
 if [[ ! -e "$RUNTIME_ROOT/capture-cursor.json" ]]; then
   runuser -u pclaw -- "$APP_ROOT/.venv/bin/python" \

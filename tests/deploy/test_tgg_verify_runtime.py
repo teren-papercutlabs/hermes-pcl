@@ -245,6 +245,13 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     manifest_ref = spec["spec"]["deploy"]["manifestRef"]
     assert manifest_ref == "deploy/tgg/christopher/pa-agent.hermes.manifest.json"
 
+    manifest = json.loads((ROOT / manifest_ref).read_text())
+    bootstrap_hook = manifest["services"][0]["preRestartHooks"][0]["command"]
+    assert "CHRISTOPHER_ENGINE_SLOT=gpt-5.6-luna-xhigh" in bootstrap_hook
+    bootstrap = (DEPLOY_ROOT / "scripts" / "bootstrap_runtime.sh").read_text()
+    assert 'slot_args=(--slot "$CHRISTOPHER_ENGINE_SLOT")' in bootstrap
+    assert '"${slot_args[@]}"' in bootstrap
+
     deploy_script = (DEPLOY_ROOT / "scripts" / "deploy_runtime.sh").read_text()
     assert 'd["spec"]["deploy"]["manifestRef"]' in deploy_script
     assert '--manifest "$manifest_path"' in deploy_script
@@ -298,3 +305,101 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
             "timeoutMs": 600000,
         }
     ]
+
+
+def _run_preserve_env_key(
+    current: Path, staged: Path
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(DEPLOY_ROOT / "scripts" / "preserve_env_key.py"),
+            str(current),
+            str(staged),
+            "CHRISTOPHER_TGG_PS_SERVICE_TOKEN",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_secret_refresh_preserves_migrated_christopher_token(tmp_path: Path) -> None:
+    current = tmp_path / "current.env"
+    staged = tmp_path / "staged.env"
+    current.write_text(
+        'OPENAI_API_KEY="old"\n'
+        'CHRISTOPHER_TGG_PS_SERVICE_TOKEN="christopher-scoped"\n',
+        encoding="utf-8",
+    )
+    staged.write_text('OPENAI_API_KEY="fresh"\n', encoding="utf-8")
+
+    result = _run_preserve_env_key(current, staged)
+
+    assert result.returncode == 0, result.stderr
+    assert staged.read_text(encoding="utf-8").splitlines() == [
+        'OPENAI_API_KEY="fresh"',
+        'CHRISTOPHER_TGG_PS_SERVICE_TOKEN="christopher-scoped"',
+    ]
+
+
+@pytest.mark.parametrize(
+    ("current_text", "staged_text", "error"),
+    [
+        (
+            'CHRISTOPHER_TGG_PS_SERVICE_TOKEN="one"\n'
+            'CHRISTOPHER_TGG_PS_SERVICE_TOKEN="two"\n',
+            'OPENAI_API_KEY="fresh"\n',
+            "destination env contains duplicate",
+        ),
+        (
+            'OPENAI_API_KEY="old"\n',
+            'OPENAI_API_KEY="fresh"\n'
+            'CHRISTOPHER_TGG_PS_SERVICE_TOKEN="studio-value"\n',
+            "staged env unexpectedly contains",
+        ),
+        (
+            'export CHRISTOPHER_TGG_PS_SERVICE_TOKEN="old"\n',
+            'OPENAI_API_KEY="fresh"\n',
+            "destination env contains non-canonical",
+        ),
+    ],
+)
+def test_secret_refresh_refuses_unsafe_token_shapes_without_mutating_staged(
+    tmp_path: Path, current_text: str, staged_text: str, error: str
+) -> None:
+    current = tmp_path / "current.env"
+    staged = tmp_path / "staged.env"
+    current.write_text(current_text, encoding="utf-8")
+    staged.write_text(staged_text, encoding="utf-8")
+    before = staged.read_bytes()
+
+    result = _run_preserve_env_key(current, staged)
+
+    assert result.returncode != 0
+    assert error in result.stderr
+    assert staged.read_bytes() == before
+
+
+@pytest.mark.parametrize("current_exists", [False, True])
+def test_secret_refresh_tokenless_state_leaves_staged_byte_identical(
+    tmp_path: Path, current_exists: bool
+) -> None:
+    current = tmp_path / "current.env"
+    staged = tmp_path / "staged.env"
+    if current_exists:
+        current.write_text('OPENAI_API_KEY="old"\n', encoding="utf-8")
+    staged.write_text('OPENAI_API_KEY="fresh"\n', encoding="utf-8")
+    before = staged.read_bytes()
+
+    result = _run_preserve_env_key(current, staged)
+
+    assert result.returncode == 0, result.stderr
+    assert staged.read_bytes() == before
+
+
+def test_prepare_script_streams_helper_and_cleans_remote_staging() -> None:
+    script = (DEPLOY_ROOT / "scripts" / "prepare_host_secrets.sh").read_text()
+    assert 'CHRISTOPHER_TGG_PS_SERVICE_TOKEN < "$SCRIPT_DIR/preserve_env_key.py"' in script
+    assert "trap cleanup EXIT" in script
+    assert "rm -f /root/.pcl-secret-staging/christopher.env" in script

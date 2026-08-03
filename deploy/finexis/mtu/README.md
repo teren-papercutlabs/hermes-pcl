@@ -16,7 +16,9 @@ Advisor DMs a rough case (existing plan, proposed plan, is-it-a-replacement) →
 | `config.yaml` | Gateway config: model (openai-direct-primary/gpt-5.4-mini) + `pa.enabled/job_type/constitution_path` + `platforms.telegram`. |
 | `SOUL.md` | Thin operating rule only. Reference tables are deliberately absent from the prompt. |
 | `knowledge/`, `reference/` | Manifest-declared prose and exact-key structured references. `compose: false` reference artifacts are validated and digested but excluded from constitution prose. |
-| `scripts/bootstrap_local.sh` | Builds the explicitly supplied `HERMES_HOME` from this dir + writes `.env` (token + allowlist + OPENAI key sourced from secrets). It has no production-profile default. Idempotent. Secrets never committed. |
+| `scripts/deploy_guarded.py` | The only deploy entry and writer. Applies the change-class eval gate before installing runtime files (config, constitution, SOUL, declared knowledge sync, `.env`). |
+| `scripts/bootstrap_local.sh` | Retired legacy entry that always refuses, including forged receipt input. |
+| `eval-policy.yaml`, `evals/`, `scripts/run_nightly.py` | Pinned judge, deploy gate table, canonical corpus, and nightly regression. |
 | `OPS-NOTE.md` | Deploy specifics + what remains + rollback. |
 
 ## Typed constitution compose
@@ -68,12 +70,19 @@ only writes the two caller-selected output paths; it does not deploy, restart He
 only those declared files beneath the configured knowledge root. Runtime tools refuse any
 undeclared path. `pa_reference_lookup` performs exact key lookup and returns either the
 declared row or `found=false` with the file's escalation cue; it never fuzzy-matches.
+The guarded deploy performs the same declared-knowledge sync as part of `install_runtime`.
 
-## Run (once a free bot token is available)
+## Guarded deploy
 ```bash
-# 1. token -> ~/.hermes-mtu-token.tmp (chmod 600), then:
-deploy/finexis/mtu/scripts/bootstrap_local.sh ~/.hermes-mtu-token.tmp "<advisor_tg_user_id>"
-# 2. run (needs network egress):
+# token -> ~/.hermes-mtu-token.tmp (chmod 600), then:
+.venv/bin/python deploy/finexis/mtu/scripts/deploy_guarded.py \
+  --change-class rule \
+  --changed-file deploy/finexis/mtu/rules/040-intake.yaml \
+  --report <affected-tags-plus-smoke-scored-report.json> \
+  --token-file ~/.hermes-mtu-token.tmp \
+  --allowed-users "<advisor_tg_user_ids_csv>"
+
+# run/restart only after the guarded deploy succeeds:
 HERMES_HOME=~/.hermes-mtu ~/pcl-dev/hermes-pcl/.venv/bin/python ~/pcl-dev/hermes-pcl/hermes gateway run
 ```
 Then DM the bot from an allowlisted Telegram account. Full research/recipe: `~/pcl-biz/_agents/edna/specs/2026-07-05-fa-mtu-assistant/deploy-research.md`.

@@ -32,13 +32,17 @@ AUTHORED_SELECTOR_ADDITIONS: list[dict[str, Any]] = [
 EXPECTED_API_VERSION = "pa.papercutlabs.com/v1"
 EXPECTED_KIND = "ClientAgentDeployment"
 
-# slot id -> model. gpt-5.6-luna-low runs gpt-5.6-luna at reasoning_effort low.
+# slot id -> model. Suffixed slots pin an explicit reasoning effort.
 SLOT_MODELS = {
     "gpt-5.4-mini": "gpt-5.4-mini",
     "gpt-5.6-luna": "gpt-5.6-luna",
     "gpt-5.6-luna-low": "gpt-5.6-luna",
+    "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
 }
-SLOT_REASONING_EFFORT = {"gpt-5.6-luna-low": "low"}
+SLOT_REASONING_EFFORT = {
+    "gpt-5.6-luna-low": "low",
+    "gpt-5.6-luna-xhigh": "xhigh",
+}
 
 
 def _sha256(path: Path) -> str:
@@ -238,6 +242,18 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         constitution = _load_yaml(constitution_path)
         if config["pa"]["enabled"] is not False:
             raise RuntimeError(f"slot {slot} enables PA")
+        if config.get("memory") != {
+            "memory_enabled": True,
+            "user_profile_enabled": False,
+            "memory_char_limit": 2200,
+        }:
+            raise RuntimeError(f"slot {slot} memory injection config drifted")
+        if config.get("python_sandbox", {}).get("datasets", {}).get("documents") != {
+            "type": "path",
+            "path": "/var/lib/tgg-capture/whatsapp/media/documents",
+            "description": "Documents uploaded in WhatsApp chats, ORIGINAL filenames matching the saved-at path shown in the message (read-only)",
+        }:
+            raise RuntimeError(f"slot {slot} documents dataset drifted")
         if config["pa"].get("media_retention") != {
             "enabled": True,
             "media_root": "/home/pclaw/.systems-pcl/data/media/tgg/hermes",

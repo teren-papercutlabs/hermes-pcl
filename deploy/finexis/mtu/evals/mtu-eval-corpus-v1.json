@@ -1842,7 +1842,7 @@
    },
    "expected": [
     {
-     "label": "covers protection alternatives including investment-linked plans (wording judgment: the previously asserted exact sentence came from compliance/196-protection-alternatives.yaml, approved_date null — never approved; downgraded from exact_present 2026-08-03 during S3, pending an approved sentence from the client)",
+     "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
      "kind": "must",
      "critical": false
     },

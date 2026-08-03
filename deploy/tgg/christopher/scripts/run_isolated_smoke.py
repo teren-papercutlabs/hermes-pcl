@@ -19,6 +19,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 import yaml
+from dotenv import load_dotenv
 
 
 ALLOWED_SECRET_KEYS = {
@@ -139,6 +140,13 @@ def _copy_test_env(source: Path, target: Path) -> None:
     lines.append("TGG_REPORT_OPS_TOKEN=fixture-only")
     target.write_text("\n".join(lines) + "\n", encoding="utf-8")
     target.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    # Plugin discovery happens when the Hermes runtime modules are imported
+    # below.  Loading the fixture env after that import is too late: plugin
+    # availability checks would hide every report tool from the model even
+    # though the credential exists on disk.  Export the isolated fixture env
+    # first; it contains only the allow-listed provider keys plus a synthetic
+    # report token and never touches the live process environment upstream.
+    load_dotenv(target, override=True)
 
 
 def _prepare_home(
@@ -146,6 +154,7 @@ def _prepare_home(
     *,
     slot_root: Path,
     live_env: Path,
+    live_memory: Path,
     soul_path: Path,
     stub_url: str,
 ) -> Path:
@@ -193,10 +202,39 @@ def _prepare_home(
         run_root / "christopher_tgg_constitution.yaml",
     )
     shutil.copyfile(soul_path, run_root / "SOUL.md")
+    if not live_memory.is_file() or not live_memory.read_text(encoding="utf-8").strip():
+        raise RuntimeError(f"live Hermes memory is missing or empty: {live_memory}")
+    memory_dir = run_root / "memories"
+    memory_dir.mkdir(mode=0o700)
+    shutil.copyfile(live_memory, memory_dir / "MEMORY.md")
+    (memory_dir / "MEMORY.md").chmod(0o600)
     plugin_source = soul_path.parent / "plugins" / "report-operations"
     shutil.copytree(plugin_source, run_root / "plugins" / "report-operations")
     _copy_test_env(live_env, run_root / ".env")
     return run_root / "config.yaml"
+
+
+def _verify_memory_in_session_jsonl(run_root: Path, live_memory: Path) -> Path:
+    """Prove a fresh gateway transcript carried live durable memory."""
+    memory_text = live_memory.read_text(encoding="utf-8")
+    probe = next(
+        (
+            line.strip()
+            for line in memory_text.splitlines()
+            if len(line.strip()) >= 24 and not line.lstrip().startswith("#")
+        ),
+        memory_text[:128].strip(),
+    )
+    if not probe:
+        raise RuntimeError("live Hermes memory has no usable verification probe")
+    session_files = sorted((run_root / "sessions").glob("*.jsonl"))
+    if len(session_files) != 1:
+        raise RuntimeError(f"expected one fresh gateway session JSONL, found {len(session_files)}")
+    rows = [json.loads(line) for line in session_files[0].read_text(encoding="utf-8").splitlines() if line.strip()]
+    prompts = [row.get("system_prompt", "") for row in rows if row.get("role") == "session_meta"]
+    if len(prompts) != 1 or probe not in prompts[0]:
+        raise RuntimeError("fresh gateway session JSONL omitted live MEMORY.md content")
+    return session_files[0]
 
 
 def _retain_runs(root: Path, *, keep: int, current: Path) -> None:
@@ -248,7 +286,12 @@ def main() -> int:
     live_home = Path(args.live_home).resolve()
     test_root = Path(args.test_root).resolve()
     slot = Path(args.slot_file).read_text(encoding="utf-8").strip()
-    if slot not in {"gpt-5.4-mini", "gpt-5.6-luna", "gpt-5.6-luna-low"}:
+    if slot not in {
+        "gpt-5.4-mini",
+        "gpt-5.6-luna",
+        "gpt-5.6-luna-low",
+        "gpt-5.6-luna-xhigh",
+    }:
         raise RuntimeError(f"invalid engine slot {slot!r}")
     slot_root = app_root / "deploy" / "tgg" / "christopher" / "runtime-slots" / slot
     if not slot_root.is_dir():
@@ -275,6 +318,7 @@ def main() -> int:
             run_root,
             slot_root=slot_root,
             live_env=live_home / ".env",
+            live_memory=live_home / "memories" / "MEMORY.md",
             soul_path=app_root / "deploy" / "tgg" / "christopher" / "SOUL.md",
             stub_url=stub_url,
         )
@@ -317,6 +361,11 @@ def main() -> int:
         if rc != 0:
             raise RuntimeError(f"consumer fixture returned {rc}")
         report = json.loads((run_root / "consumer-report.json").read_text())
+        memory_session = _verify_memory_in_session_jsonl(
+            run_root, live_home / "memories" / "MEMORY.md"
+        )
+        report["memory_injected"] = True
+        report["memory_session_jsonl"] = str(memory_session)
         # Every business-bridge HTTP URL was rewritten to the fixture stub
         # above. Mutation-shaped calls can therefore exercise the constitution
         # without reaching client state; report them separately from real
@@ -349,8 +398,16 @@ def main() -> int:
                 "/api/operator/report-cycle/fetch-sources?tenant=tgg",
             ]:
                 raise RuntimeError(f"corrupt report chain failed to stop after fetch: {seen}")
-            body = json.dumps(report["result"].get("captured_outbound") or []).lower()
-            if not any(marker in body for marker in ("wrong", "missing", "broken", "unreadable", "stop")):
+            captured = report["result"].get("captured_outbound") or []
+            drafted = [
+                str(item.get("kwargs", {}).get("content") or "").strip()
+                for item in captured
+                if item.get("kind") == "send"
+            ]
+            # The judgment fixture proves the agent stopped after inspection;
+            # the failure receipt's wording is intentionally model-authored and
+            # must not be reduced to a brittle vocabulary allowlist.
+            if len(drafted) != 1 or not drafted[0] or "MEDIA:" in drafted[0]:
                 raise RuntimeError("corrupt report chain omitted management-chat failure draft")
         report["run_root"] = str(run_root)
         report_path.parent.mkdir(parents=True, exist_ok=True)

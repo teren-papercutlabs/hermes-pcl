@@ -224,13 +224,17 @@ home = pathlib.Path(sys.argv[2])
 deploy = app / "deploy/tgg/christopher"
 runtime = home / "runtime"
 slot = (runtime / "engine-slot").read_text().strip()
-# slot id -> model. gpt-5.6-luna-low runs gpt-5.6-luna at reasoning_effort low.
+# slot id -> model. Suffixed slots pin an explicit reasoning effort.
 SLOT_MODELS = {
     "gpt-5.4-mini": "gpt-5.4-mini",
     "gpt-5.6-luna": "gpt-5.6-luna",
     "gpt-5.6-luna-low": "gpt-5.6-luna",
+    "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
 }
-SLOT_REASONING_EFFORT = {"gpt-5.6-luna-low": "low"}
+SLOT_REASONING_EFFORT = {
+    "gpt-5.6-luna-low": "low",
+    "gpt-5.6-luna-xhigh": "xhigh",
+}
 assert slot in SLOT_MODELS, slot
 slot_model = SLOT_MODELS[slot]
 slot_effort = SLOT_REASONING_EFFORT.get(slot)
@@ -445,7 +449,15 @@ clean = json.loads(pathlib.Path(sys.argv[1]).read_text())
 corrupt = json.loads(pathlib.Path(sys.argv[2]).read_text())
 assert clean["external_outbound_sent"] == 0
 assert corrupt["external_outbound_sent"] == 0
-assert clean["report_ops_request_paths"][:6] == [
+clean_cycle_paths = [
+    path for path in clean["report_ops_request_paths"]
+    if path.startswith("/api/operator/report-cycle/")
+]
+corrupt_cycle_paths = [
+    path for path in corrupt["report_ops_request_paths"]
+    if path.startswith("/api/operator/report-cycle/")
+]
+assert clean_cycle_paths == [
     "/api/operator/report-cycle/status?tenant=tgg",
     "/api/operator/report-cycle/fetch-sources?tenant=tgg",
     "/api/operator/report-cycle/preview-reconcile?tenant=tgg",
@@ -453,7 +465,7 @@ assert clean["report_ops_request_paths"][:6] == [
     "/api/operator/report-cycle/generate?tenant=tgg",
     "/api/operator/report-cycle/get-reports?tenant=tgg",
 ]
-assert corrupt["report_ops_request_paths"] == [
+assert corrupt_cycle_paths == [
     "/api/operator/report-cycle/status?tenant=tgg",
     "/api/operator/report-cycle/fetch-sources?tenant=tgg",
 ]
@@ -507,8 +519,12 @@ SLOT_MODELS = {
     "gpt-5.4-mini": "gpt-5.4-mini",
     "gpt-5.6-luna": "gpt-5.6-luna",
     "gpt-5.6-luna-low": "gpt-5.6-luna",
+    "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
 }
-SLOT_REASONING_EFFORT = {"gpt-5.6-luna-low": "low"}
+SLOT_REASONING_EFFORT = {
+    "gpt-5.6-luna-low": "low",
+    "gpt-5.6-luna-xhigh": "xhigh",
+}
 assert slot in SLOT_MODELS, slot
 assert p["ok"] is True
 assert p["mode"] == "fixture-only"

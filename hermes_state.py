@@ -21,6 +21,7 @@ import re
 import sqlite3
 import threading
 import time
+import uuid
 from pathlib import Path
 
 from agent.memory_manager import sanitize_context
@@ -360,6 +361,67 @@ CREATE TABLE IF NOT EXISTS session_mailbox (
     last_error TEXT
 );
 
+-- ── PA structured case record (per-case field substrate) ──────────────
+-- A "case" is one unit of work an advisor/user opens with a deployed PA
+-- agent.  The record is minted on the runtime's own new-case boundary — it
+-- never depends on the user typing a slash command.  UNIVERSAL: case_type
+-- and field ids are opaque strings supplied by client-owned field-set
+-- config; no client vocabulary lives in this schema.
+--
+-- There is deliberately NO finalize/lock state.  ``status`` is only ever
+-- 'open' or 'superseded', and 'superseded' means exactly one thing: a NEW
+-- case was minted on the boundary.  Handover of a draft ends the flow; it
+-- does not move the record into a terminal state.  The audit trail that a
+-- lock would have provided is carried by pa_case_field_history instead.
+CREATE TABLE IF NOT EXISTS pa_case_records (
+    case_id TEXT PRIMARY KEY,
+    agent_id TEXT,
+    chat_id TEXT,
+    session_id TEXT,
+    case_type TEXT,
+    field_set_id TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    record_version INTEGER NOT NULL DEFAULT 0,
+    created_at REAL NOT NULL,
+    updated_at REAL,
+    minted_from_message_id TEXT,
+    superseded_at REAL,
+    superseded_by_case_id TEXT
+);
+
+-- Current value of every recorded field.  Each field carries its own
+-- provenance: which message it came from, when it was recorded, and whether
+-- the agent was told it (``user_stated``) or worked it out from another
+-- answer (``derived``, with the field it came from).
+CREATE TABLE IF NOT EXISTS pa_case_fields (
+    case_id TEXT NOT NULL,
+    field_id TEXT NOT NULL,
+    value_json TEXT,
+    origin TEXT,
+    source_message_id TEXT,
+    derived_from_field_id TEXT,
+    recorded_at REAL NOT NULL,
+    record_version INTEGER NOT NULL,
+    PRIMARY KEY (case_id, field_id)
+);
+
+-- Every prior value a field held.  A correction OVERWRITES the current
+-- value and bumps record_version; the value it replaced lands here so the
+-- case's history is reconstructable without any lock state.
+CREATE TABLE IF NOT EXISTS pa_case_field_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id TEXT NOT NULL,
+    field_id TEXT NOT NULL,
+    value_json TEXT,
+    origin TEXT,
+    source_message_id TEXT,
+    derived_from_field_id TEXT,
+    recorded_at REAL NOT NULL,
+    record_version INTEGER NOT NULL,
+    superseded_at REAL NOT NULL,
+    superseded_by_version INTEGER
+);
+
 CREATE INDEX IF NOT EXISTS idx_sessions_source ON sessions(source);
 CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at DESC);
@@ -378,6 +440,13 @@ CREATE INDEX IF NOT EXISTS idx_pa_events_replay ON pa_events(replay_run_id, repl
 CREATE INDEX IF NOT EXISTS idx_replay_attempts_run ON replay_attempts(run_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_session_mailbox_pending
     ON session_mailbox(agent_id, status, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_pa_case_records_scope
+    ON pa_case_records(agent_id, chat_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pa_case_records_session
+    ON pa_case_records(session_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pa_case_fields_case ON pa_case_fields(case_id, field_id);
+CREATE INDEX IF NOT EXISTS idx_pa_case_field_history_case
+    ON pa_case_field_history(case_id, field_id, record_version);
 """
 
 FTS_SQL = """
@@ -1381,6 +1450,238 @@ class SessionDB:
                     except (json.JSONDecodeError, TypeError):
                         ev["evidence_message_refs"] = None
         return turns
+
+    # ── PA structured case record ───────────────────────────────────────
+    # Per-case field substrate: a case row plus one row per recorded field
+    # (value + provenance), with every prior value preserved in history.
+    # UNIVERSAL — case_type and field ids are opaque strings owned by
+    # client-side field-set config.  The shape contract, the field-set
+    # loader, and the empty-required-fields query live in
+    # ``agent/pa_case_record.py``; this layer is storage only.
+    #
+    # Invariants enforced here:
+    #   * minting a case SUPERSEDES the scope's currently-open case (that is
+    #     the ONLY way status leaves 'open' — there is no lock/finalize);
+    #   * every accepted field write bumps ``record_version`` by exactly one
+    #     and stamps that version onto the field row, so a draft built from
+    #     the record can carry an exact version stamp;
+    #   * overwriting a field copies the value it replaced into
+    #     ``pa_case_field_history`` before the overwrite lands.
+
+    def mint_pa_case(
+        self,
+        *,
+        case_type: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        field_set_id: Optional[str] = None,
+        minted_from_message_id: Optional[str] = None,
+        case_id: Optional[str] = None,
+        created_at: Optional[float] = None,
+    ) -> str:
+        """Mint a new case record, superseding the scope's open case.
+
+        The scope is ``(agent_id, chat_id)`` — the conversation the runtime
+        detected the new-case boundary in.  Any case still 'open' in that
+        scope is marked 'superseded' and pointed at the new case_id, in the
+        SAME transaction as the insert, so a reader never sees two open
+        cases for one scope.
+
+        ``record_version`` starts at 0: a freshly minted record holds no
+        fields, and version 0 is the honest stamp for "nothing recorded
+        yet".  The first field write makes it 1.
+
+        Returns the new case_id.
+        """
+        new_case_id = case_id or uuid.uuid4().hex
+        now = time.time() if created_at is None else created_at
+
+        def _do(conn):
+            conn.execute(
+                """UPDATE pa_case_records
+                      SET status = 'superseded',
+                          superseded_at = ?,
+                          superseded_by_case_id = ?
+                    WHERE status = 'open'
+                      AND case_id != ?
+                      AND agent_id IS ?
+                      AND chat_id IS ?""",
+                (now, new_case_id, new_case_id, agent_id, chat_id),
+            )
+            conn.execute(
+                """INSERT INTO pa_case_records (
+                    case_id, agent_id, chat_id, session_id, case_type,
+                    field_set_id, status, record_version, created_at,
+                    updated_at, minted_from_message_id
+                ) VALUES (?, ?, ?, ?, ?, ?, 'open', 0, ?, ?, ?)""",
+                (
+                    new_case_id,
+                    agent_id,
+                    chat_id,
+                    session_id,
+                    case_type,
+                    field_set_id,
+                    now,
+                    now,
+                    minted_from_message_id,
+                ),
+            )
+            return new_case_id
+
+        return self._execute_write(_do)
+
+    def record_pa_case_field(
+        self,
+        *,
+        case_id: str,
+        field_id: str,
+        value: Any,
+        origin: str,
+        source_message_id: Optional[str] = None,
+        derived_from_field_id: Optional[str] = None,
+        recorded_at: Optional[float] = None,
+    ) -> int:
+        """Write (or correct) one field on a case.  Returns the new version.
+
+        A correction is just a second write: the prior value is copied into
+        ``pa_case_field_history`` with the version that superseded it, the
+        current row is overwritten, and the case's ``record_version`` is
+        incremented.  Every accepted write bumps the version — a caller that
+        re-asserts an identical value produces a real history entry, because
+        "the agent recorded this again at message M" is itself provenance.
+
+        ``value`` is JSON-encoded, so structured field values (lists, dicts)
+        are first-class; readers get the decoded object back.
+
+        Raises KeyError if the case does not exist.
+        """
+        now = time.time() if recorded_at is None else recorded_at
+        value_json = json.dumps(value, sort_keys=True, default=str)
+
+        def _do(conn):
+            row = conn.execute(
+                "SELECT record_version FROM pa_case_records WHERE case_id = ?",
+                (case_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"unknown pa case record: {case_id}")
+            new_version = int(row["record_version"]) + 1
+
+            prior = conn.execute(
+                "SELECT * FROM pa_case_fields WHERE case_id = ? AND field_id = ?",
+                (case_id, field_id),
+            ).fetchone()
+            if prior is not None:
+                conn.execute(
+                    """INSERT INTO pa_case_field_history (
+                        case_id, field_id, value_json, origin,
+                        source_message_id, derived_from_field_id,
+                        recorded_at, record_version, superseded_at,
+                        superseded_by_version
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        case_id,
+                        field_id,
+                        prior["value_json"],
+                        prior["origin"],
+                        prior["source_message_id"],
+                        prior["derived_from_field_id"],
+                        prior["recorded_at"],
+                        prior["record_version"],
+                        now,
+                        new_version,
+                    ),
+                )
+
+            conn.execute(
+                """INSERT OR REPLACE INTO pa_case_fields (
+                    case_id, field_id, value_json, origin, source_message_id,
+                    derived_from_field_id, recorded_at, record_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    case_id,
+                    field_id,
+                    value_json,
+                    origin,
+                    source_message_id,
+                    derived_from_field_id,
+                    now,
+                    new_version,
+                ),
+            )
+            conn.execute(
+                "UPDATE pa_case_records SET record_version = ?, updated_at = ? "
+                "WHERE case_id = ?",
+                (new_version, now, case_id),
+            )
+            return new_version
+
+        return self._execute_write(_do)
+
+    @staticmethod
+    def _decode_case_field_row(row: sqlite3.Row) -> Dict[str, Any]:
+        field = dict(row)
+        raw = field.pop("value_json", None)
+        try:
+            field["value"] = json.loads(raw) if raw is not None else None
+        except (json.JSONDecodeError, TypeError):
+            field["value"] = None
+        return field
+
+    def get_pa_case(self, case_id: str) -> Optional[Dict[str, Any]]:
+        """Return one case row with its current fields, or None."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM pa_case_records WHERE case_id = ?", (case_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            field_rows = self._conn.execute(
+                "SELECT * FROM pa_case_fields WHERE case_id = ? ORDER BY field_id ASC",
+                (case_id,),
+            ).fetchall()
+
+        case = dict(row)
+        case["fields"] = {
+            fr["field_id"]: self._decode_case_field_row(fr) for fr in field_rows
+        }
+        return case
+
+    def get_open_pa_case(
+        self,
+        *,
+        agent_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Return the scope's currently-open case with its fields, or None."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT case_id FROM pa_case_records "
+                "WHERE status = 'open' AND agent_id IS ? AND chat_id IS ? "
+                "ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                (agent_id, chat_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return self.get_pa_case(row["case_id"])
+
+    def list_pa_case_field_history(
+        self,
+        *,
+        case_id: str,
+        field_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return superseded field values, oldest first."""
+        sql = "SELECT * FROM pa_case_field_history WHERE case_id = ?"
+        params: List[Any] = [case_id]
+        if field_id is not None:
+            sql += " AND field_id = ?"
+            params.append(field_id)
+        sql += " ORDER BY record_version ASC, id ASC"
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
+        return [self._decode_case_field_row(r) for r in rows]
 
     def record_replay_attempt(
         self,
