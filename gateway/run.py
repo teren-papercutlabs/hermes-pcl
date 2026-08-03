@@ -9726,7 +9726,7 @@ class GatewayRunner:
                         # Persist the exact first-turn prompt snapshot in the
                         # JSONL audit trail. SessionDB already stores it; this
                         # keeps legacy transcript verification equally honest.
-                        "system_prompt": _session_meta_system_prompt(agent_holder[0]),
+                        "system_prompt": agent_result.get("system_prompt", ""),
                         "timestamp": ts,
                     }
                 )
@@ -18097,6 +18097,7 @@ class GatewayRunner:
                     "provider": _resolved_provider,
                     "estimated_cost_usd": result.get("estimated_cost_usd", 0.0),
                     "context_length": _context_length,
+                    "system_prompt": _session_meta_system_prompt(_agent),
                     # Turn-scoped telemetry passthrough (PA turn-recording).
                     **_turn_telemetry_fields(result),
                 }
@@ -18225,6 +18226,7 @@ class GatewayRunner:
                 "context_length": _context_length,
                 "session_id": effective_session_id,
                 "response_previewed": result.get("response_previewed", False),
+                "system_prompt": _session_meta_system_prompt(_agent),
                 # Turn-scoped telemetry passthrough (PA turn-recording).
                 **_turn_telemetry_fields(result),
             }
