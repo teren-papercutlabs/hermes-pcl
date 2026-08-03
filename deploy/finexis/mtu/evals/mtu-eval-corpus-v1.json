@@ -1523,8 +1523,7 @@
     },
     {
      "label": "includes the first exact general disclosure",
-     "kind": "exact_present",
-     "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+     "kind": "must",
      "critical": true
     },
     {
@@ -1589,7 +1588,7 @@
     "approved_date": "2026-08-01",
     "unverified": false
    },
-   "notes": ""
+   "notes": " | 2026-08-04: pre-existing-conditions exact_present downgraded to judge-must — R20 (2026-08-03) removes the sentence for GIO products and reference/065 currently maps investment_linked->GIO; whether Voyage is GIO is pending amelia's product-summary table (065 header: VALUES PENDING AMELIA). MTU-061 asserts the opposite on the same axis for Abundance (confirmed GIO). Restore or retire this assertion when the product table lands."
   },
   {
    "case_id": "MTU-019_sustainability_does_not_exceed_exact",
