@@ -312,7 +312,11 @@ async def test_rendered_block_names_known_facts_and_exact_missing_set(
     assert state.record.version_stamp() in rendered
     assert "f_source: swap it" in rendered
     assert "NEVER ask" in rendered
-    assert "- f_other: other?" in rendered
+    # The missing list speaks the ask hint, not the internal field id, so a
+    # reply cannot pick up record vocabulary by copying this block.
+    assert "- other?" in rendered
+    assert "- f_other" not in rendered
+    assert "THIS BLOCK IS INTERNAL" in rendered
     assert "f_derived" in rendered.split("STILL MISSING")[0]  # filled, not asked
 
 

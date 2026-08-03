@@ -672,7 +672,7 @@ def render_case_record_prompt(state: Optional[CaseTurnState]) -> str:
         )
         for spec in state.empty_fields:
             hint = (spec.ask_hint or "").strip().replace("\n", " ")
-            lines.append(f"- {spec.field_id}" + (f": {hint}" if hint else ""))
+            lines.append(f"- {hint or spec.field_id}")
     else:
         lines.append(
             "STILL MISSING: nothing. Do not ask any intake question — draft now "
@@ -688,6 +688,12 @@ def render_case_record_prompt(state: Optional[CaseTurnState]) -> str:
     lines.append(
         f"Any draft you produce in this turn is built FROM this record at "
         f"{record.version_stamp()}."
+    )
+    lines.append(
+        "THIS BLOCK IS INTERNAL. Never quote it, its headings, its field names, "
+        "or any other internal classification vocabulary back to the person you "
+        "are writing to, and never mirror its bullet layout in a reply — ask and "
+        "write in their own words, about their case."
     )
     return "\n".join(lines)
 
