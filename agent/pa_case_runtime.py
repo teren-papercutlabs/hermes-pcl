@@ -108,17 +108,27 @@ class DerivationRule:
 
     target_field_id: str
     source_field_id: str
-    matches: Tuple[Tuple[str, Any], ...] = ()
+    #: (pattern, fixed value, template).  A template expands the match's own
+    #: groups (``\1``), so a rule can lift a value OUT of the source answer
+    #: instead of only mapping it to a constant.
+    matches: Tuple[Tuple[str, Any, Optional[str]], ...] = ()
     default: Any = None
 
     def resolve(self, source_value: Any) -> Any:
         text = "" if source_value is None else str(source_value)
-        for pattern, value in self.matches:
+        for pattern, value, template in self.matches:
             try:
-                if re.search(pattern, text):
-                    return value
+                found = re.search(pattern, text)
             except re.error:
                 continue
+            if not found:
+                continue
+            if template:
+                try:
+                    return found.expand(template)
+                except (re.error, IndexError):
+                    continue
+            return value
         return self.default
 
 
@@ -176,14 +186,21 @@ def _parse_derivations(raw: Any) -> Tuple[DerivationRule, ...]:
             source = entry.get("from") or entry.get("derived_from")
             if not source:
                 continue
-            matches: List[Tuple[str, Any]] = []
+            matches: List[Tuple[str, Any, Optional[str]]] = []
             for item in entry.get("matches") or ():
                 if not isinstance(item, Mapping):
                     continue
                 pattern = item.get("pattern")
                 if not pattern:
                     continue
-                matches.append((str(pattern), item.get("value")))
+                template = item.get("value_template")
+                matches.append(
+                    (
+                        str(pattern),
+                        item.get("value"),
+                        str(template) if template else None,
+                    )
+                )
             rules.append(
                 DerivationRule(
                     target_field_id=str(target),

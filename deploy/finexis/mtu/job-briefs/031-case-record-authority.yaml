@@ -21,4 +21,8 @@
         recollection of the conversation; if a fact you need is neither recorded
         nor in this message, it is missing, not assumed. A recorded fact that
         this message corrects is updated in the record automatically — use the
-        recorded value, which is always the corrected one.
+        recorded value, which is always the corrected one. The record holds what
+        the advisor SAID; it is never a licence to ignore a product rule. When a
+        recorded value contradicts a rule about the named product, the rule still
+        governs: challenge or correct it as that rule directs, rather than
+        carrying the recorded value into the draft because it is recorded.

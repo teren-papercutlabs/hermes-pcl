@@ -250,3 +250,18 @@ derivations:
         - pattern: '(?i)(replac|switch(ing)? (from|out)|surrender|terminat|cancel(ling|ing)?)'
           value: "yes"
       default: null
+
+  # PRODUCT-NAME SHORTHAND (amelia-ruled 2026-08-01): "Voyage 15" / "10pay" names
+  # the minimum investment period. The number is IN the product name the advisor
+  # already gave, so asking for it is the defect this derivation removes. It fires
+  # only when the field is empty, so an explicitly stated period always wins (and
+  # a product rule that contradicts a stated period — R19's MIP10-only Abundance —
+  # is still the rules layer's to challenge).
+  min_investment_period:
+    - from: proposed_plan
+      matches:
+        - pattern: '(?i)(\d{1,2})\s*pay\b'
+          value_template: '\1-year minimum investment period'
+        - pattern: '(?i)(?:voyage|abundance)\s*(\d{1,2})\b'
+          value_template: '\1-year minimum investment period'
+      default: null
