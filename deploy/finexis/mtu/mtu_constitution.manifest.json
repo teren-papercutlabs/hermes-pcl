@@ -1,7 +1,7 @@
 {
   "allow_unverified": true,
   "composed_source_count": 27,
-  "constitution_sha256": "67c43ded9010818690ca9dbf39113f62f78f24745ffa4ced0965f598dff4e020",
+  "constitution_sha256": "26a6922644c2acb62947a851b885af80d4fa7a69d85ccf93cd43aa4ff89f39d9",
   "schema_version": 1,
   "source_count": 36,
   "source_root": "mtu",
@@ -51,14 +51,14 @@
       "approved_date": [
         "2026-08-02"
       ],
-      "body_sha256": "402ff8619260daecb6bdc8581879b7ee5924493365d9c9613a7bc6c8ee0a869c",
+      "body_sha256": "ee91128abd22f890c801529287dcfb7ba2b302e9a3004c2a94dc6df7d132488b",
       "included_in_constitution": true,
       "path": "compliance/012-output-assembly-policy.yaml",
       "ruling_ref": [
         "WB ccaff87c activity ec41da93"
       ],
       "sequence": 12,
-      "source_sha256": "e1326b049a3102c7b5f4882daed7f40aaf7e61707a5b1a3a9e4336d2e6231bf7",
+      "source_sha256": "32007ae16dabf1c78efc92811840e734a60a515760c30e7eb34e065c8a7884f2",
       "status": "approved",
       "type": "compliance"
     },
@@ -686,7 +686,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "d126dd43a0405dc3c1cbf410107529d566d792b255ed77256ffa597e70d32069",
+  "sources_sha256": "f7bb455c7c1dd2b6e165680bf9a71edf101bc275c545fcbcec0632b777122a4a",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml"
   ]

@@ -236,11 +236,27 @@ def _render_output_instruction(
         lines.append(
             "Never type or paraphrase the protected text; emit its marker exactly where the block belongs."
         )
+        runtime_tags = {
+            str(tag).strip().upper()
+            for tag in policy.get("runtime_scope_tags") or ()
+            if str(tag).strip()
+        }
         for block in blocks:
             if block.selection_only:
                 continue
             tags = ",".join(sorted(block.required_tags))
-            lines.append(f"- When scope includes {tags}, emit {block.marker}.")
+            if runtime_tags & block.required_tags:
+                # The runtime, not the model, resolves this block's scope from
+                # case state. Asking the model to predict it costs a wasted
+                # regeneration every time it guesses the other way, so it always
+                # places the marker and the runtime decides whether text lands.
+                lines.append(
+                    f"- Always emit {block.marker} in a completed draft. Whether"
+                    " its text applies is resolved by the runtime from the case"
+                    " itself, and the marker is removed when it does not apply."
+                )
+            else:
+                lines.append(f"- When scope includes {tags}, emit {block.marker}.")
         lines.append(
             "A missing scope or required block marker makes the response fail closed and regenerate. Markers are removed by the runtime before delivery."
         )
