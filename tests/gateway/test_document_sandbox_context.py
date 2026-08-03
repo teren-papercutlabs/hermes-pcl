@@ -6,7 +6,7 @@ import pytest
 
 from gateway.config import GatewayConfig, Platform
 from gateway.platforms.base import MessageEvent, MessageType
-from gateway.run import GatewayRunner
+from gateway.run import GatewayRunner, _session_meta_system_prompt
 from gateway.session import SessionSource
 from tools.python_sandbox_paths import host_path_to_python_sandbox_path
 
@@ -76,3 +76,21 @@ async def test_document_context_names_original_filename_and_sandbox_path(monkeyp
     assert "Original filename: 'Weekly Report.xlsx'" in result
     assert "Sandbox path: /inputs/documents/Weekly Report.xlsx" in result
     assert "Host path: /var/lib/tgg-capture/whatsapp/media/documents/Weekly Report.xlsx" in result
+
+
+def test_fresh_session_meta_exposes_cached_memory_prompt_for_jsonl_audit():
+    class Agent:
+        _cached_system_prompt = "MEMORY.md\nReconcile provenance comes from the master tracker."
+
+    snapshot = _session_meta_system_prompt(Agent())
+
+    assert "MEMORY.md" in snapshot
+    assert "Reconcile provenance" in snapshot
+
+
+def test_session_meta_prompt_snapshot_rejects_non_string_values():
+    class Agent:
+        _cached_system_prompt = {"not": "serializable prompt text"}
+
+    assert _session_meta_system_prompt(Agent()) == ""
+    assert _session_meta_system_prompt(None) == ""
