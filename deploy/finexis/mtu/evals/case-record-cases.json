@@ -6,14 +6,14 @@
   "created_by": "edna fable seat, S7 eval-cases-first pass",
   "schema": "pa-eval-case.schema.json (v1, same directory)",
   "purpose": "Behavioral expectations for the S7 structured case record, authored BEFORE any runtime change. Every case is written against advisor-visible behavior only: ask-once across turns, ROP derivation from the existing-plans answer, cross-turn fact retention, corrections superseding earlier facts, clean case boundaries with no fact bleed, no dependence on a /new command, and drafts whose material facts all trace to something the advisor said. No case asserts on an internal structure; the record is judged only through what the advisor sees.",
-  "id_range": "MTU-044 .. MTU-055 (continues mtu-eval-corpus-v1.json, whose highest id is MTU-043; no other MTU-0xx ids exist in this repo)",
+  "id_range": "MTU-048 .. MTU-059 (continues the MTU id namespace: mtu-eval-corpus-v1.json ends at MTU-043 and lookup-cases.json holds MTU-044..MTU-047)",
   "relation_to_corpus": "Additive. mtu-eval-corpus-v1.json is untouched; overlapping tags (intake, rop, ask-once, new-case-boundary) mean a knowledge or constitution edit in those areas should run BOTH files.",
-  "scoring_scope": "Per the schema, expected[] is judged on the FINAL response and expected_before_next on the reply to its own turn. Several exact_absent checks here (superseded premiums, superseded plan names, prior-case facts) name values that legitimately appear in an EARLIER reply of the same case — they are absent-in-the-final-draft checks. A runner that concatenates all replies before a deterministic string check will report false failures on MTU-049, MTU-050, MTU-051, MTU-052 and MTU-053.",
+  "scoring_scope": "Per the schema, expected[] is judged on the FINAL response and expected_before_next on the reply to its own turn. Several exact_absent checks here (superseded premiums, superseded plan names, prior-case facts) name values that legitimately appear in an EARLIER reply of the same case — they are absent-in-the-final-draft checks. A runner that concatenates all replies before a deterministic string check will report false failures on MTU-053, MTU-054, MTU-055, MTU-056 and MTU-057.",
   "vocabulary_note": "Advisor-facing expectation strings use advisor vocabulary only (case, facts already given, fresh case, draft). Internal S7 terms are absent from every exact_* text and every label."
  },
  "cases": [
   {
-   "case_id": "MTU-044_rop_answered_never_reasked_across_turns",
+   "case_id": "MTU-048_rop_answered_never_reasked_across_turns",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -93,7 +93,7 @@
    "notes": "Three turns because the ask-once defect only reproduces after an intervening turn. Four draws: the re-ask is probabilistic, so a single clean run is a sample, not the property."
   },
   {
-   "case_id": "MTU-045_rop_answer_in_clarify_reply_not_reasked",
+   "case_id": "MTU-049_rop_answer_in_clarify_reply_not_reasked",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -168,7 +168,7 @@
    "notes": "The answer arrives only inside a reply to the agent's own question — the position R06 names and the position most likely to be dropped between turns."
   },
   {
-   "case_id": "MTU-046_no_existing_plans_zero_replacement_questions",
+   "case_id": "MTU-050_no_existing_plans_zero_replacement_questions",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -243,7 +243,7 @@
    "notes": "Stronger than the corpus R08 cases: the expectation is zero further replacement questions across all remaining turns AND no replacement wording in the draft, not just a clean second turn."
   },
   {
-   "case_id": "MTU-047_early_facts_excluded_from_later_question",
+   "case_id": "MTU-051_early_facts_excluded_from_later_question",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -310,7 +310,7 @@
    "notes": "Four draws: re-asking a supplied fact is intermittent, and one clean run does not establish the property."
   },
   {
-   "case_id": "MTU-048_dripfed_facts_never_reasked",
+   "case_id": "MTU-052_dripfed_facts_never_reasked",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -392,7 +392,7 @@
    "notes": "Four turns is the point of the case: the question list must monotonically shrink as answers arrive."
   },
   {
-   "case_id": "MTU-049_corrected_premium_used_in_draft",
+   "case_id": "MTU-053_corrected_premium_used_in_draft",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -457,7 +457,7 @@
    "notes": "The exact_absent on S$1,500 is the load-bearing check: judges reliably accept a draft that leads with the corrected figure while a stale one survives in a comparison line."
   },
   {
-   "case_id": "MTU-050_corrected_plan_name_replaces_original",
+   "case_id": "MTU-054_corrected_plan_name_replaces_original",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -523,7 +523,7 @@
    "notes": "A corrected product name must not leave the old name anywhere in the draft, including a comparison or rationale line."
   },
   {
-   "case_id": "MTU-051_fresh_case_after_completed_case_no_bleed",
+   "case_id": "MTU-055_fresh_case_after_completed_case_no_bleed",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -603,7 +603,7 @@
    "notes": "Complements MTU-015: there the first case was also complete, but this one adds explicit exact_absent checks on the previous PROPOSED plan and premium, which is the direction fact bleed actually travels."
   },
   {
-   "case_id": "MTU-052_ambiguous_continuation_one_boundary_question",
+   "case_id": "MTU-056_ambiguous_continuation_one_boundary_question",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -678,7 +678,7 @@
    "notes": "Deliberately ambiguous second turn: same product family and no client marker, so it reads as either a revision or a fresh case. Four draws because the boundary judgment is probabilistic."
   },
   {
-   "case_id": "MTU-053_natural_language_fresh_case_no_command",
+   "case_id": "MTU-057_natural_language_fresh_case_no_command",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -753,7 +753,7 @@
    "notes": "The setup string deliberately does not read /new: the boundary must hold on the natural-language announcement alone. The exact_absent on /new also catches replies that offer the command as advice."
   },
   {
-   "case_id": "MTU-054_draft_facts_traceable_to_advisor_messages",
+   "case_id": "MTU-058_draft_facts_traceable_to_advisor_messages",
    "client": "mtu",
    "status": "active",
    "source": {
@@ -820,7 +820,7 @@
    "notes": "Judge-kind on purpose: attribution per fact is not a string the advisor sees, so it cannot be a deterministic check. Facts are split across two turns so the attribution must hold across the turn boundary. The approved-template carve-out is stated so the judge does not score standard wording as an unsupplied fact."
   },
   {
-   "case_id": "MTU-055_never_supplied_premium_not_invented",
+   "case_id": "MTU-059_never_supplied_premium_not_invented",
    "client": "mtu",
    "status": "active",
    "source": {
