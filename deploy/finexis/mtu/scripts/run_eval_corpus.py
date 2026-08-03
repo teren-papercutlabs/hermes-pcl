@@ -78,8 +78,12 @@ def _stage_runtime(
     )
     from hermes_cli.pa_compose import sync_pa_knowledge
 
+    # Declared knowledge is sourced from the CANDIDATE deploy tree — the tree
+    # under test always carries its own knowledge/, while a pre-cutover live
+    # home may not (its declared list was decorative before the S2 migration).
+    # candidate falls back to source when no --candidate-deploy-dir is given.
     sync_pa_knowledge(
-        source,
+        candidate,
         target / "mtu_constitution.yaml",
         target / "knowledge",
         target / "knowledge-sync.manifest.json",
