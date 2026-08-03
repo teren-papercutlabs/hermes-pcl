@@ -124,8 +124,10 @@ def test_baseline_comparison_names_population_and_new_failures():
     baseline = _baseline()
     assert compare_baseline(baseline, baseline) == {
         "status": "green",
-        "accepted_failure_count": 10,
-        "current_failure_count": 10,
+        # 9 = the rebound baseline's exact-assertion failures after the MTU-023
+        # and MTU-018 pending-client downgrades (both exact->judge, corpus-driven)
+        "accepted_failure_count": 9,
+        "current_failure_count": 9,
         "new_failure_count": 0,
         "new_failure_keys": [],
         "expected_case_count": 43,
