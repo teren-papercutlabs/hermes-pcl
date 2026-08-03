@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "corpus": "../compliance-ab-cases.json",
+  "draws_per_case": 4,
+  "dimensions": [
+    "instruction_placement",
+    "output_mode"
+  ],
+  "variants": [
+    {
+      "instruction_placement": "skill",
+      "output_mode": "marker",
+      "report": "compliance-ab-skill-marker.json",
+      "assertion_count": 88,
+      "passed": 88,
+      "failed": 0,
+      "case_runs_passed": 12,
+      "case_runs_failed": 0,
+      "case_runs_not_applicable": 0
+    },
+    {
+      "instruction_placement": "skill",
+      "output_mode": "verbatim",
+      "report": "compliance-ab-skill-verbatim.json",
+      "assertion_count": 88,
+      "passed": 83,
+      "failed": 5,
+      "case_runs_passed": 7,
+      "case_runs_failed": 5,
+      "case_runs_not_applicable": 0
+    },
+    {
+      "instruction_placement": "constitution",
+      "output_mode": "marker",
+      "report": "compliance-ab-constitution-marker.json",
+      "assertion_count": 88,
+      "passed": 85,
+      "failed": 3,
+      "case_runs_passed": 9,
+      "case_runs_failed": 3,
+      "case_runs_not_applicable": 0
+    },
+    {
+      "instruction_placement": "constitution",
+      "output_mode": "verbatim",
+      "report": "compliance-ab-constitution-verbatim.json",
+      "assertion_count": 88,
+      "passed": 86,
+      "failed": 2,
+      "case_runs_passed": 10,
+      "case_runs_failed": 2,
+      "case_runs_not_applicable": 0
+    }
+  ],
+  "selected": {
+    "instruction_placement": "skill",
+    "output_mode": "marker",
+    "basis": "only variant with zero deterministic assertion failures; runtime-owned approved-artifact insertion also removes protected wording from model authorship"
+  }
+}

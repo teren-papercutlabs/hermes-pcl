@@ -26,7 +26,18 @@ def test_stage_runtime_rewrites_constitution_to_disposable_home(tmp_path):
         "model:\n  provider: custom\n  default: test-model\n"
         "pa:\n  enabled: true\n  constitution_path: /live/constitution.yaml\n"
     )
-    (source / "mtu_constitution.yaml").write_text("version: 1\n")
+    (source / "mtu_constitution.yaml").write_text(
+        "id: test\n"
+        "agent_name: Test\n"
+        "identity: {role: test}\n"
+        "client: {name: test}\n"
+        "job_briefs:\n"
+        "  default:\n"
+        "    title: Test\n"
+        "    purpose: Test\n"
+        "    knowledge: [foo.txt]\n"
+    )
+    (source / "foo.txt").write_text("knowledge\n")
     (source / "SOUL.md").write_text("test\n")
     (source / ".env").write_text("OPENAI_API_KEY=test-only\n")
     target = tmp_path / "copy"

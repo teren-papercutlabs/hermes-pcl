@@ -57,6 +57,14 @@ def _stage_runtime(source: Path, target: Path) -> dict[str, Any]:
         yaml.safe_dump(config, sort_keys=False),
         encoding="utf-8",
     )
+    from hermes_cli.pa_compose import sync_pa_knowledge
+
+    sync_pa_knowledge(
+        source,
+        target / "mtu_constitution.yaml",
+        target / "knowledge",
+        target / "knowledge-sync.manifest.json",
+    )
     return {
         "mode": "disposable_copy",
         "source_home": str(source),
@@ -126,7 +134,31 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Keep the disposable copy for debugging (never the default).",
     )
+    parser.add_argument(
+        "--instruction-placement",
+        choices=("skill", "constitution"),
+        default="skill",
+        help="A/B axis: task-adjacent final skill or constitution-middle instruction.",
+    )
+    parser.add_argument(
+        "--output-mode",
+        choices=("marker", "verbatim"),
+        default="marker",
+        help="A/B axis: deterministic placeholder splice or model-authored verbatim text.",
+    )
     return parser
+
+
+def _configure_ab_mode(runtime_copy: Path, args: argparse.Namespace) -> None:
+    path = runtime_copy / "mtu_constitution.yaml"
+    constitution = yaml.safe_load(path.read_text(encoding="utf-8"))
+    policy = constitution["job_briefs"]["bor_generation"]["response_policy"]["output_assembly"]
+    policy["placement"] = args.instruction_placement
+    policy["mode"] = args.output_mode
+    path.write_text(
+        yaml.safe_dump(constitution, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
 
 
 def _deterministic_exit_code(report: dict[str, Any]) -> int:
@@ -147,6 +179,10 @@ def main() -> None:
 
     try:
         manifest = _stage_runtime(args.runtime_source, runtime_copy)
+        _configure_ab_mode(runtime_copy, args)
+        manifest["instruction_placement"] = args.instruction_placement
+        manifest["output_mode"] = args.output_mode
+        manifest["copied_constitution_sha256"] = _sha256(runtime_copy / "mtu_constitution.yaml")
         os.environ["HERMES_HOME"] = str(runtime_copy)
         report = asyncio.run(_run(args, manifest))
         args.report.parent.mkdir(parents=True, exist_ok=True)

@@ -58,30 +58,17 @@ job_briefs:
     runtime:
       model: gpt-5.4-mini              # PILOT (design intent gemini-3.1-flash-lite)
     response_policy:
-      # DETERMINISTIC SENTENCE ENFORCEMENT (added 2026-07-23).
-      # The sustainability sentence is a two-valued lookup off the advisor's explicit
-      # yes/no, not a judgement — so the model must not author it. Observed inverting
-      # 2 times in 4 draws on identical input, on a declaration the client signs.
-      # The runtime repairs a forbidden sentence to the required one and logs it.
-      # amelia-ratified: compliance items are never guessed (2026-07-23).
-      enforced_sentences:
-        - id: sustainability_does_not_exceed
-          if_input_any:
-            - "do not exceed 50%"
-            - "does not exceed 50%"
-            - "not exceed 50% of surplus"
-            - "exceeds: no"
-          require: "Total annual premiums do not exceed 50% of the client's surplus."
-          forbid:
-            - "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
-        - id: sustainability_exceeds
-          if_input_any:
-            - "exceeds 50%"
-            - "more than 50%"
-            - "exceeds: yes"
-          require: "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
-          forbid:
-            - "Total annual premiums do not exceed 50% of the client's surplus."
+      output_assembly:
+        enabled: true
+        placement: skill
+        mode: marker
+        max_attempts: 3
+        artifacts:
+          - compliance/010-sustainability-enforcement.yaml
+          - compliance/180-general-disclosures.yaml
+          - compliance/190-rop-disadvantages.yaml
+          - compliance/195-rop-standard-declarations.yaml
+          - compliance/196-protection-alternatives.yaml
     knowledge:
       - bor-required-checks.yaml                # the BOR table (checks)
       - bor-draft-template.md                   # the narrative structure
@@ -90,6 +77,11 @@ job_briefs:
       - reference/062-approved-products.yaml
       - reference/063-product-insurers.yaml
       - reference/064-replacement-taxonomy.yaml
+      - compliance/010-sustainability-enforcement.yaml
+      - compliance/180-general-disclosures.yaml
+      - compliance/190-rop-disadvantages.yaml
+      - compliance/195-rop-standard-declarations.yaml
+      - compliance/196-protection-alternatives.yaml
     instructions:
       - >-
         INTAKE (SAFETY-FIRST): use all facts already supplied. The three anchors are
@@ -313,27 +305,6 @@ job_briefs:
         product-specific sentences whose exact applicability and values were supplied
         under the ILP GATE. Do NOT insert the whole historical block C by default. Do
         NOT paraphrase compliance language.
-      - >-
-        EXACT GENERAL DISCLOSURES: insert these four sentences verbatim on every
-        supported BOR: "The client was informed that in the event of non-disclosure
-        of any pre-existing medical conditions, the insurer has the right to not pay
-        out benefits as stated if diagnosed due to pre-existing conditions." "The
-        product was recommended after fact-find, needs analysis, and product
-        comparison." "The client is aware that the Financial Consultant may receive
-        additional commission for selling the recommended product." "The client has
-        agreed for soft copies of the documents to be electronically mailed after the
-        company has processed them."
-      - >-
-        EXACT ROP DISADVANTAGES: for a supported ROP component, insert these four
-        points verbatim and without compression: "1. May incur penalties / transaction
-        costs for terminating the existing policy(ies) or investment product(s),
-        without gaining any real benefit from replacing them." "2. Financial benefits
-        accumulated over the years may be lost." "3. May be offered a lower level of
-        benefit at a higher or same cost (or the same benefit at higher cost); the new
-        policy may be less suitable." "4. If existing medical conditions are covered
-        by the existing plan, coverage for those conditions may be lost." Do not add
-        the 90-day waiting-period sentence unless the supplied product source confirms
-        it applies to this exact replacement.
       - >-
         The agent does NOT make the product recommendation — the advisor chooses the
         product; the agent drafts the justification for the advisor's chosen product.

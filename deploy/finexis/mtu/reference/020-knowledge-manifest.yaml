@@ -16,3 +16,8 @@
       - reference/062-approved-products.yaml
       - reference/063-product-insurers.yaml
       - reference/064-replacement-taxonomy.yaml
+      - compliance/010-sustainability-enforcement.yaml
+      - compliance/180-general-disclosures.yaml
+      - compliance/190-rop-disadvantages.yaml
+      - compliance/195-rop-standard-declarations.yaml
+      - compliance/196-protection-alternatives.yaml

@@ -1,0 +1,306 @@
+{
+  "meta": {
+    "name": "MTU compliance placement x output-mode A/B",
+    "derived_from": "mtu-eval-corpus-v1.json",
+    "axes": {
+      "instruction_placement": [
+        "skill",
+        "constitution"
+      ],
+      "output_mode": [
+        "marker",
+        "verbatim"
+      ]
+    },
+    "draws_per_case": 4
+  },
+  "cases": [
+    {
+      "case_id": "MTU-017_rop_targeted_intake_and_exact_output",
+      "client": "mtu",
+      "status": "active",
+      "source": {
+        "type": "live-interaction",
+        "session_id": "20260713_205718_c11b4fdf",
+        "notes": "Derived from the first Term-to-Term replacement exchange; facts tightened while preserving the actual case shape."
+      },
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "never-ask",
+        "disclosures",
+        "formatting"
+      ],
+      "input": {
+        "setup": "/new",
+        "turns": [
+          {
+            "text": "I have an MTU BOR case. Existing plan: Prudential PruTerm, Term Life, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65. Proposed: Elite Term (All Riders), Term Life, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. This replaces PruTerm. The client wants CI cover and a longer term. Draft the BOR.",
+            "expected_before_next": [
+              "asks one compact question only for the explicit yes/no 50%-of-surplus answer",
+              "does not ask for rationale, alternatives, replacement-disadvantages wording, income or surplus, reference number, arithmetic, or comparison freshness"
+            ]
+          },
+          {
+            "text": "Total annual premiums do not exceed 50% of the client's surplus. Draft it."
+          }
+        ]
+      },
+      "expected": [
+        {
+          "label": "drafts the supported Term-to-Term ROP BOR after receiving the sole missing material answer",
+          "kind": "must"
+        },
+        {
+          "label": "does not ask for any standard narrative default or never-ask item",
+          "kind": "must_not"
+        },
+        {
+          "label": "includes the exact does-not-exceed sustainability sentence",
+          "kind": "exact_present",
+          "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+          "critical": true
+        },
+        {
+          "label": "does not invert the sustainability declaration",
+          "kind": "exact_absent",
+          "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+          "critical": true
+        },
+        {
+          "label": "includes exact ROP disadvantage point 1",
+          "kind": "exact_present",
+          "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+          "critical": true
+        },
+        {
+          "label": "includes exact ROP disadvantage point 2",
+          "kind": "exact_present",
+          "text": "2. Financial benefits accumulated over the years may be lost.",
+          "critical": true
+        },
+        {
+          "label": "includes exact ROP disadvantage point 3",
+          "kind": "exact_present",
+          "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+          "critical": true
+        },
+        {
+          "label": "includes exact ROP disadvantage point 4",
+          "kind": "exact_present",
+          "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+          "critical": true
+        },
+        {
+          "label": "contains no Markdown asterisks",
+          "kind": "exact_absent",
+          "text": "*"
+        },
+        {
+          "label": "contains no Markdown heading markers",
+          "kind": "exact_absent",
+          "text": "#"
+        },
+        {
+          "label": "does not expose an internal coverage recap",
+          "kind": "exact_absent",
+          "text": "Coverage note",
+          "critical": true
+        },
+        {
+          "label": "does not end with a closing offer",
+          "kind": "exact_absent",
+          "text": "If you want"
+        }
+      ],
+      "draws": 4,
+      "canary": false,
+      "provenance": {
+        "standard_ref": "R02, R13, R15; mtu_constitution.yaml response_policy.enforced_sentences and BOR generation instructions",
+        "approved_by": "amelia",
+        "approved_date": "2026-07-23",
+        "unverified": false
+      },
+      "notes": ""
+    },
+    {
+      "case_id": "MTU-018_complete_voyage_no_fabricated_intent",
+      "client": "mtu",
+      "status": "active",
+      "source": {
+        "type": "live-interaction",
+        "session_id": "20260801_191611_54835798",
+        "notes": "Locks in the useful Voyage shorthand, non-ROP, disclosure, and formatting behavior while preventing the observed invented future-shortfall intention."
+      },
+      "tags": [
+        "ilp",
+        "rop",
+        "sustainability",
+        "product-shorthand",
+        "fund-suitability",
+        "disclosures",
+        "formatting"
+      ],
+      "input": {
+        "setup": "/new",
+        "turns": [
+          {
+            "text": "New BOR. No existing plans. Voyage 15pay, no riders, Franklin Income Fund 100%, S$12,000 per year. Client failed CKA and has a balanced risk profile. Total annual premiums do not exceed 50% of the client's surplus."
+          }
+        ]
+      },
+      "expected": [
+        {
+          "label": "drafts the supported non-ROP Voyage BOR without asking what Voyage 15pay means",
+          "kind": "must",
+          "critical": false
+        },
+        {
+          "label": "identifies HSBC Life Wealth Voyage and the 15-year minimum investment period",
+          "kind": "must",
+          "critical": false
+        },
+        {
+          "label": "states the CKA result and balanced risk profile once without additional regulatory logic",
+          "kind": "must",
+          "critical": false
+        },
+        {
+          "label": "does not present Franklin Income Fund's pending classification as definitively Melody-approved",
+          "kind": "must_not",
+          "critical": false
+        },
+        {
+          "label": "includes a concise Melody flag for the pending Franklin Income Fund classification while still drafting",
+          "kind": "must",
+          "critical": false
+        },
+        {
+          "label": "includes one closing check line for any case-varying start-up bonus or promotion/gift wording without inventing values",
+          "kind": "must",
+          "critical": false
+        },
+        {
+          "label": "uses the exact does-not-exceed sustainability sentence",
+          "kind": "exact_present",
+          "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+          "critical": true
+        },
+        {
+          "label": "includes the first exact general disclosure",
+          "kind": "exact_present",
+          "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+          "critical": true
+        },
+        {
+          "label": "includes the second exact general disclosure",
+          "kind": "exact_present",
+          "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+          "critical": true
+        },
+        {
+          "label": "includes the third exact general disclosure",
+          "kind": "exact_present",
+          "text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.",
+          "critical": true
+        },
+        {
+          "label": "includes the fourth exact general disclosure",
+          "kind": "exact_present",
+          "text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "critical": true
+        },
+        {
+          "label": "does not include ROP disadvantages for the new purchase",
+          "kind": "exact_absent",
+          "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+          "critical": true
+        },
+        {
+          "label": "does not invent the observed future-shortfall intention",
+          "kind": "exact_absent",
+          "text": "the client would like to address any remaining shortfall at a later date.",
+          "critical": true
+        },
+        {
+          "label": "does not invent any other client goal, horizon, rationale, or future intention",
+          "kind": "must_not",
+          "critical": true
+        },
+        {
+          "label": "contains no Markdown asterisks",
+          "kind": "exact_absent",
+          "text": "*",
+          "critical": false
+        },
+        {
+          "label": "contains no Markdown heading marker",
+          "kind": "exact_absent",
+          "text": "#",
+          "critical": false
+        },
+        {
+          "label": "contains no Markdown horizontal rule",
+          "kind": "exact_absent",
+          "text": "---",
+          "critical": false
+        }
+      ],
+      "draws": 4,
+      "canary": true,
+      "provenance": {
+        "standard_ref": "R02; R04; R07; R10; R13; R15; mtu_constitution.yaml DO NOT INVENT, ILP GATE, EXACT GENERAL DISCLOSURES, and TELEGRAM OUTPUT",
+        "approved_by": "amelia",
+        "approved_date": "2026-08-01",
+        "unverified": false
+      },
+      "notes": ""
+    },
+    {
+      "case_id": "MTU-023_wl_term_exact_alternatives",
+      "client": "mtu",
+      "status": "active",
+      "source": {
+        "type": "live-interaction",
+        "session_id": "20260723_224157_b97ecbdf",
+        "notes": "Synthetic replay exposed paraphrasing of the mandatory protection alternatives sentence."
+      },
+      "tags": [
+        "rop",
+        "formatting"
+      ],
+      "input": {
+        "setup": "/new",
+        "turns": [
+          {
+            "text": "New case. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, critical illness cover of S$60,000, annual premium of S$3,600, and lifetime coverage. It will be replaced by Harbor EliteTerm, with death/TPD cover of S$500,000, critical illness cover of S$200,000, annual premium of S$1,850, and coverage to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client has been advised of the replacement disadvantages and wishes to proceed. Draft the BOR."
+          }
+        ]
+      },
+      "expected": [
+        {
+          "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
+          "kind": "exact_present",
+          "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
+          "critical": false
+        },
+        {
+          "label": "does not substitute the observed two-category paraphrase",
+          "kind": "exact_absent",
+          "text": "After discussing the pros and cons of whole life and term life plans",
+          "critical": false
+        }
+      ],
+      "draws": 4,
+      "canary": false,
+      "provenance": {
+        "standard_ref": "R13; mtu_constitution.yaml — STANDARD NARRATIVE DEFAULTS (a), protection/life",
+        "approved_by": "amelia",
+        "approved_date": null,
+        "unverified": false
+      },
+      "notes": "merged_from: MTU-P-58x1_rop_standard_narrative_no_fabrication (sessions: 20260723_223933_6cee68d7)"
+    }
+  ]
+}

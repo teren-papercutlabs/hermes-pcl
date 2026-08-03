@@ -1,0 +1,23 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - null
+# ruling_ref:
+# - R13
+# - MTU-023
+# status: approved
+# sequence: 196
+# compose: false
+# ---
+schema_version: 1
+blocks:
+  - id: protection_standard_alternatives
+    marker: '[[PA_BLOCK:PROTECTION_STANDARD_ALTERNATIVES]]'
+    required_tags: [DRAFT, PROTECTION_ALTERNATIVES]
+    slots: [RECOMMENDED_PRODUCT, SUPPORTED_RATIONALE]
+    slot_instructions:
+      RECOMMENDED_PRODUCT: the exact proposed plan name only, not its category and not a sentence
+      SUPPORTED_RATIONALE: the reason clause only, beginning with "the client", with no "because" prefix and no final full stop
+    text_template: >-
+      After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred {{RECOMMENDED_PRODUCT}} because {{SUPPORTED_RATIONALE}}.
