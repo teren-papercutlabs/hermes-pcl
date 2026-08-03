@@ -256,51 +256,6 @@
         "unverified": false
       },
       "notes": ""
-    },
-    {
-      "case_id": "MTU-023_wl_term_exact_alternatives",
-      "client": "mtu",
-      "status": "active",
-      "source": {
-        "type": "live-interaction",
-        "session_id": "20260723_224157_b97ecbdf",
-        "notes": "Synthetic replay exposed paraphrasing of the mandatory protection alternatives sentence."
-      },
-      "tags": [
-        "rop",
-        "formatting"
-      ],
-      "input": {
-        "setup": "/new",
-        "turns": [
-          {
-            "text": "New case. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, critical illness cover of S$60,000, annual premium of S$3,600, and lifetime coverage. It will be replaced by Harbor EliteTerm, with death/TPD cover of S$500,000, critical illness cover of S$200,000, annual premium of S$1,850, and coverage to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client has been advised of the replacement disadvantages and wishes to proceed. Draft the BOR."
-          }
-        ]
-      },
-      "expected": [
-        {
-          "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
-          "kind": "exact_present",
-          "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
-          "critical": false
-        },
-        {
-          "label": "does not substitute the observed two-category paraphrase",
-          "kind": "exact_absent",
-          "text": "After discussing the pros and cons of whole life and term life plans",
-          "critical": false
-        }
-      ],
-      "draws": 4,
-      "canary": false,
-      "provenance": {
-        "standard_ref": "R13; mtu_constitution.yaml — STANDARD NARRATIVE DEFAULTS (a), protection/life",
-        "approved_by": "amelia",
-        "approved_date": null,
-        "unverified": false
-      },
-      "notes": "merged_from: MTU-P-58x1_rop_standard_narrative_no_fabrication (sessions: 20260723_223933_6cee68d7)"
     }
   ]
 }

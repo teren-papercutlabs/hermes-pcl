@@ -1,9 +1,9 @@
 {
   "allow_unverified": true,
   "composed_source_count": 24,
-  "constitution_sha256": "04602295af5b4e1d6039d0573ab537058469bf6a28426dc23dae9125bd1fb9af",
+  "constitution_sha256": "d5c294c4ede39471ff418abb98e2c81e837a11f7bc5eff12366f0e2c9c0e7bec",
   "schema_version": 1,
-  "source_count": 33,
+  "source_count": 32,
   "source_root": "mtu",
   "sources": [
     {
@@ -51,14 +51,14 @@
       "approved_date": [
         "2026-08-02"
       ],
-      "body_sha256": "63c31e3cc2a2f2197a11523b8fb7f813de4558ce9edcd0f8180be05cb2ed9803",
+      "body_sha256": "402ff8619260daecb6bdc8581879b7ee5924493365d9c9613a7bc6c8ee0a869c",
       "included_in_constitution": true,
       "path": "compliance/012-output-assembly-policy.yaml",
       "ruling_ref": [
         "WB ccaff87c activity ec41da93"
       ],
       "sequence": 12,
-      "source_sha256": "6950954b0a352c29a4a6698f7a62e890e0e94539c35c090104dbada77fb0460b",
+      "source_sha256": "e1326b049a3102c7b5f4882daed7f40aaf7e61707a5b1a3a9e4336d2e6231bf7",
       "status": "approved",
       "type": "compliance"
     },
@@ -69,14 +69,14 @@
       "approved_date": [
         "unverified"
       ],
-      "body_sha256": "b789e2bcaf21677bfdfd73a5b0f5ffe4209558fdeb9d9a799e1c74d226aca6ea",
+      "body_sha256": "3fb9d01618c61803c5f66ac15f73d350efd7d58042a295230fedaba7b1bf33ed",
       "included_in_constitution": true,
       "path": "reference/020-knowledge-manifest.yaml",
       "ruling_ref": [
         "standing-constitution"
       ],
       "sequence": 20,
-      "source_sha256": "4a9af09dffa3cf4390d3b60d6610594129a6ce621ada5c66af96153fc0b03409",
+      "source_sha256": "aaac4daff4f814341944c7f95c5458c5939fa5dba968b62ab67263ab6c8f5ab3",
       "status": "unverified",
       "type": "reference"
     },
@@ -494,25 +494,6 @@
     },
     {
       "approved_by": [
-        "amelia"
-      ],
-      "approved_date": [
-        null
-      ],
-      "body_sha256": "6a71b3b27d55e793f10c88e8923391d387a3a7396000588a2d4159584fb72733",
-      "included_in_constitution": false,
-      "path": "compliance/196-protection-alternatives.yaml",
-      "ruling_ref": [
-        "R13",
-        "MTU-023"
-      ],
-      "sequence": 196,
-      "source_sha256": "475c01127fcec0b5d071d654cf7def4cabd1629d94aa785e14d76161e6a7a7f0",
-      "status": "approved",
-      "type": "compliance"
-    },
-    {
-      "approved_by": [
         "teren",
         "amelia"
       ],
@@ -626,7 +607,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "63145cc1e9198ac77b10c4efff65018202702163e3ea7dab336684f37258d9d5",
+  "sources_sha256": "20e63ddb2ecca9f437531bd8879fc00deafd1d605180e630eb184b3bc5bf2579",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml"
   ]
