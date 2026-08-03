@@ -50,19 +50,18 @@ categories:
   protection_life:
     scope_tag: UNDERWRITTEN
     substitutions: {}
-    forbid: [general_disclosures_gio]
+    forbid: []
 
   # Shield / hospitalisation: medically underwritten, full set.
   shield_hospitalisation:
     scope_tag: UNDERWRITTEN
     substitutions: {}
-    forbid: [general_disclosures_gio]
+    forbid: []
 
   # Investment-linked (GIO — no medical underwriting): the general-disclosures
   # anchor resolves to the GIO variant, which drops the medical non-disclosure
   # line and keeps every other approved line verbatim.
   investment_linked:
     scope_tag: GIO
-    substitutions:
-      general_disclosures: general_disclosures_gio
+    substitutions: {}
     forbid: []

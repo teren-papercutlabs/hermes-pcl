@@ -1,7 +1,7 @@
 {
   "allow_unverified": true,
-  "composed_source_count": 26,
-  "constitution_sha256": "13e0b56afa77bc27fe4aeea63eb40554d0c38499ed51f5ce53bb7c5ef2fbfd40",
+  "composed_source_count": 27,
+  "constitution_sha256": "da7c7cbfd22d43651211c7abd430a3c228b066189e2dc57eb1642dcba62363c7",
   "schema_version": 1,
   "source_count": 36,
   "source_root": "mtu",
@@ -51,14 +51,14 @@
       "approved_date": [
         "2026-08-02"
       ],
-      "body_sha256": "044721fbf8ac7bbd1ad8b98d78c729c809019b4be915a677b571bb29b53cecc0",
+      "body_sha256": "402ff8619260daecb6bdc8581879b7ee5924493365d9c9613a7bc6c8ee0a869c",
       "included_in_constitution": true,
       "path": "compliance/012-output-assembly-policy.yaml",
       "ruling_ref": [
         "WB ccaff87c activity ec41da93"
       ],
       "sequence": 12,
-      "source_sha256": "d897452182fe5e0876cfd2cfab1f56c97719472967d810a1dfd155b5c60e50bb",
+      "source_sha256": "e1326b049a3102c7b5f4882daed7f40aaf7e61707a5b1a3a9e4336d2e6231bf7",
       "status": "approved",
       "type": "compliance"
     },
@@ -124,7 +124,7 @@
       "approved_date": [
         "2026-08-03"
       ],
-      "body_sha256": "dee586ecf313f2e032b8275e98bfcb2c6443c20e2b76520ee221173c35ba5ad3",
+      "body_sha256": "d131afac56e53d76a6721dbe79ed16d0e9032f98167a01d7733a2786a8299fc7",
       "included_in_constitution": true,
       "path": "job-briefs/031-case-record-authority.yaml",
       "ruling_ref": [
@@ -132,7 +132,7 @@
         "S7-case-record-design"
       ],
       "sequence": 31,
-      "source_sha256": "0abe0dab10b07e95eb566eb12342e56a578ec634a355c4c4b3636948e9c569b3",
+      "source_sha256": "04eb99f0fc02b1dd0aca576d7094d3218b74a1c26988ffba1f4caf474ec0aeea",
       "status": "approved",
       "type": "job-briefs"
     },
@@ -271,14 +271,14 @@
       "approved_date": [
         "unverified"
       ],
-      "body_sha256": "1437194b975e51bccfc781336dfbebaa2c25525e4acccda36ff3acb85295bebd",
+      "body_sha256": "d5dda204d5b619e3e5c1280bf84fa169afddc225f4c4afb1943c3f5e1e10907d",
       "included_in_constitution": false,
       "path": "reference/065-disclaimer-selection.yaml",
       "ruling_ref": [
         "melody-defect-3-investment-disclaimer"
       ],
       "sequence": 65,
-      "source_sha256": "9d2df9405f44d12ad379e065c2bd7214c717a5b3dd49c0c3866b170c2dad9b2f",
+      "source_sha256": "fd73baeaa0a32d7535bbd1a7dcd6d0516f8d4cb2d58be7aafd5a1a5efeb34278",
       "status": "unverified",
       "type": "reference"
     },
@@ -456,19 +456,21 @@
         "2026-07-23",
         "2026-07-30",
         "2026-07-31",
-        "2026-08-01"
+        "2026-08-01",
+        "2026-08-03"
       ],
-      "body_sha256": "ff1d6d22faeb2d3456dd351a8c8d36b40cf91e88bf4ecfc41b3fbad55782a72f",
+      "body_sha256": "e437838d915f6878d4e57e53b9aa8ca9f0bf03df211944d545f90ed5b2a7a784",
       "included_in_constitution": true,
       "path": "rules/160-ilp-suitability.yaml",
       "ruling_ref": [
         "R04",
         "R07",
         "R09",
-        "R10"
+        "R10",
+        "R19"
       ],
       "sequence": 160,
-      "source_sha256": "df295b2b5d6490081d8493a81aa7e86c1c844945bec1c7b15b8978f333315b1e",
+      "source_sha256": "4841948328a7b74ac7b02d95a7a4b6bee4b13d4578e29c45ba3b40fb13460930",
       "status": "approved",
       "type": "rules"
     },
@@ -495,17 +497,19 @@
         "amelia"
       ],
       "approved_date": [
-        "2026-08-01"
+        "2026-08-01",
+        "2026-08-03"
       ],
-      "body_sha256": "8058090a15ecb57b8c7e4cad9c4b2fec57f392e5e71fa746b12500562b585ef4",
+      "body_sha256": "a7173370947991807cffc5b6dd8e8ddc4acf7965c72f44f55bd5494a06d3315a",
       "included_in_constitution": false,
       "path": "compliance/180-general-disclosures.yaml",
       "ruling_ref": [
         "R13",
-        "MTU-018"
+        "MTU-018",
+        "R20"
       ],
       "sequence": 180,
-      "source_sha256": "30bdac8bae1891bece8457568fef88af33d23514a7661627f94f56a0250ada1a",
+      "source_sha256": "0c92c3ee567ee3aead00da0dc843bfc02a0cc92626b90eb5db26e3f00ef4975a",
       "status": "approved",
       "type": "compliance"
     },
@@ -514,18 +518,16 @@
         "amelia"
       ],
       "approved_date": [
-        "2026-08-01"
+        "2026-08-03"
       ],
-      "body_sha256": "f7e828e68f147791c60afbebfd6f6321aac0d9a6281b3222eceaf511931fe3ed",
-      "included_in_constitution": false,
-      "path": "compliance/185-gio-general-disclosures.yaml",
+      "body_sha256": "d9a0ed8663218dc292fb4e20843f11894e320cda20d90f0a40a7f66287ed9984",
+      "included_in_constitution": true,
+      "path": "compliance/185-gio-disclosure-carve-out.yaml",
       "ruling_ref": [
-        "R13",
-        "MTU-018",
-        "melody-defect-3-investment-disclaimer"
+        "R20"
       ],
       "sequence": 185,
-      "source_sha256": "f8959270435cd07c17f7b53eaf6c9aa097a9e3e8cd5c27b41a8079eda0286165",
+      "source_sha256": "dff0562d293f08b65a0db09e791c79a8b9b865b4941311c151f5687980503653",
       "status": "approved",
       "type": "compliance"
     },
@@ -683,7 +685,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "74eca2f71c667515d7369fccfad06f610f30038643398d7fd36771185ead4c2f",
+  "sources_sha256": "18656c75d258bfd3290c123e8e0ceb3d6c38d45cb70725be9f1ecc88193b0ba6",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml"
   ]

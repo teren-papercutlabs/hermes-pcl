@@ -81,7 +81,7 @@ def test_allow_unverified_composes_parity_and_records_escape(tmp_path):
     assert manifest["allow_unverified"] is True
     assert manifest["unverified_compliance"]
     assert manifest["source_count"] == 36
-    assert manifest["composed_source_count"] == 26
+    assert manifest["composed_source_count"] == 27
     excluded = [
         source["path"]
         for source in manifest["sources"]
@@ -95,7 +95,6 @@ def test_allow_unverified_composes_parity_and_records_escape(tmp_path):
         "reference/064-replacement-taxonomy.yaml",
         "reference/065-disclaimer-selection.yaml",
         "compliance/180-general-disclosures.yaml",
-        "compliance/185-gio-general-disclosures.yaml",
         "compliance/190-rop-disadvantages.yaml",
         "compliance/195-rop-standard-declarations.yaml",
     ]

@@ -30,7 +30,7 @@ source_tags:
   compliance/010-sustainability-enforcement.yaml: [sustainability, compliance]
   compliance/150-rop-gate-and-default.yaml: [rop, compliance]
   compliance/180-general-disclosures.yaml: [compliance, disclosures]
-  compliance/185-gio-general-disclosures.yaml: [compliance, disclosures]
+  compliance/185-gio-disclosure-carve-out.yaml: [compliance, disclosures]
   compliance/190-rop-disadvantages.yaml: [rop, compliance, disclosures]
   compliance/195-rop-standard-declarations.yaml: [rop, compliance, disclosures]
   compliance/012-output-assembly-policy.yaml: [compliance, formatting]
