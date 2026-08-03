@@ -47,6 +47,7 @@ ACP_REGISTRY_MANIFEST = REPO_ROOT / "acp_registry" / "agent.json"
 AUTHOR_MAP = {
     # Papercut Labs agent-authored commits publish through the PcL maintainer.
     "edna@papercut-labs.com": "teren-papercutlabs",
+    "rasim@papercut-labs.com": "teren-papercutlabs",
     "pcloffice@PcLs-Mac-Studio.local": "teren-papercutlabs",
     # teknium (multiple emails)
     "teknium1@gmail.com": "teknium1",
