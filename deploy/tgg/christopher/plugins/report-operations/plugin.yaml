@@ -1,0 +1,13 @@
+name: report-operations
+version: 1.0.0
+description: "Typed report workflow adapter for Christopher."
+author: "Papercut Labs"
+provides_tools:
+  - report_fetch_sources
+  - report_preview_reconcile
+  - report_apply_reconcile
+  - report_generate
+  - report_get_reports
+  - report_status
+requires_env:
+  - CHRISTOPHER_TGG_PS_SERVICE_TOKEN

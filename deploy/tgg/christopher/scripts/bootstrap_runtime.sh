@@ -35,6 +35,10 @@ grep -qE '^GEMINI_API_KEY=' "$HERMES_HOME/.env" || {
   echo "missing GEMINI_API_KEY in Hermes env" >&2
   exit 20
 }
+grep -qE '^CHRISTOPHER_TGG_PS_SERVICE_TOKEN=' "$HERMES_HOME/.env" || {
+  echo "missing CHRISTOPHER_TGG_PS_SERVICE_TOKEN in Hermes env" >&2
+  exit 20
+}
 chmod 0600 "$HERMES_HOME/.env"
 chown pclaw:pclaw "$HERMES_HOME/.env"
 
@@ -56,6 +60,8 @@ chown -R root:root "$APP_ROOT/.venv"
   --spec "$DEPLOY_ROOT/client-agent-deployment.yaml"
 
 install -m 0640 -o root -g pclaw "$DEPLOY_ROOT/SOUL.md" "$HERMES_HOME/SOUL.md"
+install -d -m 0750 -o root -g pclaw "$HERMES_HOME/plugins"
+ln -sfn "$DEPLOY_ROOT/plugins/report-operations" "$HERMES_HOME/plugins/report-operations"
 
 # Deployment owns code/config refresh, not activation state. Create the gate
 # fail-closed on first install, then validate and preserve either live boolean
@@ -81,11 +87,30 @@ fi
 for unit in \
   christopher-tgg-hermes.service \
   christopher-tgg-hermes-health.service \
-  christopher-tgg-hermes-health.timer; do
+  christopher-tgg-hermes-health.timer \
+  christopher-tgg-report-weekly.service \
+  christopher-tgg-report-weekly.timer \
+  christopher-tgg-report-monthly.service \
+  christopher-tgg-report-monthly.timer; do
   ln -sfn "$DEPLOY_ROOT/systemd/$unit" "/etc/systemd/system/$unit"
 done
 systemctl daemon-reload
 systemctl enable christopher-tgg-hermes.service >/dev/null
 systemctl enable --now christopher-tgg-hermes-health.timer >/dev/null
+
+schedule_enabled="$($APP_ROOT/.venv/bin/python - "$HERMES_HOME/config.yaml" <<'PY'
+import sys, yaml
+config = yaml.safe_load(open(sys.argv[1], encoding="utf-8")) or {}
+enabled = (((config.get("pa") or {}).get("report_operations") or {}).get("schedule") or {}).get("enabled")
+print("true" if enabled is True else "false")
+PY
+)"
+if [[ "$schedule_enabled" == "true" ]]; then
+  systemctl enable --now christopher-tgg-report-weekly.timer >/dev/null
+  systemctl enable --now christopher-tgg-report-monthly.timer >/dev/null
+else
+  systemctl disable --now christopher-tgg-report-weekly.timer >/dev/null 2>&1 || true
+  systemctl disable --now christopher-tgg-report-monthly.timer >/dev/null 2>&1 || true
+fi
 
 echo "Christopher Hermes runtime bootstrap complete"
