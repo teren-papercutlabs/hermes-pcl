@@ -20,6 +20,15 @@ if str(SCRIPTS) not in sys.path:
 
 from mtu_eval_policy import canonical_digest, compare_baseline, load_policy
 
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from mtu_baseline_fixture import (  # noqa: E402
+    rebind_report_to_corpus,
+    synthesize_missing_selected_cases,
+)
+
 
 def _module(name):
     path = SCRIPTS / f"{name}.py"
@@ -34,12 +43,15 @@ def _baseline():
     """Committed baseline, re-labelled to the CURRENT corpus declarations.
 
     The baseline replay predates later corpus amendments (an expectation's
-    kind can be downgraded without a fresh replay existing yet), so each
-    assertion's kind/text is aligned to the current corpus by (case, label)
-    before use — the fixtures stay corpus-consistent by construction.
+    kind can be downgraded, a case can be merged away, a surviving case can
+    gain an expectation, without a fresh replay existing yet), so the report is
+    re-bound to the current corpus — case coverage via
+    ``rebind_report_to_corpus`` and each assertion's kind/text by (case, label)
+    — before use. The fixtures stay corpus-consistent by construction.
     """
     report = json.loads(BASELINE.read_text())
     corpus = json.loads((ROOT / "deploy/finexis/mtu/evals/mtu-eval-corpus-v1.json").read_text())
+    report = rebind_report_to_corpus(report, corpus)
     declared = {
         str(case.get("case_id")): {
             str(item.get("label")): item for item in case.get("expected") or []
@@ -75,6 +87,8 @@ def _passing_rule_report():
     report["corpus"]["tags"] = [
         "intake", "rop", "never-ask", "fabrication", "compliance", "client-surface"
     ]
+    corpus = json.loads((ROOT / "deploy/finexis/mtu/evals/mtu-eval-corpus-v1.json").read_text())
+    synthesize_missing_selected_cases(report, corpus)
     semantic_turns = semantic_assertions = 0
     for case in report["cases"]:
         for turn in case["turns"]:

@@ -27,6 +27,10 @@ for path in (str(ROOT), str(SCRIPTS)):
 from mtu_eval_policy import canonical_digest  # noqa: E402
 from hermes_cli.pa_compose import compose_pa_constitution  # noqa: E402
 
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+from mtu_baseline_fixture import rebind_report_to_corpus  # noqa: E402
+
 
 def _module():
     path = SCRIPTS / "assemble_cutover_evidence.py"
@@ -61,13 +65,16 @@ def _green_report(constitution_sha: str) -> dict:
     """Baseline report, judge-resolved and canary-clean, bound to ``constitution_sha``.
 
     The committed baseline predates later corpus amendments (an eval case's
-    expectation kind/text can change without a fresh replay existing yet), so
-    assertions are re-labelled from the CURRENT corpus declarations by label
-    before statuses are normalized — the fixture is corpus-consistent by
-    construction rather than frozen to the baseline's corpus.
+    expectation kind/text can change, a case can be merged away, a surviving
+    case can gain an expectation, without a fresh replay existing yet), so the
+    report is re-bound to the CURRENT corpus — case coverage via
+    ``rebind_report_to_corpus`` and assertion kind/text by label — before
+    statuses are normalized. The fixture is corpus-consistent by construction
+    rather than frozen to the baseline's corpus.
     """
     report = json.loads(BASELINE.read_text())
     corpus = json.loads(CORPUS.read_text())
+    report = rebind_report_to_corpus(report, corpus)
     declared = {
         str(case.get("case_id")): {
             str(item.get("label")): item for item in case.get("expected") or []
