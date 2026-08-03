@@ -2,37 +2,37 @@
   "schema_version": 1,
   "corpus": {
     "source_path": "/Users/pcloffice/pcl/_worktrees/edna-ccaff87c-9057826a/deploy/finexis/mtu/evals/compliance-ab-cases.json",
-    "source_digest": "sha256:a732ecfce6a94c65ecda98917ce1360e1f6a6aa95c6013db036c9ecde4f1d72b",
-    "declared_case_count": 3,
-    "selected_case_count": 3,
+    "source_digest": "sha256:f1466ce4bd04f6b783334ee4947d4ef5bd2efd9378744432fe7fed15d42e74e3",
+    "declared_case_count": 2,
+    "selected_case_count": 2,
     "tags": [],
     "honor_draws": true
   },
   "execution": {
     "platform": "telegram",
-    "case_run_count": 12,
+    "case_run_count": 8,
     "multi_turn_case_count": 1,
-    "turn_count": 16,
+    "turn_count": 12,
     "runtime": {
       "mode": "disposable_copy",
-      "source_home": "/private/tmp/mtu-s3-source-9057826a",
-      "copy_home": "/private/var/folders/s9/3_6wbwsd2qqfnlr4z9lxsbgr0000gn/T/mtu-pa-eval-r0wb6z83",
+      "source_home": "/private/tmp/mtu-s3-source-9057826a-run2",
+      "copy_home": "/private/var/folders/s9/3_6wbwsd2qqfnlr4z9lxsbgr0000gn/T/mtu-pa-eval-mv7p_17f",
       "live_home_written": false,
       "model_provider": "custom",
       "model": "gpt-5.4-mini",
       "source_config_sha256": "6906557d159672c9e6beabde101d20d1199c13a9e5a7d0ee3c994fdf7ddec9aa",
-      "source_constitution_sha256": "04602295af5b4e1d6039d0573ab537058469bf6a28426dc23dae9125bd1fb9af",
-      "copied_config_sha256": "fe3bdd53a0797312c7dec58e791687ee1cce3806ee839b286f8c4c96089956c9",
-      "copied_constitution_sha256": "1937cf75a7a78738d74c17d3160d44db34387c7ad33aca0f4a5a398a5c68fead",
+      "source_constitution_sha256": "d5c294c4ede39471ff418abb98e2c81e837a11f7bc5eff12366f0e2c9c0e7bec",
+      "copied_config_sha256": "6e960cc92d7f29a5318b0d24ef46435947948938ebb46c2d8ecbfddf8d7987ba",
+      "copied_constitution_sha256": "904f3a557675c799e9a1805462a5882217af98efc8190a7b90b54e81bf5a3571",
       "instruction_placement": "skill",
       "output_mode": "marker"
     }
   },
   "deterministic_summary": {
-    "assertion_count": 88,
-    "passed": 88,
+    "assertion_count": 80,
+    "passed": 80,
     "failed": 0,
-    "case_runs_passed": 12,
+    "case_runs_passed": 8,
     "case_runs_failed": 0,
     "case_runs_not_applicable": 0
   },
@@ -49,21 +49,21 @@
       ],
       "draw": 1,
       "canary": false,
-      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-a477ddd842",
-      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-a477ddd842",
+      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-d053812532",
+      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-d053812532",
       "setup": {
         "command": "/new",
-        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-a477ddd842-setup",
+        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-d053812532-setup",
         "blocked_commands": []
       },
       "turn_count": 2,
       "turns": [
         {
           "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-a477ddd842-turn-1",
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-d053812532-turn-1",
           "processed": 1,
-          "response": "Quick check: do the total annual premiums exceed 50% of the client’s surplus? yes/no",
-          "response_digest": "sha256:a7da4e0ab753beaf4a08d2e96ff1ae15e0d1e646297fa5611f7b09754ff25e53",
+          "response": "Quick check for the sustainability line: do the total annual premiums exceed 50% of the client’s surplus? Yes or no.",
+          "response_digest": "sha256:498b8bbd8bb84cf1f190837407a7a247f3ece44e91ba0ac3e908987de45baa4e",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -91,10 +91,10 @@
         },
         {
           "turn_index": 1,
-          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-a477ddd842-turn-2",
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-d053812532-turn-2",
           "processed": 1,
-          "response": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\n\nTotal annual premiums do not exceed 50% of the client's surplus.",
-          "response_digest": "sha256:cbee043c2dc3d2e51e75f913189c634ffa12b19a00866fa7b8a2e8275ca79a4b",
+          "response": "This case is a replacement of an existing term life policy with a proposed term life policy.\n\nProposed plan: Elite Term (All Riders), Term Life, S$500,000 death/TPD/CI cover to age 70, at S$1,500 yearly premium.\n\nThe client requires adequate life protection and wants CI cover with a longer term. After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wanted CI cover and a longer term.\n\nCompared with the existing term plan, the proposed plan increases the sum assured, adds CI cover, and extends the coverage term.\n\nThe annual premium increases from S$1,200 to S$1,500, and the total annual premiums do not exceed 50% of the client's surplus.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:08c61396af99750d3f22eccd3101c8ba01fbc6277d9dfbe3b5d3b16e66963fe2",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -230,21 +230,21 @@
       ],
       "draw": 2,
       "canary": false,
-      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-8a040764db",
-      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-8a040764db",
+      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-432eccfcfb",
+      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-432eccfcfb",
       "setup": {
         "command": "/new",
-        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-8a040764db-setup",
+        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-432eccfcfb-setup",
         "blocked_commands": []
       },
       "turn_count": 2,
       "turns": [
         {
           "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-8a040764db-turn-1",
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-432eccfcfb-turn-1",
           "processed": 1,
-          "response": "Quick check: are the total annual premiums more than 50% of the client’s surplus? yes/no",
-          "response_digest": "sha256:356c64289a5ce2b2a9c82f0776109745d17c161674ba363702ed611062c7a14e",
+          "response": "Quick check: do the total annual premiums exceed 50% of the client's surplus? yes/no",
+          "response_digest": "sha256:d39d6d71d9defb69ab1a49ce84bb6e359088dce20227a8890d2a810edffc5717",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -272,10 +272,10 @@
         },
         {
           "turn_index": 1,
-          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-8a040764db-turn-2",
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-432eccfcfb-turn-2",
           "processed": 1,
-          "response": "To address the client's need for protection, the client currently has Prudential PruTerm, a Term Life plan with S$300,000 death/TPD cover and coverage to age 65.\n\nAfter a recent review, the client stated the client wants CI cover and a longer term.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\n\n\nThe client has chosen Elite Term (All Riders). The plan provides S$500,000 death/TPD/CI cover, costs S$1,500 yearly, and covers the client to age 70.\n\nThe proposed plan increases cover from S$300,000 death/TPD to S$500,000 death/TPD/CI and extends coverage from age 65 to age 70, while the annual premium increases from S$1,200 to S$1,500.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
-          "response_digest": "sha256:627dbe00ce4db95ec15ffb72286a070099c789b7fafbc30e037800a64387969a",
+          "response": "To address the client's need for CI cover and a longer term, the client currently has Prudential PruTerm, a Term Life plan with S$300,000 death/TPD cover, a yearly premium of S$1,200, and coverage to age 65.\n\nAfter a recent review, the client stated they want CI cover and a longer term.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\nThe client has chosen Elite Term (All Riders). The plan provides S$500,000 death/TPD/CI cover, costs S$1,500 yearly, and covers the client to age 70.\n\nCompared with the existing plan, death/TPD cover increases from S$300,000 to S$500,000, CI cover is added, and the coverage period extends from age 65 to age 70. Annual premium increases from S$1,200 to S$1,500.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:ff2a298047d241d7b08683e5d3df9530e6efbdbb22d95e3767d0ed2183d77861",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -411,21 +411,21 @@
       ],
       "draw": 3,
       "canary": false,
-      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bd1c9bc73b",
-      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bd1c9bc73b",
+      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bddda0c7d6",
+      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bddda0c7d6",
       "setup": {
         "command": "/new",
-        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bd1c9bc73b-setup",
+        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bddda0c7d6-setup",
         "blocked_commands": []
       },
       "turn_count": 2,
       "turns": [
         {
           "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bd1c9bc73b-turn-1",
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bddda0c7d6-turn-1",
           "processed": 1,
-          "response": "To address the client’s protection needs for Death, TPD and Critical Illness, the client currently has Prudential PruTerm, a Term Life plan, with S$300,000 death/TPD cover, a yearly premium of S$1,200, and coverage to age 65.\n\nAfter a recent review, the client stated the client wants CI cover and a longer term.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\nThe client has chosen Elite Term (All Riders). The plan provides S$500,000 death/TPD/CI cover, costs S$1,500 yearly, and covers the client to age 70.\n\nThe premium increases by S$300 yearly.\n\nThis is a replacement of policy.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nCheck before use: sustainability yes/no answer was not provided.",
-          "response_digest": "sha256:fdc2cf877d6b5cafe52be769ddb30630fdcedbd7ab1e7422174a92b1f62b5df8",
+          "response": "Quick check: do the total annual premiums exceed 50% of the client's surplus? (yes/no)",
+          "response_digest": "sha256:c6a02470fa652a298ec08ecc12b55544a86b1acf24451b0a445775f3796e6403",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -453,10 +453,10 @@
         },
         {
           "turn_index": 1,
-          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bd1c9bc73b-turn-2",
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-bddda0c7d6-turn-2",
           "processed": 1,
-          "response": "To address the client’s protection needs for Death, TPD and Critical Illness, the client currently has Prudential PruTerm, a Term Life plan, with S$300,000 death/TPD cover, a yearly premium of S$1,200, and coverage to age 65.\n\nAfter a recent review, the client stated the client wants CI cover and a longer term.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\nThe client has chosen Elite Term (All Riders). The plan provides S$500,000 death/TPD/CI cover, costs S$1,500 yearly, and covers the client to age 70.\n\nThe premium increases by S$300 yearly. Total annual premiums do not exceed 50% of the client's surplus.\n\nThis is a replacement of policy.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.",
-          "response_digest": "sha256:7ec64af2284144390200134e109fdc46b41a4f0c5036dba900b40f9ac2e3fbe8",
+          "response": "Existing plan: Prudential PruTerm, Term Life, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65.\n\nProposed plan: Elite Term (All Riders), Term Life, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70.\n\nThis is a replacement of the existing plan.\n\nThe proposed plan provides higher death/TPD coverage, adds CI cover, and extends the coverage term from age 65 to age 70.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.",
+          "response_digest": "sha256:7af0a4b0bc11ef4b91b99f3cd852dffe13efe47ee28a5876c7bb7557985bfdf8",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -592,21 +592,21 @@
       ],
       "draw": 4,
       "canary": false,
-      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-dea61d4f98",
-      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-dea61d4f98",
+      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-c5247e3248",
+      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-c5247e3248",
       "setup": {
         "command": "/new",
-        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-dea61d4f98-setup",
+        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-c5247e3248-setup",
         "blocked_commands": []
       },
       "turn_count": 2,
       "turns": [
         {
           "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-dea61d4f98-turn-1",
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-c5247e3248-turn-1",
           "processed": 1,
-          "response": "The client is currently covered under Prudential PruTerm, a Term Life plan with S$300,000 death/TPD cover, yearly premium of S$1,200, and coverage to age 65.\n\nThe proposed plan is Elite Term (All Riders), a Term Life plan with S$500,000 death/TPD/CI cover, yearly premium of S$1,500, and coverage to age 70.\n\nThis is a replacement of the existing PruTerm policy.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
-          "response_digest": "sha256:0a7474edc0720acc3944e15ee748e7b3955683be8fd1124734189acd6b9ace20",
+          "response": "Quick check: does the total annual premium for this case exceed 50% of the client’s surplus? Yes or no.",
+          "response_digest": "sha256:fc8a26c51902d44215faa714779f1d44fb94c1326a3b58e48bdccd254ab69788",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -634,10 +634,10 @@
         },
         {
           "turn_index": 1,
-          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-dea61d4f98-turn-2",
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-c5247e3248-turn-2",
           "processed": 1,
-          "response": "The client is currently covered under Prudential PruTerm, a Term Life plan with S$300,000 death/TPD cover, yearly premium of S$1,200, and coverage to age 65.\n\nThe proposed plan is Elite Term (All Riders), a Term Life plan with S$500,000 death/TPD/CI cover, yearly premium of S$1,500, and coverage to age 70.\n\nThis is a replacement of the existing PruTerm policy.\n\nCompared with the existing plan, the proposed plan provides a higher sum assured, adds CI cover, and extends coverage to age 70.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
-          "response_digest": "sha256:811a3d2afb4a78b3bda438ccbb455817dd3bec7a023b3f42221bb1badb84bf23",
+          "response": "To address the client's protection needs for death, TPD and critical illness, the client currently has Prudential PruTerm, Term Life, with S$300,000 death/TPD coverage, a yearly premium of S$1,200, and coverage to age 65. After a recent review, the client stated that they want CI cover and a longer term.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\nThe client has chosen Elite Term (All Riders). The plan provides S$500,000 death/TPD/CI coverage, costs S$1,500 yearly, and covers the client to age 70. Compared with the existing plan, this increases death/TPD coverage from S$300,000 to S$500,000, adds CI cover, extends cover from age 65 to age 70, and increases the annual premium from S$1,200 to S$1,500.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:76285dcdb37cac4af21e6416b32b4cca2b73cdd93e6076948cb475496a74f868",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -774,21 +774,21 @@
       ],
       "draw": 1,
       "canary": true,
-      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-ec72cef0a1",
-      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-ec72cef0a1",
+      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-e7a51245a1",
+      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-e7a51245a1",
       "setup": {
         "command": "/new",
-        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-ec72cef0a1-setup",
+        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-e7a51245a1-setup",
         "blocked_commands": []
       },
       "turn_count": 1,
       "turns": [
         {
           "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-ec72cef0a1-turn-1",
+          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-e7a51245a1-turn-1",
           "processed": 1,
-          "response": "The client has no existing plans.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Voyage 15pay because the selected Franklin Income Fund matches the client's balanced risk profile.\n\nThe client failed the CKA.\n\nThe proposed plan is Voyage 15pay, with no riders, 100% allocation to Franklin Income Fund, a S$12,000 annual premium, and a 15-year minimum investment period.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
-          "response_digest": "sha256:13853e161d0761fa7d3709bd43b352dc5733a5e4f934ef899bbaf4951d164136",
+          "response": "The client is seeking an ILP solution with no riders. The proposed plan is HSBC Life Wealth Voyage 15pay, with a 100% allocation to Franklin Income Fund and an annual premium of S$12,000.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Wealth Voyage 15pay because it matches the client's balanced risk profile.\n\nThe client has a balanced risk profile. Franklin Income Fund is classified as balanced, so the selected fund is aligned with the client's risk profile. The client failed the CKA, so please confirm that the required ILP suitability checks and declarations are completed before use.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nInvestment-linked policies are subject to investment risk, and the value of the policy and the unit price of the selected fund may fluctuate with market conditions. Returns are not guaranteed and past performance is not indicative of future performance. Charges apply and may affect the policy value and returns. Please check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:5c804ff36876423308777746b23db9e35d0e11cf3e514ffcb0f464b85ebcf49c",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -965,21 +965,21 @@
       ],
       "draw": 2,
       "canary": true,
-      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-b3862d96d2",
-      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-b3862d96d2",
+      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-120f3d7d4b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-120f3d7d4b",
       "setup": {
         "command": "/new",
-        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-b3862d96d2-setup",
+        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-120f3d7d4b-setup",
         "blocked_commands": []
       },
       "turn_count": 1,
       "turns": [
         {
           "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-b3862d96d2-turn-1",
+          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-120f3d7d4b-turn-1",
           "processed": 1,
-          "response": "The client failed the CKA and has a balanced risk profile.\n\nThe proposed HSBC Life Wealth Voyage 15pay uses Franklin Income Fund at 100% allocation with no riders. After discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage 15pay because it provides investment-linked coverage and the selected balanced fund matches the client's balanced risk profile.\n\nAnnual premium: S$12,000.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
-          "response_digest": "sha256:17233d09ec0cfe134407de20f00c97fe3dbbdc14c61e4e891fa7889157363d61",
+          "response": "The proposed plan is HSBC Life Wealth Voyage (Voyage 15pay), with no riders, a 15-year minimum investment period, Franklin Income Fund at 100% allocation, and an annual premium of S$12,000.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage because it is aligned to the client's balanced risk profile.\n\nThe client failed the CKA. Franklin Income Fund is treated in the rules as approximately balanced risk; please confirm the classification if this case depends on it.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:43d35dcfaf9d5a812e4e51be95ec131959853bc8d4af76cc26565eb01cdc5201",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -1156,21 +1156,21 @@
       ],
       "draw": 3,
       "canary": true,
-      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-ad2438d1e0",
-      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-ad2438d1e0",
+      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-fa16697113",
+      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-fa16697113",
       "setup": {
         "command": "/new",
-        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-ad2438d1e0-setup",
+        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-fa16697113-setup",
         "blocked_commands": []
       },
       "turn_count": 1,
       "turns": [
         {
           "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-ad2438d1e0-turn-1",
+          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-fa16697113-turn-1",
           "processed": 1,
-          "response": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.",
-          "response_digest": "sha256:03da1a4b26e19195fd1d72cae9485433821e8d17ebc5c745a063043bd352634c",
+          "response": "The client failed CKA and has a balanced risk profile.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage 15pay because it meets the client's long-term investment needs and balanced risk profile. The proposed plan is HSBC Life Wealth Voyage with Franklin Income Fund, no riders, and an annual premium of S$12,000.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:430a7244a207ac97e98f602351bcc7d65c5e27182418c92822fc3707adb0839b",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -1347,21 +1347,21 @@
       ],
       "draw": 4,
       "canary": true,
-      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-65af4eede2",
-      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-65af4eede2",
+      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-fada39f9d1",
+      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-fada39f9d1",
       "setup": {
         "command": "/new",
-        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-65af4eede2-setup",
+        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-fada39f9d1-setup",
         "blocked_commands": []
       },
       "turn_count": 1,
       "turns": [
         {
           "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-65af4eede2-turn-1",
+          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-fada39f9d1-turn-1",
           "processed": 1,
-          "response": "The client applied for HSBC Life Wealth Voyage with a 15-year minimum investment period, annual premium of S$12,000, no riders, and investment into Franklin Income Fund. The client failed CKA and has a balanced risk profile; Franklin Income Fund is approximately balanced and aligns with the client's balanced risk profile.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.\nTotal annual premiums do not exceed 50% of the client's surplus.",
-          "response_digest": "sha256:b9d5e045c2c8c2992990a47aeba22e9040510ff594ba164258c8d7b731a7770c",
+          "response": "The client has no existing plans.\n\nThe proposed plan is HSBC Life Wealth Voyage (Voyage 15pay), a 15-year minimum investment period ILP, with no riders. The selected fund is Franklin Income Fund (100%) at S$12,000 per year.\n\nThe client failed CKA and has a balanced risk profile. Franklin Income Fund is treated as balanced risk; please confirm if this classification is material to the case.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nCheck before use: Franklin Income Fund classification is pending Melody confirmation if this case depends on it.",
+          "response_digest": "sha256:de562132559c2f0b33b35f9b44cd36899b0a0c329c49a9d72e958c6bd76de031",
           "response_source": {
             "outbound_index": 0,
             "kind": "send",
@@ -1522,238 +1522,6 @@
         "status": "passed",
         "assertion_count": 10,
         "passed": 10,
-        "failed": 0
-      }
-    },
-    {
-      "case_id": "MTU-023_wl_term_exact_alternatives",
-      "tags": [
-        "rop",
-        "formatting"
-      ],
-      "draw": 1,
-      "canary": false,
-      "run_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d1-748751b762",
-      "replay_namespace": "agent:replay:pa-eval-MTU-023_wl_term_exact_alternatives-d1-748751b762",
-      "setup": {
-        "command": "/new",
-        "attempt_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d1-748751b762-setup",
-        "blocked_commands": []
-      },
-      "turn_count": 1,
-      "turns": [
-        {
-          "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d1-748751b762-turn-1",
-          "processed": 1,
-          "response": "Northstar WholeLife Secure currently provides death/TPD cover of S$180,000, critical illness cover of S$60,000, annual premium of S$3,600 and lifetime coverage.\n\nHarbor EliteTerm provides death/TPD cover of S$500,000, critical illness cover of S$200,000, annual premium of S$1,850 and coverage to age 70. This gives the client materially higher protection to age 70 at a lower premium.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nTotal annual premiums do not exceed 50% of the client's surplus.\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
-          "response_digest": "sha256:7e19d9619c98d21688f5b19e4bec7e3433800488d875bc542ea57bbd7603287f",
-          "response_source": {
-            "outbound_index": 0,
-            "kind": "send",
-            "message_id": "replay-1"
-          },
-          "outbound_count": 1,
-          "assertions": [
-            {
-              "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
-              "kind": "exact_present",
-              "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
-              "critical": false,
-              "status": "passed",
-              "passed": true,
-              "normalized_text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium."
-            },
-            {
-              "label": "does not substitute the observed two-category paraphrase",
-              "kind": "exact_absent",
-              "text": "After discussing the pros and cons of whole life and term life plans",
-              "critical": false,
-              "status": "passed",
-              "passed": true,
-              "normalized_text": "After discussing the pros and cons of whole life and term life plans"
-            }
-          ]
-        }
-      ],
-      "deterministic": {
-        "status": "passed",
-        "assertion_count": 2,
-        "passed": 2,
-        "failed": 0
-      }
-    },
-    {
-      "case_id": "MTU-023_wl_term_exact_alternatives",
-      "tags": [
-        "rop",
-        "formatting"
-      ],
-      "draw": 2,
-      "canary": false,
-      "run_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d2-a7eaace5f6",
-      "replay_namespace": "agent:replay:pa-eval-MTU-023_wl_term_exact_alternatives-d2-a7eaace5f6",
-      "setup": {
-        "command": "/new",
-        "attempt_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d2-a7eaace5f6-setup",
-        "blocked_commands": []
-      },
-      "turn_count": 1,
-      "turns": [
-        {
-          "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d2-a7eaace5f6-turn-1",
-          "processed": 1,
-          "response": "The client is replacing Northstar WholeLife Secure with Harbor EliteTerm to obtain materially higher protection to age 70 at a lower premium. The existing plan provides death/TPD cover of S$180,000, critical illness cover of S$60,000, annual premium of S$3,600, and lifetime coverage. The proposed plan provides death/TPD cover of S$500,000, critical illness cover of S$200,000, annual premium of S$1,850, and coverage to age 70.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.\n\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
-          "response_digest": "sha256:cab36c19f1c50e6151bb1225c9088f518340b355bc165e901d76c50a3cf8cc09",
-          "response_source": {
-            "outbound_index": 0,
-            "kind": "send",
-            "message_id": "replay-1"
-          },
-          "outbound_count": 1,
-          "assertions": [
-            {
-              "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
-              "kind": "exact_present",
-              "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
-              "critical": false,
-              "status": "passed",
-              "passed": true,
-              "normalized_text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium."
-            },
-            {
-              "label": "does not substitute the observed two-category paraphrase",
-              "kind": "exact_absent",
-              "text": "After discussing the pros and cons of whole life and term life plans",
-              "critical": false,
-              "status": "passed",
-              "passed": true,
-              "normalized_text": "After discussing the pros and cons of whole life and term life plans"
-            }
-          ]
-        }
-      ],
-      "deterministic": {
-        "status": "passed",
-        "assertion_count": 2,
-        "passed": 2,
-        "failed": 0
-      }
-    },
-    {
-      "case_id": "MTU-023_wl_term_exact_alternatives",
-      "tags": [
-        "rop",
-        "formatting"
-      ],
-      "draw": 3,
-      "canary": false,
-      "run_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d3-5fba01f2ea",
-      "replay_namespace": "agent:replay:pa-eval-MTU-023_wl_term_exact_alternatives-d3-5fba01f2ea",
-      "setup": {
-        "command": "/new",
-        "attempt_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d3-5fba01f2ea-setup",
-        "blocked_commands": []
-      },
-      "turn_count": 1,
-      "turns": [
-        {
-          "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d3-5fba01f2ea-turn-1",
-          "processed": 1,
-          "response": "The client requires materially higher protection to age 70 at a lower premium. Northstar WholeLife Secure provides death/TPD cover of S$180,000, critical illness cover of S$60,000, annual premium of S$3,600 and lifetime coverage. Harbor EliteTerm increases death/TPD cover to S$500,000 and critical illness cover to S$200,000, with annual premium of S$1,850 and coverage to age 70.\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.\n\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
-          "response_digest": "sha256:b56910a1c6220eb1c52ef2fb212c3474d2abbdb5c3d803dba19938eeb52fb885",
-          "response_source": {
-            "outbound_index": 0,
-            "kind": "send",
-            "message_id": "replay-1"
-          },
-          "outbound_count": 1,
-          "assertions": [
-            {
-              "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
-              "kind": "exact_present",
-              "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
-              "critical": false,
-              "status": "passed",
-              "passed": true,
-              "normalized_text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium."
-            },
-            {
-              "label": "does not substitute the observed two-category paraphrase",
-              "kind": "exact_absent",
-              "text": "After discussing the pros and cons of whole life and term life plans",
-              "critical": false,
-              "status": "passed",
-              "passed": true,
-              "normalized_text": "After discussing the pros and cons of whole life and term life plans"
-            }
-          ]
-        }
-      ],
-      "deterministic": {
-        "status": "passed",
-        "assertion_count": 2,
-        "passed": 2,
-        "failed": 0
-      }
-    },
-    {
-      "case_id": "MTU-023_wl_term_exact_alternatives",
-      "tags": [
-        "rop",
-        "formatting"
-      ],
-      "draw": 4,
-      "canary": false,
-      "run_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d4-899540a5cc",
-      "replay_namespace": "agent:replay:pa-eval-MTU-023_wl_term_exact_alternatives-d4-899540a5cc",
-      "setup": {
-        "command": "/new",
-        "attempt_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d4-899540a5cc-setup",
-        "blocked_commands": []
-      },
-      "turn_count": 1,
-      "turns": [
-        {
-          "turn_index": 0,
-          "attempt_id": "pa-eval-MTU-023_wl_term_exact_alternatives-d4-899540a5cc-turn-1",
-          "processed": 1,
-          "response": "The client is replacing Northstar WholeLife Secure with Harbor EliteTerm.\n\nThe existing policy provides death/TPD cover of S$180,000, critical illness cover of S$60,000, annual premium of S$3,600, and lifetime coverage. The proposed plan provides death/TPD cover of S$500,000, critical illness cover of S$200,000, annual premium of S$1,850, and coverage to age 70.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.\n\n\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.",
-          "response_digest": "sha256:581465976b078d1a3c1153ac9282e74867467b915e986349a273d4ddc4f6e83a",
-          "response_source": {
-            "outbound_index": 0,
-            "kind": "send",
-            "message_id": "replay-1"
-          },
-          "outbound_count": 1,
-          "assertions": [
-            {
-              "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
-              "kind": "exact_present",
-              "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
-              "critical": false,
-              "status": "passed",
-              "passed": true,
-              "normalized_text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium."
-            },
-            {
-              "label": "does not substitute the observed two-category paraphrase",
-              "kind": "exact_absent",
-              "text": "After discussing the pros and cons of whole life and term life plans",
-              "critical": false,
-              "status": "passed",
-              "passed": true,
-              "normalized_text": "After discussing the pros and cons of whole life and term life plans"
-            }
-          ]
-        }
-      ],
-      "deterministic": {
-        "status": "passed",
-        "assertion_count": 2,
-        "passed": 2,
         "failed": 0
       }
     }
