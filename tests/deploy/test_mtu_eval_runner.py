@@ -11,6 +11,16 @@ SCRIPT = (
 )
 
 
+@pytest.fixture(autouse=True)
+def _restore_eval_mode_env(monkeypatch):
+    """_stage_runtime stamps HERMES_EVAL_MODE into os.environ (correct for the
+    dedicated runner process); without this, the stamp leaks into every later
+    test in the same pytest worker — CI's background-review suite saw eval
+    mode ON and asserted the review spawn that eval mode suppresses."""
+    monkeypatch.setenv("HERMES_EVAL_MODE", "0")
+    yield
+
+
 def _module():
     spec = importlib.util.spec_from_file_location("mtu_eval_runner", SCRIPT)
     module = importlib.util.module_from_spec(spec)
