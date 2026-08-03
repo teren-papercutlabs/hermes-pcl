@@ -80,6 +80,7 @@ def test_stage_runtime_overlays_candidate_but_borrows_only_live_secrets(tmp_path
         "config.yaml": "model:\n  default: candidate\npa: {}\n",
         "mtu_constitution.yaml": constitution % "candidate",
         "SOUL.md": "candidate\n",
+        "foo.txt": "knowledge\n",
     }.items():
         (candidate / name).write_text(content)
 
@@ -135,3 +136,43 @@ def test_deploy_guarded_repo_root_resolves_hermes_cli():
     assert (module.REPO_ROOT / "hermes_cli").is_dir(), (
         f"REPO_ROOT must be the repo root (cwd-independent import of hermes_cli); got {module.REPO_ROOT}"
     )
+
+
+def test_stage_runtime_sources_knowledge_from_candidate_not_live_home(tmp_path):
+    """Pre-cutover live home has no knowledge/; the candidate tree under test does."""
+    module = _module()
+    constitution = (
+        "id: test\n"
+        "agent_name: Test\n"
+        "identity: {role: test}\n"
+        "client: {name: test}\n"
+        "job_briefs:\n"
+        "  default:\n"
+        "    title: Test\n"
+        "    purpose: Test\n"
+        "    knowledge: [foo.txt]\n"
+    )
+    source = tmp_path / "live-home"
+    source.mkdir()
+    for name, content in {
+        "config.yaml": "model:\n  default: installed\npa: {}\n",
+        "mtu_constitution.yaml": constitution,
+        "SOUL.md": "installed\n",
+        ".env": "OPENAI_API_KEY=test-only\n",
+    }.items():
+        (source / name).write_text(content)
+    # deliberately NO knowledge/ dir in the live home
+    candidate = tmp_path / "candidate"
+    (candidate / "knowledge").mkdir(parents=True)
+    for name, content in {
+        "config.yaml": "model:\n  default: candidate\npa: {}\n",
+        "mtu_constitution.yaml": constitution,
+        "SOUL.md": "candidate\n",
+    }.items():
+        (candidate / name).write_text(content)
+    (candidate / "knowledge" / "foo.txt").write_text("candidate knowledge\n")
+
+    target = tmp_path / "copy"
+    module._stage_runtime(source, target, candidate)
+
+    assert (target / "knowledge" / "foo.txt").read_text() == "candidate knowledge\n"
