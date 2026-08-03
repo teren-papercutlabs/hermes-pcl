@@ -1,0 +1,34 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-08-01'
+# ruling_ref:
+# - R13
+# - MTU-018
+# - melody-defect-3-investment-disclaimer
+# status: approved
+# sequence: 185
+# compose: false
+# pending_confirmation: >-
+#   The SENTENCES below are amelia-approved verbatim (they are the
+#   180-general-disclosures lines, unchanged). What is pending amelia's
+#   confirmation via edna-mtu is the SET COMPOSITION for GIO / investment
+#   products — i.e. that the medical non-disclosure line is the one that drops
+#   because these products carry no medical underwriting. That decision lives
+#   in reference/065-disclaimer-selection.yaml, where it is a one-line edit.
+# ---
+schema_version: 1
+blocks:
+  # Selection-only variant: the model NEVER emits this marker and is never told
+  # about it. The runtime substitutes this text at the general-disclosures
+  # anchor when the case record's product category selects it, so the CHOICE is
+  # deterministic while the model still owns only marker PLACEMENT.
+  - id: general_disclosures_gio
+    marker: '[[PA_BLOCK:GENERAL_DISCLOSURES_GIO]]'
+    required_tags: [DRAFT, GIO]
+    selection_only: true
+    text: |-
+      The product was recommended after fact-find, needs analysis, and product comparison.
+      The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.
+      The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.

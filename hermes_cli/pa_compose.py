@@ -266,6 +266,18 @@ def sync_pa_knowledge(
             )
         )
     }
+    # Case-record config is runtime-only too: the field contract and the
+    # disclaimer-selection mapping are read by the runtime, never rendered to
+    # the model, so they must be synced without appearing in the manifest the
+    # model sees.
+    for brief in constitution.job_briefs.values():
+        case_record = brief.response_policy.get("case_record")
+        if not isinstance(case_record, dict):
+            continue
+        for key in ("field_sets", "disclaimer_selection"):
+            entry = case_record.get(key)
+            if entry:
+                runtime_only.add(str(entry))
     declared = sorted(model_visible | runtime_only)
     if not declared:
         raise PaComposeError("constitution declares no knowledge entries")

@@ -78,8 +78,14 @@ def _stage_runtime(
     )
     from hermes_cli.pa_compose import sync_pa_knowledge
 
+    # Knowledge is synced from the CANDIDATE deploy tree, not from the runtime
+    # source: knowledge, compliance artifacts, and case-record config are part
+    # of what a candidate IS, so evaluating a candidate against the installed
+    # runtime's knowledge would score the wrong tree (and fails outright once
+    # the candidate declares an entry the installed runtime has never seen).
+    # Secrets still come from --runtime-source and nothing else.
     sync_pa_knowledge(
-        source,
+        candidate,
         target / "mtu_constitution.yaml",
         target / "knowledge",
         target / "knowledge-sync.manifest.json",

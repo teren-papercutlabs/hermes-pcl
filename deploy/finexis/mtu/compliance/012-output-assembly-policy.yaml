@@ -16,5 +16,6 @@
         artifacts:
           - compliance/010-sustainability-enforcement.yaml
           - compliance/180-general-disclosures.yaml
+          - compliance/185-gio-general-disclosures.yaml
           - compliance/190-rop-disadvantages.yaml
           - compliance/195-rop-standard-declarations.yaml

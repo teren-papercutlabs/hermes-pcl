@@ -79,6 +79,16 @@ field_sets:
           NEVER SOLICITED. Standard narrative defaults supply this; record it
           only when the advisor volunteers it.
 
+      - id: product_category
+        required: false
+        askable: false
+        derived_from: [proposed_plan]
+        notes: >-
+          DERIVED from the proposed plan, never asked. Drives the deterministic
+          disclaimer-set selection in reference/065-disclaimer-selection.yaml
+          (investment products are GIO — no medical underwriting — so they must
+          not carry the medical non-disclosure line).
+
   # ── ILP: protection/life contract plus suitability facts ─────────────
   investment_linked:
     case_type: investment_linked
@@ -134,6 +144,16 @@ field_sets:
           Approved wording for the annual-ILP-premium-above-S$36,000
           declaration.
 
+      - id: product_category
+        required: false
+        askable: false
+        derived_from: [proposed_plan]
+        notes: >-
+          DERIVED from the proposed plan, never asked. Drives the deterministic
+          disclaimer-set selection in reference/065-disclaimer-selection.yaml
+          (investment products are GIO — no medical underwriting — so they must
+          not carry the medical non-disclosure line).
+
   # ── Shield / hospitalisation ─────────────────────────────────────────
   shield_hospitalisation:
     case_type: shield_hospitalisation
@@ -185,3 +205,40 @@ field_sets:
         notes: >-
           Identifies the arrangement ONLY. Rider benefit limits, deductible,
           and coinsurance are never collected and never printed.
+      - id: product_category
+        required: false
+        askable: false
+        derived_from: [proposed_plan]
+        notes: >-
+          DERIVED from the proposed plan, never asked. Drives the deterministic
+          disclaimer-set selection in reference/065-disclaimer-selection.yaml
+          (investment products are GIO — no medical underwriting — so they must
+          not carry the medical non-disclosure line).
+
+
+# ── Derivations (CLIENT-OWNED) ───────────────────────────────────────────
+#
+# The record module supplies the derivation HOOK; what may be derived from
+# what is a domain judgment, so the rules live here. Each rule reads ONE
+# recorded answer and resolves the target field from it; the derived value
+# inherits the source answer's message id, so provenance leads back to the
+# message the advisor actually wrote. A derived field is filled, and a filled
+# field is never re-asked.
+#
+# Ordering matters within `matches`: the first pattern that matches wins.
+# `default: null` means "cannot be derived yet" — the field stays empty.
+
+derivations:
+
+  # R06/R08 (amelia-ruled 2026-08-01): "no existing plans" is a complete
+  # answer — it makes the case non-ROP with no further question. An existing
+  # plan the advisor describes as being replaced is ROP. Anything else stays
+  # underived, so the ROP GATE's single conversational question still applies.
+  is_replacement:
+    from: existing_plans
+    matches:
+      - pattern: '(?i)^\s*(none|no|nil|n/?a|no existing|not applicable|first purchase|new purchase)\b'
+        value: "no"
+      - pattern: '(?i)(replac|switch(ing)? (from|out)|surrender|terminat|cancel(ling|ing)?)'
+        value: "yes"
+    default: null

@@ -38,6 +38,10 @@ class ComplianceBlock:
     exclusive_group: str | None
     artifact: str
     provenance: Mapping[str, Any]
+    #: A selection-only block is never required by a model scope tag and is
+    #: never shown to the model.  It exists to be substituted at another
+    #: block's marker by deterministic, config-driven selection.
+    selection_only: bool = False
 
 
 _SCOPE_RE = re.compile(r"\[\[PA_SCOPE:([^\]]+)\]\]")
@@ -135,6 +139,7 @@ def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBloc
                 exclusive_group=exclusive_group,
                 artifact=relative_path,
                 provenance=dict(provenance),
+                selection_only=bool(raw.get("selection_only", False)),
             )
         )
     return blocks
@@ -217,6 +222,8 @@ def _render_output_instruction(
     if policy.get("mode", "marker") == "verbatim":
         lines.append("Write each applicable protected block exactly as follows, without paraphrasing:")
         for block in blocks:
+            if block.selection_only:
+                continue
             tags = ",".join(sorted(block.required_tags))
             lines.append(f"- When scope includes {tags}: {block.text}")
     else:
@@ -230,6 +237,8 @@ def _render_output_instruction(
             "Never type or paraphrase the protected text; emit its marker exactly where the block belongs."
         )
         for block in blocks:
+            if block.selection_only:
+                continue
             tags = ",".join(sorted(block.required_tags))
             lines.append(f"- When scope includes {tags}, emit {block.marker}.")
         lines.append(
@@ -267,8 +276,17 @@ def assemble_pa_response(
     *,
     knowledge_root: str | Path | None = None,
     source_text: str = "",
+    block_selection: Any = None,
+    record_version_stamp: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Replace required markers with approved text or fail closed."""
+    """Replace required markers with approved text or fail closed.
+
+    ``block_selection`` carries a DETERMINISTIC, config-driven choice between
+    approved blocks — ``substitutions`` maps an anchor block id to the variant
+    that this case's product category actually requires, and ``forbid`` names
+    blocks the category must never carry.  The model still decides WHERE the
+    anchor marker goes; it never decides WHICH approved text lands there.
+    """
     if not output_assembly_enabled(pa_context):
         return response, {"enabled": False, "inserted": []}
     blocks = load_compliance_blocks(pa_context, knowledge_root=knowledge_root)
@@ -292,7 +310,34 @@ def assemble_pa_response(
             (tags - {"SUSTAINABILITY_NO", "SUSTAINABILITY_YES"})
             | {deterministic_scope}
         )
-    required = [block for block in blocks if block.required_tags.issubset(tags)]
+    substitutions = {
+        str(key): str(value)
+        for key, value in (getattr(block_selection, "substitutions", None) or {}).items()
+    }
+    forbidden = {
+        str(item) for item in (getattr(block_selection, "forbidden", None) or ())
+    }
+    by_id = {block.block_id: block for block in blocks}
+    unknown = [
+        block_id
+        for block_id in list(substitutions) + list(substitutions.values()) + list(forbidden)
+        if block_id not in by_id
+    ]
+    if unknown:
+        raise PAOutputAssemblyError(
+            "disclaimer selection names unknown block ids: " + ", ".join(sorted(unknown))
+        )
+    required = [
+        block
+        for block in blocks
+        if block.required_tags.issubset(tags)
+        and block.block_id not in forbidden
+        and not block.selection_only
+    ]
+    # A substitution variant is selected BY CATEGORY, never by a model tag: it
+    # is inserted at its anchor's marker, so it is not required on its own.
+    variant_ids = set(substitutions.values())
+    required = [block for block in required if block.block_id not in variant_ids]
     missing = [block.marker for block in required if assembled.count(block.marker) != 1]
     if missing:
         raise PAOutputAssemblyRetry(
@@ -316,27 +361,41 @@ def assemble_pa_response(
     for block in blocks:
         count = assembled.count(block.marker)
         if block in required:
-            assembled = assembled.replace(block.marker, block.text, 1)
+            selected = by_id.get(substitutions.get(block.block_id, ""), block)
+            assembled = assembled.replace(block.marker, selected.text, 1)
             inserted.append(
                 {
-                    "id": block.block_id,
-                    "artifact": block.artifact,
-                    "approved_by": block.provenance.get("approved_by"),
-                    "approved_date": block.provenance.get("approved_date"),
-                    "ruling_ref": block.provenance.get("ruling_ref"),
-                    "status": block.provenance.get("status"),
+                    "id": selected.block_id,
+                    "artifact": selected.artifact,
+                    "approved_by": selected.provenance.get("approved_by"),
+                    "approved_date": selected.provenance.get("approved_date"),
+                    "ruling_ref": selected.provenance.get("ruling_ref"),
+                    "status": selected.provenance.get("status"),
+                    **(
+                        {"substituted_for": block.block_id}
+                        if selected is not block
+                        else {}
+                    ),
                 }
             )
         elif count:
             assembled = assembled.replace(block.marker, "")
     if "[[PA_BLOCK:" in assembled or "[[PA_SCOPE:" in assembled:
         raise PAOutputAssemblyRetry(("no residual PA markers",), "unknown marker remains")
-    return assembled.strip(), {
+    evidence: dict[str, Any] = {
         "enabled": True,
         "scope_tags": sorted(tags),
         "deterministic_scope": deterministic_scope,
         "inserted": inserted,
     }
+    if block_selection is not None:
+        to_dict = getattr(block_selection, "to_dict", None)
+        evidence["disclaimer_selection"] = (
+            to_dict() if callable(to_dict) else dict(block_selection or {})
+        )
+    if record_version_stamp:
+        evidence["record_version_stamp"] = record_version_stamp
+    return assembled.strip(), evidence
 
 
 def retry_instruction(error: PAOutputAssemblyRetry) -> str:
