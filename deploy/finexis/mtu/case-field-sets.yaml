@@ -133,8 +133,17 @@ field_sets:
 
       - id: objective_alignment
         required: true
-        askable: true
-        ask_hint: "How the fund selection aligns with the client's objective."
+        askable: false
+        derived_from: [fund_selection, risk_profile]
+        notes: >-
+          NEVER ASKED (R09, amelia-ruled 2026-08-01). Alignment is COMPUTED from
+          the named fund's equity allocation against the client's stated risk
+          profile — the advisor is not the source. This field was `askable: true`
+          with an ask_hint reading "How the fund selection aligns with the
+          client's objective", which is verbatim the question the ILP GATE
+          forbids: intake builds its questions from the empty-required set, so
+          the record was generating the exact defect the rules prohibit. An
+          unresolvable fund asks for the specific FUND NAME, never for alignment.
 
       - id: high_premium_declaration_wording
         required: false
