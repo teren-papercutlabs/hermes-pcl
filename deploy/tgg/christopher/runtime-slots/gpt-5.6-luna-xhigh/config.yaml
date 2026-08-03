@@ -8,6 +8,7 @@ model:
 agent:
   profile: pa
   max_turns: 12
+  reasoning_effort: xhigh
 pa:
   enabled: false
   media_retention:

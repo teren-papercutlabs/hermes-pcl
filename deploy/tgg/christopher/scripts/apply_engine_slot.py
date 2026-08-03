@@ -17,13 +17,17 @@ from pathlib import Path
 import yaml
 
 
-# slot id -> model. gpt-5.6-luna-low runs gpt-5.6-luna at reasoning_effort low.
+# slot id -> model. Suffixed slots pin an explicit reasoning effort.
 SLOT_MODELS = {
     "gpt-5.4-mini": "gpt-5.4-mini",
     "gpt-5.6-luna": "gpt-5.6-luna",
     "gpt-5.6-luna-low": "gpt-5.6-luna",
+    "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
 }
-SLOT_REASONING_EFFORT = {"gpt-5.6-luna-low": "low"}
+SLOT_REASONING_EFFORT = {
+    "gpt-5.6-luna-low": "low",
+    "gpt-5.6-luna-xhigh": "xhigh",
+}
 ALLOWED_SLOTS = tuple(SLOT_MODELS)
 DEFAULT_SLOT = ALLOWED_SLOTS[0]
 

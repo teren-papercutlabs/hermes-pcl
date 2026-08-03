@@ -2155,7 +2155,12 @@ class TestCaseCreateJobNoContract:
             / "christopher"
             / "runtime-slots"
         )
-        for slot in ("gpt-5.4-mini", "gpt-5.6-luna", "gpt-5.6-luna-low"):
+        for slot in (
+            "gpt-5.4-mini",
+            "gpt-5.6-luna",
+            "gpt-5.6-luna-low",
+            "gpt-5.6-luna-xhigh",
+        ):
             constitution = yaml.safe_load(
                 (slots_root / slot / "christopher_tgg_constitution.yaml").read_text()
             )

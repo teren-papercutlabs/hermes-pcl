@@ -411,8 +411,9 @@ timezone: Asia/Singapore
 session_reset:
   mode: none
 memory:
-  memory_enabled: false
+  memory_enabled: true
   user_profile_enabled: false
+  memory_char_limit: 2200
 python_sandbox:
   enabled: true
   artifact_url_base: https://systems.papercut-labs.com/api/view/sandbox-artifacts
@@ -428,6 +429,10 @@ python_sandbox:
       type: path
       path: /home/pclaw/.systems-pcl/data/media/tgg/hermes
       description: "Retained WhatsApp media/attachments (read-only; spreadsheets land here)"
+    documents:
+      type: path
+      path: /var/lib/tgg-capture/whatsapp/media/documents
+      description: "Documents uploaded in WhatsApp chats, ORIGINAL filenames matching the saved-at path shown in the message (read-only)"
   limits:
     wall_seconds: 120
     max_wall_seconds: 300

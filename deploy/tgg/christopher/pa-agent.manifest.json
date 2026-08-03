@@ -90,6 +90,12 @@
       "owner": "pclaw:pclaw"
     },
     {
+      "sourcePath": "tools/python_sandbox_paths.py",
+      "targetPath": "home/pclaw/apps/hermes-pcl/tools/python_sandbox_paths.py",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
       "sourcePath": "toolsets.py",
       "targetPath": "home/pclaw/apps/hermes-pcl/toolsets.py",
       "owner": "pclaw:pclaw"
@@ -233,6 +239,18 @@
     {
       "sourcePath": "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-low/christopher_tgg_constitution.yaml",
       "targetPath": "home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-low/christopher_tgg_constitution.yaml",
+      "mode": "644",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-xhigh/config.yaml",
+      "targetPath": "home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-xhigh/config.yaml",
+      "mode": "600",
+      "owner": "pclaw:pclaw"
+    },
+    {
+      "sourcePath": "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-xhigh/christopher_tgg_constitution.yaml",
+      "targetPath": "home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-xhigh/christopher_tgg_constitution.yaml",
       "mode": "644",
       "owner": "pclaw:pclaw"
     },

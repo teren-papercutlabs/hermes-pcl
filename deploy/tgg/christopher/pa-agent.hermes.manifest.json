@@ -191,6 +191,8 @@
     "deploy/tgg/christopher/runtime-slots/gpt-5.4-mini/config.yaml",
     "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-low/christopher_tgg_constitution.yaml",
     "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-low/config.yaml",
+    "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-xhigh/christopher_tgg_constitution.yaml",
+    "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna-xhigh/config.yaml",
     "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna/christopher_tgg_constitution.yaml",
     "deploy/tgg/christopher/runtime-slots/gpt-5.6-luna/config.yaml",
     "deploy/tgg/christopher/scripts/WHERE-THE-CEREMONY-LIVES.md",

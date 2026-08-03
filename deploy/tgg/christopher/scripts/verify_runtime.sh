@@ -224,13 +224,17 @@ home = pathlib.Path(sys.argv[2])
 deploy = app / "deploy/tgg/christopher"
 runtime = home / "runtime"
 slot = (runtime / "engine-slot").read_text().strip()
-# slot id -> model. gpt-5.6-luna-low runs gpt-5.6-luna at reasoning_effort low.
+# slot id -> model. Suffixed slots pin an explicit reasoning effort.
 SLOT_MODELS = {
     "gpt-5.4-mini": "gpt-5.4-mini",
     "gpt-5.6-luna": "gpt-5.6-luna",
     "gpt-5.6-luna-low": "gpt-5.6-luna",
+    "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
 }
-SLOT_REASONING_EFFORT = {"gpt-5.6-luna-low": "low"}
+SLOT_REASONING_EFFORT = {
+    "gpt-5.6-luna-low": "low",
+    "gpt-5.6-luna-xhigh": "xhigh",
+}
 assert slot in SLOT_MODELS, slot
 slot_model = SLOT_MODELS[slot]
 slot_effort = SLOT_REASONING_EFFORT.get(slot)
@@ -515,8 +519,12 @@ SLOT_MODELS = {
     "gpt-5.4-mini": "gpt-5.4-mini",
     "gpt-5.6-luna": "gpt-5.6-luna",
     "gpt-5.6-luna-low": "gpt-5.6-luna",
+    "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
 }
-SLOT_REASONING_EFFORT = {"gpt-5.6-luna-low": "low"}
+SLOT_REASONING_EFFORT = {
+    "gpt-5.6-luna-low": "low",
+    "gpt-5.6-luna-xhigh": "xhigh",
+}
 assert slot in SLOT_MODELS, slot
 assert p["ok"] is True
 assert p["mode"] == "fixture-only"

@@ -1,6 +1,8 @@
-edf090a0c2e7ea10a3254727c96f63ae5a55a163aa664cac8563cc54b99228ad  gpt-5.4-mini/config.yaml
+f9e1209db3d7e431463f80120536b1eb524e337f4e6ace1dc5efd71490daf132  gpt-5.4-mini/config.yaml
 27e535fe3e8b229bcc2ebfe3aadb63927751ce5fcc90cdf8de6cb493c0bb12ac  gpt-5.4-mini/christopher_tgg_constitution.yaml
-52f6ac98a1e980bab9e7cfdee4263b2678a5570411eac8104a1df46063a859a8  gpt-5.6-luna/config.yaml
+d345ecf6b3c83e5a60cb484bcb8b28bb29c66bb23c125e5e3e7236dc16dff496  gpt-5.6-luna/config.yaml
 f5066c743c3b9fcf558b827eae8b601417d2756c3d1160be794f5a2b84416e2e  gpt-5.6-luna/christopher_tgg_constitution.yaml
-d4a5b2efa274f11c5e06851146941cccc1954543b3fded1677e39f65530c00a4  gpt-5.6-luna-low/config.yaml
+785a828185fecd276c8ed2bd7c91efd08955ab9c151ed804eccd8fb8feaf0f09  gpt-5.6-luna-low/config.yaml
 f5066c743c3b9fcf558b827eae8b601417d2756c3d1160be794f5a2b84416e2e  gpt-5.6-luna-low/christopher_tgg_constitution.yaml
+a0740995fc135c7c0d8cced1fc57ffacf4d712c2b584927554e2234709a55b39  gpt-5.6-luna-xhigh/config.yaml
+f5066c743c3b9fcf558b827eae8b601417d2756c3d1160be794f5a2b84416e2e  gpt-5.6-luna-xhigh/christopher_tgg_constitution.yaml

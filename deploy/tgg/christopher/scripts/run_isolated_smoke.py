@@ -256,7 +256,12 @@ def main() -> int:
     live_home = Path(args.live_home).resolve()
     test_root = Path(args.test_root).resolve()
     slot = Path(args.slot_file).read_text(encoding="utf-8").strip()
-    if slot not in {"gpt-5.4-mini", "gpt-5.6-luna", "gpt-5.6-luna-low"}:
+    if slot not in {
+        "gpt-5.4-mini",
+        "gpt-5.6-luna",
+        "gpt-5.6-luna-low",
+        "gpt-5.6-luna-xhigh",
+    }:
         raise RuntimeError(f"invalid engine slot {slot!r}")
     slot_root = app_root / "deploy" / "tgg" / "christopher" / "runtime-slots" / slot
     if not slot_root.is_dir():

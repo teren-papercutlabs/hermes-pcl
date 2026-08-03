@@ -8601,9 +8601,20 @@ class GatewayRunner:
 
         if event.media_urls and event.message_type == MessageType.DOCUMENT:
             import mimetypes as _mimetypes
+            from hermes_cli.config import read_raw_config as _read_raw_config
             from tools.credential_files import to_agent_visible_cache_path
+            from tools.python_sandbox_paths import host_path_to_python_sandbox_path
 
             _TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".log", ".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg"}
+            try:
+                _raw_config = _read_raw_config()
+                _sandbox_config = (
+                    _raw_config.get("python_sandbox", {})
+                    if isinstance(_raw_config, dict)
+                    else {}
+                )
+            except Exception:
+                _sandbox_config = {}
             for i, path in enumerate(event.media_urls):
                 mtype = event.media_types[i] if i < len(event.media_types) else ""
                 if mtype in {"", "application/octet-stream"}:
@@ -8626,12 +8637,19 @@ class GatewayRunner:
                 # This ensures the agent receives a path it can open inside its sandbox, as the
                 # cache directories are auto-mounted at /root/.hermes/cache/* by get_cache_directory_mounts().
                 agent_path = to_agent_visible_cache_path(path)
+                sandbox_path = host_path_to_python_sandbox_path(path, _sandbox_config)
+                location_note = (
+                    f"Original filename: '{basename}'. "
+                    f"Sandbox path: {sandbox_path}. Host path: {agent_path}."
+                    if sandbox_path is not None
+                    else f"Original filename: '{basename}'. Host path: {agent_path}."
+                )
 
                 if mtype.startswith("text/"):
                     context_note = (
                         f"[The user sent a text document: '{display_name}'. "
                         f"Its content has been included below. "
-                        f"The file is also saved at: {agent_path}]"
+                        f"{location_note}]"
                     )
                 else:
                     if mtype in {
@@ -8650,7 +8668,7 @@ class GatewayRunner:
                         action = "Ask the user what they'd like you to do with it."
                     context_note = (
                         f"[The user sent a document: '{display_name}'. "
-                        f"The file is saved at: {agent_path}. "
+                        f"{location_note} "
                         f"{action}]"
                     )
                 message_text = f"{context_note}\n\n{message_text}"

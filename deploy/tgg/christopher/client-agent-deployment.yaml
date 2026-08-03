@@ -122,6 +122,7 @@ spec:
       - gpt-5.4-mini
       - gpt-5.6-luna
       - gpt-5.6-luna-low
+      - gpt-5.6-luna-xhigh
     slotManifest: deploy/tgg/christopher/runtime-slots/SHA256SUMS
     slotStatePath: /home/pclaw/.hermes-christopher-tgg/runtime/engine-slot
     switchCommand: /home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/scripts/switch_engine_slot.sh
