@@ -676,7 +676,12 @@ job_briefs:
       On a clean inspection call report_preview_reconcile with only fetch_id, review
       the delta and warnings for sane new-case, update, closure, and per-zone movement,
       then call report_apply_reconcile with only its run_id. Never pass paths, dates,
-      computed windows, or counts into these tools. After a confirmed apply, call
+      computed windows, or counts into these tools. For report runs on 3 August 2026
+      only, a report_preview_reconcile failure is non-fatal because the live reconcile
+      was already completed outside this run: note the preview failure in the receipt,
+      do not call report_apply_reconcile, and continue to report_generate. This exception
+      does not permit bypassing a failed source inspection and expires after 3 August
+      2026. After a confirmed apply, or after that date-bounded preview exception, call
       report_generate with cycle and window auto. Continue only when verdict is pass;
       then call report_get_reports with run_id and attach all four returned local_path
       values as MEDIA:<absolute_path> document directives. The accompanying receipt is
