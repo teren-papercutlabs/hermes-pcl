@@ -21,7 +21,7 @@
       "preRestartHooks": [
         {
           "name": "bootstrap-hermes-runtime",
-          "command": "APP_ROOT=/home/pclaw/apps/hermes-pcl HERMES_HOME=/home/pclaw/.hermes-christopher-tgg CAPTURE_SOURCE=/var/lib/tgg-capture/whatsapp/capture/events.jsonl bash /home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/scripts/bootstrap_runtime.sh",
+          "command": "APP_ROOT=/home/pclaw/apps/hermes-pcl HERMES_HOME=/home/pclaw/.hermes-christopher-tgg CAPTURE_SOURCE=/var/lib/tgg-capture/whatsapp/capture/events.jsonl CHRISTOPHER_ENGINE_SLOT=gpt-5.6-luna-xhigh bash /home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/scripts/bootstrap_runtime.sh",
           "timeoutMs": 600000,
           "transaction": {
             "behavior": "idempotent"
