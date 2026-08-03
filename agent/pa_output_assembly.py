@@ -30,6 +30,34 @@ class PAOutputAssemblyRetry(PAOutputAssemblyError):
 
 
 @dataclass(frozen=True)
+class ComplianceSlot:
+    """A deterministic hole in an approved sentence, filled from case state.
+
+    The approved WORDING still lives whole in the typed artifact; a slot only
+    names which recorded field supplies a value and which canonical tokens that
+    field's answers map to.  The model never authors slot content, and an
+    unmappable answer resolves to nothing rather than to a guess.
+    """
+
+    name: str
+    field: str
+    matches: tuple[tuple[re.Pattern[str], str], ...] = ()
+
+    def resolve(self, raw_value: Any) -> str | None:
+        if raw_value is None:
+            return None
+        text = str(raw_value).strip()
+        if not text:
+            return None
+        if not self.matches:
+            return text
+        for pattern, value in self.matches:
+            if pattern.search(text):
+                return value
+        return None
+
+
+@dataclass(frozen=True)
 class ComplianceBlock:
     block_id: str
     marker: str
@@ -42,6 +70,26 @@ class ComplianceBlock:
     #: never shown to the model.  It exists to be substituted at another
     #: block's marker by deterministic, config-driven selection.
     selection_only: bool = False
+    #: A repeatable block's approved text belongs once per component the draft
+    #: covers, so its marker may legitimately appear more than once.  A
+    #: non-repeatable block stays exactly-once: duplicating a general
+    #: disclosure is itself a defect.
+    repeatable: bool = False
+    #: Slots resolved from case-record fields before insertion.
+    slots: tuple[ComplianceSlot, ...] = ()
+
+    def render(self, field_values: Mapping[str, Any] | None) -> str | None:
+        """Return the approved text with every slot filled, or None."""
+        if not self.slots:
+            return self.text
+        values = dict(field_values or {})
+        rendered = self.text
+        for slot in self.slots:
+            resolved = slot.resolve(values.get(slot.field))
+            if resolved is None:
+                return None
+            rendered = rendered.replace("{" + slot.name + "}", resolved)
+        return rendered
 
 
 _SCOPE_RE = re.compile(r"\[\[PA_SCOPE:([^\]]+)\]\]")
@@ -71,6 +119,64 @@ def output_assembly_max_attempts(pa_context: Any) -> int:
     except (TypeError, ValueError):
         attempts = 2
     return max(1, min(attempts, 3))
+
+
+def _parse_slots(
+    raw: Any,
+    relative_path: str,
+    block_id: str,
+    block_text: str,
+) -> tuple[ComplianceSlot, ...]:
+    if raw in (None, (), []):
+        if "{" in block_text:
+            raise PAOutputAssemblyError(
+                f"{relative_path}: block {block_id} has a slot placeholder but declares no slots"
+            )
+        return ()
+    if not isinstance(raw, list) or not raw:
+        raise PAOutputAssemblyError(f"{relative_path}: {block_id}.slots must be a non-empty list")
+    slots: list[ComplianceSlot] = []
+    for item in raw:
+        if not isinstance(item, Mapping):
+            raise PAOutputAssemblyError(f"{relative_path}: {block_id}.slots entries must be mappings")
+        name = str(item.get("name") or "").strip()
+        field = str(item.get("field") or "").strip()
+        if not name or not field:
+            raise PAOutputAssemblyError(
+                f"{relative_path}: {block_id}.slots entries need name and field"
+            )
+        placeholder = "{" + name + "}"
+        if placeholder not in block_text:
+            raise PAOutputAssemblyError(
+                f"{relative_path}: {block_id} declares slot {name!r} that its text never uses"
+            )
+        matches: list[tuple[re.Pattern[str], str]] = []
+        for match in item.get("matches") or ():
+            if not isinstance(match, Mapping):
+                raise PAOutputAssemblyError(
+                    f"{relative_path}: {block_id}.slots.{name}.matches entries must be mappings"
+                )
+            pattern = str(match.get("pattern") or "")
+            value = match.get("value")
+            if not pattern or value is None:
+                raise PAOutputAssemblyError(
+                    f"{relative_path}: {block_id}.slots.{name}.matches needs pattern and value"
+                )
+            try:
+                compiled = re.compile(pattern)
+            except re.error as exc:
+                raise PAOutputAssemblyError(
+                    f"{relative_path}: {block_id}.slots.{name} bad pattern {pattern!r}: {exc}"
+                ) from exc
+            matches.append((compiled, str(value)))
+        slots.append(ComplianceSlot(name=name, field=field, matches=tuple(matches)))
+    declared = {"{" + slot.name + "}" for slot in slots}
+    for found in re.findall(r"\{[a-zA-Z0-9_]+\}", block_text):
+        if found not in declared:
+            raise PAOutputAssemblyError(
+                f"{relative_path}: {block_id} text uses undeclared slot {found}"
+            )
+    return tuple(slots)
 
 
 def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBlock]:
@@ -130,6 +236,7 @@ def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBloc
             )
         if not marker.startswith("[[PA_BLOCK:") or not marker.endswith("]]" ):
             raise PAOutputAssemblyError(f"{relative_path}: invalid marker {marker!r}")
+        slots = _parse_slots(raw.get("slots"), relative_path, block_id, block_text)
         blocks.append(
             ComplianceBlock(
                 block_id=block_id,
@@ -140,6 +247,8 @@ def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBloc
                 artifact=relative_path,
                 provenance=dict(provenance),
                 selection_only=bool(raw.get("selection_only", False)),
+                repeatable=bool(raw.get("repeatable", False)),
+                slots=slots,
             )
         )
     return blocks
@@ -227,25 +336,46 @@ def _render_output_instruction(
             tags = ",".join(sorted(block.required_tags))
             lines.append(f"- When scope includes {tags}: {block.text}")
     else:
-        lines.extend(
-            [
-                "Emit exactly one scope marker: [[PA_SCOPE:NO_DRAFT]] when not returning a completed draft, or [[PA_SCOPE:DRAFT,<applicable tags>]] for a completed draft.",
-                "Applicable tags include ROP, GENERAL_DISCLOSURES, PROTECTION_ALTERNATIVES, SUSTAINABILITY_NO, and SUSTAINABILITY_YES.",
-            ]
-        )
-        lines.append(
-            "Never type or paraphrase the protected text; emit its marker exactly where the block belongs."
-        )
         runtime_tags = {
             str(tag).strip().upper()
             for tag in policy.get("runtime_scope_tags") or ()
             if str(tag).strip()
         }
+        # The tag vocabulary is DERIVED from the approved artifacts, never
+        # hard-coded here: a shared module must not carry one deployment's
+        # compliance vocabulary, and a hand-maintained list silently omits the
+        # tag a newly approved block needs.
+        declarable = sorted(
+            tag
+            for block in blocks
+            if not block.selection_only
+            for tag in block.required_tags
+            if tag not in {"DRAFT", "NO_DRAFT"} and tag not in runtime_tags
+        )
+        lines.append(
+            "Emit exactly one scope marker: [[PA_SCOPE:NO_DRAFT]] when not returning a completed draft, or [[PA_SCOPE:DRAFT,<applicable tags>]] for a completed draft."
+        )
+        if declarable:
+            lines.append(
+                "Applicable tags: " + ", ".join(dict.fromkeys(declarable)) + "."
+            )
+        lines.append(
+            "A tag that applies without a completed draft still belongs on the scope marker, e.g. [[PA_SCOPE:NO_DRAFT,<applicable tags>]]."
+        )
+        lines.append(
+            "Never type or paraphrase the protected text; emit its marker exactly where the block belongs."
+        )
         for block in blocks:
             if block.selection_only:
                 continue
             tags = ",".join(sorted(block.required_tags))
-            if runtime_tags & block.required_tags:
+            if block.repeatable:
+                lines.append(
+                    f"- When scope includes {tags}, emit {block.marker} once inside"
+                    " EACH component it covers — repeat the marker per component"
+                    " rather than hoisting one copy to the top."
+                )
+            elif runtime_tags & block.required_tags:
                 # The runtime, not the model, resolves this block's scope from
                 # case state. Asking the model to predict it costs a wasted
                 # regeneration every time it guesses the other way, so it always
@@ -294,6 +424,7 @@ def assemble_pa_response(
     source_text: str = "",
     block_selection: Any = None,
     record_version_stamp: str | None = None,
+    field_values: Mapping[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Replace required markers with approved text or fail closed.
 
@@ -349,6 +480,18 @@ def assemble_pa_response(
             )
         tags = frozenset((tags - exclusive_scope_tags) | {selected_scope})
 
+    # Additive runtime scope tags: category facts the case record already knows
+    # (this case IS an ILP) must not be re-predicted by the model. Unlike the
+    # exclusive set these do not displace anything — they union in, so a block
+    # gated on one becomes required whether or not the model declared it.
+    additional_scope_tags = {
+        str(tag).strip().upper()
+        for tag in (getattr(block_selection, "additional_scope_tags", None) or ())
+        if str(tag).strip()
+    }
+    if additional_scope_tags and "DRAFT" in tags:
+        tags = frozenset(tags | additional_scope_tags)
+
     substitutions = {
         str(key): str(value)
         for key, value in (getattr(block_selection, "substitutions", None) or {}).items()
@@ -377,7 +520,32 @@ def assemble_pa_response(
     # is inserted at its anchor's marker, so it is not required on its own.
     variant_ids = set(substitutions.values())
     required = [block for block in required if block.block_id not in variant_ids]
-    missing = [block.marker for block in required if assembled.count(block.marker) != 1]
+    # A slotted block whose case-record values do not resolve is DROPPED rather
+    # than inserted half-filled: a sentence with an unfilled hole is a
+    # client-visible error, and a regeneration cannot conjure a fact the record
+    # does not hold. The omission is recorded, never silent.
+    rendered_text: dict[str, str] = {}
+    unresolved: list[dict[str, Any]] = []
+    for block in list(required):
+        selected = by_id.get(substitutions.get(block.block_id, ""), block)
+        text = selected.render(field_values)
+        if text is None:
+            required.remove(block)
+            unresolved.append(
+                {
+                    "id": selected.block_id,
+                    "artifact": selected.artifact,
+                    "unresolved_fields": [slot.field for slot in selected.slots],
+                }
+            )
+            continue
+        rendered_text[block.block_id] = text
+    missing = [
+        block.marker
+        for block in required
+        if assembled.count(block.marker) < 1
+        or (not block.repeatable and assembled.count(block.marker) != 1)
+    ]
     if missing:
         raise PAOutputAssemblyRetry(
             missing,
@@ -401,7 +569,10 @@ def assemble_pa_response(
         count = assembled.count(block.marker)
         if block in required:
             selected = by_id.get(substitutions.get(block.block_id, ""), block)
-            assembled = assembled.replace(block.marker, selected.text, 1)
+            text = rendered_text[block.block_id]
+            assembled = assembled.replace(
+                block.marker, text, count if block.repeatable else 1
+            )
             inserted.append(
                 {
                     "id": selected.block_id,
@@ -410,6 +581,7 @@ def assemble_pa_response(
                     "approved_date": selected.provenance.get("approved_date"),
                     "ruling_ref": selected.provenance.get("ruling_ref"),
                     "status": selected.provenance.get("status"),
+                    **({"occurrences": count} if block.repeatable else {}),
                     **(
                         {"substituted_for": block.block_id}
                         if selected is not block
@@ -427,6 +599,8 @@ def assemble_pa_response(
         "deterministic_scope": deterministic_scope,
         "inserted": inserted,
     }
+    if unresolved:
+        evidence["unresolved_slots"] = unresolved
     if block_selection is not None:
         to_dict = getattr(block_selection, "to_dict", None)
         evidence["disclaimer_selection"] = (

@@ -63,5 +63,10 @@ categories:
   # line and keeps every other approved line verbatim.
   investment_linked:
     scope_tag: GIO
+    # ADDITIVE scope tags (R07): they union into the draft's scope instead of
+    # displacing the exclusive underwriting tag. The record already knows this
+    # case is an ILP, so the CKA declaration block stops depending on the model
+    # re-declaring it.
+    scope_tags: [ILP]
     substitutions: {}
     forbid: []

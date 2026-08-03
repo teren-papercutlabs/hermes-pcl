@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from agent.eval_mode import EVAL_MODE_ENV
 from gateway.pa_eval import PAEvalCorpus, run_pa_eval_corpus
 
 
@@ -72,6 +73,14 @@ def _stage_runtime(
     config.setdefault("pa", {})["constitution_path"] = str(
         target / "mtu_constitution.yaml"
     )
+    # EVAL MODE. A replay measures the deployed agent; it must not let that
+    # agent rewrite itself mid-corpus. The 2026-08-03 nightly created a
+    # 'bor-drafting' skill during the run, so every later case scored an agent
+    # the deploy tree does not contain. Stamped into the disposable config AND
+    # exported to the environment, because the runtime is started in-process
+    # here and the environment is what the agent fork actually reads.
+    config.setdefault("agent", {})["eval_mode"] = True
+    os.environ[EVAL_MODE_ENV] = "1"
     (target / "config.yaml").write_text(
         yaml.safe_dump(config, sort_keys=False),
         encoding="utf-8",
@@ -93,6 +102,7 @@ def _stage_runtime(
     )
     return {
         "mode": "disposable_copy",
+        "eval_mode": True,
         "source_home": str(source),
         "candidate_deploy_dir": str(candidate),
         "copy_home": str(target),

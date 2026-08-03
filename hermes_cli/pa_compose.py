@@ -266,7 +266,7 @@ def sync_pa_knowledge(
             )
         )
     }
-    # Case-record config is runtime-only too: the field contract and the
+    # Case-record config is runtime-only too: the required-field set and the
     # disclaimer-selection mapping are read by the runtime, never rendered to
     # the model, so they must be synced without appearing in the manifest the
     # model sees.

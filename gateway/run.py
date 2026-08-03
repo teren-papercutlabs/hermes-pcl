@@ -9479,6 +9479,7 @@ class GatewayRunner:
                 # sees the facts this turn supplied.
                 _pa_block_selection = None
                 _pa_record_stamp = None
+                _pa_field_values: dict[str, Any] = {}
                 try:
                     from agent.pa_case_runtime import (
                         case_record_enabled as _case_record_enabled,
@@ -9502,6 +9503,15 @@ class GatewayRunner:
                             )
                             if _pa_open_case is not None:
                                 _pa_record_stamp = _pa_open_case.version_stamp()
+                                # Slotted approved sentences read their values
+                                # from the record, so the model never authors
+                                # the variable part of a compliance line.
+                                _pa_field_values = {
+                                    str(_fid): _entry.value
+                                    for _fid, _entry in (
+                                        _pa_open_case.fields or {}
+                                    ).items()
+                                }
                 except Exception as _pa_sel_exc:  # noqa: BLE001
                     logger.debug(
                         "PA disclaimer selection unavailable (non-fatal): %s",
@@ -9514,6 +9524,7 @@ class GatewayRunner:
                         source_text=_assembly_source_text,
                         block_selection=_pa_block_selection,
                         record_version_stamp=_pa_record_stamp,
+                        field_values=_pa_field_values,
                     )
                     agent_result["final_response"] = _assembled
                     agent_result["pa_output_assembly"] = {

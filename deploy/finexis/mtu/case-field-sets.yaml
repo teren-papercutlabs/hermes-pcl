@@ -1,12 +1,12 @@
 # MTU — case field sets (CLIENT CONFIG)
 #
-# The required-field contract per case type, consumed by the PA-generic case
+# The required-field set per case type, consumed by the PA-generic case
 # record module (agent/pa_case_record.py).  Field ids are opaque to that
 # module; all MTU/Finexis vocabulary lives HERE, in the deployment tree, and
 # never in the shared layer.
 #
 # Grounded in deploy/finexis/mtu/knowledge/bor-required-checks.yaml
-# (field_contracts) and the intake / material-missing rules.  Those files
+# (category_requirements) and the intake / material-missing rules.  Those files
 # remain the authority on WHY a field is required; this file is the machine
 # -readable form the record queries against.
 #
@@ -133,8 +133,17 @@ field_sets:
 
       - id: objective_alignment
         required: true
-        askable: true
-        ask_hint: "How the fund selection aligns with the client's objective."
+        askable: false
+        derived_from: [fund_selection, risk_profile]
+        notes: >-
+          NEVER ASKED (R09, amelia-ruled 2026-08-01). Alignment is COMPUTED from
+          the named fund's equity allocation against the client's stated risk
+          profile — the advisor is not the source. This field was `askable: true`
+          with an ask_hint reading "How the fund selection aligns with the
+          client's objective", which is verbatim the question the ILP GATE
+          forbids: intake builds its questions from the empty-required set, so
+          the record was generating the exact defect the rules prohibit. An
+          unresolvable fund asks for the specific FUND NAME, never for alignment.
 
       - id: high_premium_declaration_wording
         required: false
@@ -196,7 +205,7 @@ field_sets:
         notes: >-
           Shield is the one contract where the rationale is a collected case
           fact rather than a narrative default (bor-required-checks
-          field_contracts.shield_hospitalisation.collect_rationale).
+          category_requirements.shield_hospitalisation.collect_rationale).
 
       - id: exact_versioned_rider_name
         required: false

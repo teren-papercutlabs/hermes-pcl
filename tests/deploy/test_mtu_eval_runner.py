@@ -1,4 +1,5 @@
 import importlib.util
+import os
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,16 @@ SCRIPT = (
     Path(__file__).resolve().parents[2]
     / "deploy/finexis/mtu/scripts/run_eval_corpus.py"
 )
+
+
+@pytest.fixture(autouse=True)
+def _restore_eval_mode_env(monkeypatch):
+    """_stage_runtime stamps HERMES_EVAL_MODE into os.environ (correct for the
+    dedicated runner process); without this, the stamp leaks into every later
+    test in the same pytest worker — CI's background-review suite saw eval
+    mode ON and asserted the review spawn that eval mode suppresses."""
+    monkeypatch.setenv("HERMES_EVAL_MODE", "0")
+    yield
 
 
 def _module():
@@ -180,3 +191,47 @@ def test_stage_runtime_sources_knowledge_from_candidate_not_live_home(tmp_path):
     module._stage_runtime(source, target, candidate)
 
     assert (target / "knowledge" / "foo.txt").read_text() == "candidate knowledge\n"
+
+
+def test_stage_runtime_turns_on_eval_mode(tmp_path, monkeypatch):
+    """A replay must not let the agent rewrite itself mid-corpus.
+
+    The 2026-08-03 nightly created a 'bor-drafting' skill during the run, so
+    every case after it scored an agent the deploy tree does not contain.
+    """
+    import yaml
+
+    from agent.eval_mode import EVAL_MODE_ENV, self_modification_allowed
+
+    monkeypatch.delenv(EVAL_MODE_ENV, raising=False)
+    assert self_modification_allowed() is True
+
+    module = _module()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "config.yaml").write_text(
+        "model:\n  provider: custom\n  default: test-model\n"
+        "pa:\n  enabled: true\n  constitution_path: /live/constitution.yaml\n"
+    )
+    (source / "mtu_constitution.yaml").write_text(
+        "id: test\n"
+        "agent_name: Test\n"
+        "identity: {role: test}\n"
+        "client: {name: test}\n"
+        "job_briefs:\n"
+        "  default:\n"
+        "    title: Test\n"
+        "    purpose: Test\n"
+        "    knowledge: [foo.txt]\n"
+    )
+    (source / "foo.txt").write_text("knowledge\n")
+    (source / "SOUL.md").write_text("test\n")
+    (source / ".env").write_text("OPENAI_API_KEY=test-only\n")
+
+    manifest = module._stage_runtime(source, tmp_path / "copy")
+
+    staged = yaml.safe_load((tmp_path / "copy" / "config.yaml").read_text())
+    assert staged["agent"]["eval_mode"] is True
+    assert manifest["eval_mode"] is True
+    assert os.environ[EVAL_MODE_ENV] == "1"
+    assert self_modification_allowed() is False

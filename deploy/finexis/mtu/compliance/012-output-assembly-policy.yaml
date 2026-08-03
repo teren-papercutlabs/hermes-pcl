@@ -17,9 +17,11 @@
         # model. A block requiring one of these is always marker-placed by the
         # model; reference/065-disclaimer-selection.yaml decides which one
         # applies, and the runtime strips the marker when it does not.
-        runtime_scope_tags: [GIO, UNDERWRITTEN]
+        runtime_scope_tags: [GIO, UNDERWRITTEN, ILP]
         artifacts:
           - compliance/010-sustainability-enforcement.yaml
           - compliance/180-general-disclosures.yaml
           - compliance/190-rop-disadvantages.yaml
           - compliance/195-rop-standard-declarations.yaml
+          - compliance/196-no-reference-example.yaml
+          - compliance/197-cka-declaration.yaml

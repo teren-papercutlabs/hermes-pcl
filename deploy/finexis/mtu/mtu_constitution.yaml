@@ -67,15 +67,17 @@ job_briefs:
         # model. A block requiring one of these is always marker-placed by the
         # model; reference/065-disclaimer-selection.yaml decides which one
         # applies, and the runtime strips the marker when it does not.
-        runtime_scope_tags: [GIO, UNDERWRITTEN]
+        runtime_scope_tags: [GIO, UNDERWRITTEN, ILP]
         artifacts:
           - compliance/010-sustainability-enforcement.yaml
           - compliance/180-general-disclosures.yaml
           - compliance/190-rop-disadvantages.yaml
           - compliance/195-rop-standard-declarations.yaml
+          - compliance/196-no-reference-example.yaml
+          - compliance/197-cka-declaration.yaml
       case_record:
         enabled: true
-        # Client-owned field contract (also carries the derivation table).
+        # Client-owned required-field set (also carries the derivation table).
         field_sets: case-field-sets.yaml
         # Used until the turn classifies the case.
         default_case_type: protection_life
@@ -162,19 +164,49 @@ job_briefs:
         variants to the lookup and never alter the generic tool's exact-match rule.
         Build the replacement-path key only from the two exact taxonomy entries.
         Never fetch a whole structured reference. Use the returned
-        entry only when found=true. A miss means no approved example exists: follow
-        the returned escalation cue and route the unresolved case to Melody. Never
-        substitute a nearby key, reuse a number from another path, ask the advisor
-        for a file number, or expose internal lookup vocabulary. Resolving an
-        example does not make an unsupported product category draftable; the
+        entry only when found=true.
+        A MISS IS NOT ONE VERDICT — which lookup missed decides what happens.
+        MISS ON 061 (replacement path) or on 064 (category not in the approved
+        taxonomy): the replacement TYPE has no approved reference example.
+        Withhold that component, name the old and new plan types in the advisor's
+        own words, say the case is with Melody, add NO_REFERENCE_EXAMPLE to the
+        scope marker, and place [[PA_BLOCK:NO_REFERENCE_EXAMPLE]] where the
+        explanation belongs — never type or paraphrase that sentence yourself.
+        MISS ON 062 (approved products) or 063 (product insurers): only this
+        PRODUCT NAME is absent from the reference examples. That NEVER withholds a
+        draft on its own. When the replacement path resolves and both categories
+        are supported, DRAFT the case from the advisor's supplied facts; an
+        unfamiliar product name is not an escalation and not a reason to reach for
+        a nearby product. Escalating a draftable case over an unlisted product
+        name is a defect (MTU-021).
+        Never substitute a nearby key, reuse a number from another path, ask the
+        advisor for a file number, or expose internal lookup vocabulary. Resolving
+        an example does not make an unsupported product category draftable; the
         supported-category contract still governs.
       - >-
         CLASSIFY the replacement path (old category → new category) from the approved
         set above. The path selects the ROP wording and conditional checks. Never use a
-        closest-match template. Unknown, image-only, or novel path → ask for the exact
-        category if that resolves it; otherwise withhold that component and escalate
-        to Melody. In a mixed case, draft supported components only and name each
-        withheld component individually.
+        closest-match template.
+        THE APPROVED REPLACEMENT PATHS ARE EXACTLY THESE NINE, AND NOTHING ELSE:
+        ILP-with-coverage -> Term; Whole Life -> Term; Term -> Term;
+        ILP-with-coverage -> ILP-without-coverage; Endowment -> ILP-without-coverage;
+        ILP-without-coverage -> ILP-without-coverage; Term -> IUL-with-coverage;
+        Shield -> Shield; PA -> PA.
+        THIS IS A DRAFT GATE, NOT A LOOKUP PREFERENCE. A replacement whose path is not
+        on that list HAS NO DRAFT, however complete the advisor's facts are and however
+        ordinary the change looks. Replacing INTO whole life is not on the list; neither
+        is any retirement / annuity / income path. A full set of premiums, sums assured
+        and declarations is not evidence that the path is approved — it is exactly what
+        an unapproved path looks like just before it gets drafted by mistake, which is
+        the defect MTU-032, MTU-033 and MTU-034 exist to catch.
+        Unknown, image-only, or novel path → ask for the exact category if that
+        resolves it; otherwise WITHHOLD that component: name the old and new plan types
+        in the advisor's own words, say the case is with Melody, add
+        NO_REFERENCE_EXAMPLE to the scope marker, and place
+        [[PA_BLOCK:NO_REFERENCE_EXAMPLE]] where the explanation belongs. Never type or
+        paraphrase that sentence. This gate applies only to REPLACEMENTS; a first
+        purchase with no existing plan has no path to classify. In a mixed case, draft
+        supported components only and name each withheld component individually.
       - >-
         RESOLVE each required check before drafting. DERIVE coverage and premium
         movement only from supplied category-appropriate facts. Run an arithmetic
@@ -239,17 +271,23 @@ job_briefs:
         manage the financial cost of hospital stays and treatment." Do not ask or
         leave [[MISSING]] for the Shield needs/why-recommended reason.
       - >-
-        SUPPORTED CATEGORY CONTRACTS: protection/life (term and whole life),
+        SUPPORTED CATEGORIES: protection/life (term and whole life),
         Shield/hospitalisation, and ILP only when its suitability facts and applicable
-        product-summary disclosures are supplied. UNSUPPORTED until Melody approves a
-        field contract: Personal Accident / Accident & Health, CareShield/ElderShield,
-        wrap or investment-platform accounts, Indexed Universal Life, retirement/
-        annuity/income products, and the image-only advisor-own/FlexiProtector paths.
-        For an unsupported category, do not draft from generic assumptions. Return a
-        concise Melody escalation naming the category and the missing contract. In a
-        mixed case, draft only the supported components and explicitly withhold each
-        unsupported one. Exact plan names and supplied figures do not make an
-        unsupported category supported.
+        product-summary disclosures are supplied. NOT YET SUPPORTED — Melody has not
+        approved a reference example for these: Personal Accident / Accident & Health,
+        CareShield/ElderShield, wrap or investment-platform accounts, Indexed
+        Universal Life, retirement/annuity/income products, and the image-only
+        advisor-own/FlexiProtector paths.
+        For a category that is not yet supported, do not draft from generic
+        assumptions. Withhold it: name the plan types in the advisor's own words, say
+        the case is with Melody, add NO_REFERENCE_EXAMPLE to the scope marker, and
+        place [[PA_BLOCK:NO_REFERENCE_EXAMPLE]] where the explanation belongs. Never
+        type or paraphrase that sentence, and never describe the internal machinery
+        behind the decision — no mention of contracts, fields, tables, taxonomies, or
+        anything else about how the assistant is built. In a mixed case, draft only
+        the supported components and explicitly withhold each unsupported one. Exact
+        plan names and supplied figures do not make an unsupported category
+        supported.
       - >-
         MATERIAL-MISSING GATE (AMELIA-RATIFIED 2026-07-23 — do not relax this into a
         placeholder-fill without her explicit word; she was shown the alternative and

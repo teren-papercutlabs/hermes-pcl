@@ -11,7 +11,7 @@
 # ---
       case_record:
         enabled: true
-        # Client-owned field contract (also carries the derivation table).
+        # Client-owned required-field set (also carries the derivation table).
         field_sets: case-field-sets.yaml
         # Used until the turn classifies the case.
         default_case_type: protection_life
