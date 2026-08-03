@@ -571,6 +571,9 @@ DEFAULT_CONFIG = {
     "pa": {
         "enabled": False,
         "constitution_path": "",
+        # Root for constitution-declared knowledge. Empty means
+        # ``HERMES_HOME/knowledge`` so profile homes stay isolated.
+        "knowledge_path": "",
         "business": {},
     },
     "inter_session": {

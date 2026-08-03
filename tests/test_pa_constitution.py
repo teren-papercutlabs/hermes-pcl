@@ -44,6 +44,25 @@ def test_fixture_loads() -> None:
     assert constitution.job_briefs["tgg_management"].response_policy["max_output_tokens"] == 8192
 
 
+def test_constitution_path_expands_environment_variables(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "constitution.yaml"
+    target.write_text(FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setenv("TEST_PA_HOME", str(tmp_path))
+
+    resolved = resolve_context(
+        {
+            "constitution_path": "${TEST_PA_HOME}/constitution.yaml",
+            "job_type": "tgg_ops_ingest",
+        },
+        {},
+    )
+
+    assert resolved is not None
+    assert resolved.job_type == "tgg_ops_ingest"
+
+
 def test_invalid_fixture_fails_loudly() -> None:
     with pytest.raises(ValueError, match="agent_name"):
         load_constitution_data(
@@ -243,6 +262,51 @@ def test_job_brief_runtime_is_loaded_and_hashes() -> None:
     assert ops.runtime["model"] == "gemini-3.1-flash-lite"
     assert management.runtime["model"] == "gemini-3-flash-preview"
     assert ops.hash != management.hash
+
+
+def test_job_brief_knowledge_is_rendered_and_changes_behavior_hash() -> None:
+    base = {
+        "id": "knowledge-test",
+        "agent_name": "Knowledge Test",
+        "identity": {"role": "PA"},
+        "client": {"name": "Client"},
+        "job_briefs": {
+            "ops": {
+                "title": "Ops",
+                "purpose": "Use declared knowledge.",
+                "instructions": ["Resolve facts before answering."],
+                "knowledge": ["reference/products.yaml", "documents/guide.md"],
+            }
+        },
+        "selectors": [],
+    }
+    constitution = load_constitution_data(base, source="knowledge.yaml")
+    resolved = resolve_context(
+        {"constitution": constitution, "job_type": "ops"},
+        {},
+    )
+    assert resolved is not None
+    assert resolved.job_brief.knowledge == (
+        "reference/products.yaml",
+        "documents/guide.md",
+    )
+    prompt = render_job_prompt(resolved)
+    assert "## Knowledge Manifest" in prompt
+    assert "- reference/products.yaml" in prompt
+
+    changed = load_constitution_data(
+        {
+            **base,
+            "job_briefs": {
+                "ops": {
+                    **base["job_briefs"]["ops"],
+                    "knowledge": ["reference/products-v2.yaml"],
+                }
+            },
+        },
+        source="knowledge-v2.yaml",
+    )
+    assert constitution.job_briefs["ops"].hash != changed.job_briefs["ops"].hash
 
 
 def test_stable_behavior_hashes() -> None:

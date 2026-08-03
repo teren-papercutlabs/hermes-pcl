@@ -1,0 +1,29 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-23'
+# ruling_ref:
+# - R03
+# status: approved
+# sequence: 61
+# compose: false
+# ---
+kind: keyed-reference
+schema_version: 1
+key_semantics: exact old category arrow new category
+escalation_cue: >-
+  This type of replacement has not been submitted before, as Melody has not
+  approved a reference example for it. Name the old and new plan types in the
+  advisor's own words and say the case is with Melody. Do not expose lookup
+  mechanics or a file number.
+entries:
+  - {key: "ILP-with-coverage -> Term", reference_examples: [1]}
+  - {key: "Whole Life -> Term", reference_examples: [1, 2, 16]}
+  - {key: "Term -> Term", reference_examples: [16, 17]}
+  - {key: "ILP-with-coverage -> ILP-without-coverage", reference_examples: [13]}
+  - {key: "Endowment -> ILP-without-coverage", reference_examples: [2]}
+  - {key: "ILP-without-coverage -> ILP-without-coverage", reference_examples: [2, 3, 13]}
+  - {key: "Term -> IUL-with-coverage", reference_examples: [18]}
+  - {key: "Shield -> Shield", reference_examples: [1, 16]}
+  - {key: "PA -> PA", reference_examples: [2, 16]}

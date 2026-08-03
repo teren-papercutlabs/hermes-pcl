@@ -1,0 +1,27 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - standing-constitution
+# status: unverified
+# sequence: 64
+# compose: false
+# ---
+kind: keyed-reference
+schema_version: 1
+key_semantics: exact replacement category
+escalation_cue: >-
+  The plan category is not in the approved replacement taxonomy. Ask one short
+  category clarification only if that can resolve it; otherwise withhold the
+  component and route it to Melody without guessing.
+entries:
+  - {key: "ILP-with-coverage", normalized_category: "ILP-with-coverage"}
+  - {key: "ILP-without-coverage", normalized_category: "ILP-without-coverage"}
+  - {key: "Whole Life", normalized_category: "Whole Life"}
+  - {key: "Term", normalized_category: "Term"}
+  - {key: "Endowment", normalized_category: "Endowment"}
+  - {key: "IUL-with-coverage", normalized_category: "IUL-with-coverage"}
+  - {key: "Shield", normalized_category: "Shield"}
+  - {key: "PA", normalized_category: "PA"}

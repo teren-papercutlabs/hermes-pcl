@@ -50,6 +50,8 @@ _HERMES_CORE_TOOLS = [
     "todo", "memory",
     # Session history search
     "session_search",
+    # Manifest-bound PA reference knowledge (available only in PA profiles)
+    "pa_knowledge_fetch", "pa_reference_lookup",
     # Clarifying questions
     "clarify",
     # Code execution + delegation
