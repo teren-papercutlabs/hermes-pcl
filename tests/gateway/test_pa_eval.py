@@ -5,7 +5,7 @@ from gateway.pa_eval import (
     PAEvalCorpus,
     PAEvalExpectation,
     adapt_case_to_replay,
-    normalize_whitespace,
+    normalize_for_exact_match,
     run_exact_assertion,
     run_replay_bundle,
 )
@@ -82,10 +82,69 @@ def test_exact_assertions_are_whitespace_normalized_and_case_sensitive():
     present = PAEvalExpectation("present", "exact_present", "Required sentence.")
     absent = PAEvalExpectation("absent", "exact_absent", "**")
 
-    assert normalize_whitespace(response) == "Required sentence. Nothing else."
+    assert normalize_for_exact_match(response) == "Required sentence. Nothing else."
     assert run_exact_assertion(response, present)["passed"] is True
     assert run_exact_assertion(response, absent)["passed"] is True
     assert run_exact_assertion(response.lower(), present)["passed"] is False
+
+
+def test_exact_present_folds_curly_apostrophe_in_model_output():
+    # Nightly false-RED source: model emits U+2019 in a byte-exact mandated
+    # sentence while the corpus authors U+0027.
+    response = "I can’t action that without approval."
+    present = PAEvalExpectation("present", "exact_present", "I can't action that")
+
+    assert run_exact_assertion(response, present)["passed"] is True
+
+
+def test_exact_present_folds_typographic_text_in_expectation():
+    # Symmetric: authored expectation may carry the typographic glyph.
+    response = 'He said "I can\'t" - firmly.'
+    present = PAEvalExpectation(
+        "present",
+        "exact_present",
+        "He said “I can’t” — firmly.",
+    )
+
+    assert run_exact_assertion(response, present)["passed"] is True
+
+
+def test_exact_absent_still_detects_forbidden_phrase_across_glyphs():
+    # Curly-quoted forbidden phrase vs straight output, and vice versa:
+    # folding must not let a banned phrase slip past on glyph choice.
+    curly_expectation = PAEvalExpectation(
+        "absent", "exact_absent", "we’ll guarantee"
+    )
+    straight_expectation = PAEvalExpectation(
+        "absent", "exact_absent", "we'll guarantee"
+    )
+
+    assert run_exact_assertion("Sure, we'll guarantee it.", curly_expectation)[
+        "passed"
+    ] is False
+    assert run_exact_assertion(
+        "Sure, we’ll guarantee it.", straight_expectation
+    )["passed"] is False
+    assert run_exact_assertion("No promises here.", curly_expectation)[
+        "passed"
+    ] is True
+
+
+def test_exact_assertions_fold_dashes_and_nbsp():
+    assert normalize_for_exact_match("a–b") == "a-b"
+    assert normalize_for_exact_match("a—b") == "a-b"
+    assert normalize_for_exact_match("a b") == "a b"
+
+    response = "Delivery window – two weeks."
+    present = PAEvalExpectation(
+        "present", "exact_present", "Delivery window - two weeks."
+    )
+    assert run_exact_assertion(response, present)["passed"] is True
+
+
+def test_exact_match_normalization_preserves_case_and_wording():
+    assert normalize_for_exact_match("Don’t Shout") == "Don't Shout"
+    assert normalize_for_exact_match("don’t shout") == "don't shout"
 
 
 def test_bundle_runner_preserves_per_turn_outputs_and_assertions(tmp_path):
