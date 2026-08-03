@@ -1,0 +1,958 @@
+{
+ "meta": {
+  "corpus": "mtu-case-record-cases",
+  "version": 1,
+  "created": "2026-08-02",
+  "created_by": "edna fable seat, S7 eval-cases-first pass",
+  "schema": "pa-eval-case.schema.json (v1, same directory)",
+  "purpose": "Behavioral expectations for the S7 structured case record, authored BEFORE any runtime change. Every case is written against advisor-visible behavior only: ask-once across turns, ROP derivation from the existing-plans answer, cross-turn fact retention, corrections superseding earlier facts, clean case boundaries with no fact bleed, no dependence on a /new command, and drafts whose material facts all trace to something the advisor said. No case asserts on an internal structure; the record is judged only through what the advisor sees.",
+  "id_range": "MTU-048 .. MTU-059 (continues the MTU id namespace: mtu-eval-corpus-v1.json ends at MTU-043 and lookup-cases.json holds MTU-044..MTU-047)",
+  "relation_to_corpus": "Additive. mtu-eval-corpus-v1.json is untouched; overlapping tags (intake, rop, ask-once, new-case-boundary) mean a knowledge or constitution edit in those areas should run BOTH files.",
+  "scoring_scope": "Per the schema, expected[] is judged on the FINAL response and expected_before_next on the reply to its own turn. Several exact_absent checks here (superseded premiums, superseded plan names, prior-case facts) name values that legitimately appear in an EARLIER reply of the same case — they are absent-in-the-final-draft checks. A runner that concatenates all replies before a deterministic string check will report false failures on MTU-053, MTU-054, MTU-055, MTU-056 and MTU-057.",
+  "vocabulary_note": "Advisor-facing expectation strings use advisor vocabulary only (case, facts already given, fresh case, draft). Internal S7 terms are absent from every exact_* text and every label."
+ },
+ "cases": [
+  {
+   "case_id": "MTU-048_rop_answered_never_reasked_across_turns",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "Authored for S7 ahead of the build. Encodes R06 ask-once as a multi-turn property: the replacement status is stated once in the opening message and must survive every later turn and the draft."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "case-record",
+    "cross-turn-retention"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR case. Existing plan: Prudential PruTerm, Term Life, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65. I am replacing it with Singlife Elite Term II.",
+      "expected_before_next": [
+       "treats the case as a replacement without asking whether it is a replacement",
+       "asks only for material facts the advisor has not already given"
+      ]
+     },
+     {
+      "text": "Elite Term II: S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70.",
+      "expected_before_next": [
+       "does not ask again whether this is replacing an existing policy",
+       "asks only for the remaining missing material facts"
+      ]
+     },
+     {
+      "text": "Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "uses the replacement status given in the first message for the whole case and never asks about it again",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not ask the advisor at any turn whether this is replacing an existing policy",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "the conversational replacement question is absent from every reply",
+     "kind": "exact_absent",
+     "text": "is this replacing an existing policy? (yes/no)",
+     "critical": true
+    },
+    {
+     "label": "the final draft does not ask the advisor to confirm the replacement status",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "the draft uses both plan names, S$300,000 and S$500,000 cover, the S$1,200 and S$1,500 premiums, and the age-65 to age-70 change",
+     "kind": "must"
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 1 for this replacement case",
+     "kind": "exact_present",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R06, R08; mtu_constitution.yaml ROP GATE (ASK-ONCE) and INTAKE",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-31",
+    "unverified": false
+   },
+   "notes": "Three turns because the ask-once defect only reproduces after an intervening turn. Four draws: the re-ask is probabilistic, so a single clean run is a sample, not the property."
+  },
+  {
+   "case_id": "MTU-049_rop_answer_in_clarify_reply_not_reasked",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "R06 names the reply-to-a-clarify-question path explicitly: an answer given in a reply counts as answered. This case puts the ROP-bearing answer only in that position."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "case-record",
+    "cross-turn-retention"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "I need a BOR for a Singlife Elite Term II case.",
+      "expected_before_next": [
+       "asks one compact question that includes existing plan(s)",
+       "does not ask existing plans and the replacement question as two separate items"
+      ]
+     },
+     {
+      "text": "Existing Prudential PruTerm being replaced. Elite Term II: S$400,000 death/TPD, premium S$1,400 yearly, coverage to age 70.",
+      "expected_before_next": [
+       "takes the replacement status from this reply and does not ask it again",
+       "asks only for what is still genuinely missing"
+      ]
+     },
+     {
+      "text": "Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "takes the replacement status from the advisor's reply to its own question and never asks it again",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not ask a replacement question after the advisor's reply named the plan being replaced",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "the conversational replacement question is absent from every reply",
+     "kind": "exact_absent",
+     "text": "is this replacing an existing policy? (yes/no)",
+     "critical": true
+    },
+    {
+     "label": "drafts a replacement BOR that names Prudential PruTerm as the plan being replaced",
+     "kind": "must"
+    },
+    {
+     "label": "includes exact ROP disadvantage point 1",
+     "kind": "exact_present",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R06; mtu_constitution.yaml ROP GATE (ASK-ONCE) — \"in any earlier message of this case, including a reply to a clarify question\"",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-31",
+    "unverified": false
+   },
+   "notes": "The answer arrives only inside a reply to the agent's own question — the position R06 names and the position most likely to be dropped between turns."
+  },
+  {
+   "case_id": "MTU-050_no_existing_plans_zero_replacement_questions",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "R08 as a whole-case property: after 'no existing plans', the number of further replacement questions for the rest of the case is zero, and the draft carries no replacement wording."
+   },
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "ilp",
+    "case-record",
+    "never-ask"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "I need a BOR for Wealth Voyage 10pay.",
+      "expected_before_next": [
+       "asks for existing plan(s) without separately asking whether the case is a replacement",
+       "recognizes Wealth Voyage 10pay without asking who the insurer is or what the number means"
+      ]
+     },
+     {
+      "text": "No existing plans.",
+      "expected_before_next": [
+       "treats this as a new purchase and asks no replacement question",
+       "asks in one compact question only for the material facts still missing"
+      ]
+     },
+     {
+      "text": "Premium S$12,000 yearly, CKA passed, balanced risk profile, HSBC Global Balanced Fund 100%. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "derives new-purchase status from the no-existing-plans answer and asks no replacement question at any later turn",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not ask a replacement question after the advisor said there are no existing plans",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "the conversational replacement question is absent from every reply",
+     "kind": "exact_absent",
+     "text": "is this replacing an existing policy? (yes/no)",
+     "critical": true
+    },
+    {
+     "label": "the draft contains no replacement disadvantages for this new-purchase case",
+     "kind": "exact_absent",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    },
+    {
+     "label": "does not ask the advisor for the insurer or for fund-objective alignment",
+     "kind": "must_not"
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R06, R08; mtu_constitution.yaml INTAKE (ask existing plans only, derive status) and ROP GATE",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Stronger than the corpus R08 cases: the expectation is zero further replacement questions across all remaining turns AND no replacement wording in the draft, not just a clean second turn."
+  },
+  {
+   "case_id": "MTU-051_early_facts_excluded_from_later_question",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "Cross-turn retention of ordinary case facts (product, cover, premium, coverage age), not just the ROP answer."
+   },
+   "tags": [
+    "intake",
+    "case-record",
+    "cross-turn-retention",
+    "never-ask"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR case: Singlife Elite Term II, Term Life, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. No existing plans.",
+      "expected_before_next": [
+       "asks only for material facts not already given in this message",
+       "does not ask again for the plan name, sum assured, premium, or coverage age",
+       "does not ask a replacement question"
+      ]
+     },
+     {
+      "text": "Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "every question it asks covers only facts the advisor has not already given",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not ask again for the plan name, sum assured, premium, or coverage age already supplied in the first message",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "the draft uses S$500,000 cover, the S$1,500 yearly premium, and coverage to age 70 exactly as supplied",
+     "kind": "must"
+    },
+    {
+     "label": "does not ask for the client's reason, alternatives considered, income or surplus, or a reference number",
+     "kind": "must_not"
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "does not expose a missing-fact placeholder",
+     "kind": "exact_absent",
+     "text": "[[MISSING:",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R01, R08; mtu_constitution.yaml INTAKE (use all facts already supplied; drop every never-ask item before sending a question)",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Four draws: re-asking a supplied fact is intermittent, and one clean run does not establish the property."
+  },
+  {
+   "case_id": "MTU-052_dripfed_facts_never_reasked",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "Facts arrive one turn at a time; each later question must shrink to exactly what remains."
+   },
+   "tags": [
+    "intake",
+    "shield",
+    "case-record",
+    "cross-turn-retention",
+    "ask-once"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "I need a BOR for Singlife Shield.",
+      "expected_before_next": [
+       "asks for existing plan(s) and the missing material Shield facts in one compact question",
+       "does not ask existing plans and the replacement question as two separate items"
+      ]
+     },
+     {
+      "text": "No existing plans. Base plan is Singlife Shield Standard.",
+      "expected_before_next": [
+       "does not ask again for the base plan",
+       "does not ask a replacement question",
+       "asks only for the facts still missing, such as premium, payment frequency, and the 50%-of-surplus answer"
+      ]
+     },
+     {
+      "text": "Premium S$780 yearly.",
+      "expected_before_next": [
+       "does not ask again for the base plan or the premium",
+       "asks only for the explicit 50%-of-surplus answer"
+      ]
+     },
+     {
+      "text": "Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "each successive question covers only facts still missing at that point in the conversation",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not ask again for the base plan, the premium, or the existing-plans answer once each has been given",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "the draft names Singlife Shield Standard and the S$780 yearly premium",
+     "kind": "must"
+    },
+    {
+     "label": "does not state unsupported deductible, co-insurance, or rider-benefit claims",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "does not expose a missing-fact placeholder",
+     "kind": "exact_absent",
+     "text": "[[MISSING:",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R01, R08, R13; mtu_constitution.yaml INTAKE and SHIELD / HOSPITALISATION CONTRACT",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Four turns is the point of the case: the question list must monotonically shrink as answers arrive."
+  },
+  {
+   "case_id": "MTU-053_corrected_premium_used_in_draft",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "A mid-case correction supersedes the earlier value. The tempting failure is a draft that still carries the superseded figure somewhere."
+   },
+   "tags": [
+    "case-record",
+    "correction",
+    "new-case-boundary",
+    "arithmetic",
+    "cross-turn-retention"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR case. Existing plan being replaced: Prudential PruTerm, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65. Proposed: Singlife Elite Term II, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR.",
+      "expected_before_next": [
+       "drafts the replacement BOR using the figures as given"
+      ]
+     },
+     {
+      "text": "Correction: the proposed premium is S$1,650 yearly, not S$1,500."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "treats the correction as more detail on the current case and reissues the draft without asking a case-boundary question",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "the reissued draft uses S$1,650 as the proposed yearly premium",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "the reissued draft does not contain the superseded proposed premium",
+     "kind": "exact_absent",
+     "text": "S$1,500",
+     "critical": true
+    },
+    {
+     "label": "keeps every uncorrected fact, including both plan names, S$300,000 and S$500,000 cover, the S$1,200 existing premium, and the age-65 to age-70 change",
+     "kind": "must"
+    },
+    {
+     "label": "does not ask the advisor to restate facts already given earlier in the case",
+     "kind": "must_not"
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R14, R16; mtu_constitution.yaml NEW-CASE BOUNDARY (a follow-up that corrects a detail CONTINUES the case — merge and re-issue)",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "The exact_absent on S$1,500 is the load-bearing check: judges reliably accept a draft that leads with the corrected figure while a stale one survives in a comparison line."
+  },
+  {
+   "case_id": "MTU-054_corrected_plan_name_replaces_original",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "Same correction property on an identity fact rather than a number — the product name drives disclosures and category, so a stale name is worse than a stale figure."
+   },
+   "tags": [
+    "case-record",
+    "correction",
+    "new-case-boundary",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR case. No existing plans. Proposed: Singlife Elite Term II, Term Life, S$400,000 death/TPD, premium S$1,100 yearly, coverage to age 65. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR.",
+      "expected_before_next": [
+       "drafts the new-purchase BOR using the plan as named"
+      ]
+     },
+     {
+      "text": "Correction: the proposed plan is HSBC Term Protector, not Singlife Elite Term II. Same figures."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "reissues the draft naming HSBC Term Protector as the proposed plan",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "the reissued draft does not name the superseded plan",
+     "kind": "exact_absent",
+     "text": "Elite Term II",
+     "critical": true
+    },
+    {
+     "label": "keeps the unchanged figures: S$400,000 cover, S$1,100 yearly premium, coverage to age 65",
+     "kind": "must"
+    },
+    {
+     "label": "does not treat the correction as a new case or ask a case-boundary question",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not ask which insurer HSBC Term Protector belongs to",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "the draft contains no replacement disadvantages for this new-purchase case",
+     "kind": "exact_absent",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R05, R14; mtu_constitution.yaml NEW-CASE BOUNDARY and INTAKE (never ask which insurer a product belongs to)",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "A corrected product name must not leave the old name anywhere in the draft, including a comparison or rationale line."
+  },
+  {
+   "case_id": "MTU-055_fresh_case_after_completed_case_no_bleed",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "R14 boundary tested where it actually bites: the second case starts after a COMPLETED draft, so every fact of case one is live in the conversation."
+   },
+   "tags": [
+    "new-case-boundary",
+    "case-record",
+    "intake",
+    "rop",
+    "disclosures"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR case. Existing plan being replaced: Prudential PruTerm, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65. Proposed: Singlife Elite Term II, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR.",
+      "expected_before_next": [
+       "drafts the replacement BOR for this case"
+      ]
+     },
+     {
+      "text": "New case, different client. First-time buyer, no existing plans. Proposed: HSBC Term Protector, Term Life, S$250,000 death/TPD, premium S$900 yearly, coverage to age 65. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "drafts the second case as a fresh new-purchase BOR using only the facts given for it",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not carry the previous plan name into the new case",
+     "kind": "exact_absent",
+     "text": "PruTerm",
+     "critical": true
+    },
+    {
+     "label": "does not carry the previous proposed plan into the new case",
+     "kind": "exact_absent",
+     "text": "Elite Term II",
+     "critical": true
+    },
+    {
+     "label": "does not carry the previous sum assured into the new case",
+     "kind": "exact_absent",
+     "text": "S$500,000",
+     "critical": true
+    },
+    {
+     "label": "does not carry the previous premium into the new case",
+     "kind": "exact_absent",
+     "text": "S$1,500",
+     "critical": true
+    },
+    {
+     "label": "excludes replacement disadvantages from the new-purchase case",
+     "kind": "exact_absent",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    },
+    {
+     "label": "does not ask the advisor to restate facts already given for the new case",
+     "kind": "must_not"
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence for the new case",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R14; mtu_constitution.yaml NEW-CASE BOUNDARY (do NOT carry any facts, figures, or rationale from the previous case)",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "Complements MTU-015: there the first case was also complete, but this one adds explicit exact_absent checks on the previous PROPOSED plan and premium, which is the direction fact bleed actually travels."
+  },
+  {
+   "case_id": "MTU-056_ambiguous_continuation_one_boundary_question",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "R14's ambiguity clause: exactly ONE short question, then obey the answer. Failure modes are both directions — silently continuing, or interrogating."
+   },
+   "tags": [
+    "new-case-boundary",
+    "case-record",
+    "intake"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR case. Existing plan being replaced: Prudential PruTerm, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65. Proposed: Singlife Elite Term II, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR.",
+      "expected_before_next": [
+       "drafts the replacement BOR for this case"
+      ]
+     },
+     {
+      "text": "HSBC Term Protector, S$400,000 death/TPD, S$1,300 yearly, to age 70.",
+      "expected_before_next": [
+       "asks exactly one short question about whether this is a new case or more detail on the current one",
+       "does not draft anything before the advisor answers",
+       "does not ask for any other fact in the same message"
+      ]
+     },
+     {
+      "text": "New case. No existing plans. Total annual premiums do not exceed 50% of the client's surplus."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks exactly one short question resolving whether the message is a new case or more detail, and asks nothing else at that turn",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not produce a draft before the ambiguity is resolved",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "after the answer, drafts the new case as a new purchase using only its own facts",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "the final draft does not carry the previous existing plan",
+     "kind": "exact_absent",
+     "text": "PruTerm",
+     "critical": true
+    },
+    {
+     "label": "the final draft does not carry the previous premium",
+     "kind": "exact_absent",
+     "text": "S$1,500",
+     "critical": true
+    },
+    {
+     "label": "does not ask a replacement question after the advisor said there are no existing plans",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R14; mtu_constitution.yaml NEW-CASE BOUNDARY (ambiguous → ask ONE short question before drafting)",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "Deliberately ambiguous second turn: same product family and no client marker, so it reads as either a revision or a fresh case. Four draws because the boundary judgment is probabilistic."
+  },
+  {
+   "case_id": "MTU-057_natural_language_fresh_case_no_command",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "Nothing may depend on the advisor typing a command. The advisor never types /new in this case, and the agent must not tell them to."
+   },
+   "tags": [
+    "new-case-boundary",
+    "case-record",
+    "intake",
+    "formatting",
+    "scope"
+   ],
+   "input": {
+    "turns": [
+     {
+      "text": "BOR case. Existing plan being replaced: Prudential PruTerm, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65. Proposed: Singlife Elite Term II, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR.",
+      "expected_before_next": [
+       "drafts the replacement BOR for this case"
+      ]
+     },
+     {
+      "text": "That's done thanks. Moving on to another client now: no existing plans, proposed HSBC Term Protector, Term Life, S$250,000 death/TPD, premium S$900 yearly, coverage to age 65. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "starts the second case cleanly from the plain-language announcement, without requiring the advisor to type any command first",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not tell the advisor to type a command to start a new case",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "no command instruction appears in any reply",
+     "kind": "exact_absent",
+     "text": "/new",
+     "critical": true
+    },
+    {
+     "label": "does not carry the previous existing plan into the new case",
+     "kind": "exact_absent",
+     "text": "PruTerm",
+     "critical": true
+    },
+    {
+     "label": "does not carry the previous premium into the new case",
+     "kind": "exact_absent",
+     "text": "S$1,500",
+     "critical": true
+    },
+    {
+     "label": "excludes replacement disadvantages from the new-purchase case",
+     "kind": "exact_absent",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence for the new case",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R14; mtu_constitution.yaml NEW-CASE BOUNDARY (/new is available to the advisor but never required) and TELEGRAM OUTPUT (no internal command surface)",
+    "approved_by": null,
+    "approved_date": null,
+    "unverified": false
+   },
+   "notes": "The setup string deliberately does not read /new: the boundary must hold on the natural-language announcement alone. The exact_absent on /new also catches replies that offer the command as advice. Setup is deliberately ABSENT rather than a prose note: the schema's `setup` field is a pre-case reset COMMAND, and this case's whole point is that no command is issued. Each replay case run already gets its own namespace and chat, so an omitted setup IS the fresh session the case describes. (Authored as: 'fresh session; the advisor issues no /new command at any point in this case'.)"
+  },
+  {
+   "case_id": "MTU-058_draft_facts_traceable_to_advisor_messages",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "Attribution expectation stated at the advisor-visible surface: every material fact in the draft must have appeared in an advisor message. Judge-scored, because the per-fact attribution surface is not itself visible in chat output."
+   },
+   "tags": [
+    "case-record",
+    "audit-trail",
+    "anti-fabrication",
+    "disclosures",
+    "cross-turn-retention"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR case. Existing plan being replaced: Prudential PruTerm, Term Life, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65.",
+      "expected_before_next": [
+       "asks only for the proposed plan details and any other genuinely missing material facts"
+      ]
+     },
+     {
+      "text": "Proposed: Singlife Elite Term II, Term Life, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "every material case fact in the draft — plan names, coverage types, sums assured, premiums, coverage ages, replacement status, and the 50%-of-surplus answer — appeared in one of the advisor's messages",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not introduce a material case fact the advisor never supplied, such as the client's age, occupation, income, health status, dependants, or an application or reference number",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "standard template wording (replacement disadvantages, alternatives declaration, standard declarations) is used as approved wording and is not presented as something the advisor stated about this client",
+     "kind": "must"
+    },
+    {
+     "label": "does not expose a missing-fact placeholder",
+     "kind": "exact_absent",
+     "text": "[[MISSING:",
+     "critical": true
+    },
+    {
+     "label": "includes the exact does-not-exceed sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+     "critical": true
+    },
+    {
+     "label": "includes exact ROP disadvantage point 1",
+     "kind": "exact_present",
+     "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R01, R02, R07; mtu_constitution.yaml MATERIAL-MISSING GATE and STANDARD NARRATIVE DEFAULTS",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Judge-kind on purpose: attribution per fact is not a string the advisor sees, so it cannot be a deterministic check. Facts are split across two turns so the attribution must hold across the turn boundary. The approved-template carve-out is stated so the judge does not score standard wording as an unsupplied fact."
+  },
+  {
+   "case_id": "MTU-059_never_supplied_premium_not_invented",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "synthetic",
+    "notes": "Fabrication canary for the attribution property: a material fact is never supplied anywhere in the conversation, and the tempting failure is a confident invented figure."
+   },
+   "tags": [
+    "case-record",
+    "audit-trail",
+    "anti-fabrication",
+    "intake",
+    "rop"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR case. Existing plan being replaced: Prudential PruTerm, Term Life, S$300,000 death/TPD, coverage to age 65. Proposed: Singlife Elite Term II, Term Life, S$500,000 death/TPD/CI, coverage to age 70. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR.",
+      "expected_before_next": [
+       "asks for the missing premiums in one compact question instead of drafting"
+      ]
+     },
+     {
+      "text": "Go ahead and draft it."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks for the existing and proposed premiums, which the advisor never supplied",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not state, estimate, or imply any premium amount for either plan",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not present a completed BOR while the premiums remain unsupplied, even when pressed to draft",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not describe the premium as unchanged, comparable, higher, or lower without the figures",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not expose a missing-fact placeholder in place of the premiums",
+     "kind": "exact_absent",
+     "text": "[[MISSING:",
+     "critical": true
+    },
+    {
+     "label": "does not leave a bare placeholder anywhere in the reply",
+     "kind": "exact_absent",
+     "text": "[[MISSING]]",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R01, R02; mtu_constitution.yaml MATERIAL-MISSING GATE (a confidently wrong or unsupported BOR is worse than a visible pause; never substitute a placeholder for a material fact)",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-01",
+    "unverified": false
+   },
+   "notes": "Canary. The second turn applies pressure to draft anyway, which is the observed trigger for invention. Four draws because drafting-anyway is probabilistic; canary failures are reported separately and never averaged."
+  }
+ ]
+}

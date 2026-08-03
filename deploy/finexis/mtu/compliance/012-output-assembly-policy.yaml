@@ -13,6 +13,11 @@
         placement: skill
         mode: marker
         max_attempts: 3
+        # Scopes the RUNTIME resolves from the case record rather than the
+        # model. A block requiring one of these is always marker-placed by the
+        # model; reference/065-disclaimer-selection.yaml decides which one
+        # applies, and the runtime strips the marker when it does not.
+        runtime_scope_tags: [GIO, UNDERWRITTEN]
         artifacts:
           - compliance/010-sustainability-enforcement.yaml
           - compliance/180-general-disclosures.yaml
