@@ -3,20 +3,33 @@
 # - amelia
 # approved_date:
 # - '2026-08-01'
+# - '2026-08-03'
 # ruling_ref:
 # - R13
 # - MTU-018
+# - R20
 # status: approved
 # sequence: 180
 # compose: false
 # ---
+# R20 (Melody, relayed and applied to the live runtime by the amelia loop 2026-08-03
+# 14:58): the pre-existing-medical-conditions sentence is NO LONGER part of the
+# always-inserted general-disclosures block. It now sits in its own block, required
+# only when the draft is scoped UNDERWRITTEN. A GUARANTEED ISSUE OFFER (GIO) product
+# is issued without underwriting, so the non-disclosure warning is wrong on its face
+# and is omitted entirely. The scoping instruction that decides UNDERWRITTEN vs GIO
+# lives in compliance/185-gio-disclosure-carve-out.yaml.
 schema_version: 1
 blocks:
+  - id: pre_existing_conditions_disclosure
+    marker: '[[PA_BLOCK:PRE_EXISTING_CONDITIONS]]'
+    required_tags: [DRAFT, UNDERWRITTEN]
+    text: |-
+      The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.
   - id: general_disclosures
     marker: '[[PA_BLOCK:GENERAL_DISCLOSURES]]'
     required_tags: [DRAFT]
     text: |-
-      The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.
       The product was recommended after fact-find, needs analysis, and product comparison.
       The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.
       The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.

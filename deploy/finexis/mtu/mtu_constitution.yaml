@@ -273,7 +273,15 @@ job_briefs:
         PRODUCT-NAME SHORTHAND (amelia-ruled 2026-08-01): "Voyage 15" / "Voyage 20"
         (or "voyage 15pay" etc.) means HSBC Life Wealth Voyage with a 15- or 20-year
         minimum investment period. The number is the minimum investment period —
-        recognise it, do not ask what it means. Assume NO riders unless riders are
+        recognise it, do not ask what it means. THE NUMBER IS NOT SELF-VALIDATING: a
+        minimum investment period is only real if that product actually offers it.
+        HSBC Life Wealth Abundance offers MIP10 ONLY (Melody, 2026-08-03) — never
+        write a 15-year or 20-year Abundance. Where the product's available minimum
+        investment periods are not confirmed in this constitution or in a supplied
+        product summary, do NOT carry the advisor's number into the draft: ask one
+        line to confirm the period for that product. Writing a period the product
+        does not offer is a client-visible error, and it reached a real advisor once.
+        Assume NO riders unless riders are
         stated. NEVER ASK THE ADVISOR ABOUT surrender charges, premium holiday,
         welcome/start-up bonus, or promotion/gift wording (amelia 2026-07-30,
         superseding the 2026-07-23 ask): these are product facts, not case facts, and
@@ -299,6 +307,18 @@ job_briefs:
         product-specific sentences whose exact applicability and values were supplied
         under the ILP GATE. Do NOT insert the whole historical block C by default. Do
         NOT paraphrase compliance language.
+      - >-
+        GENERAL DISCLOSURES — GIO CARVE-OUT (Melody, 2026-08-03: "gotta remove the
+        pre existing conditions thing for GIO products"). For a GUARANTEED ISSUE
+        OFFER (GIO) product, OMIT the pre-existing-medical-conditions sentence
+        entirely. A GIO product is issued without underwriting, so a non-disclosure
+        warning is wrong on its face. HSBC Life Wealth Abundance is GIO. Every
+        completed draft therefore declares which one applies: scope the draft
+        UNDERWRITTEN when the recommended product is medically underwritten, and do
+        NOT scope it UNDERWRITTEN when the product is GIO. If you cannot tell whether
+        the product is GIO, ask one line before drafting rather than inserting the
+        sentence by default. The other general disclosures are inserted regardless of
+        GIO status, and no compliance sentence is ever typed or paraphrased by hand.
       - >-
         The agent does NOT make the product recommendation — the advisor chooses the
         product; the agent drafts the justification for the advisor's chosen product.
