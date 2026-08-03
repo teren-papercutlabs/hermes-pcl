@@ -41,7 +41,7 @@ def test_loader_reads_all_typed_directories_with_unique_sequence():
     assert {source.source_type for source in sources} == {
         "rules", "compliance", "reference", "templates", "job-briefs"
     }
-    assert len(sources) == 33
+    assert len(sources) == 36
     assert [source.sequence for source in sources] == sorted(
         source.sequence for source in sources
     )
@@ -80,8 +80,8 @@ def test_allow_unverified_composes_parity_and_records_escape(tmp_path):
     assert manifest == result
     assert manifest["allow_unverified"] is True
     assert manifest["unverified_compliance"]
-    assert manifest["source_count"] == 33
-    assert manifest["composed_source_count"] == 25
+    assert manifest["source_count"] == 36
+    assert manifest["composed_source_count"] == 26
     excluded = [
         source["path"]
         for source in manifest["sources"]
@@ -93,7 +93,9 @@ def test_allow_unverified_composes_parity_and_records_escape(tmp_path):
         "reference/062-approved-products.yaml",
         "reference/063-product-insurers.yaml",
         "reference/064-replacement-taxonomy.yaml",
+        "reference/065-disclaimer-selection.yaml",
         "compliance/180-general-disclosures.yaml",
+        "compliance/185-gio-general-disclosures.yaml",
         "compliance/190-rop-disadvantages.yaml",
         "compliance/195-rop-standard-declarations.yaml",
     ]

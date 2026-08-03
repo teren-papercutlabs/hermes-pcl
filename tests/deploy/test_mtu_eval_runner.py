@@ -80,6 +80,10 @@ def test_stage_runtime_overlays_candidate_but_borrows_only_live_secrets(tmp_path
         "config.yaml": "model:\n  default: candidate\npa: {}\n",
         "mtu_constitution.yaml": constitution % "candidate",
         "SOUL.md": "candidate\n",
+        # Knowledge is part of what a candidate IS (compliance artifacts,
+        # case-record config), so it is synced from the candidate tree, never
+        # from the installed runtime.
+        "foo.txt": "candidate knowledge\n",
     }.items():
         (candidate / name).write_text(content)
 
@@ -91,6 +95,7 @@ def test_stage_runtime_overlays_candidate_but_borrows_only_live_secrets(tmp_path
     assert (target / "SOUL.md").read_text() == "candidate\n"
     assert (target / ".env").read_text() == "OPENAI_API_KEY=test-only\n"
     assert manifest["candidate_deploy_dir"] == str(candidate)
+    assert (target / "knowledge/foo.txt").read_text() == "candidate knowledge\n"
 
 
 def test_stage_runtime_refuses_live_mtu_target(tmp_path, monkeypatch):
