@@ -357,8 +357,16 @@ def main() -> int:
                 "/api/operator/report-cycle/fetch-sources?tenant=tgg",
             ]:
                 raise RuntimeError(f"corrupt report chain failed to stop after fetch: {seen}")
-            body = json.dumps(report["result"].get("captured_outbound") or []).lower()
-            if not any(marker in body for marker in ("wrong", "missing", "broken", "unreadable", "stop")):
+            captured = report["result"].get("captured_outbound") or []
+            drafted = [
+                str(item.get("kwargs", {}).get("content") or "").strip()
+                for item in captured
+                if item.get("kind") == "send"
+            ]
+            # The judgment fixture proves the agent stopped after inspection;
+            # the failure receipt's wording is intentionally model-authored and
+            # must not be reduced to a brittle vocabulary allowlist.
+            if len(drafted) != 1 or not drafted[0] or "MEDIA:" in drafted[0]:
                 raise RuntimeError("corrupt report chain omitted management-chat failure draft")
         report["run_root"] = str(run_root)
         report_path.parent.mkdir(parents=True, exist_ok=True)
