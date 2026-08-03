@@ -44,6 +44,9 @@ def main() -> None:
         sys.executable, str(MTU_ROOT / "scripts/run_eval_corpus.py"),
         "--corpus", str(corpus), "--report", str(report_path),
         "--runtime-source", str(args.runtime_source.expanduser().resolve()),
+        # The candidate under test is this deploy tree; without it, staging
+        # falls back to the live home, which pre-cutover has no knowledge/.
+        "--candidate-deploy-dir", str(MTU_ROOT),
         "--baseline-report", str(baseline),
     ]
     proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
