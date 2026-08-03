@@ -18,6 +18,27 @@ pa:
     - /var/lib/tgg-capture/whatsapp/media
     operation: tgg_media_retention
     min_free_percent: 20
+  report_operations:
+    enabled: true
+    base_url: http://127.0.0.1:5456
+    timeout_seconds: 120
+    download_root: /home/pclaw/.systems-pcl/data/media/tgg/hermes/report-runs
+    headers:
+      X-PS-Tenant: tgg
+      User-Agent: christopher-hermes/report-operations
+    schedule:
+      enabled: false
+    auth:
+      token_env: CHRISTOPHER_TGG_PS_SERVICE_TOKEN
+      header: Authorization
+      scheme: Bearer
+    operations:
+      fetch-sources: {method: POST, path: /api/operator/report-cycle/fetch-sources}
+      preview-reconcile: {method: POST, path: /api/operator/report-cycle/preview-reconcile}
+      apply-reconcile: {method: POST, path: /api/operator/report-cycle/apply-reconcile}
+      generate: {method: POST, path: /api/operator/report-cycle/generate}
+      get-reports: {method: POST, path: /api/operator/report-cycle/get-reports}
+      status: {method: GET, path: /api/operator/report-cycle/status}
   constitution_path: /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml
   overlay:
     identity:
@@ -413,3 +434,6 @@ python_sandbox:
     max_snapshot_mb: 512
   artifact_ttl_days: 7
   max_runs_kept: 40
+plugins:
+  enabled:
+  - report-operations

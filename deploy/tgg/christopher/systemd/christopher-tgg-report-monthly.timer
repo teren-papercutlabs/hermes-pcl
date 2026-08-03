@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule Christopher first-Monday monthly report run
+
+[Timer]
+OnCalendar=Mon *-*-* 08:05:00 Asia/Singapore
+Persistent=true
+Unit=christopher-tgg-report-monthly.service
+
+[Install]
+WantedBy=timers.target

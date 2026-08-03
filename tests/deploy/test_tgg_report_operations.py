@@ -1,0 +1,228 @@
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+import os
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+import yaml
+
+
+ROOT = Path(__file__).resolve().parents[2]
+DEPLOY = ROOT / "deploy" / "tgg" / "christopher"
+PLUGIN = DEPLOY / "plugins" / "report-operations" / "__init__.py"
+
+
+def _load_plugin():
+    spec = importlib.util.spec_from_file_location("christopher_report_operations", PLUGIN)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+    return module
+
+
+class _API(BaseHTTPRequestHandler):
+    token = "fixture-token"
+    workbook = b"fixture-xlsx-bytes"
+    requests: list[tuple[str, dict]] = []
+
+    def do_POST(self):
+        assert self.headers["Authorization"] == f"Bearer {self.token}"
+        assert self.headers["X-PS-Tenant"] == "tgg"
+        payload = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))) or b"{}")
+        type(self).requests.append((self.path, payload))
+        digest = hashlib.sha256(self.workbook).hexdigest()
+        port = self.server.server_port
+        responses = {
+            "/fetch-sources": {"fetch_id": "fetch-1", "sources": [{"name": "Master", "hash": "a", "bytes": 4, "fetched_at": "now", "sheet_tabs": ["AMK", "HG", "PG", "SK"]}], "preview_rows": [{"row": 1}]},
+            "/preview-reconcile": {"run_id": "run-1", "delta": {"new_cases": 1, "updates": 2, "closure_events": 3, "per_zone": {}}, "warnings": []},
+            "/apply-reconcile": {"applied": {"new_cases": 1}, "backup": {"path": "/server/backup", "hash": "b", "verified": True}, "audit_batch_id": "audit-1"},
+            "/generate": {"run_id": "run-1", "verdict": "pass", "checks": {"ok": True}, "reports": [{"zone": zone, "ref": f"ref-{zone}", "hash": digest} for zone in ("AMK", "HG", "PG", "SK")]},
+            "/get-reports": {"files": [{"zone": zone, "ref": f"http://127.0.0.1:{port}/files/{zone}.xlsx", "hash": digest, "file_name": f"{zone}.xlsx"} for zone in ("AMK", "HG", "PG", "SK")], "receipt": {"window": "auto"}},
+            "/status": {"stage": "generated", "ok": True, "populations_touched": {"cases": 6}},
+        }
+        body = json.dumps(responses[self.path]).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        if self.path.startswith("/status"):
+            assert self.headers["Authorization"] == f"Bearer {self.token}"
+            assert self.headers["X-PS-Tenant"] == "tgg"
+            type(self).requests.append((self.path, {}))
+            body = json.dumps({"stage": "generated", "ok": True, "populations_touched": {"cases": 6}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        assert self.path.startswith("/files/")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        self.send_header("Content-Length", str(len(self.workbook)))
+        self.end_headers()
+        self.wfile.write(self.workbook)
+
+    def log_message(self, *_args):
+        return
+
+
+def test_six_verbs_round_trip_and_download_four_documents(tmp_path, monkeypatch):
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _API)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        module = _load_plugin()
+        operations = {
+            name: {"method": "POST", "path": f"/{name}"}
+            for name in (
+                "fetch-sources", "preview-reconcile", "apply-reconcile",
+                "generate", "get-reports", "status",
+            )
+        }
+        operations["status"]["method"] = "GET"
+        section = {
+            "enabled": True,
+            "base_url": f"http://127.0.0.1:{server.server_port}",
+            "download_root": str(tmp_path),
+            "headers": {"X-PS-Tenant": "tgg"},
+            "auth": {"token_env": "CHRISTOPHER_TGG_PS_SERVICE_TOKEN", "scheme": "Bearer"},
+            "operations": operations,
+        }
+        monkeypatch.setattr(module, "_section", lambda: section)
+        monkeypatch.setenv("CHRISTOPHER_TGG_PS_SERVICE_TOKEN", _API.token)
+
+        results = [
+            module._fetch_sources({"cycle": "weekly"}),
+            module._preview_reconcile({"fetch_id": "fetch-1"}),
+            module._apply_reconcile({"run_id": "run-1"}),
+            module._generate({"cycle": "weekly", "window": "auto"}),
+            module._get_reports({"run_id": "run-1"}),
+            module._status({"run_id": "run-1"}),
+        ]
+        assert all("error" not in json.loads(result) for result in results)
+        files = json.loads(results[4])["files"]
+        assert len(files) == 4
+        assert all(Path(item["local_path"]).read_bytes() == _API.workbook for item in files)
+        assert [path for path, _ in _API.requests[-6:]] == [
+            "/fetch-sources", "/preview-reconcile", "/apply-reconcile",
+            "/generate", "/get-reports", "/status?run_id=run-1",
+        ]
+        assert _API.requests[-6:][0][1] == {"cycle": "weekly"}
+        assert _API.requests[-6:][3][1] == {"cycle": "weekly", "window": "auto"}
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+
+def test_corrupt_source_shape_stops_at_fetch(monkeypatch):
+    module = _load_plugin()
+    monkeypatch.setattr(module, "_request", lambda *_args, **_kwargs: {
+        "fetch_id": "fetch-bad",
+        "sources": [{"name": "half-save", "hash": "a"}],
+        "preview_rows": [],
+    })
+    result = json.loads(module._fetch_sources({"cycle": "weekly"}))
+    assert "error" in result
+    assert "response missing" in result["error"]
+
+
+def test_plugin_registers_exact_six_typed_tools():
+    module = _load_plugin()
+    registered = []
+
+    class Context:
+        def register_tool(self, **kwargs):
+            registered.append(kwargs)
+
+    module.register(Context())
+    assert [item["name"] for item in registered] == [
+        "report_fetch_sources",
+        "report_preview_reconcile",
+        "report_apply_reconcile",
+        "report_generate",
+        "report_get_reports",
+        "report_status",
+    ]
+    assert all(item["toolset"] == "report-operations" for item in registered)
+    assert all(item["schema"]["parameters"]["additionalProperties"] is False for item in registered)
+
+
+def test_client_surface_config_and_schedule_are_disabled():
+    config = yaml.safe_load((DEPLOY / "config.yaml").read_text())
+    report = config["pa"]["report_operations"]
+    assert report["enabled"] is True
+    assert report["schedule"]["enabled"] is False
+    assert config["plugins"]["enabled"] == ["report-operations"]
+    constitution = yaml.safe_load((DEPLOY / "christopher_tgg_constitution.yaml").read_text())
+    management = constitution["job_briefs"]["tgg_management"]
+    ingest = constitution["job_briefs"]["tgg_ops_ingest"]
+    assert "report-operations" in management["enabled_toolsets"]
+    assert "report-operations" not in ingest["enabled_toolsets"]
+    text = "\n".join(management["instructions"])
+    assert '"run weekly report"' in text
+    assert '"run monthly report"' in text
+    assert '"retry report run <id>"' in text
+    assert "STOP: do not preview" in text
+
+
+def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path):
+    script = DEPLOY / "scripts" / "run_scheduled_report.py"
+    source = script.read_text()
+    assert "if not args.dry_run:" in source
+    assert "_deliver(intents)" in source
+    for timer in ("weekly", "monthly"):
+        assert "OnCalendar=Mon " in (DEPLOY / "systemd" / f"christopher-tgg-report-{timer}.timer").read_text()
+    bootstrap = (DEPLOY / "scripts" / "bootstrap_runtime.sh").read_text()
+    assert 'if [[ "$schedule_enabled" == "true" ]]' in bootstrap
+    assert "systemctl disable --now christopher-tgg-report-weekly.timer" in bootstrap
+
+    spec = importlib.util.spec_from_file_location(
+        "christopher_scheduled_report", DEPLOY / "scripts" / "run_scheduled_report.py"
+    )
+    runner = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(runner)
+    media_root = tmp_path / "media"
+    media_root.mkdir()
+    files = []
+    for zone in ("AMK", "HG", "PG", "SK"):
+        path = media_root / f"{zone}.xlsx"
+        path.write_bytes(b"PK\x03\x04fixture")
+        files.append(path)
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(yaml.safe_dump({
+        "pa": {"media_retention": {
+            "enabled": True,
+            "media_root": str(media_root),
+            "media_ref_prefix": "/media/tgg/hermes",
+            "source_roots": [str(media_root)],
+            "operation": "fixture_retention",
+        }}
+    }))
+    body = "Verifier pass. Window auto. New 1; updates 2; closures 1.\n" + "\n".join(
+        f"MEDIA:{path}" for path in files
+    )
+    captured = [{
+        "kind": "send",
+        "args": [runner.MANAGEMENT_CHAT, body],
+        "kwargs": {},
+    }]
+    intents = runner._intents(captured, config_path)
+    assert len(intents) == 4
+    assert all(item["endpoint"] == "send-media" for item in intents)
+    assert sum(bool(item["payload"].get("caption")) for item in intents) == 1
+
+
+def test_shared_runtime_files_have_no_new_report_domain_adapter():
+    # The adapter and judgment vocabulary stay below the per-client deploy root.
+    changed_surface = [PLUGIN, DEPLOY / "patches" / "report-operations-management.snippet.yaml"]
+    assert all(path.is_relative_to(DEPLOY) for path in changed_surface)
+    assert not (ROOT / "tools" / "tgg_report_ops.py").exists()

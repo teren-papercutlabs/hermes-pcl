@@ -1,0 +1,26 @@
+    - 'Report runs are an exact management-chat workflow. Treat only these allowlisted
+      management instructions as triggers: "run weekly report", "run monthly report",
+      and "retry report run <id>". A scheduled system message containing either run
+      phrase has the same authority. For a new run, call report_status without a
+      run id to obtain the prior population baseline, then call report_fetch_sources
+      with only cycle. You are the judge before any import: inspect every returned source
+      snapshot and preview. Confirm the workbook structure is intact and readable,
+      the expected AMK, HG, PG, and SK zone tabs are present, row populations look
+      plausible beside the prior run, and there is no corruption, partial save, or
+      anything else that does not look right. This is judgment, not a numeric threshold.
+      If a source looks broken, unreadable, or very wrong, STOP: do not preview or
+      apply, write nothing, and tell this management chat exactly what looks wrong.
+      On a clean inspection call report_preview_reconcile with only fetch_id, review
+      the delta and warnings for sane new-case, update, closure, and per-zone movement,
+      then call report_apply_reconcile with only its run_id. Never pass paths, dates,
+      computed windows, or counts into these tools. After a confirmed apply, call
+      report_generate with cycle and window auto. Continue only when verdict is pass;
+      then call report_get_reports with run_id and attach all four returned local_path
+      values as MEDIA:<absolute_path> document directives. The accompanying receipt is
+      short and names the API-returned window, delta counts, and verifier pass. Report
+      receipts are aggregate workflow receipts and are exempt from the case-job-number
+      citation rule. On any failed stage send one exception receipt in this chat:
+      stage, what was processed before failure, whether live state changed, and the
+      single retry action or decision needed. For "retry report run <id>", call
+      report_status first and resume only the failed or incomplete stage; never replay
+      an apply the status says already changed live state.'

@@ -103,6 +103,16 @@ done
 test -s "$RUNTIME_ROOT/capture-consumer-status.json"
 grep -qE '^OPENAI_API_KEY=' "$HERMES_HOME/.env"
 grep -qE '^GEMINI_API_KEY=' "$HERMES_HOME/.env"
+grep -qE '^CHRISTOPHER_TGG_PS_SERVICE_TOKEN=' "$HERMES_HOME/.env"
+test -L "$HERMES_HOME/plugins/report-operations"
+if systemctl is-enabled --quiet christopher-tgg-report-weekly.timer; then
+  echo "weekly report timer must ship disabled" >&2
+  exit 35
+fi
+if systemctl is-enabled --quiet christopher-tgg-report-monthly.timer; then
+  echo "monthly report timer must ship disabled" >&2
+  exit 35
+fi
 
 "$APP_ROOT/.venv/bin/python" \
   "$DEPLOY_ROOT/scripts/validate_deployment_spec.py" \
@@ -231,6 +241,18 @@ if slot_effort is None:
 else:
     assert config["agent"]["reasoning_effort"] == slot_effort
 assert constitution["runtime"] == {"provider": "openai-direct-primary", "model": slot_model}
+report_operations = config["pa"]["report_operations"]
+assert report_operations["enabled"] is True
+assert report_operations["schedule"]["enabled"] is False
+assert report_operations["auth"]["token_env"] == "CHRISTOPHER_TGG_PS_SERVICE_TOKEN"
+assert set(report_operations["operations"]) == {
+    "fetch-sources", "preview-reconcile", "apply-reconcile",
+    "generate", "get-reports", "status",
+}
+assert config["plugins"]["enabled"] == ["report-operations"]
+management = constitution["job_briefs"]["tgg_management"]
+assert "report-operations" in management["enabled_toolsets"]
+assert "report-operations" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
 
 gate = json.loads((runtime / "processing-gate.json").read_text())
 assert isinstance(gate["enabled"], bool)
@@ -373,6 +395,50 @@ PY
 if [[ "$MODE" == "--quick" ]]; then
   exit 0
 fi
+
+for scenario in clean corrupt; do
+  scenario_report="$TEST_HOME/latest-report-${scenario}-verification.json"
+  runuser -u pclaw -- env \
+    HERMES_HOME="$HERMES_HOME" \
+    PYTHONPATH="$APP_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+      "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/run_isolated_smoke.py" \
+    --app-root "$APP_ROOT" \
+    --live-home "$HERMES_HOME" \
+    --test-root "$TEST_HOME" \
+    --slot-file "$RUNTIME_ROOT/engine-slot" \
+    --report "$scenario_report" \
+    --chat-id 120363409954029949@g.us \
+    --chat-name "Christopher Deployment Verification" \
+    --body "run weekly report" \
+    --report-ops-scenario "$scenario"
+done
+
+"$APP_ROOT/.venv/bin/python" - "$TEST_HOME/latest-report-clean-verification.json" "$TEST_HOME/latest-report-corrupt-verification.json" <<'PY'
+import json, pathlib, sys
+clean = json.loads(pathlib.Path(sys.argv[1]).read_text())
+corrupt = json.loads(pathlib.Path(sys.argv[2]).read_text())
+assert clean["external_outbound_sent"] == 0
+assert corrupt["external_outbound_sent"] == 0
+assert clean["report_ops_request_paths"][:6] == [
+    "/api/operator/report-cycle/status",
+    "/api/operator/report-cycle/fetch-sources",
+    "/api/operator/report-cycle/preview-reconcile",
+    "/api/operator/report-cycle/apply-reconcile",
+    "/api/operator/report-cycle/generate",
+    "/api/operator/report-cycle/get-reports",
+]
+assert corrupt["report_ops_request_paths"] == [
+    "/api/operator/report-cycle/status",
+    "/api/operator/report-cycle/fetch-sources",
+]
+print(json.dumps({
+    "report_judgment_fixture": "pass",
+    "clean_chain": 6,
+    "corrupt_chain": 2,
+    "attachments": 4,
+    "external_outbound_sent": 0,
+}, sort_keys=True))
+PY
 
 # Verify the configured auxiliary model and its provider credential without
 # producing client-visible output or mutating any client system.

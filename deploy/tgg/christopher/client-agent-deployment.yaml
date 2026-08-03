@@ -47,6 +47,10 @@ spec:
         - /etc/systemd/system/christopher-tgg-hermes.service
         - /etc/systemd/system/christopher-tgg-hermes-health.service
         - /etc/systemd/system/christopher-tgg-hermes-health.timer
+        - /etc/systemd/system/christopher-tgg-report-weekly.service
+        - /etc/systemd/system/christopher-tgg-report-weekly.timer
+        - /etc/systemd/system/christopher-tgg-report-monthly.service
+        - /etc/systemd/system/christopher-tgg-report-monthly.timer
     capture:
       hostRef: tenant:tgg/host:app-1
       owner: stream-f
@@ -301,6 +305,18 @@ spec:
       - name: christopher-tgg-hermes-health.timer
         desiredState: active-enabled
         source: deploy/tgg/christopher/systemd/christopher-tgg-hermes-health.timer
+      - name: christopher-tgg-report-weekly.service
+        desiredState: disabled-oneshot
+        source: deploy/tgg/christopher/systemd/christopher-tgg-report-weekly.service
+      - name: christopher-tgg-report-weekly.timer
+        desiredState: disabled
+        source: deploy/tgg/christopher/systemd/christopher-tgg-report-weekly.timer
+      - name: christopher-tgg-report-monthly.service
+        desiredState: disabled-oneshot
+        source: deploy/tgg/christopher/systemd/christopher-tgg-report-monthly.service
+      - name: christopher-tgg-report-monthly.timer
+        desiredState: disabled
+        source: deploy/tgg/christopher/systemd/christopher-tgg-report-monthly.timer
     externalDependencies:
       - name: tgg-capture-whatsapp-bridge.service
         owner: stream-f

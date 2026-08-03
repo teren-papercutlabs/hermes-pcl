@@ -364,6 +364,10 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         "christopher-tgg-hermes.service",
         "christopher-tgg-hermes-health.service",
         "christopher-tgg-hermes-health.timer",
+        "christopher-tgg-report-weekly.service",
+        "christopher-tgg-report-weekly.timer",
+        "christopher-tgg-report-monthly.service",
+        "christopher-tgg-report-monthly.timer",
     }
     if set(unit_sources) != expected_units:
         raise RuntimeError("owned Hermes unit set drifted")
@@ -402,6 +406,13 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         "deploy/tgg/christopher/scripts/processing_activation_transaction.py",
         "deploy/tgg/christopher/scripts/validate_deployment_spec.py",
         "deploy/tgg/christopher/scripts/verify_runtime.sh",
+        "deploy/tgg/christopher/scripts/run_scheduled_report.py",
+        "deploy/tgg/christopher/plugins/report-operations/__init__.py",
+        "deploy/tgg/christopher/plugins/report-operations/plugin.yaml",
+        "deploy/tgg/christopher/systemd/christopher-tgg-report-weekly.service",
+        "deploy/tgg/christopher/systemd/christopher-tgg-report-weekly.timer",
+        "deploy/tgg/christopher/systemd/christopher-tgg-report-monthly.service",
+        "deploy/tgg/christopher/systemd/christopher-tgg-report-monthly.timer",
     }
     missing_runtime_files = sorted(required_runtime_files - included)
     if missing_runtime_files:
