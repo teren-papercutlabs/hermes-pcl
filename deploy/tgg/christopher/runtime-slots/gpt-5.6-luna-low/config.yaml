@@ -19,6 +19,8 @@ pa:
     - /var/lib/tgg-capture/whatsapp/media
     operation: tgg_media_retention
     min_free_percent: 20
+    max_attempts: 5
+    retry_interval_seconds: 60
   report_operations:
     enabled: true
     base_url: https://systems.papercut-labs.com
