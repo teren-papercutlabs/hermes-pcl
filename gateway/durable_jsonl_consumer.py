@@ -2276,6 +2276,11 @@ async def process_replay_records(
         "model": model,
         "processed": int(result.processed),
         "outbound_captured": len(result.outbound),
+        # Fixture callers must inspect the captured payload, not only its
+        # count.  The replay path is outbound-disabled; carrying these
+        # envelopes forward lets consumer-layer checks prove attachment and
+        # exception-receipt content without opening a real delivery path.
+        "captured_outbound": [dict(entry) for entry in result.outbound],
         "blocked_commands": len(result.blocked_commands),
     }
 
