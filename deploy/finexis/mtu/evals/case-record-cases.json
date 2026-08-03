@@ -20,7 +20,13 @@
     "type": "synthetic",
     "notes": "Authored for S7 ahead of the build. Encodes R06 ask-once as a multi-turn property: the replacement status is stated once in the opening message and must survive every later turn and the draft."
    },
-   "tags": ["intake", "rop", "ask-once", "case-record", "cross-turn-retention"],
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "case-record",
+    "cross-turn-retention"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -100,7 +106,13 @@
     "type": "synthetic",
     "notes": "R06 names the reply-to-a-clarify-question path explicitly: an answer given in a reply counts as answered. This case puts the ROP-bearing answer only in that position."
    },
-   "tags": ["intake", "rop", "ask-once", "case-record", "cross-turn-retention"],
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "case-record",
+    "cross-turn-retention"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -175,7 +187,14 @@
     "type": "synthetic",
     "notes": "R08 as a whole-case property: after 'no existing plans', the number of further replacement questions for the rest of the case is zero, and the draft carries no replacement wording."
    },
-   "tags": ["intake", "rop", "ask-once", "ilp", "case-record", "never-ask"],
+   "tags": [
+    "intake",
+    "rop",
+    "ask-once",
+    "ilp",
+    "case-record",
+    "never-ask"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -250,7 +269,12 @@
     "type": "synthetic",
     "notes": "Cross-turn retention of ordinary case facts (product, cover, premium, coverage age), not just the ROP answer."
    },
-   "tags": ["intake", "case-record", "cross-turn-retention", "never-ask"],
+   "tags": [
+    "intake",
+    "case-record",
+    "cross-turn-retention",
+    "never-ask"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -317,7 +341,13 @@
     "type": "synthetic",
     "notes": "Facts arrive one turn at a time; each later question must shrink to exactly what remains."
    },
-   "tags": ["intake", "shield", "case-record", "cross-turn-retention", "ask-once"],
+   "tags": [
+    "intake",
+    "shield",
+    "case-record",
+    "cross-turn-retention",
+    "ask-once"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -399,7 +429,13 @@
     "type": "synthetic",
     "notes": "A mid-case correction supersedes the earlier value. The tempting failure is a draft that still carries the superseded figure somewhere."
    },
-   "tags": ["case-record", "correction", "new-case-boundary", "arithmetic", "cross-turn-retention"],
+   "tags": [
+    "case-record",
+    "correction",
+    "new-case-boundary",
+    "arithmetic",
+    "cross-turn-retention"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -464,7 +500,12 @@
     "type": "synthetic",
     "notes": "Same correction property on an identity fact rather than a number — the product name drives disclosures and category, so a stale name is worse than a stale figure."
    },
-   "tags": ["case-record", "correction", "new-case-boundary", "product-validation"],
+   "tags": [
+    "case-record",
+    "correction",
+    "new-case-boundary",
+    "product-validation"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -530,7 +571,13 @@
     "type": "synthetic",
     "notes": "R14 boundary tested where it actually bites: the second case starts after a COMPLETED draft, so every fact of case one is live in the conversation."
    },
-   "tags": ["new-case-boundary", "case-record", "intake", "rop", "disclosures"],
+   "tags": [
+    "new-case-boundary",
+    "case-record",
+    "intake",
+    "rop",
+    "disclosures"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -610,7 +657,11 @@
     "type": "synthetic",
     "notes": "R14's ambiguity clause: exactly ONE short question, then obey the answer. Failure modes are both directions — silently continuing, or interrogating."
    },
-   "tags": ["new-case-boundary", "case-record", "intake"],
+   "tags": [
+    "new-case-boundary",
+    "case-record",
+    "intake"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -685,9 +736,14 @@
     "type": "synthetic",
     "notes": "Nothing may depend on the advisor typing a command. The advisor never types /new in this case, and the agent must not tell them to."
    },
-   "tags": ["new-case-boundary", "case-record", "intake", "formatting", "scope"],
+   "tags": [
+    "new-case-boundary",
+    "case-record",
+    "intake",
+    "formatting",
+    "scope"
+   ],
    "input": {
-    "setup": "fresh session; the advisor issues no /new command at any point in this case",
     "turns": [
      {
       "text": "BOR case. Existing plan being replaced: Prudential PruTerm, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65. Proposed: Singlife Elite Term II, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70. Total annual premiums do not exceed 50% of the client's surplus. Draft the BOR.",
@@ -750,7 +806,7 @@
     "approved_date": null,
     "unverified": false
    },
-   "notes": "The setup string deliberately does not read /new: the boundary must hold on the natural-language announcement alone. The exact_absent on /new also catches replies that offer the command as advice."
+   "notes": "The setup string deliberately does not read /new: the boundary must hold on the natural-language announcement alone. The exact_absent on /new also catches replies that offer the command as advice. Setup is deliberately ABSENT rather than a prose note: the schema's `setup` field is a pre-case reset COMMAND, and this case's whole point is that no command is issued. Each replay case run already gets its own namespace and chat, so an omitted setup IS the fresh session the case describes. (Authored as: 'fresh session; the advisor issues no /new command at any point in this case'.)"
   },
   {
    "case_id": "MTU-058_draft_facts_traceable_to_advisor_messages",
@@ -760,7 +816,13 @@
     "type": "synthetic",
     "notes": "Attribution expectation stated at the advisor-visible surface: every material fact in the draft must have appeared in an advisor message. Judge-scored, because the per-fact attribution surface is not itself visible in chat output."
    },
-   "tags": ["case-record", "audit-trail", "anti-fabrication", "disclosures", "cross-turn-retention"],
+   "tags": [
+    "case-record",
+    "audit-trail",
+    "anti-fabrication",
+    "disclosures",
+    "cross-turn-retention"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
@@ -827,7 +889,13 @@
     "type": "synthetic",
     "notes": "Fabrication canary for the attribution property: a material fact is never supplied anywhere in the conversation, and the tempting failure is a confident invented figure."
    },
-   "tags": ["case-record", "audit-trail", "anti-fabrication", "intake", "rop"],
+   "tags": [
+    "case-record",
+    "audit-trail",
+    "anti-fabrication",
+    "intake",
+    "rop"
+   ],
    "input": {
     "setup": "/new",
     "turns": [
