@@ -1,0 +1,187 @@
+# MTU — case field sets (CLIENT CONFIG)
+#
+# The required-field contract per case type, consumed by the PA-generic case
+# record module (agent/pa_case_record.py).  Field ids are opaque to that
+# module; all MTU/Finexis vocabulary lives HERE, in the deployment tree, and
+# never in the shared layer.
+#
+# Grounded in deploy/finexis/mtu/knowledge/bor-required-checks.yaml
+# (field_contracts) and the intake / material-missing rules.  Those files
+# remain the authority on WHY a field is required; this file is the machine
+# -readable form the record queries against.
+#
+# Field semantics:
+#   required  - the case cannot be drafted from without it
+#   askable   - false means asking for it is a DEFECT: it is derived,
+#               template default, or maintained outside the case.  An
+#               unaskable field never appears in the empty-required set that
+#               intake generates questions from.
+#   ask_hint  - the question shape when it IS asked; intake composes from it,
+#               it is not sent verbatim
+#   derived_from - advisory: which recorded answer a derivation may stand on
+#
+# Phase-2 note: the record module supplies the query and the derivation hook;
+# the derivation CALLABLES (e.g. is_replacement from existing_plans) are
+# client-owned and wired at the deployment, not in the shared module.
+
+version: 1
+
+field_sets:
+
+  # ── Protection / life: term, whole life, ILP-protection, CI ──────────
+  protection_life:
+    case_type: protection_life
+    fields:
+      - id: existing_plans
+        required: true
+        askable: true
+        ask_hint: >-
+          Existing plan(s) with the facts the matching category contract needs
+          — insurer, plan name, category, sum assured by benefit, premium,
+          coverage till age. "None" for a first purchase.
+        notes: "The starting position the BOR must state clearly."
+
+      - id: proposed_plan
+        required: true
+        askable: true
+        ask_hint: >-
+          Proposed plan — insurer, plan name, riders, category, sum assured by
+          benefit, first-year and subsequent premium, policy term.
+
+      - id: is_replacement
+        required: true
+        askable: false
+        derived_from: [existing_plans]
+        notes: >-
+          DERIVED, never asked as its own item (amelia-ruled 2026-08-01).
+          No existing plans = non-ROP, no further question. An existing plan
+          stated as being replaced = ROP. The yes/no replacement question is
+          asked only when an existing plan exists and its replacement status
+          was not stated — and it is asked against existing_plans, not as a
+          separate ROP item.
+
+      - id: replaced_products
+        required: false
+        askable: true
+        applies_when: rop
+        ask_hint: "Which product(s) are being replaced?"
+
+      - id: replacing_products
+        required: false
+        askable: true
+        applies_when: rop
+        ask_hint: "Which product(s) are replacing them?"
+
+      - id: client_stated_rationale
+        required: false
+        askable: false
+        notes: >-
+          NEVER SOLICITED. Standard narrative defaults supply this; record it
+          only when the advisor volunteers it.
+
+  # ── ILP: protection/life contract plus suitability facts ─────────────
+  investment_linked:
+    case_type: investment_linked
+    fields:
+      - id: existing_plans
+        required: true
+        askable: true
+        ask_hint: "Existing plan(s), or 'none' for a first purchase."
+
+      - id: proposed_plan
+        required: true
+        askable: true
+        ask_hint: >-
+          Proposed ILP — insurer, plan name, riders, sum assured by benefit,
+          first-year and subsequent premium, policy term, minimum investment
+          period.
+
+      - id: is_replacement
+        required: true
+        askable: false
+        derived_from: [existing_plans]
+
+      - id: min_investment_period
+        required: true
+        askable: true
+        ask_hint: "Minimum investment period for the proposed ILP."
+
+      - id: cka_status
+        required: true
+        askable: true
+        ask_hint: "CKA outcome for the client."
+
+      - id: risk_profile
+        required: true
+        askable: true
+        ask_hint: "Client risk profile."
+
+      - id: fund_selection
+        required: true
+        askable: true
+        ask_hint: "Fund name(s) selected."
+
+      - id: objective_alignment
+        required: true
+        askable: true
+        ask_hint: "How the fund selection aligns with the client's objective."
+
+      - id: high_premium_declaration_wording
+        required: false
+        askable: true
+        applies_when: annual_ilp_premium_above_36000_sgd
+        ask_hint: >-
+          Approved wording for the annual-ILP-premium-above-S$36,000
+          declaration.
+
+  # ── Shield / hospitalisation ─────────────────────────────────────────
+  shield_hospitalisation:
+    case_type: shield_hospitalisation
+    fields:
+      - id: existing_plans
+        required: true
+        askable: true
+        ask_hint: >-
+          Existing arrangement — insurer, exact base plan name, exact
+          versioned rider name, material premium. "None" for a first purchase.
+
+      - id: proposed_plan
+        required: true
+        askable: true
+        ask_hint: >-
+          Proposed arrangement — insurer, exact base plan name, exact
+          versioned rider name, material premium.
+
+      - id: is_replacement
+        required: true
+        askable: false
+        derived_from: [existing_plans]
+
+      - id: replaced_products
+        required: false
+        askable: true
+        applies_when: rop
+        ask_hint: "Which product(s) are being replaced?"
+
+      - id: replacing_products
+        required: false
+        askable: true
+        applies_when: rop
+        ask_hint: "Which product(s) are replacing them?"
+
+      - id: client_stated_rationale
+        required: true
+        askable: true
+        ask_hint: "The client's stated reason for the change."
+        notes: >-
+          Shield is the one contract where the rationale is a collected case
+          fact rather than a narrative default (bor-required-checks
+          field_contracts.shield_hospitalisation.collect_rationale).
+
+      - id: exact_versioned_rider_name
+        required: false
+        askable: true
+        ask_hint: "Exact / versioned rider name."
+        notes: >-
+          Identifies the arrangement ONLY. Rider benefit limits, deductible,
+          and coinsurance are never collected and never printed.
