@@ -79,16 +79,28 @@ derivations:
 
 SELECTION = """
 version: 1
+exclusive_scope_tags: [SCOPE_A, SCOPE_B]
 selection_field: f_category
 default_category: alpha
 categories:
   alpha:
+    scope_tag: SCOPE_A
     substitutions: {}
     forbid: [variant_block]
   beta:
+    scope_tag: SCOPE_B
     substitutions:
       anchor_block: variant_block
     forbid: []
+"""
+
+SELECTION_UNMAPPED = """
+version: 1
+exclusive_scope_tags: [SCOPE_A, SCOPE_B]
+selection_field: f_category
+categories:
+  gamma:
+    scope_tag: SCOPE_A
 """
 
 ARTIFACT = """# pa-source:
@@ -430,3 +442,83 @@ def test_extraction_parser_tolerates_fences_and_prose():
 
 def test_extraction_parser_falls_back_to_continue_on_garbage():
     assert pcrt.parse_extraction_response("not json at all") == {}
+
+
+# ── exactly-one underwriting scope, or fail closed ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_draft_declares_exactly_one_scope_from_the_category(
+    db, knowledge_root, monkeypatch
+):
+    _stub_extraction(
+        monkeypatch,
+        {
+            "boundary": "new",
+            "case_type": "beta",
+            "fields": {"f_source": "swap it", "f_other": "other value"},
+        },
+    )
+    await _turn(db, knowledge_root, message="a beta case", message_id="m1")
+    selection = pcrt.resolve_disclaimer_selection(
+        session_db=db,
+        pa_context=_context(),
+        agent_id="agent-x",
+        chat_id="chat-x",
+        knowledge_root=knowledge_root,
+    )
+    # The model declared the WRONG exclusive scope; the category overrides it.
+    _, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,SCOPE_A]] head [[PA_BLOCK:ANCHOR]] tail",
+        _context(),
+        knowledge_root=knowledge_root,
+        block_selection=selection,
+    )
+    assert "SCOPE_B" in evidence["scope_tags"]
+    assert "SCOPE_A" not in evidence["scope_tags"]
+
+
+def test_unresolvable_category_fails_assembly_closed(knowledge_root, tmp_path):
+    from agent.pa_output_assembly import PAOutputAssemblyError
+
+    (knowledge_root / "selection.yaml").write_text(SELECTION_UNMAPPED, encoding="utf-8")
+    selection = pcrt.DisclaimerSelection(
+        category="alpha",
+        exclusive_scope_tags=("SCOPE_A", "SCOPE_B"),
+        matched=False,
+    )
+    with pytest.raises(PAOutputAssemblyError, match="exactly one"):
+        assemble_pa_response(
+            "[[PA_SCOPE:DRAFT]] head [[PA_BLOCK:ANCHOR]] tail",
+            _context(),
+            knowledge_root=knowledge_root,
+            block_selection=selection,
+        )
+
+
+def test_no_draft_scope_never_requires_an_underwriting_tag(knowledge_root):
+    selection = pcrt.DisclaimerSelection(
+        category="alpha",
+        exclusive_scope_tags=("SCOPE_A", "SCOPE_B"),
+        matched=False,
+    )
+    assembled, _ = assemble_pa_response(
+        "[[PA_SCOPE:NO_DRAFT]] one question please",
+        _context(),
+        knowledge_root=knowledge_root,
+        block_selection=selection,
+    )
+    assert "one question please" in assembled
+
+
+def test_multi_source_derivation_takes_the_first_recorded_answer():
+    rules = pcrt._parse_derivations(
+        {
+            "target": [
+                {"from": "a", "matches": [{"pattern": "\\S", "value": "from-a"}]},
+                {"from": "b", "matches": [{"pattern": "\\S", "value": "from-b"}]},
+            ]
+        }
+    )
+    assert [r.source_field_id for r in rules] == ["a", "b"]
+    assert rules[0].resolve("anything") == "from-a"

@@ -31,6 +31,15 @@
 
 version: 1
 
+# ONE CONFIG, TWO CONSUMERS. The same product-category mapping drives (a) which
+# approved disclosure block the shared anchor resolves to, and (b) the
+# underwriting scope tag a completed draft must declare. Melody R20: the
+# pre-existing-conditions disclosure rides the UNDERWRITTEN scope, so a draft
+# must declare EXACTLY ONE of the tags below, sourced from the case record's
+# product-type field. A draft whose category resolves to no scope tag FAILS
+# ASSEMBLY CLOSED rather than shipping without a compliance sentence.
+exclusive_scope_tags: [GIO, UNDERWRITTEN]
+
 # Case-record field consulted first; the case's own type is the fallback.
 selection_field: product_category
 default_category: protection_life
@@ -39,11 +48,13 @@ categories:
 
   # Medically underwritten protection/life: the full approved disclosure set.
   protection_life:
+    scope_tag: UNDERWRITTEN
     substitutions: {}
     forbid: [general_disclosures_gio]
 
   # Shield / hospitalisation: medically underwritten, full set.
   shield_hospitalisation:
+    scope_tag: UNDERWRITTEN
     substitutions: {}
     forbid: [general_disclosures_gio]
 
@@ -51,6 +62,7 @@ categories:
   # anchor resolves to the GIO variant, which drops the medical non-disclosure
   # line and keeps every other approved line verbatim.
   investment_linked:
+    scope_tag: GIO
     substitutions:
       general_disclosures: general_disclosures_gio
     forbid: []

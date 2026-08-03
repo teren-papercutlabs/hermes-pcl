@@ -235,10 +235,18 @@ derivations:
   # plan the advisor describes as being replaced is ROP. Anything else stays
   # underived, so the ROP GATE's single conversational question still applies.
   is_replacement:
-    from: existing_plans
-    matches:
-      - pattern: '(?i)^\s*(none|no|nil|n/?a|no existing|not applicable|first purchase|new purchase)\b'
-        value: "no"
-      - pattern: '(?i)(replac|switch(ing)? (from|out)|surrender|terminat|cancel(ling|ing)?)'
-        value: "yes"
-    default: null
+    # Rules are tried in order against whichever answer is recorded; the first
+    # that resolves wins. A named replaced product IS the replacement answer,
+    # so it settles ROP without the existing-plans wording having to say so.
+    - from: replaced_products
+      matches:
+        - pattern: '\S'
+          value: "yes"
+      default: null
+    - from: existing_plans
+      matches:
+        - pattern: '(?i)^[\s\[\{"'']*(none|no|nil|n/?a|no existing|not applicable|first purchase|new purchase)\b'
+          value: "no"
+        - pattern: '(?i)(replac|switch(ing)? (from|out)|surrender|terminat|cancel(ling|ing)?)'
+          value: "yes"
+      default: null

@@ -153,32 +153,45 @@ def _parse_derivations(raw: Any) -> Tuple[DerivationRule, ...]:
               - pattern: "(?i)^\\s*(none|no existing)"
                 value: "no"
             default: "yes"
+
+    A target may also declare a LIST of rules, tried in order against whichever
+    source answer is recorded — the first rule that resolves wins, so a target
+    can be reachable from more than one answer::
+
+        derivations:
+          <target field id>:
+            - from: <source a>
+              matches: [...]
+            - from: <source b>
+              matches: [...]
     """
     if not isinstance(raw, Mapping):
         return ()
     rules: List[DerivationRule] = []
     for target, spec in raw.items():
-        if not isinstance(spec, Mapping):
-            continue
-        source = spec.get("from") or spec.get("derived_from")
-        if not source:
-            continue
-        matches: List[Tuple[str, Any]] = []
-        for item in spec.get("matches") or ():
-            if not isinstance(item, Mapping):
+        entries = spec if isinstance(spec, (list, tuple)) else [spec]
+        for entry in entries:
+            if not isinstance(entry, Mapping):
                 continue
-            pattern = item.get("pattern")
-            if not pattern:
+            source = entry.get("from") or entry.get("derived_from")
+            if not source:
                 continue
-            matches.append((str(pattern), item.get("value")))
-        rules.append(
-            DerivationRule(
-                target_field_id=str(target),
-                source_field_id=str(source),
-                matches=tuple(matches),
-                default=spec.get("default"),
+            matches: List[Tuple[str, Any]] = []
+            for item in entry.get("matches") or ():
+                if not isinstance(item, Mapping):
+                    continue
+                pattern = item.get("pattern")
+                if not pattern:
+                    continue
+                matches.append((str(pattern), item.get("value")))
+            rules.append(
+                DerivationRule(
+                    target_field_id=str(target),
+                    source_field_id=str(source),
+                    matches=tuple(matches),
+                    default=entry.get("default"),
+                )
             )
-        )
     return tuple(rules)
 
 
@@ -411,21 +424,26 @@ def _apply_config_derivations(
 ) -> List[str]:
     if not config.derivations:
         return []
-    derivers = {}
+    by_target: Dict[str, List[DerivationRule]] = {}
     for rule in config.derivations:
-        def _make(rule: DerivationRule):
-            def _derive(record: CaseRecord):
+        by_target.setdefault(rule.target_field_id, []).append(rule)
+
+    def _make(rules: List[DerivationRule]):
+        def _derive(record: CaseRecord):
+            # First rule whose source answer is recorded AND resolves wins.
+            for rule in rules:
                 source = record.get(rule.source_field_id)
                 if source is None or not source.is_filled:
-                    return None
+                    continue
                 resolved = rule.resolve(source.value)
                 if resolved is None:
-                    return None
+                    continue
                 return resolved, rule.source_field_id
+            return None
 
-            return _derive
+        return _derive
 
-        derivers[rule.target_field_id] = _make(rule)
+    derivers = {target: _make(rules) for target, rules in by_target.items()}
     try:
         return list(store.apply_derivations(case_id, derivers))
     except Exception as exc:  # noqa: BLE001 — recording never breaks the turn
@@ -662,13 +680,23 @@ def render_case_record_prompt(state: Optional[CaseTurnState]) -> str:
 
 @dataclass(frozen=True)
 class DisclaimerSelection:
-    """Which approved blocks a product category requires, resolved at assembly."""
+    """Which approved blocks a product category requires, resolved at assembly.
+
+    ``scope_tag`` / ``exclusive_scope_tags`` carry the second consumer of the
+    same product-category config: a completed draft must declare EXACTLY ONE of
+    the mutually exclusive underwriting scopes, and which one is a deterministic
+    property of the product category, never a model judgment.  A draft that can
+    resolve neither fails assembly closed rather than shipping a draft that
+    silently omits a compliance sentence.
+    """
 
     category: Optional[str] = None
     substitutions: Mapping[str, str] = dc_field(default_factory=dict)
     forbidden: Tuple[str, ...] = ()
     source: Optional[str] = None
     matched: bool = False
+    scope_tag: Optional[str] = None
+    exclusive_scope_tags: Tuple[str, ...] = ()
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -677,6 +705,8 @@ class DisclaimerSelection:
             "forbidden": list(self.forbidden),
             "source": self.source,
             "matched": self.matched,
+            "scope_tag": self.scope_tag,
+            "exclusive_scope_tags": list(self.exclusive_scope_tags),
         }
 
 
@@ -746,8 +776,20 @@ def resolve_disclaimer_selection(
         matched = False
     else:
         matched = True
+    exclusive_scope_tags = tuple(
+        str(tag).strip().upper()
+        for tag in config.get("exclusive_scope_tags") or ()
+        if str(tag).strip()
+    )
     if not isinstance(entry_config, Mapping):
-        return DisclaimerSelection(category=category, source=str(entry), matched=False)
+        # Unresolvable category: carry the contract WITHOUT a scope tag so
+        # assembly fails closed instead of shipping an under-declared draft.
+        return DisclaimerSelection(
+            category=category,
+            source=str(entry),
+            matched=False,
+            exclusive_scope_tags=exclusive_scope_tags,
+        )
 
     raw_subs = entry_config.get("substitutions")
     substitutions = (
@@ -756,12 +798,15 @@ def resolve_disclaimer_selection(
         else {}
     )
     forbidden = tuple(str(item) for item in entry_config.get("forbid") or ())
+    scope_tag = entry_config.get("scope_tag")
     return DisclaimerSelection(
         category=category,
         substitutions=substitutions,
         forbidden=forbidden,
         source=str(entry),
         matched=matched,
+        scope_tag=str(scope_tag).strip().upper() if scope_tag else None,
+        exclusive_scope_tags=exclusive_scope_tags,
     )
 
 

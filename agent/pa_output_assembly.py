@@ -310,6 +310,29 @@ def assemble_pa_response(
             (tags - {"SUSTAINABILITY_NO", "SUSTAINABILITY_YES"})
             | {deterministic_scope}
         )
+    # Mutually exclusive underwriting scope (e.g. GIO vs UNDERWRITTEN): a
+    # completed draft must declare EXACTLY ONE, and which one is a deterministic
+    # property of the case's product category — never a model judgment. When the
+    # category cannot be resolved, assembly FAILS CLOSED: an under-declared draft
+    # silently omits a compliance sentence, so it must not ship.
+    exclusive_scope_tags = {
+        str(tag).strip().upper()
+        for tag in (getattr(block_selection, "exclusive_scope_tags", None) or ())
+        if str(tag).strip()
+    }
+    if exclusive_scope_tags and "DRAFT" in tags:
+        selected_scope = getattr(block_selection, "scope_tag", None)
+        selected_scope = str(selected_scope).strip().upper() if selected_scope else None
+        if selected_scope not in exclusive_scope_tags:
+            raise PAOutputAssemblyError(
+                "a completed draft must declare exactly one of "
+                + "/".join(sorted(exclusive_scope_tags))
+                + "; the case record's product category resolved to "
+                + repr(getattr(block_selection, "category", None))
+                + ", which maps to no scope"
+            )
+        tags = frozenset((tags - exclusive_scope_tags) | {selected_scope})
+
     substitutions = {
         str(key): str(value)
         for key, value in (getattr(block_selection, "substitutions", None) or {}).items()
