@@ -19,6 +19,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 import yaml
+from dotenv import load_dotenv
 
 
 ALLOWED_SECRET_KEYS = {
@@ -139,6 +140,13 @@ def _copy_test_env(source: Path, target: Path) -> None:
     lines.append("TGG_REPORT_OPS_TOKEN=fixture-only")
     target.write_text("\n".join(lines) + "\n", encoding="utf-8")
     target.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    # Plugin discovery happens when the Hermes runtime modules are imported
+    # below.  Loading the fixture env after that import is too late: plugin
+    # availability checks would hide every report tool from the model even
+    # though the credential exists on disk.  Export the isolated fixture env
+    # first; it contains only the allow-listed provider keys plus a synthetic
+    # report token and never touches the live process environment upstream.
+    load_dotenv(target, override=True)
 
 
 def _prepare_home(

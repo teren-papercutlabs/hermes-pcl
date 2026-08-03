@@ -177,6 +177,31 @@ def test_client_surface_config_and_schedule_are_disabled():
     assert "STOP: do not preview" in text
 
 
+def test_bootstrap_makes_new_report_plugin_directories_traversable():
+    bootstrap = (DEPLOY / "scripts" / "bootstrap_runtime.sh").read_text()
+    assert "install -d -m 0755 -o root -g root" in bootstrap
+    assert '"$DEPLOY_ROOT/plugins/report-operations"' in bootstrap
+
+
+def test_isolated_smoke_exports_fixture_token_before_plugin_discovery(
+    monkeypatch, tmp_path
+):
+    script = DEPLOY / "scripts" / "run_isolated_smoke.py"
+    spec = importlib.util.spec_from_file_location("christopher_report_smoke", script)
+    smoke = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(smoke)
+
+    source = tmp_path / "live.env"
+    target = tmp_path / "fixture.env"
+    source.write_text("OPENAI_API_KEY=fixture-openai\n", encoding="utf-8")
+    monkeypatch.delenv("CHRISTOPHER_TGG_PS_SERVICE_TOKEN", raising=False)
+
+    smoke._copy_test_env(source, target)
+
+    assert os.environ["CHRISTOPHER_TGG_PS_SERVICE_TOKEN"] == "fixture-only"
+
+
 def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path):
     script = DEPLOY / "scripts" / "run_scheduled_report.py"
     source = script.read_text()
