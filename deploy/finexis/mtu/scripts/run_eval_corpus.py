@@ -81,9 +81,10 @@ def _stage_runtime(
     # Knowledge is synced from the CANDIDATE deploy tree, not from the runtime
     # source: knowledge, compliance artifacts, and case-record config are part
     # of what a candidate IS, so evaluating a candidate against the installed
-    # runtime's knowledge would score the wrong tree (and fails outright once
-    # the candidate declares an entry the installed runtime has never seen).
-    # Secrets still come from --runtime-source and nothing else.
+    # runtime's knowledge would score the wrong tree (and a pre-cutover live
+    # home has no knowledge/ at all — its declared list was decorative before
+    # the S2 migration). candidate falls back to source when no
+    # --candidate-deploy-dir is given; secrets still come from --runtime-source.
     sync_pa_knowledge(
         candidate,
         target / "mtu_constitution.yaml",

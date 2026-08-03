@@ -528,8 +528,8 @@
         "WB 6c20d4a8"
       ],
       "sequence": 185,
-      "source_sha256": "ea7cc061dfbcad8f4e7fd5f995f466ffa291a2a49c012e08d6a060b48288bd80",
-      "status": "approved",
+      "source_sha256": "90e865281e35d985f73e6e9f330f579f214ad592d46bbb1791ac656e8b88892b",
+      "status": "pending",
       "type": "compliance"
     },
     {
@@ -686,7 +686,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "f7bb455c7c1dd2b6e165680bf9a71edf101bc275c545fcbcec0632b777122a4a",
+  "sources_sha256": "81282fc3fd4a94f6c075fe25b770f56f7f0a64b5c9631f4c0c7c64c5c0993d0c",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml"
   ]

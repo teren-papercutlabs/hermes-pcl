@@ -6,8 +6,13 @@
 # ruling_ref:
 # - R20
 # - 'WB 6c20d4a8'
-# status: approved
+# status: pending
 # sequence: 185
+# note: wording amended by S7 phase 2 (ask-one-line fallback replaced by
+#   deterministic runtime selection, reference/065 + assembly scope gate). The
+#   amended text awaits amelia/Melody re-approval in the pending confirm batch;
+#   R20's substance (never emit the pre-existing-conditions sentence on GIO)
+#   is unchanged and mechanically enforced.
 # ---
       - >-
         GENERAL DISCLOSURES — GIO CARVE-OUT (Melody, 2026-08-03: "gotta remove the
