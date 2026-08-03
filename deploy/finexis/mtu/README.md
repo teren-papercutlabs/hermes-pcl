@@ -14,9 +14,9 @@ Advisor DMs a rough case (existing plan, proposed plan, is-it-a-replacement) →
 | `mtu_constitution.yaml` | Generated PA constitution. Do not hand-edit. `hermes pa compose` reproduces it from the typed sources before deploy. |
 | `mtu_constitution.manifest.json` | Generated digest manifest binding every source artifact and recording whether the unverified-compliance escape was used. |
 | `config.yaml` | Gateway config: model (openai-direct-primary/gpt-5.4-mini) + `pa.enabled/job_type/constitution_path` + `platforms.telegram`. |
-| `SOUL.md` | Generated: the 4 knowledge files concatenated. **This is the load-bearing KB channel** — the constitution's `knowledge:` key is NOT parsed by the engine (verified). |
-| `knowledge/` | The 4 source KB files (provenance): BOR checks table, replacement-path taxonomy, draft template, standard disclosures. |
-| `scripts/deploy_guarded.py` | The only deploy entry and writer. Applies the change-class eval gate before installing runtime files. |
+| `SOUL.md` | Thin operating rule only. Reference tables are deliberately absent from the prompt. |
+| `knowledge/`, `reference/` | Manifest-declared prose and exact-key structured references. `compose: false` reference artifacts are validated and digested but excluded from constitution prose. |
+| `scripts/deploy_guarded.py` | The only deploy entry and writer. Applies the change-class eval gate before installing runtime files (config, constitution, SOUL, declared knowledge sync, `.env`). |
 | `scripts/bootstrap_local.sh` | Retired legacy entry that always refuses, including forged receipt input. |
 | `eval-policy.yaml`, `evals/`, `scripts/run_nightly.py` | Pinned judge, deploy gate table, canonical corpus, and nightly regression. |
 | `OPS-NOTE.md` | Deploy specifics + what remains + rollback. |
@@ -65,6 +65,12 @@ The manifest then records `allow_unverified: true` and enumerates the affected c
 artifacts. Resolve provenance and remove the escape before a later deploy step. This command
 only writes the two caller-selected output paths; it does not deploy, restart Hermes, or write
 `~/.hermes-mtu`.
+
+`hermes pa sync-knowledge` reads the composed job brief's plain `knowledge` list and copies
+only those declared files beneath the configured knowledge root. Runtime tools refuse any
+undeclared path. `pa_reference_lookup` performs exact key lookup and returns either the
+declared row or `found=false` with the file's escalation cue; it never fuzzy-matches.
+The guarded deploy performs the same declared-knowledge sync as part of `install_runtime`.
 
 ## Guarded deploy
 ```bash

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pa-eval-case.schema.json",
+  "title": "PA eval case (v1) — formalizes the organic MTU/TGG/Guava case shapes",
+  "description": "One behavioral expectation-carrying case for a PA client agent. Lineage: MTU cases.json (prompt + expected[]), Guava phase-b-judge.schema.json (verdict/rubric/outcome_class), Christopher eval-port (pins + replay path). A case is authored once and run many times; run-time pins live in the run manifest, not here.",
+  "type": "object",
+  "required": ["case_id", "client", "source", "input", "expected"],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "description": "Stable id. Convention: <CLIENT>-<SEQ>_<slug>, e.g. MTU-021_rop_ask_once."
+    },
+    "client": { "type": "string", "description": "Client agent tenant id (mtu, tgg, guava)." },
+    "status": { "enum": ["active", "superseded", "quarantined"], "default": "active" },
+    "superseded_by": { "type": ["string", "null"] },
+    "source": {
+      "type": "object",
+      "description": "Where this case came from. Correction-derived cases are the highest-value class: every principal/client correction of live behavior MUST yield one.",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["live-interaction", "correction", "synthetic", "document"] },
+        "session_id": { "type": ["string", "null"], "description": "state.db sessions.id for live-interaction/correction sources." },
+        "message_ids": { "type": "array", "items": { "type": ["integer", "string"] } },
+        "correction": {
+          "type": ["object", "null"],
+          "description": "The ruling this case encodes. Required when type=correction.",
+          "properties": {
+            "by": { "type": "string", "description": "Who ruled (amelia, teren, client principal)." },
+            "date": { "type": "string" },
+            "quote": { "type": "string", "description": "Verbatim or tight paraphrase of the correction; paraphrase must be marked." },
+            "ruling_ref": { "type": "string", "description": "Pointer to the durable ruling record (constitution line, memory entry, decision record)." }
+          }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Behavior-area tags used for gate selection (e.g. intake, rop, ilp, shield, sustainability, escalation, never-ask, formatting, new-case-boundary, product-shorthand). A knowledge/constitution edit re-runs the tags it touches; a model swap runs everything."
+    },
+    "input": {
+      "type": "object",
+      "required": ["turns"],
+      "properties": {
+        "setup": { "type": "string", "description": "Pre-case reset, e.g. '/new'. Default /new." },
+        "turns": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered user-side stimulus turns. Multi-turn is first-class: ask-once and new-case-boundary defects only reproduce across turns. A turn may declare expected_before_next to assert on the intermediate reply.",
+          "items": {
+            "type": "object",
+            "required": ["text"],
+            "properties": {
+              "text": { "type": "string" },
+              "media": { "type": "array", "items": { "type": "string" } },
+              "expected_before_next": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Labels that must hold on the reply to THIS turn (e.g. 'asks only for premium')."
+              }
+            }
+          }
+        }
+      }
+    },
+    "expected": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Expected-behavior labels judged on the final response (and per-turn via expected_before_next). Each is judgeable in isolation.",
+      "items": {
+        "type": "object",
+        "required": ["label", "kind"],
+        "properties": {
+          "label": { "type": "string", "description": "Short judgeable statement, e.g. 'derives ROP from existing-plans answer without asking'." },
+          "kind": {
+            "enum": ["must", "must_not", "exact_present", "exact_absent"],
+            "description": "must/must_not are judge-scored; exact_present/exact_absent are deterministic string checks scored by the runner, not the judge (compliance sentences, disclosures, markdown markers)."
+          },
+          "text": { "type": ["string", "null"], "description": "For exact_* kinds: the literal string. Whitespace-normalized comparison." },
+          "critical": { "type": "boolean", "default": false, "description": "A critical miss fails the case regardless of everything else (compliance inversion, fabricated product fact, client-visible internals)." }
+        }
+      }
+    },
+    "draws": {
+      "type": "integer",
+      "default": 1,
+      "description": "Number of independent runs required. Probabilistic behaviors (compliance-sentence direction, drafts-anyway-on-underspecified) require draws >= 4; one draw is a sample, not a property (MTU 2026-07-23 lesson)."
+    },
+    "canary": {
+      "type": "boolean",
+      "default": false,
+      "description": "Fabrication canary: a case where the tempting wrong behavior is confident invention (Guava pattern). Canary failures are reported separately and never averaged away."
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Audit chain for the expectation itself: which approved source makes this the CORRECT behavior.",
+      "properties": {
+        "standard_ref": { "type": "string", "description": "The knowledge artifact or ruling that defines correctness (e.g. knowledge/standard-disclosures.md, amelia ruling 2026-07-31)." },
+        "approved_by": { "type": ["string", "null"] },
+        "approved_date": { "type": ["string", "null"] },
+        "unverified": { "type": "boolean", "default": false, "description": "True when the underlying approval is untraceable — the case still runs, but its standard is flagged (MTU replacement-disadvantages lesson)." }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

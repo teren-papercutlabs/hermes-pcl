@@ -1,0 +1,28 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-31'
+# ruling_ref:
+# - R05
+# status: approved
+# sequence: 63
+# compose: false
+# ---
+kind: keyed-reference
+schema_version: 1
+key_semantics: exact product name
+escalation_cue: >-
+  The insurer cannot be resolved from the approved product mapping. Do not ask
+  the advisor to identify it and do not guess; route the product to Melody.
+entries:
+  - {key: "Wealth Voyage", insurer: "HSBC Life (Singapore)"}
+  - {key: "Wealth Abundance", insurer: "HSBC Life (Singapore)"}
+  - {key: "HSBC Indexed Flexi Income", insurer: "HSBC Life (Singapore)"}
+  - {key: "HSBC Diamond IUL", insurer: "HSBC Life (Singapore)"}
+  - {key: "HSBC Term Protector", insurer: "HSBC Life (Singapore)"}
+  - {key: "HSBC Shield", insurer: "HSBC Life (Singapore)"}
+  - {key: "SL Shield", insurer: "Singlife"}
+  - {key: "SL Accident Care", insurer: "Singlife"}
+  - {key: "Singlife Flexi Life Income", insurer: "Singlife"}
+  - {key: "Singlife My WL Choice", insurer: "Singlife"}

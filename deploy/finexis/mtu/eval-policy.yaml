@@ -39,6 +39,10 @@ source_tags:
   job-briefs/990-later-phases-and-deploy-gates.yaml: [job-brief, escalation, authority]
   reference/020-knowledge-manifest.yaml: [reference-lookup, fabrication]
   reference/060-ekyc-routing.yaml: [reference-lookup, escalation]
+  reference/061-ekyc-directory-map.yaml: [reference-lookup, fabrication]
+  reference/062-approved-products.yaml: [reference-lookup, fabrication]
+  reference/063-product-insurers.yaml: [reference-lookup, insurer-resolution]
+  reference/064-replacement-taxonomy.yaml: [reference-lookup, replacement]
 smoke_tags: [fabrication, compliance, client-surface]
 gates:
   rule:

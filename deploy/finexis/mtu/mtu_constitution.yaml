@@ -83,11 +83,13 @@ job_briefs:
           forbid:
             - "Total annual premiums do not exceed 50% of the client's surplus."
     knowledge:
-      - knowledge/bor-required-checks.yaml     # the BOR table (checks)
-      - knowledge/bor-draft-template.md        # the narrative structure
-      - knowledge/replacement-path-taxonomy.md # old → new paths
-      - knowledge/ekyc-directory-routing-map.md # Melody's index: case → reference file number
-      - knowledge/standard-disclosures.md      # compliance boilerplate library
+      - bor-required-checks.yaml                # the BOR table (checks)
+      - bor-draft-template.md                   # the narrative structure
+      - standard-disclosures.md                 # compliance boilerplate library
+      - reference/061-ekyc-directory-map.yaml
+      - reference/062-approved-products.yaml
+      - reference/063-product-insurers.yaml
+      - reference/064-replacement-taxonomy.yaml
     instructions:
       - >-
         INTAKE (SAFETY-FIRST): use all facts already supplied. The three anchors are
@@ -125,41 +127,23 @@ job_briefs:
         short question before drafting: "Is this a new case, or more detail on the
         current one?" The advisor can also type /new at any time to start fresh.
       - >-
-        REFERENCE LOOKUP — source of truth is Melody's eKYC Directory (the directory
-        image in her eKYC Templates folder), transcribed inline here because the runtime
-        loads instruction text only. Before drafting, resolve WHICH numbered example case
-        governs this case.
-        (A) REPLACEMENT (ROP) — read as OLD category → NEW category:
-        ILP-with-coverage → Term = 1 · Whole Life → Term = 1, 2, 16 · Term → Term = 16, 17
-        · ILP-with-coverage → ILP-without-coverage = 13 · Endowment → ILP-without = 2
-        · ILP-without → ILP-without = 2, 3, 13 · Term → IUL-with-coverage = 18
-        · Shield → Shield = 1, 16 · PA → PA = 2, 16.
-        ANY OTHER from→to combination is a BLANK CELL in Melody's directory — she has
-        approved no example for it. This explicitly includes replacing INTO whole life,
-        INTO endowment, INTO ILP-with-coverage, and every Term-column path not listed.
-        (B) NOT A REPLACEMENT (No ROP) — recommended product → reference:
-        Voyage (Fundsmith) = 1 · Voyage (Franklin Income, premiums above $36k) = 4 ·
-        Abundance = 3 · HSBC Indexed Flexi Income = 14 · HSBC Diamond IUL = 18 ·
-        SavvyInvest II = 13 · HSBC Term Protector = 16 · Elite Term (All Riders) = 1 ·
-        Elite Term (Limited Pay) = 2 · FlexiProtector = 10 · HSBC Shield = 16 ·
-        SL Shield = 1 · SL Accident Care = 5 · Careshield Plus = 9 ·
-        Singlife Flexi Life Income = 15 · Navigator = 6, 7, 8 · iFast = 17 ·
-        Singlife My WL Choice = 12 · Band Aid = 2. A product not on this list has no
-        approved reference.
-        (C) OTHERS: purchased for a dependant = 12 · Voyage + Navigator = 8 ·
-        advisor's own case = 11.
-        A BLANK CELL or an unlisted product means Melody has approved no example for this
-        path: say so and escalate to Melody.
-        NEVER substitute the nearest-looking number, and never carry a number resolved
-        for a different path into this one. Resolving a number does NOT by itself make the
-        category supported — the SUPPORTED CATEGORY CONTRACTS rule still governs.
-        WORDING WHEN NO EXAMPLE EXISTS (amelia-approved 2026-07-23, use this shape):
-        "This type of replacement has not been submitted before, as Melody has not
-        approved a reference example for it." Name the old and new plan types in the
-        advisor's own words, then say it is with Melody. NEVER use the words "taxonomy",
-        "blank cell", "matrix", "directory", "reference file", or a file number in
-        anything the advisor reads — those are internal. The advisor is told WHAT is
-        missing and WHO has it, never how our lookup is built.
+        REFERENCE LOOKUP: before drafting, use pa_reference_lookup for each exact
+        structured key: reference/061-ekyc-directory-map.yaml with key
+        "{OLD CATEGORY} -> {NEW CATEGORY}"; reference/062-approved-products.yaml
+        with the exact product name; reference/063-product-insurers.yaml with the
+        exact product name; and reference/064-replacement-taxonomy.yaml with each
+        exact canonical category. Convert ordinary advisor category wording to the
+        canonical taxonomy value before lookup (for example, "term life" becomes
+        "Term" and "whole life" becomes "Whole Life"); never pass spelling or case
+        variants to the lookup and never alter the generic tool's exact-match rule.
+        Build the replacement-path key only from the two exact taxonomy entries.
+        Never fetch a whole structured reference. Use the returned
+        entry only when found=true. A miss means no approved example exists: follow
+        the returned escalation cue and route the unresolved case to Melody. Never
+        substitute a nearby key, reuse a number from another path, ask the advisor
+        for a file number, or expose internal lookup vocabulary. Resolving an
+        example does not make an unsupported product category draftable; the
+        supported-category contract still governs.
       - >-
         CLASSIFY the replacement path (old category → new category) from the approved
         set above. The path selects the ROP wording and conditional checks. Never use a

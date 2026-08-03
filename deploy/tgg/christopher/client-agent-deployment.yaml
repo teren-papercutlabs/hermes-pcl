@@ -47,6 +47,10 @@ spec:
         - /etc/systemd/system/christopher-tgg-hermes.service
         - /etc/systemd/system/christopher-tgg-hermes-health.service
         - /etc/systemd/system/christopher-tgg-hermes-health.timer
+        - /etc/systemd/system/christopher-tgg-report-weekly.service
+        - /etc/systemd/system/christopher-tgg-report-weekly.timer
+        - /etc/systemd/system/christopher-tgg-report-monthly.service
+        - /etc/systemd/system/christopher-tgg-report-monthly.timer
     capture:
       hostRef: tenant:tgg/host:app-1
       owner: stream-f
@@ -169,7 +173,9 @@ spec:
         retrievalOperation: tgg_case_media
         retrievalTool: tgg_case_photos
         ordering: retain-and-converge-while-business-pending-before-lane-selection-with-claimed-chat-idempotent-safety-net
-        failureDisposition: retention-held-business-pending-retry-without-lane-death
+        failureDisposition: retry-up-to-max-attempts-then-quarantine-full-envelope-and-failure-history-and-bypass-for-business-processing
+        maxAttempts: 5
+        retryIntervalSeconds: 60
         activationBacklogPreflight: all-image-paths-from-current-cursor-must-resolve
         minimumRealVolumeFreePercent: 20
         pathContract: opaque-media-refs-resolved-under-configured-root
@@ -205,6 +211,9 @@ spec:
           - retention_complete
           - retention_bypassed
           - retention_held
+          - retention_quarantined
+          - retention_quarantine_status
+          - retention_quarantine_message_ids
           - retention_hold
           - media_root_count
           - media_root_bytes
@@ -301,6 +310,18 @@ spec:
       - name: christopher-tgg-hermes-health.timer
         desiredState: active-enabled
         source: deploy/tgg/christopher/systemd/christopher-tgg-hermes-health.timer
+      - name: christopher-tgg-report-weekly.service
+        desiredState: disabled-oneshot
+        source: deploy/tgg/christopher/systemd/christopher-tgg-report-weekly.service
+      - name: christopher-tgg-report-weekly.timer
+        desiredState: disabled
+        source: deploy/tgg/christopher/systemd/christopher-tgg-report-weekly.timer
+      - name: christopher-tgg-report-monthly.service
+        desiredState: disabled-oneshot
+        source: deploy/tgg/christopher/systemd/christopher-tgg-report-monthly.service
+      - name: christopher-tgg-report-monthly.timer
+        desiredState: disabled
+        source: deploy/tgg/christopher/systemd/christopher-tgg-report-monthly.timer
     externalDependencies:
       - name: tgg-capture-whatsapp-bridge.service
         owner: stream-f

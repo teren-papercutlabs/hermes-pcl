@@ -1,0 +1,23 @@
+MTU S2 shared-core concept check
+
+Scope checked against origin/main:
+  agent/pa_constitution.py
+  hermes_cli/config.py
+  hermes_cli/main.py
+  hermes_cli/pa_compose.py
+  tools/pa_tools.py
+  toolsets.py
+
+Query:
+  added lines only; case-insensitive whole words:
+  MTU|Melody|Finexis|IFA|BOR|insurer|replacement|product
+
+Result:
+  408 added shared-core lines scanned; 0 concept hits.
+  Client-specific vocabulary remains under deploy/finexis/mtu.
+  Fresh non-authoring review c4462347-92f3-4efb-a86e-d02995ea4ed9
+  independently found the shared-core additions concept-clean.
+
+Shared vocabulary added:
+  knowledge manifest, knowledge root, keyed reference, exact key,
+  entry-or-nothing, escalation cue, source sync, size guard.

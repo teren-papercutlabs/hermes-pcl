@@ -9,8 +9,10 @@
 # sequence: 20
 # ---
     knowledge:
-      - knowledge/bor-required-checks.yaml     # the BOR table (checks)
-      - knowledge/bor-draft-template.md        # the narrative structure
-      - knowledge/replacement-path-taxonomy.md # old → new paths
-      - knowledge/ekyc-directory-routing-map.md # Melody's index: case → reference file number
-      - knowledge/standard-disclosures.md      # compliance boilerplate library
+      - bor-required-checks.yaml                # the BOR table (checks)
+      - bor-draft-template.md                   # the narrative structure
+      - standard-disclosures.md                 # compliance boilerplate library
+      - reference/061-ekyc-directory-map.yaml
+      - reference/062-approved-products.yaml
+      - reference/063-product-insurers.yaml
+      - reference/064-replacement-taxonomy.yaml

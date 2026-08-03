@@ -9749,6 +9749,22 @@ def main():
         action="store_true",
         help="Permit unverified compliance sources and record the escape in the manifest",
     )
+    pa_sync = pa_subparsers.add_parser(
+        "sync-knowledge",
+        help="Copy constitution-declared knowledge into a runtime knowledge root",
+    )
+    pa_sync.add_argument(
+        "--source-dir", required=True, help="Client deploy root containing declared files"
+    )
+    pa_sync.add_argument(
+        "--constitution", required=True, help="Composed PA constitution YAML"
+    )
+    pa_sync.add_argument(
+        "--target-dir", required=True, help="Runtime PA knowledge root"
+    )
+    pa_sync.add_argument(
+        "--manifest", required=True, help="Path for the sync digest manifest JSON"
+    )
     pa_parser.set_defaults(func=cmd_pa)
 
     # =========================================================================
