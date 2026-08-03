@@ -720,6 +720,11 @@ class DisclaimerSelection:
     matched: bool = False
     scope_tag: Optional[str] = None
     exclusive_scope_tags: Tuple[str, ...] = ()
+    #: Additive scope tags the runtime resolves from the case's own category.
+    #: They union into the model's scope rather than displacing anything, so a
+    #: block gated on a category fact stops depending on the model re-declaring
+    #: what the record already knows.
+    additional_scope_tags: Tuple[str, ...] = ()
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -730,6 +735,7 @@ class DisclaimerSelection:
             "matched": self.matched,
             "scope_tag": self.scope_tag,
             "exclusive_scope_tags": list(self.exclusive_scope_tags),
+            "additional_scope_tags": list(self.additional_scope_tags),
         }
 
 
@@ -822,6 +828,11 @@ def resolve_disclaimer_selection(
     )
     forbidden = tuple(str(item) for item in entry_config.get("forbid") or ())
     scope_tag = entry_config.get("scope_tag")
+    additional_scope_tags = tuple(
+        str(tag).strip().upper()
+        for tag in entry_config.get("scope_tags") or ()
+        if str(tag).strip()
+    )
     return DisclaimerSelection(
         category=category,
         substitutions=substitutions,
@@ -830,6 +841,7 @@ def resolve_disclaimer_selection(
         matched=matched,
         scope_tag=str(scope_tag).strip().upper() if scope_tag else None,
         exclusive_scope_tags=exclusive_scope_tags,
+        additional_scope_tags=additional_scope_tags,
     )
 
 

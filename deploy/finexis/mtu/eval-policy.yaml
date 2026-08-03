@@ -33,6 +33,8 @@ source_tags:
   compliance/185-gio-disclosure-carve-out.yaml: [compliance, disclosures]
   compliance/190-rop-disadvantages.yaml: [rop, compliance, disclosures]
   compliance/195-rop-standard-declarations.yaml: [rop, compliance, disclosures]
+  compliance/196-no-reference-example.yaml: [rop, compliance, unsupported-category, escalation]
+  compliance/197-cka-declaration.yaml: [compliance, fund-suitability, product-validation]
   compliance/012-output-assembly-policy.yaml: [compliance, formatting]
   templates/110-standard-narrative-defaults.yaml: [narrative-defaults]
   templates/170-draft-procedure.yaml: [drafting]

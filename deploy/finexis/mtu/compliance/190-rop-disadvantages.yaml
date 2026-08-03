@@ -15,6 +15,11 @@ blocks:
   - id: rop_disadvantages
     marker: '[[PA_BLOCK:ROP_DISADVANTAGES]]'
     required_tags: [DRAFT, ROP]
+    # The replacement disclosures belong INSIDE each supported replacement
+    # component, not hoisted once to the top of a multi-component draft
+    # (MTU-021). The model still chooses where; repeating the marker is how it
+    # says "here too", and the runtime inserts the same approved text at each.
+    repeatable: true
     text: |-
       1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.
       2. Financial benefits accumulated over the years may be lost.

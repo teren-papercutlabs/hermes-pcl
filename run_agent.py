@@ -4301,6 +4301,16 @@ class AIAgent:
         """
         import threading
 
+        # A measurement run must not mutate the agent it is measuring. Guarding
+        # the SPAWN rather than the notification is deliberate: silencing the
+        # summary would still let the fork write a skill, and the write is the
+        # nondeterminism, not the message about it.
+        from agent.eval_mode import self_modification_allowed
+
+        if not self_modification_allowed():
+            logger.debug("eval mode: background memory/skill review suppressed")
+            return
+
         # Pick the right prompt based on which triggers fired
         if review_memory and review_skills:
             prompt = self._COMBINED_REVIEW_PROMPT
