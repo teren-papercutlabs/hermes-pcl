@@ -89,6 +89,7 @@ MEDIA_RETENTION_BLOCK = (
     "    operation: tgg_media_retention\n"
     "    min_free_percent: 20\n"
     "    max_attempts: 5\n"
+    "    retry_interval_seconds: 60\n"
 )
 
 # Chat-scoped inbound allowlist (2026-07-20, teren-ratified; WB 0cd5698b).
@@ -516,6 +517,7 @@ def _validate(
         "operation": "tgg_media_retention",
         "min_free_percent": 20,
         "max_attempts": 5,
+        "retry_interval_seconds": 60,
     }
     assert config["group_sessions_per_user"] is False
     assert config["timezone"] == "Asia/Singapore"

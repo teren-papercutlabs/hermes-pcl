@@ -22,6 +22,7 @@ def _status(
     retention_held: int = 0,
     retention_quarantined: int = 0,
     retention_quarantine_status: dict[str, int] | None = None,
+    retention_quarantine_message_ids: list[str] | None = None,
     retention_hold: str | None = None,
     **overrides: object,
 ) -> dict[str, object]:
@@ -36,6 +37,11 @@ def _status(
             retention_quarantine_status
             if retention_quarantine_status is not None
             else ({"quarantined": retention_quarantined} if retention_quarantined else {})
+        ),
+        "retention_quarantine_message_ids": (
+            retention_quarantine_message_ids
+            if retention_quarantine_message_ids is not None
+            else [f"quarantined-{index}" for index in range(retention_quarantined)]
         ),
         "retention_hold": retention_hold,
     }
@@ -161,7 +167,10 @@ def test_consumer_status_contract(
     config_path.write_text(yaml.safe_dump({
         "pa": {
             "enabled": enabled,
-            "media_retention": {"max_attempts": 5},
+            "media_retention": {
+                "max_attempts": 5,
+                "retry_interval_seconds": 60,
+            },
         }
     }))
     gate_path.write_text(json.dumps({"enabled": gate_enabled}))

@@ -837,9 +837,11 @@ def test_mandatory_media_retry_cap_quarantines_full_event_and_history(tmp_path):
     assert "media source is unavailable" in terminal["reason"]
     assert str(missing) in terminal["reason"]
     assert terminal["attempt"] == 2
+    assert terminal["quarantine_attempt"] == 2
     assert terminal["retry_cap"] == 2
     assert inbox.retention_candidates(limit=10) == []
     assert inbox.retention_quarantine_status() == {"quarantined": 1}
+    assert inbox.retention_quarantine_message_ids() == ["MANDATORY-GIVE-UP"]
     counts = inbox.retention_counts()
     assert counts["retention_quarantined"] == 1
     assert counts["retention_held"] == 0
@@ -847,7 +849,8 @@ def test_mandatory_media_retry_cap_quarantines_full_event_and_history(tmp_path):
     with inbox.connect() as conn:
         event = conn.execute(
             "SELECT raw_json,source_envelope_json,retention_state,"
-            "retention_attempts,retention_failures FROM ingress_events "
+            "retention_attempts,retention_quarantine_attempts,"
+            "retention_failures FROM ingress_events "
             "WHERE message_id='MANDATORY-GIVE-UP'"
         ).fetchone()
         quarantine = conn.execute(
@@ -858,7 +861,7 @@ def test_mandatory_media_retry_cap_quarantines_full_event_and_history(tmp_path):
             "SELECT attempt,error FROM media_retention_failures "
             "WHERE ingress_seq=? ORDER BY attempt", (record.seq,)
         ).fetchall()
-    assert tuple(event[2:]) == ("bypassed", 2, 2)
+    assert tuple(event[2:]) == ("bypassed", 2, 2, 2)
     assert json.loads(event["raw_json"])["providerMetadata"] == {
         "opaque": ["must", "survive"]
     }
@@ -878,6 +881,140 @@ def test_mandatory_media_retry_cap_quarantines_full_event_and_history(tmp_path):
     assert quarantine["status"] == "quarantined"
     assert quarantine["terminal_error"] == history[-1]["error"]
     assert inbox.retention_result(record)["quarantined"] is True
+
+
+def test_legacy_attempts_do_not_count_toward_new_quarantine_budget(tmp_path):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    config = _retention_config(tmp_path, capture, tmp_path / "retained")
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"]["max_attempts"] = 2
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source = tmp_path / "events.jsonl"
+    raw = _message("LEGACY-ATTEMPTS", "site@g.us")
+    raw.update({
+        "hasMedia": True,
+        "mediaType": "image/jpeg",
+        "mediaUrls": [str(capture / "expired.jpg")],
+    })
+    _write_jsonl(source, [raw])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    record = inbox.retention_candidates(limit=1)[0]
+    with inbox.connect() as conn:
+        conn.execute(
+            "UPDATE ingress_events SET retention_state='held',"
+            "retention_attempts=4,retention_updated_at='2026-01-01T00:00:00+00:00' "
+            "WHERE seq=?",
+            (record.seq,),
+        )
+
+    with pytest.raises(consumer.ItemMediaRetentionError, match="unavailable"):
+        consumer.ensure_record_media_retained(inbox, record, config_path=config)
+
+    with inbox.connect() as conn:
+        row = conn.execute(
+            "SELECT retention_state,retention_attempts,"
+            "retention_quarantine_attempts FROM ingress_events WHERE seq=?",
+            (record.seq,),
+        ).fetchone()
+    assert tuple(row) == ("held", 5, 1)
+    assert inbox.retention_quarantine_status() == {}
+
+
+def test_systemic_failures_are_spaced_and_never_burn_quarantine_budget(
+    tmp_path, monkeypatch
+):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    config = _retention_config(tmp_path, capture, tmp_path / "retained")
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"]["max_attempts"] = 1
+    data["pa"]["media_retention"]["retry_interval_seconds"] = 60
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source = tmp_path / "events.jsonl"
+    raw = _message("SYSTEMIC-FAILURE", "site@g.us")
+    raw.update({
+        "hasMedia": True,
+        "mediaType": "image/jpeg",
+        "mediaUrls": [str(capture / "photo.jpg")],
+    })
+    _write_jsonl(source, [raw])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    record = inbox.retention_candidates(limit=1)[0]
+
+    def fail_systemically(*_args, **_kwargs):
+        raise consumer.MediaRetentionError("provider-wide outage")
+
+    monkeypatch.setattr(consumer, "retain_record_media", fail_systemically)
+    with pytest.raises(consumer.MediaRetentionError, match="provider-wide"):
+        consumer.ensure_record_media_retained(inbox, record, config_path=config)
+
+    assert inbox.retention_candidates(
+        limit=1, retry_interval_seconds=60
+    ) == []
+    with inbox.connect() as conn:
+        row = conn.execute(
+            "SELECT retention_state,retention_attempts,"
+            "retention_quarantine_attempts FROM ingress_events WHERE seq=?",
+            (record.seq,),
+        ).fetchone()
+        conn.execute(
+            "UPDATE ingress_events SET retention_updated_at='2026-01-01T00:00:00+00:00' "
+            "WHERE seq=?",
+            (record.seq,),
+        )
+    assert tuple(row) == ("held", 1, 0)
+    assert inbox.retention_candidates(
+        limit=1, retry_interval_seconds=60
+    )[0].message_id == "SYSTEMIC-FAILURE"
+    assert inbox.retention_quarantine_status() == {}
+
+
+def test_quarantine_is_loud_in_status_and_model_replay(tmp_path, capsys):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    config = _retention_config(tmp_path, capture, tmp_path / "retained")
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"]["max_attempts"] = 1
+    data["pa"]["media_retention"]["retry_interval_seconds"] = 1
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source = tmp_path / "events.jsonl"
+    raw = _message("LOUD-QUARANTINE", "site@g.us")
+    raw.update({
+        "hasMedia": True,
+        "mediaType": "image/jpeg",
+        "mediaUrls": [str(capture / "expired.jpg")],
+    })
+    _write_jsonl(source, [raw])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+
+    summary = asyncio.run(
+        consumer.retain_pending_media(inbox, config_path=config, limit=1)
+    )
+    assert summary["quarantined"] == 1
+    assert "media retention QUARANTINED" in capsys.readouterr().err
+    status = consumer._retention_status(inbox, config, inspect_media=False)
+    assert status["retention_quarantined"] == 1
+    assert status["retention_quarantine_message_ids"] == ["LOUD-QUARANTINE"]
+
+    management, site = inbox.pending_chat_batches(batch_size=10)
+    records = (management or site)[0][1]
+    assert records[0].retention_quarantined is True
+    replay = consumer._replay_messages_with_retained_documents(
+        records, config_path=config
+    )
+    body = consumer._bridge_item(replay[0])["body"]
+    assert "Attachment unavailable: retention quarantine" in body
+    assert "Do not infer or claim the attachment's contents" in body
 
 
 def test_permanent_media_refusal_bypasses_without_quarantine(tmp_path):
@@ -1171,6 +1308,7 @@ async def test_demo_pause_retains_pending_site_image_without_runner_or_delivery(
         "retained": 1,
         "bypassed": 0,
         "held": 0,
+        "quarantined": 0,
     }
     assert status["retention_total"] == 1
     assert status["retention_complete"] == 1
@@ -1213,6 +1351,7 @@ async def test_demo_pause_non_image_bypasses_retention_without_runner(
         "retained": 0,
         "bypassed": 0,
         "held": 0,
+        "quarantined": 0,
     }
 
 
@@ -1287,6 +1426,14 @@ async def test_demo_pause_retention_hold_preserves_management_lane_and_retries(
     assert "media source is unavailable" in status["retention_hold"]
     assert await consumer.run_consumer(args) == 0
     assert processed == ["MANAGEMENT-LIVE"]
+    retry_counts = consumer.DurableInbox(Path(args.inbox)).retention_counts()
+    assert retry_counts["retention_failures"] == 1
+    with consumer.DurableInbox(Path(args.inbox)).connect() as conn:
+        conn.execute(
+            "UPDATE ingress_events SET retention_updated_at='2026-01-01T00:00:00+00:00' "
+            "WHERE message_id='PAUSED-MISSING'"
+        )
+    assert await consumer.run_consumer(args) == 0
     retry_counts = consumer.DurableInbox(Path(args.inbox)).retention_counts()
     assert retry_counts["retention_failures"] == 2
     assert retry_counts["retention_attempts"] == 2

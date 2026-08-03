@@ -20,6 +20,7 @@ pa:
     operation: tgg_media_retention
     min_free_percent: 20
     max_attempts: 5
+    retry_interval_seconds: 60
   constitution_path: /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml
   overlay:
     identity:
