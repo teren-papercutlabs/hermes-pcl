@@ -1,0 +1,39 @@
+# MTU cutover evidence — {{DATE}}
+
+## Run boundary
+
+{{RUN_BOUNDARY}}
+
+## Digests
+
+{{DIGESTS_TABLE}}
+
+Parity standard (S1): the composed constitution reproduces the live deployed constitution
+digest-identically after whitespace normalization (per-line trailing whitespace stripped,
+leading/trailing blank lines dropped). The raw digests are reported alongside so a
+whitespace-only difference is visible rather than hidden.
+
+## Config comparison (reported, not gating)
+
+{{CONFIG_NOTE}}
+
+## Gates
+
+{{GATES_TABLE}}
+
+## Named populations
+
+{{POPULATIONS}}
+
+## Verdict
+
+{{VERDICT}}
+
+## Interpretation boundary
+
+This package asserts two things and nothing more: the deploy tree composes to the constitution
+that is live, and the supplied replay report — validated by the deploy gate's own
+`validate_report_shape` and `compare_baseline` — ran against that same constitution with no new
+deterministic failures against the accepted baseline. It does not assert semantic judge verdicts
+(calibration pending; recorded, and gating only under `--require-judge`) and it does not assert
+anything about the live runtime process. The live home was read, never written.
