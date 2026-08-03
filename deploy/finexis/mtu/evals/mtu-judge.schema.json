@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["case_id", "draw", "turn_index", "results"],
+  "properties": {
+    "case_id": {"type": "string"},
+    "draw": {"type": "integer", "minimum": 1},
+    "turn_index": {"type": "integer", "minimum": 0},
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "kind", "passed", "why", "review_needed"],
+        "properties": {
+          "label": {"type": "string"},
+          "kind": {"type": "string", "enum": ["must", "must_not"]},
+          "passed": {"type": "boolean"},
+          "why": {"type": "string"},
+          "review_needed": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}
