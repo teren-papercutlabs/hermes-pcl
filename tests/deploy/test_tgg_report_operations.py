@@ -175,6 +175,9 @@ def test_client_surface_config_and_schedule_are_disabled():
     assert '"run monthly report"' in text
     assert '"retry report run <id>"' in text
     assert "STOP: do not preview" in text
+    assert "For report runs on 3 August 2026 only" in text
+    assert "do not call report_apply_reconcile" in text
+    assert "expires after 3 August 2026" in text
 
 
 def test_bootstrap_makes_new_report_plugin_directories_traversable():
