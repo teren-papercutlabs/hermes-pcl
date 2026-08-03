@@ -202,6 +202,13 @@ def test_isolated_smoke_exports_fixture_token_before_plugin_discovery(
     assert os.environ["CHRISTOPHER_TGG_PS_SERVICE_TOKEN"] == "fixture-only"
 
 
+def test_runtime_verifier_ignores_non_report_setup_requests():
+    source = (DEPLOY / "scripts" / "verify_runtime.sh").read_text()
+    assert source.count('if path.startswith("/api/operator/report-cycle/")') == 2
+    assert 'clean["report_ops_request_paths"][:6]' not in source
+    assert 'corrupt["report_ops_request_paths"] ==' not in source
+
+
 def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path):
     script = DEPLOY / "scripts" / "run_scheduled_report.py"
     source = script.read_text()
