@@ -1,7 +1,7 @@
 {
   "allow_unverified": true,
   "composed_source_count": 27,
-  "constitution_sha256": "da7c7cbfd22d43651211c7abd430a3c228b066189e2dc57eb1642dcba62363c7",
+  "constitution_sha256": "67c43ded9010818690ca9dbf39113f62f78f24745ffa4ced0965f598dff4e020",
   "schema_version": 1,
   "source_count": 36,
   "source_root": "mtu",
@@ -520,14 +520,15 @@
       "approved_date": [
         "2026-08-03"
       ],
-      "body_sha256": "d9a0ed8663218dc292fb4e20843f11894e320cda20d90f0a40a7f66287ed9984",
+      "body_sha256": "8b31645bc7d1f49246f6fd1714f16c2d32d5843eec67b171ef53646b01b8e547",
       "included_in_constitution": true,
       "path": "compliance/185-gio-disclosure-carve-out.yaml",
       "ruling_ref": [
-        "R20"
+        "R20",
+        "WB 6c20d4a8"
       ],
       "sequence": 185,
-      "source_sha256": "dff0562d293f08b65a0db09e791c79a8b9b865b4941311c151f5687980503653",
+      "source_sha256": "ea7cc061dfbcad8f4e7fd5f995f466ffa291a2a49c012e08d6a060b48288bd80",
       "status": "approved",
       "type": "compliance"
     },
@@ -685,7 +686,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "18656c75d258bfd3290c123e8e0ceb3d6c38d45cb70725be9f1ecc88193b0ba6",
+  "sources_sha256": "d126dd43a0405dc3c1cbf410107529d566d792b255ed77256ffa597e70d32069",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml"
   ]

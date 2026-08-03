@@ -348,10 +348,13 @@ job_briefs:
         warning is wrong on its face. HSBC Life Wealth Abundance is GIO. Every
         completed draft therefore declares which one applies: scope the draft
         UNDERWRITTEN when the recommended product is medically underwritten, and do
-        NOT scope it UNDERWRITTEN when the product is GIO. If you cannot tell whether
-        the product is GIO, ask one line before drafting rather than inserting the
-        sentence by default. The other general disclosures are inserted regardless of
-        GIO status, and no compliance sentence is ever typed or paraphrased by hand.
+        NOT scope it UNDERWRITTEN when the product is GIO. NEVER ASK THE ADVISOR
+        WHETHER A PRODUCT IS GIO OR UNDERWRITTEN, and never withhold a draft over
+        it: the runtime resolves it deterministically from the case record's product
+        category and overrides whatever this draft declares, so asking spends the
+        advisor's turn on something the system already knows. The other general
+        disclosures are inserted regardless of GIO status, and no compliance sentence
+        is ever typed or paraphrased by hand.
       - >-
         The agent does NOT make the product recommendation — the advisor chooses the
         product; the agent drafts the justification for the advisor's chosen product.
