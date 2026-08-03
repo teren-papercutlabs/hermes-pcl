@@ -1,0 +1,21 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-08-01'
+# ruling_ref:
+# - R06
+# - R13
+# - MTU-002
+# status: approved
+# sequence: 195
+# compose: false
+# ---
+schema_version: 1
+blocks:
+  - id: rop_standard_declarations
+    marker: '[[PA_BLOCK:ROP_STANDARD_DECLARATIONS]]'
+    required_tags: [DRAFT, ROP]
+    text: |-
+      The client was advised of the replacement disadvantages and wishes to proceed.
+      Other available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.

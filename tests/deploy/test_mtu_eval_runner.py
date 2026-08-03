@@ -26,7 +26,18 @@ def test_stage_runtime_rewrites_constitution_to_disposable_home(tmp_path):
         "model:\n  provider: custom\n  default: test-model\n"
         "pa:\n  enabled: true\n  constitution_path: /live/constitution.yaml\n"
     )
-    (source / "mtu_constitution.yaml").write_text("version: 1\n")
+    (source / "mtu_constitution.yaml").write_text(
+        "id: test\n"
+        "agent_name: Test\n"
+        "identity: {role: test}\n"
+        "client: {name: test}\n"
+        "job_briefs:\n"
+        "  default:\n"
+        "    title: Test\n"
+        "    purpose: Test\n"
+        "    knowledge: [foo.txt]\n"
+    )
+    (source / "foo.txt").write_text("knowledge\n")
     (source / "SOUL.md").write_text("test\n")
     (source / ".env").write_text("OPENAI_API_KEY=test-only\n")
     target = tmp_path / "copy"
@@ -44,18 +55,30 @@ def test_stage_runtime_overlays_candidate_but_borrows_only_live_secrets(tmp_path
     module = _module()
     source = tmp_path / "source"
     source.mkdir()
+    constitution = (
+        "id: test\n"
+        "agent_name: Test\n"
+        "identity: {role: test}\n"
+        "client: {name: %s}\n"
+        "job_briefs:\n"
+        "  default:\n"
+        "    title: Test\n"
+        "    purpose: Test\n"
+        "    knowledge: [foo.txt]\n"
+    )
     for name, content in {
         "config.yaml": "model:\n  default: installed\npa: {}\n",
-        "mtu_constitution.yaml": "version: installed\n",
+        "mtu_constitution.yaml": constitution % "installed",
         "SOUL.md": "installed\n",
         ".env": "OPENAI_API_KEY=test-only\n",
+        "foo.txt": "knowledge\n",
     }.items():
         (source / name).write_text(content)
     candidate = tmp_path / "candidate"
     candidate.mkdir()
     for name, content in {
         "config.yaml": "model:\n  default: candidate\npa: {}\n",
-        "mtu_constitution.yaml": "version: candidate\n",
+        "mtu_constitution.yaml": constitution % "candidate",
         "SOUL.md": "candidate\n",
     }.items():
         (candidate / name).write_text(content)
@@ -64,7 +87,7 @@ def test_stage_runtime_overlays_candidate_but_borrows_only_live_secrets(tmp_path
     manifest = module._stage_runtime(source, target, candidate)
 
     assert "candidate" in (target / "config.yaml").read_text()
-    assert (target / "mtu_constitution.yaml").read_text() == "version: candidate\n"
+    assert "name: candidate" in (target / "mtu_constitution.yaml").read_text()
     assert (target / "SOUL.md").read_text() == "candidate\n"
     assert (target / ".env").read_text() == "OPENAI_API_KEY=test-only\n"
     assert manifest["candidate_deploy_dir"] == str(candidate)

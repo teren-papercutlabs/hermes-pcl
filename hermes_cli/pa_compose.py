@@ -43,6 +43,22 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _is_empty_provenance(value: Any) -> bool:
+    """A provenance value must carry a real claim, never null or a null-bearing list.
+
+    ``approved_date: [null]`` reads as an approval in every downstream manifest while
+    recording nothing that can be traced, so it fails closed here rather than being
+    promoted by implication.
+    """
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, tuple)):
+        return not value or any(_is_empty_provenance(item) for item in value)
+    return False
+
+
 def _parse_artifact(path: Path, root: Path, source_type: str) -> SourceArtifact:
     raw = path.read_bytes()
     try:
@@ -77,6 +93,11 @@ def _parse_artifact(path: Path, root: Path, source_type: str) -> SourceArtifact:
     missing = [key for key in REQUIRED_PROVENANCE if key not in provenance]
     if missing:
         raise PaComposeError(f"{path}: missing provenance fields: {', '.join(missing)}")
+    empty = [key for key in REQUIRED_PROVENANCE if _is_empty_provenance(provenance[key])]
+    if empty:
+        raise PaComposeError(
+            f"{path}: provenance fields must be non-null and non-empty: {', '.join(empty)}"
+        )
     status = provenance["status"]
     if status not in VALID_STATUSES:
         raise PaComposeError(
@@ -231,9 +252,21 @@ def sync_pa_knowledge(
         constitution = load_constitution(constitution_path)
     except (OSError, ValueError, yaml.YAMLError) as exc:
         raise PaComposeError(f"cannot load constitution: {exc}") from exc
-    declared = sorted(
-        {entry for brief in constitution.job_briefs.values() for entry in brief.knowledge}
-    )
+    model_visible = {
+        entry for brief in constitution.job_briefs.values() for entry in brief.knowledge
+    }
+    runtime_only = {
+        str(entry)
+        for brief in constitution.job_briefs.values()
+        for entry in (
+            (
+                brief.response_policy.get("output_assembly", {}).get("artifacts", ())
+                if isinstance(brief.response_policy.get("output_assembly"), dict)
+                else ()
+            )
+        )
+    }
+    declared = sorted(model_visible | runtime_only)
     if not declared:
         raise PaComposeError("constitution declares no knowledge entries")
 
@@ -265,6 +298,7 @@ def sync_pa_knowledge(
                 "path": entry,
                 "bytes": source_path.stat().st_size,
                 "sha256": _sha256(source_path.read_bytes()),
+                "visibility": "model" if entry in model_visible else "runtime-only",
             }
         )
 

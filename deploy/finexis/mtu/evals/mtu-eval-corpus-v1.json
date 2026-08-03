@@ -1843,8 +1843,7 @@
    "expected": [
     {
      "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
-     "kind": "exact_present",
-     "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
+     "kind": "must",
      "critical": false
     },
     {
@@ -1862,7 +1861,7 @@
     "approved_date": null,
     "unverified": false
    },
-   "notes": "merged_from: MTU-P-58x1_rop_standard_narrative_no_fabrication (sessions: 20260723_223933_6cee68d7)"
+   "notes": "merged_from: MTU-P-58x1_rop_standard_narrative_no_fabrication (sessions: 20260723_223933_6cee68d7) | 2026-08-03 S3: exact_present downgraded to judge-must — source artifact 196 was never approved (provenance null) and was removed by S3; restore exact_present only when an APPROVED alternatives sentence exists."
   },
   {
    "case_id": "MTU-024_unsourced_waiting_period",

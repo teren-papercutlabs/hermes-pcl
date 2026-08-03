@@ -236,6 +236,11 @@ def render_job_prompt(resolved: PAResolvedContext) -> str:
     if brief.instructions:
         lines.extend(["", "## Instructions"])
         lines.extend(f"- {instruction}" for instruction in brief.instructions)
+    from agent.pa_output_assembly import render_output_assembly_constitution_instruction
+
+    constitution_output_instruction = render_output_assembly_constitution_instruction(resolved)
+    if constitution_output_instruction:
+        lines.extend(["", constitution_output_instruction])
     if brief.knowledge:
         lines.extend(["", "## Knowledge Manifest"])
         lines.extend(f"- {path}" for path in brief.knowledge)
@@ -272,6 +277,11 @@ def render_job_prompt(resolved: PAResolvedContext) -> str:
             f"Behavior hash: {resolved.behavior_hash}",
         ]
     )
+    from agent.pa_output_assembly import render_output_assembly_skill
+
+    output_skill = render_output_assembly_skill(resolved)
+    if output_skill:
+        lines.extend(["", output_skill])
     return "\n".join(lines).strip()
 
 

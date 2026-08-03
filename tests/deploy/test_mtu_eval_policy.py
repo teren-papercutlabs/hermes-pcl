@@ -18,7 +18,7 @@ POLICY = ROOT / "deploy/finexis/mtu/eval-policy.yaml"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from mtu_eval_policy import compare_baseline, load_policy
+from mtu_eval_policy import canonical_digest, compare_baseline, load_policy
 
 
 def _module(name):
@@ -31,7 +31,38 @@ def _module(name):
 
 
 def _baseline():
-    return json.loads(BASELINE.read_text())
+    """Committed baseline, re-labelled to the CURRENT corpus declarations.
+
+    The baseline replay predates later corpus amendments (an expectation's
+    kind can be downgraded without a fresh replay existing yet), so each
+    assertion's kind/text is aligned to the current corpus by (case, label)
+    before use — the fixtures stay corpus-consistent by construction.
+    """
+    report = json.loads(BASELINE.read_text())
+    corpus = json.loads((ROOT / "deploy/finexis/mtu/evals/mtu-eval-corpus-v1.json").read_text())
+    declared = {
+        str(case.get("case_id")): {
+            str(item.get("label")): item for item in case.get("expected") or []
+        }
+        for case in corpus.get("cases") or []
+    }
+    for case in report["cases"]:
+        expected_by_label = declared.get(str(case.get("case_id")), {})
+        for turn in case["turns"]:
+            for assertion in turn["assertions"]:
+                current = expected_by_label.get(str(assertion.get("label")))
+                if current is None:
+                    continue
+                new_kind = current.get("kind", assertion["kind"])
+                if new_kind != assertion["kind"]:
+                    assertion["kind"] = new_kind
+                    if new_kind in {"must", "must_not"}:
+                        assertion.pop("text", None)
+                        assertion.update(status="pending_judge", passed=None)
+                elif "text" in current:
+                    assertion["text"] = current["text"]
+    report["corpus"]["source_digest"] = canonical_digest(corpus)
+    return report
 
 
 def _nightly(status="green"):

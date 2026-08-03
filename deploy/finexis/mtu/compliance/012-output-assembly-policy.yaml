@@ -1,0 +1,20 @@
+# pa-source:
+# approved_by:
+# - teren
+# approved_date:
+# - '2026-08-02'
+# ruling_ref:
+# - 'WB ccaff87c activity ec41da93'
+# status: approved
+# sequence: 12
+# ---
+      output_assembly:
+        enabled: true
+        placement: skill
+        mode: marker
+        max_attempts: 3
+        artifacts:
+          - compliance/010-sustainability-enforcement.yaml
+          - compliance/180-general-disclosures.yaml
+          - compliance/190-rop-disadvantages.yaml
+          - compliance/195-rop-standard-declarations.yaml

@@ -7,28 +7,17 @@
 # - R02
 # status: approved
 # sequence: 10
+# compose: false
 # ---
-      # DETERMINISTIC SENTENCE ENFORCEMENT (added 2026-07-23).
-      # The sustainability sentence is a two-valued lookup off the advisor's explicit
-      # yes/no, not a judgement — so the model must not author it. Observed inverting
-      # 2 times in 4 draws on identical input, on a declaration the client signs.
-      # The runtime repairs a forbidden sentence to the required one and logs it.
-      # amelia-ratified: compliance items are never guessed (2026-07-23).
-      enforced_sentences:
-        - id: sustainability_does_not_exceed
-          if_input_any:
-            - "do not exceed 50%"
-            - "does not exceed 50%"
-            - "not exceed 50% of surplus"
-            - "exceeds: no"
-          require: "Total annual premiums do not exceed 50% of the client's surplus."
-          forbid:
-            - "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
-        - id: sustainability_exceeds
-          if_input_any:
-            - "exceeds 50%"
-            - "more than 50%"
-            - "exceeds: yes"
-          require: "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
-          forbid:
-            - "Total annual premiums do not exceed 50% of the client's surplus."
+schema_version: 1
+blocks:
+  - id: sustainability_does_not_exceed
+    marker: '[[PA_BLOCK:SUSTAINABILITY_NO]]'
+    required_tags: [DRAFT, SUSTAINABILITY_NO]
+    exclusive_group: sustainability
+    text: "Total annual premiums do not exceed 50% of the client's surplus."
+  - id: sustainability_exceeds
+    marker: '[[PA_BLOCK:SUSTAINABILITY_YES]]'
+    required_tags: [DRAFT, SUSTAINABILITY_YES]
+    exclusive_group: sustainability
+    text: "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."

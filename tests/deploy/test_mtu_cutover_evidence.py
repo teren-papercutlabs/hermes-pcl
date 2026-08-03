@@ -58,15 +58,39 @@ def _live_home(tmp_path: Path, constitution: bytes) -> Path:
 
 
 def _green_report(constitution_sha: str) -> dict:
-    """Baseline report, judge-resolved and canary-clean, bound to ``constitution_sha``."""
+    """Baseline report, judge-resolved and canary-clean, bound to ``constitution_sha``.
+
+    The committed baseline predates later corpus amendments (an eval case's
+    expectation kind/text can change without a fresh replay existing yet), so
+    assertions are re-labelled from the CURRENT corpus declarations by label
+    before statuses are normalized — the fixture is corpus-consistent by
+    construction rather than frozen to the baseline's corpus.
+    """
     report = json.loads(BASELINE.read_text())
+    corpus = json.loads(CORPUS.read_text())
+    declared = {
+        str(case.get("case_id")): {
+            str(item.get("label")): item for item in case.get("expected") or []
+        }
+        for case in corpus.get("cases") or []
+    }
     report["generated_at"] = datetime.now(timezone.utc).isoformat()
-    report["corpus"]["source_digest"] = canonical_digest(json.loads(CORPUS.read_text()))
+    report["corpus"]["source_digest"] = canonical_digest(corpus)
     report["execution"]["runtime"]["source_constitution_sha256"] = constitution_sha
     report["execution"]["runtime"]["copied_constitution_sha256"] = constitution_sha
     for case in report["cases"]:
+        expected_by_label = declared.get(str(case.get("case_id")), {})
         for turn in case["turns"]:
             for assertion in turn["assertions"]:
+                current = expected_by_label.get(str(assertion.get("label")))
+                if current is not None:
+                    assertion["kind"] = current.get("kind", assertion["kind"])
+                    if "text" in current:
+                        assertion["text"] = current["text"]
+                    elif "text" in assertion and current.get("kind") not in {
+                        "exact_present", "exact_absent",
+                    }:
+                        assertion.pop("text", None)
                 if assertion["kind"] in {"must", "must_not"}:
                     assertion.update(
                         status="passed", passed=True, review_needed=False,

@@ -31,6 +31,8 @@ source_tags:
   compliance/150-rop-gate-and-default.yaml: [rop, compliance]
   compliance/180-general-disclosures.yaml: [compliance, disclosures]
   compliance/190-rop-disadvantages.yaml: [rop, compliance, disclosures]
+  compliance/195-rop-standard-declarations.yaml: [rop, compliance, disclosures]
+  compliance/012-output-assembly-policy.yaml: [compliance, formatting]
   templates/110-standard-narrative-defaults.yaml: [narrative-defaults]
   templates/170-draft-procedure.yaml: [drafting]
   templates/210-return-contract.yaml: [formatting, client-surface]

@@ -9420,21 +9420,83 @@ class GatewayRunner:
             if _replay_ctx is None:
                 await self.hooks.emit("agent:start", hook_ctx)
 
-            # Run the agent
-            agent_result = await self._run_agent(
-                message=message_text,
-                context_prompt=context_prompt,
-                history=history,
-                source=source,
-                session_id=session_entry.session_id,
-                session_key=session_key,
-                run_generation=run_generation,
-                event_message_id=_pa_action_message_id,
-                channel_prompt=event.channel_prompt,
-                pa_job_type=event.pa_job_type,
-                pa_context=event.pa_context,
-                suppress_delivery=(_pa_suppress_reply_send or _replay_ctx is not None),
+            # Run the agent.  PA deterministic output assembly suppresses streaming:
+            # protected text must be spliced and verified before any byte reaches an
+            # adapter.  A missing marker gets a bounded number of regenerations
+            # with the exact missing-marker contract, then fails closed.
+            from agent.pa_output_assembly import (
+                PAOutputAssemblyRetry,
+                assemble_pa_response,
+                output_assembly_enabled,
+                output_assembly_max_attempts,
+                retry_instruction,
             )
+
+            _assembly_enabled = output_assembly_enabled(_pa_action_context)
+            _assembly_attempts = output_assembly_max_attempts(_pa_action_context)
+            _assembly_source_text = "\n".join(
+                [
+                    str(item.get("content") or "")
+                    for item in history
+                    if isinstance(item, dict) and item.get("role") == "user"
+                ]
+                + [message_text]
+            )
+            _assembly_retry_note = ""
+            _assembly_evidence = {"enabled": False, "inserted": []}
+            agent_result = None
+            for _assembly_attempt in range(1, _assembly_attempts + 1):
+                _attempt_context_prompt = context_prompt
+                if _assembly_retry_note:
+                    _attempt_context_prompt = (
+                        f"{context_prompt}\n\n{_assembly_retry_note}"
+                        if context_prompt
+                        else _assembly_retry_note
+                    )
+                agent_result = await self._run_agent(
+                    message=message_text,
+                    context_prompt=_attempt_context_prompt,
+                    history=history,
+                    source=source,
+                    session_id=session_entry.session_id,
+                    session_key=session_key,
+                    run_generation=run_generation,
+                    event_message_id=_pa_action_message_id,
+                    channel_prompt=event.channel_prompt,
+                    pa_job_type=event.pa_job_type,
+                    pa_context=event.pa_context,
+                    suppress_delivery=(
+                        _pa_suppress_reply_send
+                        or _replay_ctx is not None
+                        or _assembly_enabled
+                    ),
+                )
+                if not _assembly_enabled or agent_result.get("failed"):
+                    break
+                try:
+                    _assembled, _assembly_evidence = assemble_pa_response(
+                        agent_result.get("final_response") or "",
+                        _pa_action_context,
+                        source_text=_assembly_source_text,
+                    )
+                    agent_result["final_response"] = _assembled
+                    agent_result["pa_output_assembly"] = {
+                        **_assembly_evidence,
+                        "attempt": _assembly_attempt,
+                    }
+                    break
+                except PAOutputAssemblyRetry as _assembly_error:
+                    if _assembly_attempt >= _assembly_attempts:
+                        raise
+                    _assembly_retry_note = retry_instruction(_assembly_error)
+                    logger.warning(
+                        "PA output assembly withheld attempt %d/%d for %s: %s",
+                        _assembly_attempt,
+                        _assembly_attempts,
+                        session_key or "?",
+                        _assembly_error,
+                    )
+            assert agent_result is not None
 
             # Stop persistent typing indicator now that the agent is done
             try:

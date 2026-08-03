@@ -2,20 +2,21 @@
 # approved_by:
 # - amelia
 # approved_date:
-# - unverified
+# - '2026-08-01'
 # ruling_ref:
 # - R13
-# - untraceable-amelia-approval
-# status: unverified
+# - MTU-018
+# status: approved
 # sequence: 180
+# compose: false
 # ---
-      - >-
-        EXACT GENERAL DISCLOSURES: insert these four sentences verbatim on every
-        supported BOR: "The client was informed that in the event of non-disclosure
-        of any pre-existing medical conditions, the insurer has the right to not pay
-        out benefits as stated if diagnosed due to pre-existing conditions." "The
-        product was recommended after fact-find, needs analysis, and product
-        comparison." "The client is aware that the Financial Consultant may receive
-        additional commission for selling the recommended product." "The client has
-        agreed for soft copies of the documents to be electronically mailed after the
-        company has processed them."
+schema_version: 1
+blocks:
+  - id: general_disclosures
+    marker: '[[PA_BLOCK:GENERAL_DISCLOSURES]]'
+    required_tags: [DRAFT]
+    text: |-
+      The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.
+      The product was recommended after fact-find, needs analysis, and product comparison.
+      The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.
+      The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.
