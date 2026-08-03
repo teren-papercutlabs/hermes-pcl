@@ -36,12 +36,12 @@ pa:
       header: Authorization
       scheme: Bearer
     operations:
-      fetch-sources: {method: POST, path: /api/operator/report-cycle/fetch-sources}
-      preview-reconcile: {method: POST, path: /api/operator/report-cycle/preview-reconcile}
-      apply-reconcile: {method: POST, path: /api/operator/report-cycle/apply-reconcile}
-      generate: {method: POST, path: /api/operator/report-cycle/generate}
-      get-reports: {method: POST, path: /api/operator/report-cycle/get-reports}
-      status: {method: GET, path: /api/operator/report-cycle/status}
+      fetch-sources: {method: POST, path: '/api/operator/report-cycle/fetch-sources?tenant=tgg'}
+      preview-reconcile: {method: POST, path: '/api/operator/report-cycle/preview-reconcile?tenant=tgg'}
+      apply-reconcile: {method: POST, path: '/api/operator/report-cycle/apply-reconcile?tenant=tgg'}
+      generate: {method: POST, path: '/api/operator/report-cycle/generate?tenant=tgg'}
+      get-reports: {method: POST, path: '/api/operator/report-cycle/get-reports?tenant=tgg'}
+      status: {method: POST, path: '/api/operator/report-cycle/status?tenant=tgg'}
   constitution_path: /home/pclaw/.hermes-christopher-tgg/christopher_tgg_constitution.yaml
   overlay:
     identity:

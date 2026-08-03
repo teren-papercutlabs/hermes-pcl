@@ -51,7 +51,7 @@ class _OperatorStub(BaseHTTPRequestHandler):
             workbook = self._workbook()
             digest = __import__("hashlib").sha256(workbook).hexdigest()
             zones = ("AMK", "HG", "PG", "SK")
-            endpoint = self.path.rsplit("/", 1)[-1]
+            endpoint = urlsplit(self.path).path.rsplit("/", 1)[-1]
             if endpoint == "fetch-sources":
                 tabs = list(zones) if self.report_scenario == "clean" else ["AMK"]
                 result = {
@@ -329,12 +329,12 @@ def main() -> int:
         report["report_ops_request_paths"] = list(_OperatorStub.request_paths)
         if args.report_ops_scenario == "clean":
             expected = [
-                "/api/operator/report-cycle/status",
-                "/api/operator/report-cycle/fetch-sources",
-                "/api/operator/report-cycle/preview-reconcile",
-                "/api/operator/report-cycle/apply-reconcile",
-                "/api/operator/report-cycle/generate",
-                "/api/operator/report-cycle/get-reports",
+                "/api/operator/report-cycle/status?tenant=tgg",
+                "/api/operator/report-cycle/fetch-sources?tenant=tgg",
+                "/api/operator/report-cycle/preview-reconcile?tenant=tgg",
+                "/api/operator/report-cycle/apply-reconcile?tenant=tgg",
+                "/api/operator/report-cycle/generate?tenant=tgg",
+                "/api/operator/report-cycle/get-reports?tenant=tgg",
             ]
             seen = [path for path in _OperatorStub.request_paths if path.startswith("/api/operator/report-cycle/")]
             if seen != expected:
@@ -345,8 +345,8 @@ def main() -> int:
         elif args.report_ops_scenario == "corrupt":
             seen = [path for path in _OperatorStub.request_paths if path.startswith("/api/operator/report-cycle/")]
             if seen != [
-                "/api/operator/report-cycle/status",
-                "/api/operator/report-cycle/fetch-sources",
+                "/api/operator/report-cycle/status?tenant=tgg",
+                "/api/operator/report-cycle/fetch-sources?tenant=tgg",
             ]:
                 raise RuntimeError(f"corrupt report chain failed to stop after fetch: {seen}")
             body = json.dumps(report["result"].get("captured_outbound") or []).lower()

@@ -420,16 +420,16 @@ corrupt = json.loads(pathlib.Path(sys.argv[2]).read_text())
 assert clean["external_outbound_sent"] == 0
 assert corrupt["external_outbound_sent"] == 0
 assert clean["report_ops_request_paths"][:6] == [
-    "/api/operator/report-cycle/status",
-    "/api/operator/report-cycle/fetch-sources",
-    "/api/operator/report-cycle/preview-reconcile",
-    "/api/operator/report-cycle/apply-reconcile",
-    "/api/operator/report-cycle/generate",
-    "/api/operator/report-cycle/get-reports",
+    "/api/operator/report-cycle/status?tenant=tgg",
+    "/api/operator/report-cycle/fetch-sources?tenant=tgg",
+    "/api/operator/report-cycle/preview-reconcile?tenant=tgg",
+    "/api/operator/report-cycle/apply-reconcile?tenant=tgg",
+    "/api/operator/report-cycle/generate?tenant=tgg",
+    "/api/operator/report-cycle/get-reports?tenant=tgg",
 ]
 assert corrupt["report_ops_request_paths"] == [
-    "/api/operator/report-cycle/status",
-    "/api/operator/report-cycle/fetch-sources",
+    "/api/operator/report-cycle/status?tenant=tgg",
+    "/api/operator/report-cycle/fetch-sources?tenant=tgg",
 ]
 print(json.dumps({
     "report_judgment_fixture": "pass",

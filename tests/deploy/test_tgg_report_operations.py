@@ -162,6 +162,8 @@ def test_client_surface_config_and_schedule_are_disabled():
     report = config["pa"]["report_operations"]
     assert report["enabled"] is True
     assert report["schedule"]["enabled"] is False
+    assert all(operation["method"] == "POST" for operation in report["operations"].values())
+    assert all(operation["path"].endswith("?tenant=tgg") for operation in report["operations"].values())
     assert config["plugins"]["enabled"] == ["report-operations"]
     constitution = yaml.safe_load((DEPLOY / "christopher_tgg_constitution.yaml").read_text())
     management = constitution["job_briefs"]["tgg_management"]

@@ -98,12 +98,12 @@ REPORT_OPERATIONS_PA_BLOCK = (
     "      header: Authorization\n"
     "      scheme: Bearer\n"
     "    operations:\n"
-    "      fetch-sources: {method: POST, path: /api/operator/report-cycle/fetch-sources}\n"
-    "      preview-reconcile: {method: POST, path: /api/operator/report-cycle/preview-reconcile}\n"
-    "      apply-reconcile: {method: POST, path: /api/operator/report-cycle/apply-reconcile}\n"
-    "      generate: {method: POST, path: /api/operator/report-cycle/generate}\n"
-    "      get-reports: {method: POST, path: /api/operator/report-cycle/get-reports}\n"
-    "      status: {method: GET, path: /api/operator/report-cycle/status}\n"
+    "      fetch-sources: {method: POST, path: '/api/operator/report-cycle/fetch-sources?tenant=tgg'}\n"
+    "      preview-reconcile: {method: POST, path: '/api/operator/report-cycle/preview-reconcile?tenant=tgg'}\n"
+    "      apply-reconcile: {method: POST, path: '/api/operator/report-cycle/apply-reconcile?tenant=tgg'}\n"
+    "      generate: {method: POST, path: '/api/operator/report-cycle/generate?tenant=tgg'}\n"
+    "      get-reports: {method: POST, path: '/api/operator/report-cycle/get-reports?tenant=tgg'}\n"
+    "      status: {method: POST, path: '/api/operator/report-cycle/status?tenant=tgg'}\n"
 )
 MEDIA_RETENTION_BLOCK = (
     "  media_retention:\n"
