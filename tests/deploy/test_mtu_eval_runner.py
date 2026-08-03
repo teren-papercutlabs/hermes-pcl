@@ -94,3 +94,21 @@ def test_deterministic_failures_make_runner_fail_closed():
     assert module._deterministic_exit_code({
         "deterministic_summary": {"failed": 1},
     }) == 1
+
+
+def test_deploy_guarded_repo_root_resolves_hermes_cli():
+    import importlib.util
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[2] / "deploy/finexis/mtu/scripts/deploy_guarded.py"
+    spec = importlib.util.spec_from_file_location("dg_reporoot_check", script)
+    module = importlib.util.module_from_spec(spec)
+    import sys
+    sys.path.insert(0, str(script.parent))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(script.parent))
+    assert (module.REPO_ROOT / "hermes_cli").is_dir(), (
+        f"REPO_ROOT must be the repo root (cwd-independent import of hermes_cli); got {module.REPO_ROOT}"
+    )
