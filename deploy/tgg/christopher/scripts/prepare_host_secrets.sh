@@ -55,6 +55,36 @@ install -d -m 0750 -o pclaw -g pclaw /home/pclaw/.hermes-christopher-tgg
 install -d -m 0700 -o root -g root /root/.pcl-secret-staging'
 scp -q "$tmp" "$target:/root/.pcl-secret-staging/christopher.env"
 ssh "$target" 'set -euo pipefail
+# The processing activation transaction owns the first verified migration of
+# the Christopher Systems credential. Routine deploys must not erase that
+# already-migrated credential while refreshing the Studio-owned provider keys.
+# Preserve it entirely on the client host so the value never crosses argv,
+# stdout, the Studio, or the deployment bundle.
+python3 - \
+  /home/pclaw/.hermes-christopher-tgg/.env \
+  /root/.pcl-secret-staging/christopher.env \
+  CHRISTOPHER_TGG_PS_SERVICE_TOKEN <<'PY'
+import sys
+from pathlib import Path
+
+current = Path(sys.argv[1])
+staged = Path(sys.argv[2])
+key = sys.argv[3]
+
+if current.is_file():
+    matches = [
+        line
+        for line in current.read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith(f"{key}=")
+    ]
+    if len(matches) > 1:
+        raise SystemExit(f"destination env contains duplicate {key}")
+    if matches:
+        staged_text = staged.read_text(encoding="utf-8")
+        if any(line.strip().startswith(f"{key}=") for line in staged_text.splitlines()):
+            raise SystemExit(f"staged env unexpectedly contains {key}")
+        staged.write_text(staged_text.rstrip("\n") + "\n" + matches[0] + "\n", encoding="utf-8")
+PY
 install -m 0600 -o pclaw -g pclaw \
   /root/.pcl-secret-staging/christopher.env \
   /home/pclaw/.hermes-christopher-tgg/.env

@@ -305,3 +305,36 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
             "timeoutMs": 600000,
         }
     ]
+
+
+def test_secret_refresh_preserves_migrated_christopher_token(tmp_path: Path) -> None:
+    script = (DEPLOY_ROOT / "scripts" / "prepare_host_secrets.sh").read_text()
+    marker = "# Preserve it entirely on the client host"
+    preservation = script[script.index(marker) :]
+    code = preservation.split("<<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+
+    current = tmp_path / "current.env"
+    staged = tmp_path / "staged.env"
+    current.write_text(
+        'OPENAI_API_KEY="old"\n'
+        'CHRISTOPHER_TGG_PS_SERVICE_TOKEN="christopher-scoped"\n',
+        encoding="utf-8",
+    )
+    staged.write_text('OPENAI_API_KEY="fresh"\n', encoding="utf-8")
+
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            code,
+            str(current),
+            str(staged),
+            "CHRISTOPHER_TGG_PS_SERVICE_TOKEN",
+        ],
+        check=True,
+    )
+
+    assert staged.read_text(encoding="utf-8").splitlines() == [
+        'OPENAI_API_KEY="fresh"',
+        'CHRISTOPHER_TGG_PS_SERVICE_TOKEN="christopher-scoped"',
+    ]
