@@ -21,7 +21,7 @@ pa:
     min_free_percent: 20
   report_operations:
     enabled: true
-    base_url: http://127.0.0.1:5456
+    base_url: https://systems.papercut-labs.com
     allowed_download_hosts:
     - systems.papercut-labs.com
     allow_insecure_downloads: false

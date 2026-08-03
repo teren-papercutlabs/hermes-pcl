@@ -82,7 +82,7 @@ PYTHON_SANDBOX_BLOCK = (
 REPORT_OPERATIONS_PA_BLOCK = (
     "  report_operations:\n"
     "    enabled: true\n"
-    "    base_url: http://127.0.0.1:5456\n"
+    "    base_url: https://systems.papercut-labs.com\n"
     "    allowed_download_hosts:\n"
     "    - systems.papercut-labs.com\n"
     "    allow_insecure_downloads: false\n"
