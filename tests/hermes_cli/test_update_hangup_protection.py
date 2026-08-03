@@ -24,6 +24,19 @@ from hermes_cli.main import (
 )
 
 
+@pytest.fixture
+def isolated_stdio(monkeypatch):
+    """Replace capture-owned streams from inside the test call phase."""
+    def isolate():
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        monkeypatch.setattr(sys, "stdout", stdout)
+        monkeypatch.setattr(sys, "stderr", stderr)
+        return stdout, stderr
+
+    return isolate
+
+
 # -----------------------------------------------------------------------------
 # _UpdateOutputStream
 # -----------------------------------------------------------------------------
@@ -162,8 +175,9 @@ class TestUpdateOutputStream:
 
 
 class TestInstallHangupProtection:
-    def test_gateway_mode_is_noop(self):
+    def test_gateway_mode_is_noop(self, isolated_stdio):
         """In gateway mode the process is already detached — don't touch stdio or signals."""
+        isolated_stdio()
         prev_out, prev_err = sys.stdout, sys.stderr
         prev_sighup = signal.getsignal(signal.SIGHUP) if hasattr(signal, "SIGHUP") else None
 
@@ -182,7 +196,7 @@ class TestInstallHangupProtection:
     @pytest.mark.skipif(
         not hasattr(signal, "SIGHUP"), reason="SIGHUP not available on this platform"
     )
-    def test_installs_sighup_ignore(self, tmp_path, monkeypatch):
+    def test_installs_sighup_ignore(self, tmp_path, monkeypatch, isolated_stdio):
         """SIGHUP should be set to SIG_IGN so SSH disconnect doesn't kill the update."""
         monkeypatch.setenv("HERMES_HOME", str(tmp_path))
         # Clear cached get_hermes_home if present
@@ -190,6 +204,7 @@ class TestInstallHangupProtection:
         if hasattr(_cfg, "_HERMES_HOME_CACHE"):
             _cfg._HERMES_HOME_CACHE = None  # type: ignore[attr-defined]
 
+        isolated_stdio()
         original_handler = signal.getsignal(signal.SIGHUP)
         state = _install_hangup_protection(gateway_mode=False)
 
@@ -200,14 +215,18 @@ class TestInstallHangupProtection:
             # Restore whatever was there before so we don't leak to other tests.
             signal.signal(signal.SIGHUP, original_handler)
 
-    def test_wraps_stdout_and_stderr_with_mirror(self, tmp_path, monkeypatch):
+    def test_wraps_stdout_and_stderr_with_mirror(
+        self, tmp_path, monkeypatch, isolated_stdio
+    ):
         monkeypatch.setenv("HERMES_HOME", str(tmp_path))
         # Nuke any cached home path
         import hermes_cli.config as _cfg
         if hasattr(_cfg, "_HERMES_HOME_CACHE"):
             _cfg._HERMES_HOME_CACHE = None  # type: ignore[attr-defined]
 
-        prev_out, prev_err = sys.stdout, sys.stderr
+        prev_out, prev_err = isolated_stdio()
+        assert sys.stdout is prev_out
+        assert sys.stderr is prev_err
         state = _install_hangup_protection(gateway_mode=False)
 
         try:
@@ -231,7 +250,7 @@ class TestInstallHangupProtection:
             assert sys.stdout is prev_out
             assert sys.stderr is prev_err
 
-    def test_logs_dir_created_if_missing(self, tmp_path, monkeypatch):
+    def test_logs_dir_created_if_missing(self, tmp_path, monkeypatch, isolated_stdio):
         monkeypatch.setenv("HERMES_HOME", str(tmp_path))
         import hermes_cli.config as _cfg
         if hasattr(_cfg, "_HERMES_HOME_CACHE"):
@@ -240,6 +259,7 @@ class TestInstallHangupProtection:
         # No logs/ dir yet.
         assert not (tmp_path / "logs").exists()
 
+        isolated_stdio()
         state = _install_hangup_protection(gateway_mode=False)
         try:
             assert (tmp_path / "logs").is_dir()
@@ -247,8 +267,9 @@ class TestInstallHangupProtection:
         finally:
             _finalize_update_output(state)
 
-    def test_non_fatal_if_log_setup_fails(self, monkeypatch):
+    def test_non_fatal_if_log_setup_fails(self, monkeypatch, isolated_stdio):
         """If get_hermes_home() raises, stdio must be left untouched but SIGHUP still handled."""
+        isolated_stdio()
         prev_out, prev_err = sys.stdout, sys.stderr
 
         def _boom():
@@ -287,12 +308,15 @@ class TestFinalizeUpdateOutput:
     def test_none_state_is_noop(self):
         _finalize_update_output(None)  # must not raise
 
-    def test_restores_streams_and_closes_log(self, tmp_path, monkeypatch):
+    def test_restores_streams_and_closes_log(
+        self, tmp_path, monkeypatch, isolated_stdio
+    ):
         monkeypatch.setenv("HERMES_HOME", str(tmp_path))
         import hermes_cli.config as _cfg
         if hasattr(_cfg, "_HERMES_HOME_CACHE"):
             _cfg._HERMES_HOME_CACHE = None  # type: ignore[attr-defined]
 
+        isolated_stdio()
         prev_out = sys.stdout
         state = _install_hangup_protection(gateway_mode=False)
         log_file = state["log_file"]
