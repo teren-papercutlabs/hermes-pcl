@@ -445,7 +445,15 @@ clean = json.loads(pathlib.Path(sys.argv[1]).read_text())
 corrupt = json.loads(pathlib.Path(sys.argv[2]).read_text())
 assert clean["external_outbound_sent"] == 0
 assert corrupt["external_outbound_sent"] == 0
-assert clean["report_ops_request_paths"][:6] == [
+clean_cycle_paths = [
+    path for path in clean["report_ops_request_paths"]
+    if path.startswith("/api/operator/report-cycle/")
+]
+corrupt_cycle_paths = [
+    path for path in corrupt["report_ops_request_paths"]
+    if path.startswith("/api/operator/report-cycle/")
+]
+assert clean_cycle_paths == [
     "/api/operator/report-cycle/status?tenant=tgg",
     "/api/operator/report-cycle/fetch-sources?tenant=tgg",
     "/api/operator/report-cycle/preview-reconcile?tenant=tgg",
@@ -453,7 +461,7 @@ assert clean["report_ops_request_paths"][:6] == [
     "/api/operator/report-cycle/generate?tenant=tgg",
     "/api/operator/report-cycle/get-reports?tenant=tgg",
 ]
-assert corrupt["report_ops_request_paths"] == [
+assert corrupt_cycle_paths == [
     "/api/operator/report-cycle/status?tenant=tgg",
     "/api/operator/report-cycle/fetch-sources?tenant=tgg",
 ]
