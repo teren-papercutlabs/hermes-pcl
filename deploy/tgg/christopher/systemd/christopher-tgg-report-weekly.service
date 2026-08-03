@@ -1,0 +1,17 @@
+[Unit]
+Description=Christopher weekly report run
+After=network-online.target christopher-tgg-hermes.service systems-papercut-labs.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pclaw
+Group=pclaw
+WorkingDirectory=/home/pclaw/apps/hermes-pcl
+Environment=HOME=/home/pclaw
+Environment=HERMES_HOME=/home/pclaw/.hermes-christopher-tgg
+EnvironmentFile=/home/pclaw/.hermes-christopher-tgg/.env
+ExecStart=/home/pclaw/apps/hermes-pcl/.venv/bin/python /home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/scripts/run_scheduled_report.py --cycle weekly
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full

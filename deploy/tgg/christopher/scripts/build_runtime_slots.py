@@ -79,6 +79,32 @@ PYTHON_SANDBOX_BLOCK = (
     "  artifact_ttl_days: 7\n"
     "  max_runs_kept: 40\n"
 )
+REPORT_OPERATIONS_PA_BLOCK = (
+    "  report_operations:\n"
+    "    enabled: true\n"
+    "    base_url: https://systems.papercut-labs.com\n"
+    "    allowed_download_hosts:\n"
+    "    - systems.papercut-labs.com\n"
+    "    allow_insecure_downloads: false\n"
+    "    timeout_seconds: 120\n"
+    "    download_root: /home/pclaw/.systems-pcl/data/media/tgg/hermes/report-runs\n"
+    "    headers:\n"
+    "      X-PS-Tenant: tgg\n"
+    "      User-Agent: christopher-hermes/report-operations\n"
+    "    schedule:\n"
+    "      enabled: false\n"
+    "    auth:\n"
+    "      token_env: CHRISTOPHER_TGG_PS_SERVICE_TOKEN\n"
+    "      header: Authorization\n"
+    "      scheme: Bearer\n"
+    "    operations:\n"
+    "      fetch-sources: {method: POST, path: '/api/operator/report-cycle/fetch-sources?tenant=tgg'}\n"
+    "      preview-reconcile: {method: POST, path: '/api/operator/report-cycle/preview-reconcile?tenant=tgg'}\n"
+    "      apply-reconcile: {method: POST, path: '/api/operator/report-cycle/apply-reconcile?tenant=tgg'}\n"
+    "      generate: {method: POST, path: '/api/operator/report-cycle/generate?tenant=tgg'}\n"
+    "      get-reports: {method: POST, path: '/api/operator/report-cycle/get-reports?tenant=tgg'}\n"
+    "      status: {method: POST, path: '/api/operator/report-cycle/status?tenant=tgg'}\n"
+)
 MEDIA_RETENTION_BLOCK = (
     "  media_retention:\n"
     "    enabled: true\n"
@@ -199,7 +225,7 @@ EVENT_LABELS_NEW = (
 
 NEW_OPERATIONS = ("tgg_clarification_raise", "tgg_attention_raise", "tgg_case_wc_attach")
 NEW_INSTRUCTION_COUNT = 14
-MGMT_NEW_INSTRUCTION_COUNT = 14
+MGMT_NEW_INSTRUCTION_COUNT = 15
 
 # The ingest brief is unscoped (no `business_operations` block at all), which
 # grants it the full registry — that is exactly what makes it reachable for
@@ -361,7 +387,7 @@ def _safe_config(source: str, slot: dict) -> str:
     rendered = _replace_once(
         source,
         "pa:\n  enabled: true\n",
-        "pa:\n  enabled: false\n" + MEDIA_RETENTION_BLOCK,
+        "pa:\n  enabled: false\n" + MEDIA_RETENTION_BLOCK + REPORT_OPERATIONS_PA_BLOCK,
         label="pa.enabled",
     )
     rendered = _replace_once(
@@ -394,6 +420,7 @@ def _safe_config(source: str, slot: dict) -> str:
     if not rendered.endswith("group_sessions_per_user: false\n"):
         raise RuntimeError("config baseline no longer ends at group_sessions_per_user")
     rendered += TIMEZONE_BLOCK + SESSION_RESET_BLOCK + MEMORY_OFF_BLOCK + PYTHON_SANDBOX_BLOCK
+    rendered += "plugins:\n  enabled:\n  - report-operations\n"
     if effort is not None:
         rendered = _replace_once(
             rendered,
@@ -453,10 +480,13 @@ def _constitution(source: str, slot: dict) -> str:
     python_sandbox_snippet = (
         PATCHES_ROOT / "python-sandbox-management.snippet.yaml"
     ).read_text(encoding="utf-8")
+    report_operations_snippet = (
+        PATCHES_ROOT / "report-operations-management.snippet.yaml"
+    ).read_text(encoding="utf-8")
     rendered = _replace_once(
         rendered,
         MGMT_OBSERVABILITY_ANCHOR,
-        mgmt_behavior_snippet + python_sandbox_snippet + MGMT_OBSERVABILITY_ANCHOR,
+        mgmt_behavior_snippet + python_sandbox_snippet + report_operations_snippet + MGMT_OBSERVABILITY_ANCHOR,
         label="management observability instruction",
     )
     mgmt_operations_snippet = (
@@ -467,7 +497,7 @@ def _constitution(source: str, slot: dict) -> str:
         MGMT_TOOLSETS_ANCHOR,
         MGMT_TOOLSETS_ANCHOR.replace(
             "    disabled_toolsets:\n",
-            "    - python-sandbox\n    disabled_toolsets:\n",
+            "    - python-sandbox\n    - report-operations\n    disabled_toolsets:\n",
         )
         + mgmt_operations_snippet,
         label="management toolsets block",
@@ -519,6 +549,16 @@ def _validate(
         "max_attempts": 5,
         "retry_interval_seconds": 60,
     }
+    report_operations = config["pa"]["report_operations"]
+    assert report_operations["enabled"] is True
+    assert report_operations["schedule"]["enabled"] is False
+    assert report_operations["auth"]["token_env"] == "CHRISTOPHER_TGG_PS_SERVICE_TOKEN"
+    assert report_operations["headers"]["X-PS-Tenant"] == "tgg"
+    assert set(report_operations["operations"]) == {
+        "fetch-sources", "preview-reconcile", "apply-reconcile",
+        "generate", "get-reports", "status",
+    }
+    assert config["plugins"]["enabled"] == ["report-operations"]
     assert config["group_sessions_per_user"] is False
     assert config["timezone"] == "Asia/Singapore"
     assert config["session_reset"] == {"mode": "none"}
@@ -747,6 +787,14 @@ def _validate(
     assert "client_url" in mgmt_joined
     assert "secondary link only if the client asks for a link" in mgmt_joined
     assert "python-sandbox" in mgmt_brief["enabled_toolsets"]
+    assert "report-operations" in mgmt_brief["enabled_toolsets"]
+    assert "report-operations" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
+    assert '"run weekly report"' in mgmt_joined
+    assert '"run monthly report"' in mgmt_joined
+    assert '"retry report run <id>"' in mgmt_joined
+    assert "you are the judge before any import" in mgmt_joined.lower()
+    assert "STOP: do not preview or" in mgmt_joined
+    assert "MEDIA:<absolute_path>" in mgmt_joined
     # Register + grounded answers.
     assert "you are TGG's operations coordinator" in mgmt_joined
     assert "carries that case's job number" in mgmt_joined
