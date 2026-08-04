@@ -78,9 +78,9 @@ PYTHON_SANDBOX_BLOCK = (
     "      path: /var/lib/tgg-capture/whatsapp/media/documents\n"
     '      description: "Documents uploaded in WhatsApp chats, ORIGINAL filenames matching the saved-at path shown in the message (read-only)"\n'
     "  limits:\n"
-    "    wall_seconds: 120\n"
-    "    max_wall_seconds: 300\n"
-    "    cpu_seconds: 60\n"
+    "    wall_seconds: 360\n"
+    "    max_wall_seconds: 600\n"
+    "    cpu_seconds: 300\n"
     "    memory_mb: 1024\n"
     "    file_size_mb: 64\n"
     "    scratch_mb: 256\n"
@@ -617,9 +617,9 @@ def _validate(
             },
         },
         "limits": {
-            "wall_seconds": 120,
-            "max_wall_seconds": 300,
-            "cpu_seconds": 60,
+            "wall_seconds": 360,
+            "max_wall_seconds": 600,
+            "cpu_seconds": 300,
             "memory_mb": 1024,
             "file_size_mb": 64,
             "scratch_mb": 256,
