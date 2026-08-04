@@ -264,6 +264,8 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert '"evaluator_ok":%s' in deploy_script
 
     verify_script = VERIFY.read_text()
+    assert 'set(datasets) == {"cases", "documents", "media"}' in verify_script
+    assert 'for name in ("cases", "documents", "media")' in verify_script
     assert "systemctl is-active --quiet systems-papercut-labs.service" in verify_script
     assert "christopher-tgg-systems.service" not in verify_script
     assert "singpass-pair-server.service" not in verify_script

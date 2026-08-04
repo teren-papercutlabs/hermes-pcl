@@ -2081,7 +2081,13 @@ class TestPtyWebSocket:
         self.ws_module = ws
         monkeypatch.setattr(ws, "_DASHBOARD_EMBEDDED_CHAT_ENABLED", True)
         self.token = ws._SESSION_TOKEN
-        self.client = TestClient(ws.app)
+        # Enter the client so every websocket session shares its single
+        # portal/event loop; bare TestClient gives each websocket_connect its
+        # own loop, making the app's cross-connection broadcast a cross-thread
+        # write into another loop's memory stream (bug e4b9d26e hang).
+        with TestClient(ws.app) as client:
+            self.client = client
+            yield
 
     def _url(self, token: str | None = None, **params: str) -> str:
         tok = token if token is not None else self.token
@@ -2286,13 +2292,21 @@ class TestPtyWebSocket:
         /api/events subscriber on the same channel."""
         import time
         from urllib.parse import urlencode
+        from starlette.testclient import TestClient
         from hermes_cli import web_server as ws_mod
 
         qs = urlencode({"token": self.token, "channel": "broadcast-test"})
         pub_path = f"/api/pub?{qs}"
         sub_path = f"/api/events?{qs}"
 
-        with self.client.websocket_connect(sub_path) as sub:
+        # Entering TestClient keeps both nested websocket sessions on one
+        # BlockingPortal/event loop.  An un-entered client creates a separate
+        # portal per websocket_connect(), which can deadlock the cross-socket
+        # broadcast under load.
+        with (
+            TestClient(ws_mod.app) as client,
+            client.websocket_connect(sub_path) as sub,
+        ):
             # Wait for the subscriber to be registered on the server side.
             # websocket_connect returns when ws.accept() completes, but the
             # server adds us to ``_event_channels`` in a follow-up await,
@@ -2308,7 +2322,7 @@ class TestPtyWebSocket:
                     "subscriber did not register on channel within 5s"
                 )
 
-            with self.client.websocket_connect(pub_path) as pub:
+            with client.websocket_connect(pub_path) as pub:
                 pub.send_text('{"type":"tool.start","payload":{"tool_id":"t1"}}')
                 received = sub.receive_text()
 

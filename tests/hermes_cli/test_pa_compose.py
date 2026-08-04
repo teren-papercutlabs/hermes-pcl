@@ -41,7 +41,7 @@ def test_loader_reads_all_typed_directories_with_unique_sequence():
     assert {source.source_type for source in sources} == {
         "rules", "compliance", "reference", "templates", "job-briefs"
     }
-    assert len(sources) == 38
+    assert len(sources) == 39
     assert [source.sequence for source in sources] == sorted(
         source.sequence for source in sources
     )
@@ -80,7 +80,7 @@ def test_allow_unverified_composes_parity_and_records_escape(tmp_path):
     assert manifest == result
     assert manifest["allow_unverified"] is True
     assert manifest["unverified_compliance"]
-    assert manifest["source_count"] == 38
+    assert manifest["source_count"] == 39
     assert manifest["composed_source_count"] == 27
     excluded = [
         source["path"]
@@ -94,6 +94,7 @@ def test_allow_unverified_composes_parity_and_records_escape(tmp_path):
         "reference/063-product-insurers.yaml",
         "reference/064-replacement-taxonomy.yaml",
         "reference/065-disclaimer-selection.yaml",
+        "reference/066-funds.yaml",
         "compliance/180-general-disclosures.yaml",
         "compliance/190-rop-disadvantages.yaml",
         "compliance/195-rop-standard-declarations.yaml",
@@ -347,3 +348,27 @@ def test_sync_knowledge_refuses_missing_declared_entry(tmp_path):
             tmp_path / "runtime",
             tmp_path / "manifest.json",
         )
+
+
+def test_value_table_reference_files_are_synced_into_the_runtime(tmp_path):
+    """A value contract's reference table is runtime config, one level down.
+
+    It is declared in the FIELD-SET file, not the constitution, so the sync has
+    to follow the pointer. Missing it fails silently in the worst way: the
+    record comes up with an empty table and accepts every answer, which looks
+    exactly like working.
+    """
+    result = sync_pa_knowledge(
+        MTU, MTU / "mtu_constitution.yaml", tmp_path / "knowledge", tmp_path / "m.json"
+    )
+    synced = {entry["path"] for entry in result["files"]}
+    field_sets = yaml.safe_load((MTU / "case-field-sets.yaml").read_text("utf-8"))
+    declared_sources = {
+        table["source"]
+        for table in (field_sets.get("value_tables") or {}).values()
+        if isinstance(table, dict) and table.get("source")
+    }
+    assert declared_sources, "the deployment declares no value-table sources"
+    assert declared_sources <= synced
+    for entry in declared_sources:
+        assert (tmp_path / "knowledge" / entry).is_file()

@@ -1,9 +1,9 @@
 {
   "allow_unverified": true,
   "composed_source_count": 27,
-  "constitution_sha256": "61ca40fe5b0a305764922c4c8366692daac409280240d20e3ef2b08f6c086ab5",
+  "constitution_sha256": "a16c30b78810627b212a79b5621acc208a0fb40e0f2a6fd9622665f7bead2500",
   "schema_version": 1,
-  "source_count": 38,
+  "source_count": 39,
   "source_root": "mtu",
   "sources": [
     {
@@ -53,14 +53,14 @@
       "approved_date": [
         "2026-08-02"
       ],
-      "body_sha256": "c6669801417f1e53ecee9f1f5d307cf3ee76ef671b621b9fc906d447fc7b6012",
+      "body_sha256": "6e0b2b3291e1e7438664be45de6335e2eff8d44fa7612c0971604cc06399f0b2",
       "included_in_constitution": true,
       "path": "compliance/012-output-assembly-policy.yaml",
       "ruling_ref": [
         "WB ccaff87c activity ec41da93"
       ],
       "sequence": 12,
-      "source_sha256": "21c6269a45414f1d802320ebee93259ddc1a2f5dcf8a13a2fa9862bfce20f483",
+      "source_sha256": "93a1fb7fe8ecdbf00c038ce34e33c616069db57073172973bd47092880905e07",
       "status": "approved",
       "type": "compliance"
     },
@@ -282,6 +282,24 @@
       ],
       "sequence": 65,
       "source_sha256": "3fde138ba611ca2da2d9f58c82e7cb65cf50504e3cc052aad3977acae44fb7f8",
+      "status": "unverified",
+      "type": "reference"
+    },
+    {
+      "approved_by": [
+        "unverified"
+      ],
+      "approved_date": [
+        "unverified"
+      ],
+      "body_sha256": "2957e8f4f1461de6c131e81c8b3ee8453d13dcb4a1820f1e8474af292f9e5d4d",
+      "included_in_constitution": false,
+      "path": "reference/066-funds.yaml",
+      "ruling_ref": [
+        "R09"
+      ],
+      "sequence": 66,
+      "source_sha256": "4fd1eb9e9013969ac8ee4d9056285f63b9e2f5a2ced829508d5e0ac63aecad50",
       "status": "unverified",
       "type": "reference"
     },
@@ -605,7 +623,7 @@
       "approved_date": [
         "2026-07-31"
       ],
-      "body_sha256": "72fd5dce3c17076b2d6af0929170315ab5fb4a5e88da0801c87b2f8116cd1a4b",
+      "body_sha256": "9f0548ca5edffd64769268d63de5266e52ec19cd17432bc0e055f2df4402cd45",
       "included_in_constitution": false,
       "path": "compliance/197-cka-declaration.yaml",
       "ruling_ref": [
@@ -613,7 +631,7 @@
         "MTU-007"
       ],
       "sequence": 197,
-      "source_sha256": "225428dc9ff53b7a0a19776f315028a0f59826f278a2da18b7ad71460af367b2",
+      "source_sha256": "cb9f740ae03098233d788746b392e8130810e43d81aff71875aae5fe1f3e96a1",
       "status": "approved",
       "type": "compliance"
     },
@@ -732,7 +750,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "a4d088f4adbeff73c4b97ac176a5ae9c0aaa4c856046215a26966f594bdf4bbd",
+  "sources_sha256": "19b27fbbd9248399958029659a4b51073a4dc4a765063a9e774880d401487745",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml"
   ]

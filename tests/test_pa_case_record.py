@@ -493,3 +493,470 @@ def test_safe_record_field_swallows(store):
     assert pcr.safe_record_field(store, "no-such-case", "f", "v") is None
     case_id = store.mint_case(agent_id="a", chat_id="c")
     assert pcr.safe_record_field(store, case_id, "f_one", "v") == 1
+
+
+# ── The value contract: enforced at the record write ────────────────────
+#
+# teren, 2026-08-04, from the probe "is aggressive a valid input": a field
+# whose values come from a fixed set is converted AT THE WRITE, not by
+# whoever reads it later. These tests are about WHERE the conversion happens
+# as much as whether it happens — a value arriving canonical at a downstream
+# reader proves nothing if each reader canonicalises for itself.
+
+
+@pytest.fixture
+def contracted_store(db):
+    """A store carrying one contract of each kind, plus a keyed table."""
+    sets = pcr.parse_field_sets(
+        {
+            "version": 1,
+            "field_sets": {
+                "alpha": {
+                    "case_type": "alpha",
+                    "fields": [
+                        {
+                            "id": "f_enum",
+                            "required": True,
+                            "ask_hint": "which one?",
+                            "value_contract": {
+                                "kind": "enum",
+                                "values": ["Low", "Mid", "High"],
+                                "match": [
+                                    {"pattern": r"(?i)\blow\b", "value": "Low"},
+                                    {"pattern": r"(?i)\bmid\b", "value": "Mid"},
+                                    {"pattern": r"(?i)\bhigh\b", "value": "High"},
+                                ],
+                            },
+                        },
+                        {
+                            "id": "f_bool",
+                            "required": True,
+                            "value_contract": {"kind": "boolean"},
+                        },
+                        {
+                            "id": "f_table",
+                            "required": True,
+                            "value_contract": {
+                                "kind": "table",
+                                "table": "widgets",
+                            },
+                        },
+                        {
+                            "id": "f_table_loose",
+                            "required": False,
+                            "value_contract": {
+                                "kind": "table",
+                                "table": "widgets",
+                                "on_unmatched": "accept",
+                                "stored_form": "as_written",
+                            },
+                        },
+                        {
+                            "id": "f_keyed",
+                            "required": False,
+                            "value_contract": {
+                                "kind": "table",
+                                "table": "widgets",
+                                "key_field": "f_table_loose",
+                            },
+                        },
+                    ],
+                }
+            },
+        }
+    )
+    tables = pcr.parse_value_tables(
+        {
+            "value_tables": {
+                "widgets": {
+                    "entries": [
+                        {
+                            "value": "Widget Alpha",
+                            "aliases": ["Alpha"],
+                            "values": ["size-10"],
+                        },
+                        {"value": "Widget Beta"},
+                    ]
+                }
+            }
+        }
+    )
+    return pcr.CaseRecordStore(
+        db,
+        value_contracts=pcr.value_contracts_from_field_sets(sets),
+        value_tables=tables,
+    ), sets["alpha"]
+
+
+# ── kind: enum ──
+
+
+def test_enum_variant_is_canonicalised_at_the_write(contracted_store):
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_enum", "high", source_message_id="m1")
+    entry = store.get_case(case_id).get("f_enum")
+    assert entry.value == "High"
+    assert entry.canonicalization == pcr.CANON_MAPPED
+    # PROVENANCE: what the writer actually said survives beside the value.
+    assert entry.raw_value == "high"
+    assert entry.source_message_id == "m1"
+
+
+def test_enum_value_already_canonical_is_stored_untouched(contracted_store):
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_enum", "High")
+    entry = store.get_case(case_id).get("f_enum")
+    assert entry.value == "High"
+    assert entry.canonicalization == pcr.CANON_EXACT
+    assert entry.raw_value is None
+
+
+def test_enum_free_text_reaches_a_value_through_the_mapping(contracted_store):
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_enum", "client is on the low side")
+    assert store.get_case(case_id).value_of("f_enum") == "Low"
+
+
+# ── unmappable -> empty -> intake asks ──
+
+
+def test_unmappable_answer_leaves_the_field_empty(contracted_store):
+    """NEVER a guess. The advisor answered; the answer is not one we can use."""
+    store, field_set = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_enum", "somewhere in between", source_message_id="m2")
+    record = store.get_case(case_id)
+    entry = record.get("f_enum")
+    assert entry.value is None
+    assert not entry.is_filled
+    assert entry.is_unmappable
+    # The raw answer is kept so the clarification can quote it.
+    assert entry.raw_value == "somewhere in between"
+    # AND THIS IS THE POINT: it stays in the intake surface.
+    assert "f_enum" in pcr.empty_required_field_ids(record, field_set)
+
+
+def test_a_clarified_answer_fills_the_field_and_clears_the_ask(contracted_store):
+    store, field_set = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_enum", "not sure really")
+    assert "f_enum" in pcr.empty_required_field_ids(
+        store.get_case(case_id), field_set
+    )
+    store.record_field(case_id, "f_enum", "mid")
+    record = store.get_case(case_id)
+    assert record.value_of("f_enum") == "Mid"
+    assert "f_enum" not in pcr.empty_required_field_ids(record, field_set)
+    # The unusable answer is preserved in history, not erased.
+    history = store.field_history(case_id, "f_enum")
+    assert history[-1].raw_value == "not sure really"
+    assert history[-1].canonicalization == pcr.CANON_UNMAPPABLE
+
+
+# ── kind: boolean ──
+
+
+@pytest.mark.parametrize(
+    "written,expected",
+    [
+        ("yes", True),
+        ("Yes", True),
+        ("true", True),
+        ("1", True),
+        ("no", False),
+        ("No", False),
+        ("false", False),
+        ("0", False),
+        (True, True),
+        (False, False),
+    ],
+)
+def test_boolean_contract_stores_a_real_boolean(contracted_store, written, expected):
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_bool", written)
+    value = store.get_case(case_id).value_of("f_bool")
+    assert value is expected
+
+
+def test_boolean_contract_refuses_an_answer_it_cannot_read(contracted_store):
+    store, field_set = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_bool", "probably")
+    record = store.get_case(case_id)
+    assert record.get("f_bool").is_unmappable
+    assert "f_bool" in pcr.empty_required_field_ids(record, field_set)
+
+
+# ── kind: table ──
+
+
+def test_table_contract_stores_the_tables_canonical_spelling(contracted_store):
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_table", "Alpha")
+    assert store.get_case(case_id).value_of("f_table") == "Widget Alpha"
+
+
+def test_table_contract_unpopulates_an_unknown_value(contracted_store):
+    store, field_set = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_table", "Widget Omega")
+    record = store.get_case(case_id)
+    assert record.get("f_table").is_unmappable
+    assert "f_table" in pcr.empty_required_field_ids(record, field_set)
+
+
+def test_table_contract_can_validate_without_rewriting(contracted_store):
+    """stored_form: as_written — the answer carries more than the identifier."""
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(
+        case_id, "f_table_loose", "Widget Alpha, 15-year term, $12k annual"
+    )
+    entry = store.get_case(case_id).get("f_table_loose")
+    # NOT rewritten to "Widget Alpha": the term and premium are case facts.
+    assert entry.value == "Widget Alpha, 15-year term, $12k annual"
+    assert entry.canonicalization == pcr.CANON_VALIDATED
+
+
+def test_table_contract_can_accept_an_unlisted_value(contracted_store):
+    """on_unmatched: accept — a name missing from the table is a gap in the
+    TABLE, not a bad answer. (The approved-product list rules exactly this.)"""
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_table_loose", "Some Unlisted Product")
+    entry = store.get_case(case_id).get("f_table_loose")
+    assert entry.value == "Some Unlisted Product"
+    assert entry.is_filled
+
+
+# ── kind: table, KEYED on another field ──
+
+
+def test_keyed_table_validates_against_the_keying_answer(contracted_store):
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_table_loose", "Widget Alpha")
+    store.record_field(case_id, "f_keyed", "size-10")
+    assert store.get_case(case_id).value_of("f_keyed") == "size-10"
+
+
+def test_keyed_table_refuses_a_value_the_key_does_not_permit(contracted_store):
+    """The R19 shape: a period the product does not actually offer."""
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_table_loose", "Widget Alpha")
+    store.record_field(case_id, "f_keyed", "size-20")
+    assert store.get_case(case_id).get("f_keyed").is_unmappable
+
+
+def test_keyed_table_places_no_constraint_when_the_key_declares_none(
+    contracted_store,
+):
+    """An UNDECLARED product constrains nothing — asserting otherwise would
+    invent a restriction nobody ruled."""
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_table_loose", "Widget Beta")
+    store.record_field(case_id, "f_keyed", "size-99")
+    assert store.get_case(case_id).value_of("f_keyed") == "size-99"
+
+
+# ── every write path funnels through the contract ──
+
+
+def test_a_derived_write_is_contracted_too(contracted_store):
+    """Derivation is a write, so it canonicalises like any other."""
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_table_loose", "Widget Alpha", source_message_id="m5")
+    store.record_derived_field(
+        case_id, "f_enum", "high", derived_from_field_id="f_table_loose"
+    )
+    entry = store.get_case(case_id).get("f_enum")
+    assert entry.value == "High"
+    assert entry.origin == pcr.ORIGIN_DERIVED
+    # Provenance still leads back to the message the writer actually wrote.
+    assert entry.source_message_id == "m5"
+
+
+def test_an_uncontracted_field_is_stored_verbatim(contracted_store):
+    store, _ = contracted_store
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_free", "whatever the advisor said")
+    entry = store.get_case(case_id).get("f_free")
+    assert entry.value == "whatever the advisor said"
+    assert entry.canonicalization == pcr.CANON_UNCONTRACTED
+
+
+# ── config parsing refuses incoherent contracts ──
+
+
+def test_a_match_producing_an_undeclared_value_refuses_to_parse():
+    with pytest.raises(ValueError, match="not one of the declared values"):
+        pcr.parse_field_sets(
+            {
+                "field_sets": {
+                    "a": {
+                        "fields": [
+                            {
+                                "id": "f",
+                                "value_contract": {
+                                    "kind": "enum",
+                                    "values": ["X"],
+                                    "match": [{"pattern": "y", "value": "Y"}],
+                                },
+                            }
+                        ]
+                    }
+                }
+            }
+        )
+
+
+def test_an_unknown_contract_kind_refuses_to_parse():
+    with pytest.raises(ValueError, match="kind must be one of"):
+        pcr.parse_field_sets(
+            {
+                "field_sets": {
+                    "a": {
+                        "fields": [
+                            {"id": "f", "value_contract": {"kind": "freeform"}}
+                        ]
+                    }
+                }
+            }
+        )
+
+
+def test_an_enum_without_values_refuses_to_parse():
+    with pytest.raises(ValueError, match="must declare values"):
+        pcr.parse_field_sets(
+            {"field_sets": {"a": {"fields": [{"id": "f", "value_contract": {"kind": "enum"}}]}}}
+        )
+
+
+# ── Sufficiency: identity is not completeness ───────────────────────────
+#
+# MTU-011: "Client replacing from GE term plan to Singlife term plan" — one
+# line, two bare product names — produced a COMPLETE BOR. The record was the
+# cause, not the model: both plan fields were filled, so the empty-required
+# set was empty, so the rendered block told the model in as many words that
+# nothing was missing and it should draft now.
+
+
+@pytest.fixture
+def sufficiency_set():
+    return pcr.parse_field_sets(
+        {
+            "version": 1,
+            "field_sets": {
+                "alpha": {
+                    "case_type": "alpha",
+                    "fields": [
+                        {
+                            "id": "f_plan",
+                            "required": True,
+                            "ask_hint": "which plan?",
+                            "sufficiency": {
+                                "description": "the premium or the term",
+                                "any_of": [
+                                    {"name": "an amount", "pattern": r"\$\s?[\d,]+"},
+                                    {
+                                        "name": "a duration",
+                                        "pattern": r"(?i)\b\d{1,2}\s*-?\s*years?\b",
+                                    },
+                                ],
+                            },
+                        },
+                        {
+                            "id": "f_both",
+                            "required": True,
+                            "sufficiency": {
+                                "all_of": [
+                                    {"name": "an insurer", "pattern": r"(?i)insurer:"},
+                                    {"name": "an amount", "pattern": r"\$\s?[\d,]+"},
+                                ]
+                            },
+                        },
+                    ],
+                }
+            },
+        }
+    )["alpha"]
+
+
+def test_a_bare_name_fills_the_field_but_does_not_answer_it(store, sufficiency_set):
+    """The MTU-011 shape, at the record."""
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_plan", "Singlife term plan")
+    record = store.get_case(case_id)
+    # The name IS a fact and is KEPT — dropping it would lose what was said.
+    assert record.value_of("f_plan") == "Singlife term plan"
+    assert record.is_filled("f_plan")
+    # ...and the case is NOT ready to draft from.
+    assert "f_plan" in pcr.empty_required_field_ids(record, sufficiency_set)
+    assert not pcr.is_record_complete(record, sufficiency_set)
+
+
+def test_a_value_carrying_the_material_fact_answers_the_field(store, sufficiency_set):
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_plan", "Singlife term plan, premium $1,500 yearly")
+    record = store.get_case(case_id)
+    assert "f_plan" not in pcr.empty_required_field_ids(record, sufficiency_set)
+
+
+def test_any_of_is_satisfied_by_either_probe(store, sufficiency_set):
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_plan", "Singlife term plan, 20 years")
+    assert "f_plan" not in pcr.empty_required_field_ids(
+        store.get_case(case_id), sufficiency_set
+    )
+
+
+def test_all_of_needs_every_probe(store, sufficiency_set):
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_both", "insurer: Singlife")
+    record = store.get_case(case_id)
+    assert "f_both" in pcr.empty_required_field_ids(record, sufficiency_set)
+    store.record_field(case_id, "f_both", "insurer: Singlife, $500,000")
+    assert "f_both" not in pcr.empty_required_field_ids(
+        store.get_case(case_id), sufficiency_set
+    )
+
+
+def test_the_gap_names_the_missing_parts_not_the_whole_field(sufficiency_set):
+    """So intake can ask for what is absent instead of re-asking the name."""
+    spec = sufficiency_set.spec("f_plan")
+    assert spec.sufficiency_gap("Singlife term plan") == ["an amount or a duration"]
+    assert spec.sufficiency_gap("Singlife term plan, $1,200") == []
+    both = sufficiency_set.spec("f_both")
+    assert both.sufficiency_gap("insurer: Singlife") == ["an amount"]
+
+
+def test_a_field_with_no_sufficiency_is_answered_by_any_value(store, field_set):
+    case_id = store.mint_case(case_type=field_set.case_type)
+    store.record_field(case_id, "f_one", "x")
+    assert "f_one" not in pcr.empty_required_field_ids(
+        store.get_case(case_id), field_set
+    )
+
+
+def test_an_empty_field_reports_no_sufficiency_gap(sufficiency_set):
+    """Empty is a DIFFERENT problem, already handled by the filled check."""
+    assert sufficiency_set.spec("f_plan").sufficiency_gap(None) == []
+
+
+def test_a_sufficiency_with_no_probes_refuses_to_parse():
+    with pytest.raises(ValueError, match="can never fail"):
+        pcr.parse_field_sets(
+            {
+                "field_sets": {
+                    "a": {"fields": [{"id": "f", "sufficiency": {"description": "x"}}]}
+                }
+            }
+        )

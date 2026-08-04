@@ -75,6 +75,15 @@ job_briefs:
         # model; reference/065-disclaimer-selection.yaml decides which one
         # applies, and the runtime strips the marker when it does not.
         runtime_scope_tags: [GIO, UNDERWRITTEN, ILP]
+        # Scopes a CONTRACTED case-record field decides outright. Assembly used
+        # to re-read the conversation text for the 50%-of-surplus answer — a
+        # second source of truth for a fact the record can hold. The boolean
+        # field answers first; the text fallback stays only until the field is
+        # reliably populated (or until the pending 50%-removal retires both).
+        scope_from_fields:
+          - field: sustainability_answer
+            when_true: SUSTAINABILITY_YES
+            when_false: SUSTAINABILITY_NO
         artifacts:
           - compliance/010-sustainability-enforcement.yaml
           - compliance/180-general-disclosures.yaml

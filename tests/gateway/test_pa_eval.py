@@ -7,6 +7,7 @@ from gateway.pa_eval import (
     adapt_case_to_replay,
     normalize_for_exact_match,
     run_exact_assertion,
+    run_no_draft_assertion,
     run_replay_bundle,
 )
 from gateway.replay import ReplayResult
@@ -196,3 +197,171 @@ def test_bundle_runner_preserves_per_turn_outputs_and_assertions(tmp_path):
         "passed": 2,
         "failed": 0,
     }
+
+
+# ── no_approved_block: the deterministic NO-DRAFT check ────────────────────
+#
+# A material-missing gate fails by PRODUCING a draft, so its guard must not be
+# judge-kind: an unrun judge scores nothing while the case still reports a
+# clean deterministic summary. Naming individual sentences with exact_absent
+# only guards the sentences somebody listed.
+
+
+def _no_draft_expectation():
+    return PAEvalExpectation.from_mapping(
+        {
+            "label": "returns no completed draft",
+            "kind": "no_approved_block",
+            "critical": True,
+        }
+    )
+
+
+def test_no_approved_block_passes_on_an_intake_question():
+    result = run_no_draft_assertion(
+        "Before I draft, could you confirm the premium and the coverage term?",
+        _no_draft_expectation(),
+        ["Total annual premiums do not exceed 50% of the client's surplus."],
+    )
+    assert result["passed"] is True
+    assert result["status"] == "passed"
+
+
+def test_no_approved_block_catches_a_draft_by_its_approved_text():
+    approved = "Total annual premiums do not exceed 50% of the client's surplus."
+    result = run_no_draft_assertion(
+        f"Here is the BOR.\n\n{approved}\n\nRegards.",
+        _no_draft_expectation(),
+        [approved, "Some other approved sentence."],
+    )
+    assert result["passed"] is False
+    assert result["approved_blocks_present"] == [approved]
+
+
+def test_no_approved_block_folds_typography_like_every_exact_check():
+    result = run_no_draft_assertion(
+        "Premiums do not exceed 50% of the client’s surplus.",
+        _no_draft_expectation(),
+        ["Premiums do not exceed 50% of the client's surplus."],
+    )
+    assert result["passed"] is False
+
+
+def test_no_approved_block_without_needles_is_not_applicable():
+    """A detector with nothing to detect must never report a pass."""
+    result = run_no_draft_assertion("anything at all", _no_draft_expectation(), [])
+    assert result["status"] == "not_applicable"
+    assert result["passed"] is None
+
+
+def test_a_not_applicable_draft_check_is_not_counted_as_evidence():
+    """...and the summary must not count it either."""
+    from gateway.pa_eval import DETERMINISTIC_KINDS
+
+    assert "no_approved_block" in DETERMINISTIC_KINDS
+    assert "exact_present" in DETERMINISTIC_KINDS
+
+
+def test_no_approved_block_needs_no_text_field():
+    """Its needles come from the artifacts, so authoring text would be wrong."""
+    expectation = _no_draft_expectation()
+    assert expectation.text is None
+
+
+# ── assembly defects: WHY a turn produced no draft ─────────────────────────
+#
+# A refusal-exhaustion and a content regression are the same assertion failure
+# without this field. The eval layer read three exhausted marker refusals as
+# two unrelated content regressions for exactly that reason.
+
+
+def test_replay_report_carries_assembly_defects_per_turn(tmp_path):
+    from agent.pa_output_assembly import (
+        PAOutputAssemblyRetry,
+        drain_assembly_defects,
+        record_assembly_defect,
+    )
+
+    drain_assembly_defects()
+    bundle = adapt_case_to_replay(_corpus(tmp_path).cases[0])
+
+    class Runner:
+        async def replay(self, plan):
+            text = "Required sentence."
+            if plan.attempt_id.endswith("turn-1"):
+                # The turn the guard withheld: recorded by the gateway on
+                # every attempt, the exhausting one included.
+                for attempt in (1, 2, 3):
+                    record_assembly_defect(
+                        PAOutputAssemblyRetry(
+                            ("[[PA_BLOCK:GENERAL_DISCLOSURES]]",),
+                            "required deterministic compliance markers are missing",
+                        ).to_defect(attempt=attempt, exhausted=attempt == 3)
+                    )
+                text = "Sorry, I encountered an error (PAOutputAssemblyRetry)."
+            elif plan.attempt_id.endswith("turn-2"):
+                record_assembly_defect(
+                    {
+                        "mode": "duplicate",
+                        "marker": "[[PA_BLOCK:GENERAL_DISCLOSURES]]",
+                        "id": "general_disclosures",
+                        "occurrences": 2,
+                        "removed": 1,
+                        "outcome": "healed",
+                        "attempt": 1,
+                    }
+                )
+            return ReplayResult(
+                run_id=plan.run_id,
+                attempt_id=plan.attempt_id,
+                platform=plan.platform,
+                processed=1,
+                outbound=[{"kwargs": {"content": text}, "args": [], "kind": "send"}],
+                blocked_commands=[],
+                delivery_mode="capture",
+            )
+
+    report = asyncio.run(run_replay_bundle(Runner(), bundle))
+
+    withheld = report["turns"][0]["assembly_defects"]
+    assert len(withheld) == 3
+    assert {item["mode"] for item in withheld} == {"missing"}
+    assert withheld[0]["markers"] == ["[[PA_BLOCK:GENERAL_DISCLOSURES]]"]
+    assert [item["attempt"] for item in withheld] == [1, 2, 3]
+    assert withheld[-1]["exhausted"] is True
+
+    healed = report["turns"][1]["assembly_defects"]
+    assert len(healed) == 1
+    assert healed[0]["mode"] == "duplicate"
+    assert healed[0]["outcome"] == "healed"
+
+    # Attribution is per turn, never smeared across the case.
+    assert report["assembly_defect_count"] == 4
+    assert report["assembly_withheld_count"] == 3
+    assert report["assembly_healed_count"] == 1
+
+
+def test_defects_from_an_earlier_turn_are_not_attributed_to_a_later_one(tmp_path):
+    from agent.pa_output_assembly import drain_assembly_defects, record_assembly_defect
+
+    drain_assembly_defects()
+    # Residue from a previous run, sitting in the trail before the turn starts.
+    record_assembly_defect({"mode": "missing", "outcome": "withheld", "attempt": 1})
+    bundle = adapt_case_to_replay(_corpus(tmp_path).cases[0])
+
+    class Runner:
+        async def replay(self, plan):
+            return ReplayResult(
+                run_id=plan.run_id,
+                attempt_id=plan.attempt_id,
+                platform=plan.platform,
+                processed=1,
+                outbound=[
+                    {"kwargs": {"content": "Required sentence."}, "args": [], "kind": "send"}
+                ],
+                blocked_commands=[],
+                delivery_mode="capture",
+            )
+
+    report = asyncio.run(run_replay_bundle(Runner(), bundle))
+    assert report["assembly_defect_count"] == 0

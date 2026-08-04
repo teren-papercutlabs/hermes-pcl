@@ -153,3 +153,57 @@ misses on 4-draw cases, both visible in D, neither hidden. The judge layer has n
 scored any of these runs — every `must`/`must_not` stays `pending_judge`, so the
 semantic expectations (including MTU-063's client-surface-hygiene assertion, F3) are
 NOT covered by these numbers.
+
+## Merge reconciliation with the canon-reshape line — 2026-08-04
+
+`origin/main` (PR #54 canon-reshape, PR #57 marker discipline) and this lane rewrote the same
+surfaces from different directions, and the two intents UNION rather than compete: #54 built the
+**value contract** — what a field may HOLD, enforced once at the record write — and this lane built
+the **derivation** — what the record can WORK OUT from the product the advisor named. A derivation
+produces a value; a contract checks it. Union decisions, and the two places the composition was not
+automatic:
+
+| surface | union decision |
+|---|---|
+| `case-field-sets.yaml` `product_category` (×3 field sets) | BOTH: this lane's derivation + #54's enum contract, with `unresolved` ADDED to the permitted values |
+| `case-field-sets.yaml` `min_investment_period` | BOTH: this lane's R19-narrowed derivation (fills only a product whose periods are confirmed) + #54's keyed table contract (refuses a period the product does not offer) + a `match:` wording map added here |
+| `case-field-sets.yaml` `value_tables` | #54's section taken whole |
+| `agent/pa_case_runtime.py` | auto-composed: #54's contract wiring + this lane's derivation-first ordering and category ownership. `derived = _apply_config_derivations(...)` runs BEFORE the case-type mirror, and the mirror is suppressed for a derivation-owned category |
+| `tests/agent/test_pa_case_runtime.py` | both blocks, no name collisions |
+| `reference/065-disclaimer-selection.yaml` | unchanged on main; `default_category` is dead across the merged tree — the only remaining mentions are this lane's comment and the corpus note. The generic fallback code in `pa_case_runtime` stays; the deployment simply never declares one |
+
+**`unresolved` had to become a permitted enum value, or the contract would have undone the fix.**
+The derivation resolves a product with no approved requirement set to `unresolved` — "Careshield
+Plus" is not an Integrated Shield Plan — and 065 maps that to NO scope tag, so a completed draft
+fails assembly closed. Under #54's original three-value enum, `unresolved` satisfied no contracted
+value and the field stayed EMPTY, which handed it straight back to the case-type mirror: the model
+classifies Careshield as `shield_hospitalisation`, the mirror writes it, and the case reads as
+UNDERWRITTEN again. Verified on the merged tree: Careshield → `unresolved` even when the classifier
+says shield; Abundance → `investment_linked`; an unlisted Shield product with a real classification
+→ `shield_hospitalisation`; unknown and unclassified → empty.
+
+**Two composition defects were found by the replay, not by the merge, and both are fixed here.**
+
+1. *A derivation must not answer over an answer the CONTRACT refused* (`agent/pa_case_record.py`,
+   `apply_derivations`). `unmappable` does not mean unanswered — it means the advisor DID answer and
+   the answer is not one the case can be built on ("Abundance 15"). Deriving MIP10 over it would
+   replace their answer with ours silently, on the field where they had just been contradicted. The
+   clarification question owns that field until they answer it. An untouched empty field is
+   different, and the derivation still fills it.
+2. *A contract must accept the answer an advisor actually writes.* #54's keyed table permitted only
+   its own canonical spelling, so "minimum investment period 10 years" — a CORRECT answer to R19's
+   confirm ask — was refused and turned into a second question about the thing just answered. That
+   is what made MTU-062 fail 4 of 4 draws on the first merged replay. Fixed with a `match:` wording
+   map (what every enum contract in the file already uses), plus a guard in the shared resolver so a
+   `match:` pattern stays a WORDING map and never a PERMISSION: the permitted set belongs to the
+   keyed row, so a period the product does not offer is still refused however it is worded.
+
+Merged-tree evidence: 348 tests green (`test_pa_case_record`, `test_pa_case_runtime`,
+`test_pa_output_assembly`, `test_pa_eval`, `test_pa_compose`, `tests/deploy`). Targeted replay of the
+overlap-sensitive cases at 4 draws each (`evidence/mtu-eval-subset-2026-08-04-merge-union-4draw.json`,
+gpt-5.6-luna high, candidate deploy tree): **MTU-011, MTU-062, MTU-063, MTU-064 all 4/4 clean**;
+MTU-007 2/4 and MTU-021 2/4. Both residuals are the escalate-instead-of-draft shape this record
+already names — item 12's intake wording and the ROP-family instability under luna — not the
+contract/derivation composition: every failing draw withheld the draft or asked R19's confirm line,
+and no draw produced a wrong compliance sentence. The first merged replay (before the two fixes
+above) had MTU-062 at 0/4; it is 4/4 after.

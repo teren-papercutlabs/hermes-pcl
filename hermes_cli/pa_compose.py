@@ -236,6 +236,33 @@ def compose_pa_constitution(
     return manifest_data
 
 
+def _value_table_sources(source: Path, field_sets_entry: str) -> set[str]:
+    """Reference files a field-set config's value contracts check against.
+
+    Returns the relative paths declared under ``value_tables.<id>.source``.
+    A table declared inline has no source and contributes nothing. An
+    unreadable field-set file contributes nothing here rather than raising:
+    the file itself is already a declared entry, so the missing-entry check
+    below reports it once, in the place that reports every other one.
+    """
+    for candidate in (source / field_sets_entry, source / "knowledge" / field_sets_entry):
+        if not candidate.is_file():
+            continue
+        try:
+            data = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            return set()
+        tables = data.get("value_tables") if isinstance(data, dict) else None
+        if not isinstance(tables, dict):
+            return set()
+        return {
+            str(table["source"])
+            for table in tables.values()
+            if isinstance(table, dict) and table.get("source")
+        }
+    return set()
+
+
 def sync_pa_knowledge(
     source_dir: Path | str,
     constitution_path: Path | str,
@@ -278,6 +305,16 @@ def sync_pa_knowledge(
             entry = case_record.get(key)
             if entry:
                 runtime_only.add(str(entry))
+        # A field-set config may point its value contracts at REFERENCE FILES
+        # (approved products, funds) that someone else maintains. Those are
+        # runtime-only config too, and they are declared one level down — in
+        # the field-set file, not the constitution — so the sync has to follow
+        # the pointer. Missing them does not fail loudly: the record would come
+        # up with an empty table and quietly accept every answer, which is the
+        # worst of the failure modes because it looks like it is working.
+        field_sets_entry = case_record.get("field_sets")
+        if field_sets_entry:
+            runtime_only |= _value_table_sources(source, str(field_sets_entry))
     declared = sorted(model_visible | runtime_only)
     if not declared:
         raise PaComposeError("constitution declares no knowledge entries")

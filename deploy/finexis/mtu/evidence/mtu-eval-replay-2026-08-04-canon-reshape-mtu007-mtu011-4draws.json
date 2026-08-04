@@ -1,0 +1,1124 @@
+{
+  "schema_version": 1,
+  "corpus": {
+    "source_path": "/private/tmp/claude-501/-Users-pcloffice-pcl--worktrees-edna-f670fbd6-e9d75c75/24bab570-f9dd-44d2-965d-767505961afc/scratchpad/mtu007-011-corpus.json",
+    "source_digest": "sha256:8f724ce61d1eac7ee7d62fa5812bd60b58687143af8707ce5bb4df19eafd9da2",
+    "declared_case_count": 2,
+    "selected_case_count": 2,
+    "tags": [],
+    "honor_draws": true
+  },
+  "execution": {
+    "platform": "telegram",
+    "case_run_count": 8,
+    "multi_turn_case_count": 1,
+    "turn_count": 12,
+    "runtime": {
+      "mode": "disposable_copy",
+      "eval_mode": true,
+      "source_home": "/Users/pcloffice/.hermes-mtu",
+      "candidate_deploy_dir": "/Users/pcloffice/pcl/_worktrees/edna-canon-reshape/deploy/finexis/mtu",
+      "copy_home": "/private/tmp/claude-501/-Users-pcloffice-pcl--worktrees-edna-f670fbd6-e9d75c75/24bab570-f9dd-44d2-965d-767505961afc/scratchpad/hermes-copy3",
+      "live_home_written": false,
+      "model_provider": "custom",
+      "model": "gpt-5.4-mini",
+      "source_config_sha256": "6906557d159672c9e6beabde101d20d1199c13a9e5a7d0ee3c994fdf7ddec9aa",
+      "source_constitution_sha256": "e255c826b95183967a6be1942944f6dde0db58a3bf88d11333a767bf21ef7fef",
+      "copied_config_sha256": "7af42f40b8346bc729f1488017ade2e8f0225270ecee2a061f8a17c1f3d81848",
+      "copied_constitution_sha256": "b8826c110e63e18aa5328a259bb073b84938766c4826285d8f74b4d378f60fdc",
+      "instruction_placement": "skill",
+      "output_mode": "marker"
+    }
+  },
+  "deterministic_summary": {
+    "assertion_count": 24,
+    "passed": 24,
+    "failed": 0,
+    "case_runs_passed": 8,
+    "case_runs_failed": 0,
+    "case_runs_not_applicable": 0
+  },
+  "cases": [
+    {
+      "case_id": "MTU-007_voyage15_intake",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "never-ask",
+        "product-shorthand",
+        "insurer-resolution",
+        "fund-suitability",
+        "sustainability"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-007_voyage15_intake-d1-88de00f012",
+      "replay_namespace": "agent:replay:pa-eval-MTU-007_voyage15_intake-d1-88de00f012",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-007_voyage15_intake-d1-88de00f012-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d1-88de00f012-turn-1",
+          "processed": 1,
+          "response": "Hi, I’m MTU Assistant. /help shows available commands.  Quick check: what are the existing plan(s) or “none” for a first purchase, the CKA outcome, the client risk profile, and the fund name(s) selected?",
+          "response_digest": "sha256:6186eb379cbf130d7ff1f20734355ef5ee06d18146b32a11f19829c004c6b175",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask separately whether the case is ROP",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft before the material inputs arrive",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d1-88de00f012-turn-2",
+          "processed": 1,
+          "response": "To address the client's long-term savings and investment needs, the client currently has Meridian Flex ILP without insurance cover at S$3,600 yearly. This plan will be replaced by HSBC Life Wealth Voyage 15 at S$5,400 yearly with a 15-year minimum investment period.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage 15 because it suits the client's long-term investment objectives and aggressive risk profile.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nClient passed CKA and has a risk profile of Aggressive.",
+          "response_digest": "sha256:b54ce0ecf3c7ad0652e329acc1b8d64d3593718b3158d34ff701042d5ec69acf",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not re-ask whether this is ROP",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the correct does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "states CKA and risk profile in the approved single sentence",
+              "kind": "exact_present",
+              "text": "Client passed CKA and has a risk profile of Aggressive.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client passed CKA and has a risk profile of Aggressive."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-007_voyage15_intake",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "never-ask",
+        "product-shorthand",
+        "insurer-resolution",
+        "fund-suitability",
+        "sustainability"
+      ],
+      "draw": 2,
+      "canary": false,
+      "run_id": "pa-eval-MTU-007_voyage15_intake-d2-69d8191852",
+      "replay_namespace": "agent:replay:pa-eval-MTU-007_voyage15_intake-d2-69d8191852",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-007_voyage15_intake-d2-69d8191852-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d2-69d8191852-turn-1",
+          "processed": 1,
+          "response": "Quick check: what are the existing plan(s), or \"none\" if this is a first purchase; the client's CKA outcome; the client's risk profile; and the selected fund name(s)?",
+          "response_digest": "sha256:507a0d77947369dc7a5ca1cf7ace95e8aadd7ff62de3f0199244e77ad975c047",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask separately whether the case is ROP",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft before the material inputs arrive",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d2-69d8191852-turn-2",
+          "processed": 1,
+          "response": "The product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nTotal annual premiums do not exceed 50% of the client's surplus.\nClient passed CKA and has a risk profile of Aggressive.\n\nThe client is replacing Meridian Flex ILP without insurance cover at S$3,600 yearly with HSBC Life Wealth Voyage 15 at S$5,400 yearly.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage 15 because it suits the client's long-term investment objectives.\n\nThe selected fund is Franklin Technology Fund. CKA passed. The fund is aligned with the client's aggressive risk profile.\n\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:64a8f662e8b0b6376ae744ca80fd65ff5f5d726337d8f5b81f338c0f122240e1",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not re-ask whether this is ROP",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the correct does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "states CKA and risk profile in the approved single sentence",
+              "kind": "exact_present",
+              "text": "Client passed CKA and has a risk profile of Aggressive.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client passed CKA and has a risk profile of Aggressive."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-007_voyage15_intake",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "never-ask",
+        "product-shorthand",
+        "insurer-resolution",
+        "fund-suitability",
+        "sustainability"
+      ],
+      "draw": 3,
+      "canary": false,
+      "run_id": "pa-eval-MTU-007_voyage15_intake-d3-94c11bfa09",
+      "replay_namespace": "agent:replay:pa-eval-MTU-007_voyage15_intake-d3-94c11bfa09",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-007_voyage15_intake-d3-94c11bfa09-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d3-94c11bfa09-turn-1",
+          "processed": 1,
+          "response": "What is the existing plan (or none if this is a first purchase), the CKA outcome, the client’s risk profile, and the selected fund name(s)?",
+          "response_digest": "sha256:254af37f632ad607825b05ab9104ca78e9f2e4d232122a5d2c960e83608320b5",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask separately whether the case is ROP",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft before the material inputs arrive",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d3-94c11bfa09-turn-2",
+          "processed": 1,
+          "response": "The client is replacing Meridian Flex ILP without insurance cover at S$3,600 yearly with HSBC Life Wealth Voyage 15 at S$5,400 yearly, with Franklin Technology Fund selected and an aggressive risk profile confirmed. After discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage because it suits the client’s long-term investment horizon and aggressive risk appetite.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nClient passed CKA and has a risk profile of Aggressive.",
+          "response_digest": "sha256:b555c404d8050b7d15ddac2a97a9d9ff29df78efe149b89870870f4082e72fd9",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not re-ask whether this is ROP",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the correct does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "states CKA and risk profile in the approved single sentence",
+              "kind": "exact_present",
+              "text": "Client passed CKA and has a risk profile of Aggressive.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client passed CKA and has a risk profile of Aggressive."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-007_voyage15_intake",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "never-ask",
+        "product-shorthand",
+        "insurer-resolution",
+        "fund-suitability",
+        "sustainability"
+      ],
+      "draw": 4,
+      "canary": false,
+      "run_id": "pa-eval-MTU-007_voyage15_intake-d4-576240fa15",
+      "replay_namespace": "agent:replay:pa-eval-MTU-007_voyage15_intake-d4-576240fa15",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-007_voyage15_intake-d4-576240fa15-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d4-576240fa15-turn-1",
+          "processed": 1,
+          "response": "Please provide: existing plan(s) or none, CKA outcome, client risk profile, and fund name(s) selected.",
+          "response_digest": "sha256:fcdede76957ae60317a6020ad552603e17dfa54213c44c19033cc75894124c1a",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask separately whether the case is ROP",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft before the material inputs arrive",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d4-576240fa15-turn-2",
+          "processed": 1,
+          "response": "The client is replacing Meridian Flex ILP without insurance cover at S$3,600 yearly with HSBC Life Wealth Voyage (Voyage 15) at S$5,400 yearly, an increase of S$1,800 yearly.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Voyage 15 because it suits the client's investment needs.\n\nThe selected fund, Franklin Technology Fund, is aligned with the client's Aggressive risk profile.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nClient passed CKA and has a risk profile of Aggressive.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:83129e33a2fe807a8bf6e11768eec11cd53b01134c683cbf9fb80ac4a9f74d2e",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not re-ask whether this is ROP",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the correct does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "states CKA and risk profile in the approved single sentence",
+              "kind": "exact_present",
+              "text": "Client passed CKA and has a risk profile of Aggressive.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client passed CKA and has a risk profile of Aggressive."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "disclosures",
+        "product-validation"
+      ],
+      "draw": 1,
+      "canary": true,
+      "run_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d1-02ae442f62",
+      "replay_namespace": "agent:replay:pa-eval-MTU-011_sparse_term_no_placeholder_draft-d1-02ae442f62",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d1-02ae442f62-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d1-02ae442f62-turn-1",
+          "processed": 1,
+          "response": "For the GE term plan, please send the protection amount or premium and the coverage till age. For the Singlife term plan, please send the sum assured or premium and the policy term.",
+          "response_digest": "sha256:f3e9beec785c9e0dda3b584a435e4ba634f8baac83613052dc65f4f7e656c505",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not return a BOR draft before the missing material facts are supplied",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "returns no completed BOR draft at all while material facts are missing",
+              "kind": "no_approved_block",
+              "text": null,
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "needle_count": 7
+            },
+            {
+              "label": "does not put material placeholders into a completed BOR",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            },
+            {
+              "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not select the exceeds sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "disclosures",
+        "product-validation"
+      ],
+      "draw": 2,
+      "canary": true,
+      "run_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d2-60d1c33b3b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-011_sparse_term_no_placeholder_draft-d2-60d1c33b3b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d2-60d1c33b3b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d2-60d1c33b3b-turn-1",
+          "processed": 1,
+          "response": "Please share the missing material details for this replacement case:\n\n- Existing GE term plan: protection amount(s), premium, and coverage till age\n- Proposed Singlife term plan: protection amount(s), first-year and subsequent premium, and policy term",
+          "response_digest": "sha256:c7223d8ab4ac95dc033830359882e4a6f46a0ab33476e29f23692d1b4ac2e1ff",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not return a BOR draft before the missing material facts are supplied",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "returns no completed BOR draft at all while material facts are missing",
+              "kind": "no_approved_block",
+              "text": null,
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "needle_count": 7
+            },
+            {
+              "label": "does not put material placeholders into a completed BOR",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            },
+            {
+              "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not select the exceeds sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "disclosures",
+        "product-validation"
+      ],
+      "draw": 3,
+      "canary": true,
+      "run_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d3-77f13df0e6",
+      "replay_namespace": "agent:replay:pa-eval-MTU-011_sparse_term_no_placeholder_draft-d3-77f13df0e6",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d3-77f13df0e6-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d3-77f13df0e6-turn-1",
+          "processed": 1,
+          "response": "Please provide the existing plan premium and coverage till age, and the proposed plan sum assured plus first-year and subsequent premium and policy term.",
+          "response_digest": "sha256:e6fb5a6248003ed55d81a363bd6d094f17acbda3069f2f4046c8758e141bbc8d",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not return a BOR draft before the missing material facts are supplied",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "returns no completed BOR draft at all while material facts are missing",
+              "kind": "no_approved_block",
+              "text": null,
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "needle_count": 7
+            },
+            {
+              "label": "does not put material placeholders into a completed BOR",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            },
+            {
+              "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not select the exceeds sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "disclosures",
+        "product-validation"
+      ],
+      "draw": 4,
+      "canary": true,
+      "run_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d4-fe59240834",
+      "replay_namespace": "agent:replay:pa-eval-MTU-011_sparse_term_no_placeholder_draft-d4-fe59240834",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d4-fe59240834-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d4-fe59240834-turn-1",
+          "processed": 1,
+          "response": "Please send the exact existing GE plan details and the exact proposed Singlife plan details I need for the draft: existing plan insurer, exact plan name, category, sum assured by benefit, premium, and coverage till age; proposed plan insurer, exact plan name, riders, category, sum assured by benefit, first-year premium, subsequent premium, and policy term.",
+          "response_digest": "sha256:ec17769b55f9a9d5f4d3c6178e0e66f03706439f3f95ed45a5a3ae37223f7124",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not return a BOR draft before the missing material facts are supplied",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "returns no completed BOR draft at all while material facts are missing",
+              "kind": "no_approved_block",
+              "text": null,
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "needle_count": 7
+            },
+            {
+              "label": "does not put material placeholders into a completed BOR",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            },
+            {
+              "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not select the exceeds sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    }
+  ],
+  "generated_at": "2026-08-04T02:30:25.210376+00:00"
+}

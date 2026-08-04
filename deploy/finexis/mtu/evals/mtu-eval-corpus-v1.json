@@ -139,12 +139,12 @@
    "R12"
   ],
   "counts": {
-   "cases": 44,
+   "cases": 49,
    "multi_turn": 11,
-   "draws_4plus": 14,
-   "canaries": 11,
+   "draws_4plus": 19,
+   "canaries": 15,
    "source_types": {
-    "correction": 23,
+    "correction": 28,
     "live-interaction": 21
    }
   },
@@ -958,6 +958,11 @@
     {
      "label": "does not return a BOR draft before the missing material facts are supplied",
      "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "returns no completed BOR draft at all while material facts are missing",
+     "kind": "no_approved_block",
      "critical": true
     },
     {

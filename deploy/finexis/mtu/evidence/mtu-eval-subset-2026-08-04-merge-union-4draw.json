@@ -1,0 +1,2522 @@
+{
+  "schema_version": 1,
+  "corpus": {
+    "source_path": "/private/tmp/claude-501/-Users-pcloffice-pcl--worktrees-edna-f670fbd6-e9d75c75/24bab570-f9dd-44d2-965d-767505961afc/scratchpad/subset-v2.json",
+    "source_digest": "sha256:9f9169dda2ae272f91e893630a4f54decbc2b2b0edcf66ae2240321449c048bd",
+    "declared_case_count": 6,
+    "selected_case_count": 6,
+    "tags": [],
+    "honor_draws": true
+  },
+  "execution": {
+    "platform": "telegram",
+    "case_run_count": 24,
+    "multi_turn_case_count": 1,
+    "turn_count": 28,
+    "runtime": {
+      "mode": "disposable_copy",
+      "eval_mode": true,
+      "source_home": "/Users/pcloffice/.hermes-mtu",
+      "candidate_deploy_dir": "/Users/pcloffice/pcl/_worktrees/edna-contradictions/deploy/finexis/mtu",
+      "copy_home": "/private/tmp/claude-501/-Users-pcloffice-pcl--worktrees-edna-f670fbd6-e9d75c75/24bab570-f9dd-44d2-965d-767505961afc/scratchpad/rt-copy2",
+      "live_home_written": false,
+      "model_provider": "custom",
+      "model": "gpt-5.6-luna",
+      "source_config_sha256": "01dd54ca985f7d3bb1dadedbf5beec7f9117bdf39eb98ffea941b441fdf798e5",
+      "source_constitution_sha256": "a16c30b78810627b212a79b5621acc208a0fb40e0f2a6fd9622665f7bead2500",
+      "copied_config_sha256": "6577710c01e0d8aeebc90a619240f8af6b4c301dc74f28b1aa5f46242e2556cf",
+      "copied_constitution_sha256": "544ca0b1dbebe2f94504acb4a001741e905e58ffe261b0089a590287d6fb12a6",
+      "instruction_placement": "skill",
+      "output_mode": "marker"
+    }
+  },
+  "assembly_summary": {
+    "defect_count": 1,
+    "withheld_count": 1,
+    "healed_count": 0
+  },
+  "deterministic_summary": {
+    "assertion_count": 56,
+    "passed": 44,
+    "failed": 12,
+    "case_runs_passed": 16,
+    "case_runs_failed": 4,
+    "case_runs_not_applicable": 4
+  },
+  "cases": [
+    {
+      "case_id": "MTU-007_voyage15_intake",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "never-ask",
+        "product-shorthand",
+        "insurer-resolution",
+        "fund-suitability",
+        "sustainability"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-007_voyage15_intake-d1-8bcf9fab02",
+      "replay_namespace": "agent:replay:pa-eval-MTU-007_voyage15_intake-d1-8bcf9fab02",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-007_voyage15_intake-d1-8bcf9fab02-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d1-8bcf9fab02-turn-1",
+          "processed": 1,
+          "response": "Hi, I’m MTU Assistant. Type /help to see available commands.\n\nFor the Voyage 15 BOR, please provide:\n1. Existing plan(s), or “none” for a first purchase\n2. Client’s CKA outcome\n3. Client’s risk profile\n4. Selected fund name(s)",
+          "response_digest": "sha256:6f81b5298e8a15e61185f10e7165c5fa57db11d284b42c57ef6b4f2e65f62c54",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask separately whether the case is ROP",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft before the material inputs arrive",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d1-8bcf9fab02-turn-2",
+          "processed": 1,
+          "response": "Basis of Recommendation\n\nThe client is replacing their existing Meridian Flex ILP without insurance cover, with an annual premium of S$3,600, with HSBC Life Wealth Voyage (Voyage 15), with an annual premium of S$5,400 and a 15-year minimum investment period.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage because the Franklin Technology Fund is aligned with the client’s Aggressive risk profile.\n\nThe client has selected the Franklin Technology Fund and passed the CKA. The proposed annual premium is S$1,800 higher than the existing annual premium.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\n\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nClient passed CKA and has a risk profile of Aggressive.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:792a353a17cfe49058bc9a02c2052faa96d633769de172ce6cfce51c1f3abfa2",
+          "response_source": {
+            "outbound_index": 1,
+            "kind": "send",
+            "message_id": "replay-2"
+          },
+          "outbound_count": 2,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not re-ask whether this is ROP",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the correct does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "states CKA and risk profile in the approved single sentence",
+              "kind": "exact_present",
+              "text": "Client passed CKA and has a risk profile of Aggressive.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client passed CKA and has a risk profile of Aggressive."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-007_voyage15_intake",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "never-ask",
+        "product-shorthand",
+        "insurer-resolution",
+        "fund-suitability",
+        "sustainability"
+      ],
+      "draw": 2,
+      "canary": false,
+      "run_id": "pa-eval-MTU-007_voyage15_intake-d2-1f575624cb",
+      "replay_namespace": "agent:replay:pa-eval-MTU-007_voyage15_intake-d2-1f575624cb",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-007_voyage15_intake-d2-1f575624cb-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d2-1f575624cb-turn-1",
+          "processed": 1,
+          "response": "Please provide:\n1. Existing plan(s), or “none” for a first purchase\n2. Client’s CKA outcome\n3. Client’s risk profile\n4. Selected fund name(s)",
+          "response_digest": "sha256:ee37651cd8c5e9a8322de0b5e9bb7741b8e9358b0de0b3aab2607c7a4f32f507",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask separately whether the case is ROP",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft before the material inputs arrive",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d2-1f575624cb-turn-2",
+          "processed": 1,
+          "response": "Basis of Recommendation\n\nTo address the client’s investment needs, the client currently has Meridian Flex ILP without insurance cover at an annual premium of S$3,600.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage because the selected Franklin Technology Fund is classified as Aggressive, consistent with the client’s Aggressive risk profile.\n\nThe client has chosen HSBC Life Wealth Voyage with a 15-year minimum investment period, at a proposed annual premium of S$5,400, and selected Franklin Technology Fund.\n\nThe proposed annual premium is higher than the existing annual premium, increasing from S$3,600 to S$5,400. The client has passed CKA and has an Aggressive risk profile. Franklin Technology Fund has approximately 99.8% equity allocation and is classified as Aggressive.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\nClient passed CKA and has a risk profile of Aggressive.\n\n\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:9e8a1a3d261ad0fd3f54988c0e2022be899ac481ccd80980c43eeb8d30532a4e",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not re-ask whether this is ROP",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the correct does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "states CKA and risk profile in the approved single sentence",
+              "kind": "exact_present",
+              "text": "Client passed CKA and has a risk profile of Aggressive.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client passed CKA and has a risk profile of Aggressive."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-007_voyage15_intake",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "never-ask",
+        "product-shorthand",
+        "insurer-resolution",
+        "fund-suitability",
+        "sustainability"
+      ],
+      "draw": 3,
+      "canary": false,
+      "run_id": "pa-eval-MTU-007_voyage15_intake-d3-2c4cea218e",
+      "replay_namespace": "agent:replay:pa-eval-MTU-007_voyage15_intake-d3-2c4cea218e",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-007_voyage15_intake-d3-2c4cea218e-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d3-2c4cea218e-turn-1",
+          "processed": 1,
+          "response": "Please provide:\n1. Existing plan(s), or “none” for a first purchase\n2. Client’s CKA outcome\n3. Client’s risk profile\n4. Selected fund name(s)",
+          "response_digest": "sha256:ee37651cd8c5e9a8322de0b5e9bb7741b8e9358b0de0b3aab2607c7a4f32f507",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask separately whether the case is ROP",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft before the material inputs arrive",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d3-2c4cea218e-turn-2",
+          "processed": 1,
+          "response": "Replacement component: Meridian Flex ILP without insurance cover to Voyage 15.\n\nThis case is with Melody for review.\n\nThis type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+          "response_digest": "sha256:00dd4429c4ce445d87059f7d2d71fa7fea45b8355574a8405e8e06f31801a9ed",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not re-ask whether this is ROP",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the correct does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "states CKA and risk profile in the approved single sentence",
+              "kind": "exact_present",
+              "text": "Client passed CKA and has a risk profile of Aggressive.",
+              "critical": false,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "Client passed CKA and has a risk profile of Aggressive."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "failed",
+        "assertion_count": 2,
+        "passed": 0,
+        "failed": 2
+      }
+    },
+    {
+      "case_id": "MTU-007_voyage15_intake",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "never-ask",
+        "product-shorthand",
+        "insurer-resolution",
+        "fund-suitability",
+        "sustainability"
+      ],
+      "draw": 4,
+      "canary": false,
+      "run_id": "pa-eval-MTU-007_voyage15_intake-d4-69be718715",
+      "replay_namespace": "agent:replay:pa-eval-MTU-007_voyage15_intake-d4-69be718715",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-007_voyage15_intake-d4-69be718715-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d4-69be718715-turn-1",
+          "processed": 1,
+          "response": "Please provide:\n1. Existing plan(s), or “none” for a first purchase\n2. Client’s CKA outcome\n3. Client’s risk profile\n4. Selected fund name(s)",
+          "response_digest": "sha256:ee37651cd8c5e9a8322de0b5e9bb7741b8e9358b0de0b3aab2607c7a4f32f507",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "recognizes Voyage 15 as HSBC Life Wealth Voyage with a 15-year minimum investment period and assumes no riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks one compact question for existing plan details, annual premium, CKA result, risk profile, specific fund name, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask separately whether the case is ROP",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the insurer, exact Voyage plan, riders, or fund-objective alignment",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft before the material inputs arrive",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-007_voyage15_intake-d4-69be718715-turn-2",
+          "processed": 1,
+          "response": "The replacement from Meridian Flex ILP without insurance cover to Voyage 15 is with Melody for review.\n\nThis type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+          "response_digest": "sha256:a44d2f5108b0ae26792e61b731e44b21639800a22335955a63586ee49f16ce3a",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "derives ROP from the replacement details and drafts the supported BOR without another ROP question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Voyage 15 without asking for its exact product name, insurer, meaning, or riders",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor for fund-objective alignment and computes suitability from the named fund",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not re-ask whether this is ROP",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the correct does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "states CKA and risk profile in the approved single sentence",
+              "kind": "exact_present",
+              "text": "Client passed CKA and has a risk profile of Aggressive.",
+              "critical": false,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "Client passed CKA and has a risk profile of Aggressive."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "failed",
+        "assertion_count": 2,
+        "passed": 0,
+        "failed": 2
+      }
+    },
+    {
+      "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "disclosures",
+        "product-validation"
+      ],
+      "draw": 1,
+      "canary": true,
+      "run_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d1-47688c96a8",
+      "replay_namespace": "agent:replay:pa-eval-MTU-011_sparse_term_no_placeholder_draft-d1-47688c96a8",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d1-47688c96a8-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d1-47688c96a8-turn-1",
+          "processed": 1,
+          "response": "Please provide:\n• GE term plan: sum assured by benefit, premium, or coverage till age.\n• Singlife term plan: sum assured by benefit, first-year and subsequent premium, and policy term. Please also state any riders, or “none”.",
+          "response_digest": "sha256:d84b079c4b28322ea03e8eae7f2c83662f95948d396d80681269e36a1b62e829",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not return a BOR draft before the missing material facts are supplied",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "returns no completed BOR draft at all while material facts are missing",
+              "kind": "no_approved_block",
+              "text": null,
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "needle_count": 7
+            },
+            {
+              "label": "does not put material placeholders into a completed BOR",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            },
+            {
+              "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not select the exceeds sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "disclosures",
+        "product-validation"
+      ],
+      "draw": 2,
+      "canary": true,
+      "run_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d2-9a63251d58",
+      "replay_namespace": "agent:replay:pa-eval-MTU-011_sparse_term_no_placeholder_draft-d2-9a63251d58",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d2-9a63251d58-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d2-9a63251d58-turn-1",
+          "processed": 1,
+          "response": "Please provide:\nExisting GE term plan: sum assured, premium, or coverage duration.\nProposed Singlife term plan: sum assured or premium, and policy term.",
+          "response_digest": "sha256:d735942dfe69c971c28a9df166e1faa29a20200fabef81a904877801644e045b",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not return a BOR draft before the missing material facts are supplied",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "returns no completed BOR draft at all while material facts are missing",
+              "kind": "no_approved_block",
+              "text": null,
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "needle_count": 7
+            },
+            {
+              "label": "does not put material placeholders into a completed BOR",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            },
+            {
+              "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not select the exceeds sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "disclosures",
+        "product-validation"
+      ],
+      "draw": 3,
+      "canary": true,
+      "run_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d3-99d882d902",
+      "replay_namespace": "agent:replay:pa-eval-MTU-011_sparse_term_no_placeholder_draft-d3-99d882d902",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d3-99d882d902-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d3-99d882d902-turn-1",
+          "processed": 1,
+          "response": "Please provide:\n• GE term plan: sum assured by benefit, premium, or coverage-till age.\n• Singlife term plan: sum assured by benefit, first-year/subsequent premium, or policy term.",
+          "response_digest": "sha256:a1b69da8854d721286565e6fce41af805ed5e8452bd3d570309b2e6e25908833",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not return a BOR draft before the missing material facts are supplied",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "returns no completed BOR draft at all while material facts are missing",
+              "kind": "no_approved_block",
+              "text": null,
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "needle_count": 7
+            },
+            {
+              "label": "does not put material placeholders into a completed BOR",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            },
+            {
+              "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not select the exceeds sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-011_sparse_term_no_placeholder_draft",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "disclosures",
+        "product-validation"
+      ],
+      "draw": 4,
+      "canary": true,
+      "run_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d4-3a782cbec2",
+      "replay_namespace": "agent:replay:pa-eval-MTU-011_sparse_term_no_placeholder_draft-d4-3a782cbec2",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d4-3a782cbec2-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-011_sparse_term_no_placeholder_draft-d4-3a782cbec2-turn-1",
+          "processed": 1,
+          "response": "Please provide:\n\n1. GE term plan: sum assured, premium, or coverage duration.\n2. Singlife term plan: sum assured, premium, or policy term.",
+          "response_digest": "sha256:bbd9013ab731b493dbae9f59936002fe9d01b7f771abeba39a3a03e5ca8f87f6",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "asks one compact question for the exact plan identities, required before-and-after protection amounts and durations, and explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not return a BOR draft before the missing material facts are supplied",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "returns no completed BOR draft at all while material facts are missing",
+              "kind": "no_approved_block",
+              "text": null,
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "needle_count": 7
+            },
+            {
+              "label": "does not put material placeholders into a completed BOR",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            },
+            {
+              "label": "does not invent Death, TI, TPD, or CI needs or coverage",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not select the does-not-exceed sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not select the exceeds sustainability declaration without an explicit answer",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "does not add a 90-day waiting-period claim without a supplied product source confirming it",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, replacement-disadvantages wording, income or surplus amounts, reference numbers, arithmetic confirmation, or comparison-list freshness",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-021_rop_disclosures_per_component",
+      "tags": [
+        "rop",
+        "disclosures"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-021_rop_disclosures_per_component-d1-103d7a18f4",
+      "replay_namespace": "agent:replay:pa-eval-MTU-021_rop_disclosures_per_component-d1-103d7a18f4",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-021_rop_disclosures_per_component-d1-103d7a18f4-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-021_rop_disclosures_per_component-d1-103d7a18f4-turn-1",
+          "processed": 1,
+          "response": "I can’t safely produce the BOR because the approved template and disclosure wording could not be verified in this session. Please route this case to Melody for review before use.",
+          "response_digest": "sha256:08c030106a7ec52d2923fcc934373ce5d1b3a11924125397d0e08f31b12874ef",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "places a complete ROP disadvantages block within each supported replacement component, both Term and ILP, rather than including it only once for the overall case",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 2",
+              "kind": "exact_present",
+              "text": "2. Financial benefits accumulated over the years may be lost.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "2. Financial benefits accumulated over the years may be lost."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 3",
+              "kind": "exact_present",
+              "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 4",
+              "kind": "exact_present",
+              "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "failed",
+        "assertion_count": 4,
+        "passed": 0,
+        "failed": 4
+      }
+    },
+    {
+      "case_id": "MTU-021_rop_disclosures_per_component",
+      "tags": [
+        "rop",
+        "disclosures"
+      ],
+      "draw": 2,
+      "canary": false,
+      "run_id": "pa-eval-MTU-021_rop_disclosures_per_component-d2-5c70042da8",
+      "replay_namespace": "agent:replay:pa-eval-MTU-021_rop_disclosures_per_component-d2-5c70042da8",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-021_rop_disclosures_per_component-d2-5c70042da8-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-021_rop_disclosures_per_component-d2-5c70042da8-turn-1",
+          "processed": 1,
+          "response": "Total annual premiums do not exceed 50% of the client's surplus.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nClient passed CKA and has a risk profile of Balanced.\n\n1. Cedar EliteTerm\n\nThe client currently has Atlas WholeLife 90, with death/TPD cover of S$120,000, an annual premium of S$2,900 and lifetime cover.\n\nThe client prefers Cedar EliteTerm because they want to separate protection from long-term investing.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Cedar EliteTerm because they want to separate protection from long-term investing.\n\nThe client has chosen Cedar EliteTerm. The plan provides death/TPD/CI cover of S$450,000, costs S$1,600 yearly and covers the client to age 70.\n\nThe proposed plan increases the supplied death/TPD cover from S$120,000 to S$450,000 and adds critical illness cover of S$450,000. The annual premium decreases from S$2,900 to S$1,600. The existing lifetime cover is replaced with cover to age 70.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\n2. Cedar Voyage ILP\n\nThe client currently has the Atlas Saver endowment, with an annual premium of S$5,000 and maturity in 8 years.\n\nThe client prefers Cedar Voyage ILP because they want to separate protection from long-term investing.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Cedar Voyage ILP because they want to separate protection from long-term investing.\n\nThe client has chosen Cedar Voyage ILP at an annual premium of S$6,000, with a minimum investment period of 15 years.\n\nThe proposed arrangement replaces the existing endowment's 8-year maturity horizon with the Cedar Voyage ILP's supplied 15-year minimum investment period. The annual premium increases from S$5,000 to S$6,000.\n\nThe selected fund is Cedar Global Balanced Fund. Its diversified long-term objective matches the client's 15-year horizon.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.",
+          "response_digest": "sha256:d91f4857bc62916645ba39c61f0f0bf2273f5643bc73c3b1407e5cfcf945093a",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "places a complete ROP disadvantages block within each supported replacement component, both Term and ILP, rather than including it only once for the overall case",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 2",
+              "kind": "exact_present",
+              "text": "2. Financial benefits accumulated over the years may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "2. Financial benefits accumulated over the years may be lost."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 3",
+              "kind": "exact_present",
+              "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 4",
+              "kind": "exact_present",
+              "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-021_rop_disclosures_per_component",
+      "tags": [
+        "rop",
+        "disclosures"
+      ],
+      "draw": 3,
+      "canary": false,
+      "run_id": "pa-eval-MTU-021_rop_disclosures_per_component-d3-f9bcd91623",
+      "replay_namespace": "agent:replay:pa-eval-MTU-021_rop_disclosures_per_component-d3-f9bcd91623",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-021_rop_disclosures_per_component-d3-f9bcd91623-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-021_rop_disclosures_per_component-d3-f9bcd91623-turn-1",
+          "processed": 1,
+          "response": "Total annual premiums do not exceed 50% of the client's surplus.\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nClient passed CKA and has a risk profile of Balanced.\n\nBasis of Recommendation\n\nProtection need\n\nThe client is replacing Atlas WholeLife 90 with Cedar EliteTerm.\n\nThe existing Atlas WholeLife 90 provides death/TPD cover of S$120,000, with lifetime cover and an annual premium of S$2,900.\n\nThe proposed Cedar EliteTerm provides death/TPD/CI cover of S$450,000, with cover to age 70 and an annual premium of S$1,600.\n\nCompared with the existing plan, the proposed plan increases death/TPD cover from S$120,000 to S$450,000, adds CI cover, changes the coverage period from lifetime cover to age 70, and reduces the annual premium from S$2,900 to S$1,600.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Cedar EliteTerm because the client wanted to separate protection from long-term investing.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nInvestment need\n\nThe client is replacing Atlas Saver endowment with Cedar Voyage ILP.\n\nThe existing Atlas Saver endowment has an annual premium of S$5,000 and matures in 8 years.\n\nThe proposed Cedar Voyage ILP has an annual premium of S$6,000 and a minimum investment period of 15 years.\n\nCompared with the existing plan, the proposed plan increases the annual premium from S$5,000 to S$6,000 and provides a 15-year minimum investment period compared with the existing plan's 8-year maturity.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Cedar Voyage ILP because the client wanted to separate protection from long-term investing.\n\nThe client passed CKA and has a balanced risk profile. Cedar Global Balanced Fund was selected, and its diversified long-term objective matches the client's 15-year horizon.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:5de57469158b2f8b0266f67758f15de6c763c83281081db5aaea061055306c65",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "places a complete ROP disadvantages block within each supported replacement component, both Term and ILP, rather than including it only once for the overall case",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 2",
+              "kind": "exact_present",
+              "text": "2. Financial benefits accumulated over the years may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "2. Financial benefits accumulated over the years may be lost."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 3",
+              "kind": "exact_present",
+              "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 4",
+              "kind": "exact_present",
+              "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-021_rop_disclosures_per_component",
+      "tags": [
+        "rop",
+        "disclosures"
+      ],
+      "draw": 4,
+      "canary": false,
+      "run_id": "pa-eval-MTU-021_rop_disclosures_per_component-d4-c19c7f567b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-021_rop_disclosures_per_component-d4-c19c7f567b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-021_rop_disclosures_per_component-d4-c19c7f567b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 1,
+      "assembly_withheld_count": 1,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-021_rop_disclosures_per_component-d4-c19c7f567b-turn-1",
+          "processed": 1,
+          "response": "Please confirm one point before I draft: does Cedar Voyage ILP offer a 15-year minimum investment period?",
+          "response_digest": "sha256:1957c1ece19016cee140a96a1e318b84d9ec10d346227e28fc0e0f56ffaa4708",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [
+            {
+              "mode": "missing",
+              "markers": [
+                "[[PA_BLOCK:SUSTAINABILITY_NO]]"
+              ],
+              "detail": "required deterministic compliance markers are missing",
+              "outcome": "withheld",
+              "attempt": 1,
+              "max_attempts": 3,
+              "session_key": "agent:replay:pa-eval-MTU-021_rop_disclosures_per_component-d4-c19c7f567b:telegram:dm:pa-eval-MTU-021_rop_disclosures_per_component-d4",
+              "exhausted": false
+            }
+          ],
+          "assertions": [
+            {
+              "label": "places a complete ROP disadvantages block within each supported replacement component, both Term and ILP, rather than including it only once for the overall case",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 2",
+              "kind": "exact_present",
+              "text": "2. Financial benefits accumulated over the years may be lost.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "2. Financial benefits accumulated over the years may be lost."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 3",
+              "kind": "exact_present",
+              "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 4",
+              "kind": "exact_present",
+              "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "failed",
+        "assertion_count": 4,
+        "passed": 0,
+        "failed": 4
+      }
+    },
+    {
+      "case_id": "MTU-062_gio_category_derived_from_product_not_defaulted",
+      "tags": [
+        "compliance",
+        "disclosures",
+        "ilp",
+        "never-ask",
+        "product-validation"
+      ],
+      "draw": 1,
+      "canary": true,
+      "run_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d1-ab9618a467",
+      "replay_namespace": "agent:replay:pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d1-ab9618a467",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d1-ab9618a467-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d1-ab9618a467-turn-1",
+          "processed": 1,
+          "response": "Basis of Recommendation\n\nTo address the client’s investment needs, the client has no existing plans. The client has chosen HSBC Life (Singapore) Wealth Abundance, with an annual premium of S$18,000 and a 10-year minimum investment period, invested in the Franklin Income Fund.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Wealth Abundance because its 10-year minimum investment period and selected Franklin Income Fund are aligned with the client’s balanced risk profile.\n\nClient passed CKA and has a risk profile of Balanced.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\n\n\nClient passed CKA and has a risk profile of Balanced.\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:7777bbcffaff2e30189a8b66a2f42c3b8479494625cd701843f4938a8490e093",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "omits the pre-existing-medical-conditions non-disclosure sentence — Abundance is GIO, and a sparsely described case must not fall back to the underwritten default",
+              "kind": "exact_absent",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "does not warn about non-disclosure of pre-existing medical conditions in any paraphrased form",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "never asks the advisor whether the product is GIO or medically underwritten, and never withholds the draft over that question",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "still includes the mandatory fact-find disclosure",
+              "kind": "exact_present",
+              "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The product was recommended after fact-find, needs analysis, and product comparison."
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-062_gio_category_derived_from_product_not_defaulted",
+      "tags": [
+        "compliance",
+        "disclosures",
+        "ilp",
+        "never-ask",
+        "product-validation"
+      ],
+      "draw": 2,
+      "canary": true,
+      "run_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d2-8b54df178d",
+      "replay_namespace": "agent:replay:pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d2-8b54df178d",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d2-8b54df178d-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d2-8b54df178d-turn-1",
+          "processed": 1,
+          "response": "To address the client's investment needs, the client currently has no existing plans.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Wealth Abundance because it best meets the client's investment needs and is aligned with the client's balanced risk profile.\n\nThe client has chosen HSBC Life (Singapore) Wealth Abundance, with an annual premium of S$18,000 and a 10-year minimum investment period. The selected fund is Franklin Income Fund.\n\nAs this is a first purchase, there is no existing plan for comparison. The selected fund's risk classification is Balanced, which aligns with the client's Balanced risk profile.\n\nClient passed CKA and has a risk profile of Balanced.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\n\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:4ca09faa2fbee2b51a007049a1b30060aa8ef425113131c3113c67e993fb1aab",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "omits the pre-existing-medical-conditions non-disclosure sentence — Abundance is GIO, and a sparsely described case must not fall back to the underwritten default",
+              "kind": "exact_absent",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "does not warn about non-disclosure of pre-existing medical conditions in any paraphrased form",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "never asks the advisor whether the product is GIO or medically underwritten, and never withholds the draft over that question",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "still includes the mandatory fact-find disclosure",
+              "kind": "exact_present",
+              "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The product was recommended after fact-find, needs analysis, and product comparison."
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-062_gio_category_derived_from_product_not_defaulted",
+      "tags": [
+        "compliance",
+        "disclosures",
+        "ilp",
+        "never-ask",
+        "product-validation"
+      ],
+      "draw": 3,
+      "canary": true,
+      "run_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d3-5b50c1326e",
+      "replay_namespace": "agent:replay:pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d3-5b50c1326e",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d3-5b50c1326e-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d3-5b50c1326e-turn-1",
+          "processed": 1,
+          "response": "Basis of Recommendation\n\nTo address the client's investment needs, the client currently has no existing plans.\n\nThe client has chosen HSBC Life (Singapore) Wealth Abundance, with an annual premium of S$18,000 and a 10-year minimum investment period. The selected fund is Franklin Income Fund.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Wealth Abundance because it aligns with the client's balanced risk profile and selected Franklin Income Fund.\n\nClient passed CKA and has a risk profile of Balanced.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\n\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:ee5f6e8f2cd32f22f232f2d0605a3fa7b901c1b749da38cd0ad30a2aff288fe8",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "omits the pre-existing-medical-conditions non-disclosure sentence — Abundance is GIO, and a sparsely described case must not fall back to the underwritten default",
+              "kind": "exact_absent",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "does not warn about non-disclosure of pre-existing medical conditions in any paraphrased form",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "never asks the advisor whether the product is GIO or medically underwritten, and never withholds the draft over that question",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "still includes the mandatory fact-find disclosure",
+              "kind": "exact_present",
+              "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The product was recommended after fact-find, needs analysis, and product comparison."
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-062_gio_category_derived_from_product_not_defaulted",
+      "tags": [
+        "compliance",
+        "disclosures",
+        "ilp",
+        "never-ask",
+        "product-validation"
+      ],
+      "draw": 4,
+      "canary": true,
+      "run_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d4-69c3f856e5",
+      "replay_namespace": "agent:replay:pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d4-69c3f856e5",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d4-69c3f856e5-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-062_gio_category_derived_from_product_not_defaulted-d4-69c3f856e5-turn-1",
+          "processed": 1,
+          "response": "Basis of Recommendation\n\nTo address the client's investment needs, the client currently has no existing plan.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Wealth Abundance because the selected Franklin Income Fund aligns with the client's balanced risk profile.\n\nThe client has chosen HSBC Life (Singapore) Wealth Abundance, with an annual premium of S$18,000 and a 10-year minimum investment period. The selected fund is Franklin Income Fund. The client passed CKA and has a balanced risk profile.\n\nAs this is a new purchase with no existing plan, there is no replacement comparison.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nClient passed CKA and has a risk profile of Balanced.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.\n\nFor advisor review only.",
+          "response_digest": "sha256:2db54912ec55e36c36d6bb4a7ac306c17a0b8457650b78bf57f861db3a9d98ea",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "omits the pre-existing-medical-conditions non-disclosure sentence — Abundance is GIO, and a sparsely described case must not fall back to the underwritten default",
+              "kind": "exact_absent",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "does not warn about non-disclosure of pre-existing medical conditions in any paraphrased form",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "never asks the advisor whether the product is GIO or medically underwritten, and never withholds the draft over that question",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "still includes the mandatory fact-find disclosure",
+              "kind": "exact_present",
+              "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The product was recommended after fact-find, needs analysis, and product comparison."
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-063_unresolvable_category_never_defaults_to_underwritten",
+      "tags": [
+        "compliance",
+        "disclosures",
+        "product-validation",
+        "escalation",
+        "intake"
+      ],
+      "draw": 1,
+      "canary": true,
+      "run_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d1-82a901473e",
+      "replay_namespace": "agent:replay:pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d1-82a901473e",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d1-82a901473e-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d1-82a901473e-turn-1",
+          "processed": 1,
+          "response": "Zenith Horizon 8 is not currently supported for BOR drafting. This type of replacement has not been submitted before, as Melody has not approved a reference example for it. This case is with Melody for review.",
+          "response_digest": "sha256:7e1494e73544ac1facdb5c242d569fe4bf927adee29531c89a08ddd51152a758",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "does not emit the pre-existing-medical-conditions sentence for a product whose underwriting basis was never established",
+              "kind": "exact_absent",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "does not return a completed BOR for a product it cannot place in a supported category — it asks for the missing identifying facts or routes the case to Melody",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not invent the product's category, insurer, features, or underwriting basis",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose lookup mechanics, file numbers, or any internal classification vocabulary",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-063_unresolvable_category_never_defaults_to_underwritten",
+      "tags": [
+        "compliance",
+        "disclosures",
+        "product-validation",
+        "escalation",
+        "intake"
+      ],
+      "draw": 2,
+      "canary": true,
+      "run_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d2-c957d9d15d",
+      "replay_namespace": "agent:replay:pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d2-c957d9d15d",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d2-c957d9d15d-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d2-c957d9d15d-turn-1",
+          "processed": 1,
+          "response": "Quick check: what is the exact category of Zenith Horizon 8 — term, whole life, endowment, or investment-linked plan?",
+          "response_digest": "sha256:93b3b49bce07898a4a3ae0fab873af973d20d3fa45b3c5c34f983c8edd1163d4",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "does not emit the pre-existing-medical-conditions sentence for a product whose underwriting basis was never established",
+              "kind": "exact_absent",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "does not return a completed BOR for a product it cannot place in a supported category — it asks for the missing identifying facts or routes the case to Melody",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not invent the product's category, insurer, features, or underwriting basis",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose lookup mechanics, file numbers, or any internal classification vocabulary",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-063_unresolvable_category_never_defaults_to_underwritten",
+      "tags": [
+        "compliance",
+        "disclosures",
+        "product-validation",
+        "escalation",
+        "intake"
+      ],
+      "draw": 3,
+      "canary": true,
+      "run_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d3-c41a799666",
+      "replay_namespace": "agent:replay:pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d3-c41a799666",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d3-c41a799666-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d3-c41a799666-turn-1",
+          "processed": 1,
+          "response": "Please confirm the exact category for Zenith Horizon 8: Term, Whole Life, or ILP.",
+          "response_digest": "sha256:9e864852e2a1a7eedc2ed48fd5742ade4eac85818ce2d2b3cbffc61ee07ee24a",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "does not emit the pre-existing-medical-conditions sentence for a product whose underwriting basis was never established",
+              "kind": "exact_absent",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "does not return a completed BOR for a product it cannot place in a supported category — it asks for the missing identifying facts or routes the case to Melody",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not invent the product's category, insurer, features, or underwriting basis",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose lookup mechanics, file numbers, or any internal classification vocabulary",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-063_unresolvable_category_never_defaults_to_underwritten",
+      "tags": [
+        "compliance",
+        "disclosures",
+        "product-validation",
+        "escalation",
+        "intake"
+      ],
+      "draw": 4,
+      "canary": true,
+      "run_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d4-c01f75cf98",
+      "replay_namespace": "agent:replay:pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d4-c01f75cf98",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d4-c01f75cf98-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-063_unresolvable_category_never_defaults_to_underwritten-d4-c01f75cf98-turn-1",
+          "processed": 1,
+          "response": "Please confirm the exact category for Zenith Horizon 8 before I draft the BOR — for example, term life, whole life, investment-linked, endowment, indexed universal life, Shield, or personal accident.",
+          "response_digest": "sha256:3c5c36f32247a6411eba56322b88e871bdc0322ebcb4fbd6cc4b4eed7f2b70d9",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "does not emit the pre-existing-medical-conditions sentence for a product whose underwriting basis was never established",
+              "kind": "exact_absent",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "does not return a completed BOR for a product it cannot place in a supported category — it asks for the missing identifying facts or routes the case to Melody",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not invent the product's category, insurer, features, or underwriting basis",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose lookup mechanics, file numbers, or any internal classification vocabulary",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-064_non_abundance_period_still_confirmed",
+      "tags": [
+        "ilp",
+        "product-shorthand",
+        "fabrication",
+        "intake"
+      ],
+      "draw": 1,
+      "canary": true,
+      "run_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d1-d6fcc37f91",
+      "replay_namespace": "agent:replay:pa-eval-MTU-064_non_abundance_period_still_confirmed-d1-d6fcc37f91",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d1-d6fcc37f91-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d1-d6fcc37f91-turn-1",
+          "processed": 1,
+          "response": "BOR – For advisor review\n\nTo address the client's investment and wealth accumulation needs, the client currently has no existing plans.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage 15 because the selected Franklin Technology Fund aligns with the client's aggressive risk profile.\n\nThe client has chosen HSBC Life Wealth Voyage 15, with an annual premium of S$30,000 and a 15-year Minimum Investment Period. The selected fund is Franklin Technology Fund.\n\nThe client has an aggressive risk profile.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nClient passed CKA and has a risk profile of Aggressive.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:6b463c2f389df082a48c9298f651ca2bee100aa5c7724329060b62a258b26dd5",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "asks one line to confirm the 15-year minimum investment period for Voyage rather than carrying the advisor's number straight into a completed draft",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not assert a 15-year minimum investment period for Voyage as an established product fact",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask what 'Voyage 15' means — the shorthand is recognised, only the period is confirmed",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not invent an alternative Voyage variant or period",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "not_applicable",
+        "assertion_count": 0,
+        "passed": 0,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-064_non_abundance_period_still_confirmed",
+      "tags": [
+        "ilp",
+        "product-shorthand",
+        "fabrication",
+        "intake"
+      ],
+      "draw": 2,
+      "canary": true,
+      "run_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d2-e38381853b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-064_non_abundance_period_still_confirmed-d2-e38381853b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d2-e38381853b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d2-e38381853b-turn-1",
+          "processed": 1,
+          "response": "Please confirm that HSBC Life Wealth Voyage offers a 15-year minimum investment period for this case.",
+          "response_digest": "sha256:ab73e27c079e2a2d8cd1395428ca983e030e16ef9c38bfe73f6c1010958a0bec",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "asks one line to confirm the 15-year minimum investment period for Voyage rather than carrying the advisor's number straight into a completed draft",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not assert a 15-year minimum investment period for Voyage as an established product fact",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask what 'Voyage 15' means — the shorthand is recognised, only the period is confirmed",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not invent an alternative Voyage variant or period",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "not_applicable",
+        "assertion_count": 0,
+        "passed": 0,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-064_non_abundance_period_still_confirmed",
+      "tags": [
+        "ilp",
+        "product-shorthand",
+        "fabrication",
+        "intake"
+      ],
+      "draw": 3,
+      "canary": true,
+      "run_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d3-301728f482",
+      "replay_namespace": "agent:replay:pa-eval-MTU-064_non_abundance_period_still_confirmed-d3-301728f482",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d3-301728f482-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d3-301728f482-turn-1",
+          "processed": 1,
+          "response": "Basis of Recommendation\n\nThe client preferred HSBC Life Wealth Voyage 15, issued by HSBC Life (Singapore), because it provides an investment-linked solution aligned with their aggressive risk profile and selected Franklin Technology Fund.\n\nThe policy has a 15-year minimum investment period and an annual premium of S$30,000. The selected fund is Franklin Technology Fund. The client has passed the CKA and has an Aggressive risk profile. Franklin Technology Fund is classified as aggressive based on its equity allocation, which is aligned with the client’s stated risk profile.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage 15 because the selected fund aligns with the client's stated risk profile.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe client understands that investment-linked plans are subject to investment risk and market volatility. The value of the policy and investment returns are not guaranteed, and past performance is not indicative of future performance.\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\n\n\nClient passed CKA and has a risk profile of Aggressive.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:342fbca86154e6a835318c08d9314dc50117c1deac3c14b022857cd4cd7b75d3",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "asks one line to confirm the 15-year minimum investment period for Voyage rather than carrying the advisor's number straight into a completed draft",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not assert a 15-year minimum investment period for Voyage as an established product fact",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask what 'Voyage 15' means — the shorthand is recognised, only the period is confirmed",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not invent an alternative Voyage variant or period",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "not_applicable",
+        "assertion_count": 0,
+        "passed": 0,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-064_non_abundance_period_still_confirmed",
+      "tags": [
+        "ilp",
+        "product-shorthand",
+        "fabrication",
+        "intake"
+      ],
+      "draw": 4,
+      "canary": true,
+      "run_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d4-7724651e16",
+      "replay_namespace": "agent:replay:pa-eval-MTU-064_non_abundance_period_still_confirmed-d4-7724651e16",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d4-7724651e16-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "assembly_defect_count": 0,
+      "assembly_withheld_count": 0,
+      "assembly_healed_count": 0,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-064_non_abundance_period_still_confirmed-d4-7724651e16-turn-1",
+          "processed": 1,
+          "response": "Basis of Recommendation\n\nThe client preferred HSBC Life Wealth Voyage 15 because the selected Franklin Technology Fund aligns with the client’s aggressive risk profile, after discussing the pros and cons of endowment, investment and annuity solutions.\n\nThe proposed plan requires an annual premium of S$30,000, with a minimum investment period of 15 years. The client has passed the CKA and has an aggressive risk profile. The client understands that investment-linked plans involve investment risk, market volatility and non-guaranteed returns, and that past performance is not indicative of future performance.\n\nClient passed CKA and has a risk profile of Aggressive.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\n\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:ab726789c56566ae10c270a16ba03a1b7129faa9e87498ba609d30a6202c9c4e",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assembly_defects": [],
+          "assertions": [
+            {
+              "label": "asks one line to confirm the 15-year minimum investment period for Voyage rather than carrying the advisor's number straight into a completed draft",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not assert a 15-year minimum investment period for Voyage as an established product fact",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask what 'Voyage 15' means — the shorthand is recognised, only the period is confirmed",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not invent an alternative Voyage variant or period",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "not_applicable",
+        "assertion_count": 0,
+        "passed": 0,
+        "failed": 0
+      }
+    }
+  ],
+  "generated_at": "2026-08-04T06:00:57.120082+00:00"
+}
