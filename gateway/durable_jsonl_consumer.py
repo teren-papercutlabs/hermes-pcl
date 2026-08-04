@@ -2979,6 +2979,18 @@ def deliver_management_replies(
             summary["suppressed"] += 1
             continue
         anchor = send["reply_to"] or newest_message_by_chat.get(chat_id)
+        if anchor and "+" in str(anchor) and anchor not in handled_message_ids:
+            # A multi-message WhatsApp turn bundle carries a synthetic
+            # composite id ("id1+id2+..."; platforms/whatsapp.py join). The
+            # components were handled individually, so the composite can
+            # never match the allow-set and the reply was silently
+            # suppressed (2026-08-04 incident: every nrefs>=2 turn
+            # composed-without-send). Resolve to the newest component that
+            # was actually handled in this batch.
+            for component in reversed(str(anchor).split("+")):
+                if component in handled_message_ids and component in records_by_id:
+                    anchor = component
+                    break
         anchor_record = records_by_id.get(str(anchor)) if anchor else None
         try:
             anchor_item = _bridge_item(anchor_record.raw) if anchor_record else None
