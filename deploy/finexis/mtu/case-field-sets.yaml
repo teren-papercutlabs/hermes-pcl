@@ -575,8 +575,10 @@ value_tables:
     value_key: key
     aliases_key: aliases
 
-  # R09's fund reference. Consumed by fund_selection, which UNPOPULATES on a
-  # miss so intake asks for the specific fund name.
+  # R09's fund reference. Consumed by fund_selection, which stores a KNOWN
+  # fund under the canonical name here (so the alignment computation can look
+  # it up) and accepts an unknown one as written — see that field for why a
+  # three-row table must not be allowed to refuse answers.
   funds:
     source: reference/066-funds.yaml
     select: entries
