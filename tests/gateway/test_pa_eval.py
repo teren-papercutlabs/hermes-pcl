@@ -266,3 +266,102 @@ def test_no_approved_block_needs_no_text_field():
     """Its needles come from the artifacts, so authoring text would be wrong."""
     expectation = _no_draft_expectation()
     assert expectation.text is None
+
+
+# ── assembly defects: WHY a turn produced no draft ─────────────────────────
+#
+# A refusal-exhaustion and a content regression are the same assertion failure
+# without this field. The eval layer read three exhausted marker refusals as
+# two unrelated content regressions for exactly that reason.
+
+
+def test_replay_report_carries_assembly_defects_per_turn(tmp_path):
+    from agent.pa_output_assembly import (
+        PAOutputAssemblyRetry,
+        drain_assembly_defects,
+        record_assembly_defect,
+    )
+
+    drain_assembly_defects()
+    bundle = adapt_case_to_replay(_corpus(tmp_path).cases[0])
+
+    class Runner:
+        async def replay(self, plan):
+            text = "Required sentence."
+            if plan.attempt_id.endswith("turn-1"):
+                # The turn the guard withheld: recorded by the gateway on
+                # every attempt, the exhausting one included.
+                for attempt in (1, 2, 3):
+                    record_assembly_defect(
+                        PAOutputAssemblyRetry(
+                            ("[[PA_BLOCK:GENERAL_DISCLOSURES]]",),
+                            "required deterministic compliance markers are missing",
+                        ).to_defect(attempt=attempt, exhausted=attempt == 3)
+                    )
+                text = "Sorry, I encountered an error (PAOutputAssemblyRetry)."
+            elif plan.attempt_id.endswith("turn-2"):
+                record_assembly_defect(
+                    {
+                        "mode": "duplicate",
+                        "marker": "[[PA_BLOCK:GENERAL_DISCLOSURES]]",
+                        "id": "general_disclosures",
+                        "occurrences": 2,
+                        "removed": 1,
+                        "outcome": "healed",
+                        "attempt": 1,
+                    }
+                )
+            return ReplayResult(
+                run_id=plan.run_id,
+                attempt_id=plan.attempt_id,
+                platform=plan.platform,
+                processed=1,
+                outbound=[{"kwargs": {"content": text}, "args": [], "kind": "send"}],
+                blocked_commands=[],
+                delivery_mode="capture",
+            )
+
+    report = asyncio.run(run_replay_bundle(Runner(), bundle))
+
+    withheld = report["turns"][0]["assembly_defects"]
+    assert len(withheld) == 3
+    assert {item["mode"] for item in withheld} == {"missing"}
+    assert withheld[0]["markers"] == ["[[PA_BLOCK:GENERAL_DISCLOSURES]]"]
+    assert [item["attempt"] for item in withheld] == [1, 2, 3]
+    assert withheld[-1]["exhausted"] is True
+
+    healed = report["turns"][1]["assembly_defects"]
+    assert len(healed) == 1
+    assert healed[0]["mode"] == "duplicate"
+    assert healed[0]["outcome"] == "healed"
+
+    # Attribution is per turn, never smeared across the case.
+    assert report["assembly_defect_count"] == 4
+    assert report["assembly_withheld_count"] == 3
+    assert report["assembly_healed_count"] == 1
+
+
+def test_defects_from_an_earlier_turn_are_not_attributed_to_a_later_one(tmp_path):
+    from agent.pa_output_assembly import drain_assembly_defects, record_assembly_defect
+
+    drain_assembly_defects()
+    # Residue from a previous run, sitting in the trail before the turn starts.
+    record_assembly_defect({"mode": "missing", "outcome": "withheld", "attempt": 1})
+    bundle = adapt_case_to_replay(_corpus(tmp_path).cases[0])
+
+    class Runner:
+        async def replay(self, plan):
+            return ReplayResult(
+                run_id=plan.run_id,
+                attempt_id=plan.attempt_id,
+                platform=plan.platform,
+                processed=1,
+                outbound=[
+                    {"kwargs": {"content": "Required sentence."}, "args": [], "kind": "send"}
+                ],
+                blocked_commands=[],
+                delivery_mode="capture",
+            )
+
+    report = asyncio.run(run_replay_bundle(Runner(), bundle))
+    assert report["assembly_defect_count"] == 0

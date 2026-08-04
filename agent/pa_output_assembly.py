@@ -33,13 +33,64 @@ class PAOutputAssemblyRetry(PAOutputAssemblyError):
         detail: str,
         *,
         instruction: str | None = None,
+        mode: str = "missing",
     ) -> None:
         self.missing_markers = tuple(missing_markers)
         #: Overrides the default marker-shaped retry note when the defect is
         #: not a missing marker (e.g. model-authored text standing in for a
         #: dropped approved block).
         self.instruction = instruction
+        #: WHICH defect class withheld the answer. Carried on the exception so
+        #: the refusal is attributable downstream: without it a report can see
+        #: that a turn produced no draft but not why, and an eval reads a
+        #: refusal as a content regression.
+        self.mode = str(mode)
+        self.detail = detail
         super().__init__(detail)
+
+    def to_defect(self, **extra: Any) -> dict[str, Any]:
+        """Structured record of this refusal, for logs and eval reports."""
+        record: dict[str, Any] = {
+            "mode": self.mode,
+            "markers": list(self.missing_markers),
+            "detail": self.detail,
+            "outcome": "withheld",
+        }
+        record.update({key: value for key, value in extra.items() if value is not None})
+        return record
+
+
+#: PROCESS-LOCAL ASSEMBLY-DEFECT TRAIL.
+#:
+#: A withheld turn and a wrong-content turn look identical downstream: both
+#: arrive as "the response did not contain the expected text". The eval layer
+#: read three exhausted refusals as two unrelated content regressions for
+#: exactly that reason — nothing anywhere recorded WHICH marker failed or in
+#: WHICH mode. This is the trail that makes the difference readable: the
+#: gateway appends one record per defect (withheld or healed), and a consumer
+#: running in the same process — the replay/eval harness — drains it per turn.
+#:
+#: Deliberately in-process and bounded: it is diagnostic evidence attached to a
+#: run, not durable state, and it must never grow without limit in a
+#: long-running gateway.
+_ASSEMBLY_DEFECTS: list[dict[str, Any]] = []
+_ASSEMBLY_DEFECT_CAP = 500
+
+
+def record_assembly_defect(defect: Mapping[str, Any]) -> dict[str, Any]:
+    """Append one structured assembly-defect record to the process trail."""
+    entry = dict(defect)
+    _ASSEMBLY_DEFECTS.append(entry)
+    if len(_ASSEMBLY_DEFECTS) > _ASSEMBLY_DEFECT_CAP:
+        del _ASSEMBLY_DEFECTS[: len(_ASSEMBLY_DEFECTS) - _ASSEMBLY_DEFECT_CAP]
+    return entry
+
+
+def drain_assembly_defects() -> list[dict[str, Any]]:
+    """Return every recorded defect and clear the trail."""
+    drained = list(_ASSEMBLY_DEFECTS)
+    _ASSEMBLY_DEFECTS.clear()
+    return drained
 
 
 @dataclass(frozen=True)
@@ -147,6 +198,28 @@ _SCOPE_RE = re.compile(r"\[\[PA_SCOPE:([^\]]+)\]\]")
 #: A block marker is the RUNTIME's token, not the model's prose — it must not
 #: read as the model having written the block's topic.
 _MARKER_RE = re.compile(r"\[\[PA_BLOCK:[^\]]+\]\]")
+
+
+def _keep_first_marker_occurrence(text: str, marker: str) -> tuple[str, int]:
+    """Drop every occurrence of ``marker`` after the first.
+
+    Deterministic and order-preserving: the FIRST placement the model chose is
+    the one that survives, so the healed draft is a subsequence of what the
+    model actually wrote — the runtime never moves a block, it only removes a
+    repeat. Any horizontal whitespace and the single newline a repeat owns go
+    with it, so dedup leaves no blank gap where the marker stood.
+    """
+    first = text.find(marker)
+    if first < 0:
+        return text, 0
+    head = text[: first + len(marker)]
+    tail = text[first + len(marker) :]
+    removed = tail.count(marker)
+    if removed:
+        tail = re.sub(rf"[ \t]*{re.escape(marker)}[ \t]*\n?", "", tail)
+    return head + tail, removed
+
+
 _HEADER_START = "# pa-source:"
 _HEADER_END = "# ---"
 _REQUIRED_PROVENANCE = ("approved_by", "approved_date", "ruling_ref", "status")
@@ -460,6 +533,19 @@ def _render_output_instruction(
         lines.append(
             "Never type or paraphrase the protected text; emit its marker exactly where the block belongs."
         )
+        # CARDINALITY IS STATED FOR EVERY BLOCK, NOT ONLY THE REPEATABLE ONES.
+        # The per-component line below reads as the house style when it is the
+        # only placement guidance present, so a model composing component by
+        # component generalises it and emits a document-level block once per
+        # component — the duplication half of the fail-closed guard. Saying
+        # "exactly once in the whole draft" on the non-repeatables removes the
+        # generalisation rather than relying on the model not to make it.
+        lines.append(
+            "Marker cardinality is part of the contract: each line below states"
+            " whether its marker belongs EXACTLY ONCE in the whole draft or once"
+            " inside EACH component. Follow the stated cardinality literally —"
+            " never generalise one marker's placement rule to another's."
+        )
         for block in blocks:
             if block.selection_only:
                 continue
@@ -476,14 +562,22 @@ def _render_output_instruction(
                 # regeneration every time it guesses the other way, so it always
                 # places the marker and the runtime decides whether text lands.
                 lines.append(
-                    f"- Always emit {block.marker} in a completed draft. Whether"
-                    " its text applies is resolved by the runtime from the case"
-                    " itself, and the marker is removed when it does not apply."
+                    f"- Always emit {block.marker} EXACTLY ONCE in the whole"
+                    " draft, at document level — never once per component."
+                    " Whether its text applies is resolved by the runtime from"
+                    " the case itself, and the marker is removed when it does"
+                    " not apply."
                 )
             else:
-                lines.append(f"- When scope includes {tags}, emit {block.marker}.")
+                lines.append(
+                    f"- When scope includes {tags}, emit {block.marker} EXACTLY"
+                    " ONCE in the whole draft, at document level — never once"
+                    " per component."
+                )
         lines.append(
-            "A missing scope or required block marker makes the response fail closed and regenerate. Markers are removed by the runtime before delivery."
+            "A missing scope or required block marker makes the response fail closed and regenerate."
+            " Extra copies of an EXACTLY-ONCE marker are dropped by the runtime — repeating one never"
+            " adds text, it only records a defect. Markers are removed by the runtime before delivery."
         )
     return "\n".join(lines)
 
@@ -530,6 +624,7 @@ def _scope_tags(response: str) -> tuple[frozenset[str], str]:
         raise PAOutputAssemblyRetry(
             ("[[PA_SCOPE:...]]",),
             "response must contain exactly one PA scope marker",
+            mode="scope",
         )
     tags = frozenset(
         item.strip().upper()
@@ -540,9 +635,12 @@ def _scope_tags(response: str) -> tuple[frozenset[str], str]:
         raise PAOutputAssemblyRetry(
             ("[[PA_SCOPE:DRAFT,...]] or [[PA_SCOPE:NO_DRAFT]]",),
             "scope marker must declare DRAFT or NO_DRAFT",
+            mode="scope",
         )
     if "DRAFT" in tags and "NO_DRAFT" in tags:
-        raise PAOutputAssemblyRetry(("one scope mode",), "scope cannot be both modes")
+        raise PAOutputAssemblyRetry(
+            ("one scope mode",), "scope cannot be both modes", mode="scope"
+        )
     stripped = response[: matches[0].start()] + response[matches[0].end() :]
     return tags, stripped
 
@@ -720,17 +818,43 @@ def assemble_pa_response(
                 "sentence yourself and do not restate its content anywhere. If the "
                 "case genuinely lacks those facts, ask for them instead of drafting."
             ),
+            mode="dropped-paraphrase",
         )
-    missing = [
-        block.marker
-        for block in required
-        if assembled.count(block.marker) < 1
-        or (not block.repeatable and assembled.count(block.marker) != 1)
-    ]
+    # A DUPLICATED EXACTLY-ONCE MARKER IS HEALED; A MISSING ONE IS NOT.
+    # The two halves of the old combined check are not the same defect. A
+    # marker the model wrote twice is unambiguous machine-replaced text: the
+    # runtime knows the block, the text is identical either way, and keeping
+    # the first occurrence and dropping the rest is a DETERMINISTIC repair
+    # that decides nothing about authorship. A marker the model never wrote
+    # is the opposite — the runtime would have to choose WHERE approved text
+    # belongs in someone else's draft, which is exactly the judgment this
+    # module refuses to make. So dedup heals and records; absence still fails
+    # closed, and so does the dropped-block paraphrase guard above.
+    healed: list[dict[str, Any]] = []
+    for block in required:
+        if block.repeatable:
+            continue
+        occurrences = assembled.count(block.marker)
+        if occurrences <= 1:
+            continue
+        assembled, removed = _keep_first_marker_occurrence(assembled, block.marker)
+        healed.append(
+            {
+                "mode": "duplicate",
+                "marker": block.marker,
+                "id": block.block_id,
+                "artifact": block.artifact,
+                "occurrences": occurrences,
+                "removed": removed,
+                "outcome": "healed",
+            }
+        )
+    missing = [block.marker for block in required if assembled.count(block.marker) < 1]
     if missing:
         raise PAOutputAssemblyRetry(
             missing,
-            "required deterministic compliance markers are missing or duplicated",
+            "required deterministic compliance markers are missing",
+            mode="missing",
         )
     inserted: list[dict[str, Any]] = []
     required_groups = {
@@ -742,6 +866,7 @@ def assemble_pa_response(
             raise PAOutputAssemblyRetry(
                 (f"one {group} scope tag",),
                 f"scope selected {len(selected)} mutually-exclusive {group} blocks",
+                mode="exclusive-group",
             )
         for alternative in blocks:
             if alternative.exclusive_group == group and alternative not in selected:
@@ -773,7 +898,9 @@ def assemble_pa_response(
         elif count:
             assembled = assembled.replace(block.marker, "")
     if "[[PA_BLOCK:" in assembled or "[[PA_SCOPE:" in assembled:
-        raise PAOutputAssemblyRetry(("no residual PA markers",), "unknown marker remains")
+        raise PAOutputAssemblyRetry(
+            ("no residual PA markers",), "unknown marker remains", mode="residual"
+        )
     evidence: dict[str, Any] = {
         "enabled": True,
         "scope_tags": sorted(tags),
@@ -782,6 +909,21 @@ def assemble_pa_response(
     }
     if unresolved:
         evidence["unresolved_slots"] = unresolved
+    if healed:
+        # The heal is RECORDED, never silent: a draft that only assembled
+        # because the runtime removed a repeat is a different event from one
+        # the model got right, and a fix that hides its own trigger cannot be
+        # measured.
+        evidence["healed"] = healed
+        for entry in healed:
+            logger.warning(
+                "PA output assembly healed duplicate marker %s (%d occurrences, "
+                "%d removed) for block %s",
+                entry["marker"],
+                entry["occurrences"],
+                entry["removed"],
+                entry["id"],
+            )
     if block_selection is not None:
         to_dict = getattr(block_selection, "to_dict", None)
         evidence["disclaimer_selection"] = (
