@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from agent.eval_mode import EVAL_MODE_ENV
 from gateway.pa_eval import PAEvalCorpus, run_pa_eval_corpus
 
 
@@ -72,12 +73,36 @@ def _stage_runtime(
     config.setdefault("pa", {})["constitution_path"] = str(
         target / "mtu_constitution.yaml"
     )
+    # EVAL MODE. A replay measures the deployed agent; it must not let that
+    # agent rewrite itself mid-corpus. The 2026-08-03 nightly created a
+    # 'bor-drafting' skill during the run, so every later case scored an agent
+    # the deploy tree does not contain. Stamped into the disposable config AND
+    # exported to the environment, because the runtime is started in-process
+    # here and the environment is what the agent fork actually reads.
+    config.setdefault("agent", {})["eval_mode"] = True
+    os.environ[EVAL_MODE_ENV] = "1"
     (target / "config.yaml").write_text(
         yaml.safe_dump(config, sort_keys=False),
         encoding="utf-8",
     )
+    from hermes_cli.pa_compose import sync_pa_knowledge
+
+    # Knowledge is synced from the CANDIDATE deploy tree, not from the runtime
+    # source: knowledge, compliance artifacts, and case-record config are part
+    # of what a candidate IS, so evaluating a candidate against the installed
+    # runtime's knowledge would score the wrong tree (and a pre-cutover live
+    # home has no knowledge/ at all — its declared list was decorative before
+    # the S2 migration). candidate falls back to source when no
+    # --candidate-deploy-dir is given; secrets still come from --runtime-source.
+    sync_pa_knowledge(
+        candidate,
+        target / "mtu_constitution.yaml",
+        target / "knowledge",
+        target / "knowledge-sync.manifest.json",
+    )
     return {
         "mode": "disposable_copy",
+        "eval_mode": True,
         "source_home": str(source),
         "candidate_deploy_dir": str(candidate),
         "copy_home": str(target),
@@ -169,11 +194,35 @@ def _parser() -> argparse.ArgumentParser:
         help="Keep the disposable copy for debugging (never the default).",
     )
     parser.add_argument(
+        "--instruction-placement",
+        choices=("skill", "constitution"),
+        default="skill",
+        help="A/B axis: task-adjacent final skill or constitution-middle instruction.",
+    )
+    parser.add_argument(
+        "--output-mode",
+        choices=("marker", "verbatim"),
+        default="marker",
+        help="A/B axis: deterministic placeholder splice or model-authored verbatim text.",
+    )
+    parser.add_argument(
         "--baseline-report",
         type=Path,
         help="Accepted report used to classify regressions without hiding known failures.",
     )
     return parser
+
+
+def _configure_ab_mode(runtime_copy: Path, args: argparse.Namespace) -> None:
+    path = runtime_copy / "mtu_constitution.yaml"
+    constitution = yaml.safe_load(path.read_text(encoding="utf-8"))
+    policy = constitution["job_briefs"]["bor_generation"]["response_policy"]["output_assembly"]
+    policy["placement"] = args.instruction_placement
+    policy["mode"] = args.output_mode
+    path.write_text(
+        yaml.safe_dump(constitution, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
 
 
 def _deterministic_exit_code(report: dict[str, Any]) -> int:
@@ -200,6 +249,10 @@ def main() -> None:
         manifest = _stage_runtime(
             args.runtime_source, runtime_copy, args.candidate_deploy_dir
         )
+        _configure_ab_mode(runtime_copy, args)
+        manifest["instruction_placement"] = args.instruction_placement
+        manifest["output_mode"] = args.output_mode
+        manifest["copied_constitution_sha256"] = _sha256(runtime_copy / "mtu_constitution.yaml")
         os.environ["HERMES_HOME"] = str(runtime_copy)
         report = asyncio.run(_run(args, manifest))
         report["generated_at"] = datetime.now(timezone.utc).isoformat()

@@ -13,9 +13,12 @@ kind: keyed-reference
 schema_version: 1
 key_semantics: exact approved product name
 escalation_cue: >-
-  Melody has not approved a reference example for this product. Name the
-  product in the advisor's own words and say the case is with Melody. Do not
-  choose the nearest product or expose lookup mechanics or a file number.
+  This product name has no reference example on file. That is NOT a reason to
+  withhold the draft: when the replacement path resolves and both categories are
+  supported, draft from the advisor's supplied facts and use the product name in
+  the advisor's own words. Never choose the nearest product, never invent product
+  facts for it, and never expose lookup mechanics or a file number. Withhold only
+  when the replacement PATH or the CATEGORY is unsupported.
 entries:
   - {key: "Wealth Voyage", reference_examples: [1]}
   - {key: "Voyage (Fundsmith)", reference_examples: [1]}

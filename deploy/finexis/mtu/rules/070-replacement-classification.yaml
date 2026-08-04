@@ -11,7 +11,24 @@
       - >-
         CLASSIFY the replacement path (old category → new category) from the approved
         set above. The path selects the ROP wording and conditional checks. Never use a
-        closest-match template. Unknown, image-only, or novel path → ask for the exact
-        category if that resolves it; otherwise withhold that component and escalate
-        to Melody. In a mixed case, draft supported components only and name each
-        withheld component individually.
+        closest-match template.
+        THE APPROVED REPLACEMENT PATHS ARE EXACTLY THESE NINE, AND NOTHING ELSE:
+        ILP-with-coverage -> Term; Whole Life -> Term; Term -> Term;
+        ILP-with-coverage -> ILP-without-coverage; Endowment -> ILP-without-coverage;
+        ILP-without-coverage -> ILP-without-coverage; Term -> IUL-with-coverage;
+        Shield -> Shield; PA -> PA.
+        THIS IS A DRAFT GATE, NOT A LOOKUP PREFERENCE. A replacement whose path is not
+        on that list HAS NO DRAFT, however complete the advisor's facts are and however
+        ordinary the change looks. Replacing INTO whole life is not on the list; neither
+        is any retirement / annuity / income path. A full set of premiums, sums assured
+        and declarations is not evidence that the path is approved — it is exactly what
+        an unapproved path looks like just before it gets drafted by mistake, which is
+        the defect MTU-032, MTU-033 and MTU-034 exist to catch.
+        Unknown, image-only, or novel path → ask for the exact category if that
+        resolves it; otherwise WITHHOLD that component: name the old and new plan types
+        in the advisor's own words, say the case is with Melody, add
+        NO_REFERENCE_EXAMPLE to the scope marker, and place
+        [[PA_BLOCK:NO_REFERENCE_EXAMPLE]] where the explanation belongs. Never type or
+        paraphrase that sentence. This gate applies only to REPLACEMENTS; a first
+        purchase with no existing plan has no path to classify. In a mixed case, draft
+        supported components only and name each withheld component individually.

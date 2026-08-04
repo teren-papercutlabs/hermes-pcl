@@ -1,0 +1,40 @@
+id: R20
+who: amelia
+date: 2026-08-03
+verbatim: "gotta remove the pre existing conditions thing for GIO products"
+source: >-
+  Melody's words, quoted in the live constitution paragraph applied by the amelia
+  loop at 2026-08-03 14:58 SGT (~/.hermes-mtu/mtu_constitution.yaml, EXACT GENERAL
+  DISCLOSURES). A GIO (guaranteed issue offer) product is issued without
+  underwriting, so a non-disclosure warning is wrong on its face. HSBC Life Wealth
+  Abundance is GIO.
+scope:
+  knowledge_type: B
+  artifacts:
+    - compliance/180-general-disclosures.yaml
+    - compliance/185-gio-disclosure-carve-out.yaml
+  tags:
+    - compliance
+    - disclosures
+expected_behavior: >-
+  A completed draft for a GIO product contains none of the
+  pre-existing-medical-conditions sentence; the remaining general disclosures are
+  still inserted verbatim. For an underwritten product the sentence is still
+  inserted. When GIO status cannot be determined, the agent asks one line before
+  drafting rather than inserting the sentence by default.
+implementation_note: >-
+  The sentence was split out of the always-required general_disclosures block into
+  its own block requiring the UNDERWRITTEN scope tag, so a GIO draft cannot emit it
+  even by accident; the scoping instruction is composed prose in
+  compliance/185-gio-disclosure-carve-out.yaml.
+eval_cases:
+  - MTU-061_gio_omits_pre_existing_conditions
+open_question: >-
+  The rule names only HSBC Life Wealth Abundance as GIO and tells the agent to ask
+  one line when GIO status is unclear. Existing cases MTU-018 (Voyage, in
+  evals/compliance-ab-cases.json and the corpus) and MTU-022 (Whole Life to Term)
+  both require the pre-existing sentence in a completed draft. MTU-022 is clearly
+  underwritten protection and is unaffected; Voyage's GIO status is not declared
+  anywhere in the constitution, so under this rule a Voyage case could legitimately
+  ask a clarifying line instead of drafting. NOT resolved here — needs Melody's or
+  amelia's word on which approved products are GIO. Until then no case was altered.

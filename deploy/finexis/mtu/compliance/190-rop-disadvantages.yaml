@@ -2,21 +2,26 @@
 # approved_by:
 # - amelia
 # approved_date:
-# - unverified
+# - '2026-07-23'
 # ruling_ref:
 # - R13
-# - untraceable-amelia-approval
-# status: unverified
+# - MTU-021
+# status: approved
 # sequence: 190
+# compose: false
 # ---
-      - >-
-        EXACT ROP DISADVANTAGES: for a supported ROP component, insert these four
-        points verbatim and without compression: "1. May incur penalties / transaction
-        costs for terminating the existing policy(ies) or investment product(s),
-        without gaining any real benefit from replacing them." "2. Financial benefits
-        accumulated over the years may be lost." "3. May be offered a lower level of
-        benefit at a higher or same cost (or the same benefit at higher cost); the new
-        policy may be less suitable." "4. If existing medical conditions are covered
-        by the existing plan, coverage for those conditions may be lost." Do not add
-        the 90-day waiting-period sentence unless the supplied product source confirms
-        it applies to this exact replacement.
+schema_version: 1
+blocks:
+  - id: rop_disadvantages
+    marker: '[[PA_BLOCK:ROP_DISADVANTAGES]]'
+    required_tags: [DRAFT, ROP]
+    # The replacement disclosures belong INSIDE each supported replacement
+    # component, not hoisted once to the top of a multi-component draft
+    # (MTU-021). The model still chooses where; repeating the marker is how it
+    # says "here too", and the runtime inserts the same approved text at each.
+    repeatable: true
+    text: |-
+      1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.
+      2. Financial benefits accumulated over the years may be lost.
+      3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.
+      4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.

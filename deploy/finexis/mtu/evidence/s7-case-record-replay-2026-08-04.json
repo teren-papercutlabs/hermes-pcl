@@ -1,0 +1,1725 @@
+{
+  "schema_version": 1,
+  "corpus": {
+    "source_path": "/Users/pcloffice/pcl/_worktrees/edna-s7-phase2/deploy/finexis/mtu/evals/case-record-cases.json",
+    "source_digest": "sha256:e732819bac2778f9669fa6f79ddb84c93b9f0d469fd02785f0ef9fe0b82533c0",
+    "declared_case_count": 12,
+    "selected_case_count": 12,
+    "tags": [],
+    "honor_draws": false
+  },
+  "execution": {
+    "platform": "telegram",
+    "case_run_count": 12,
+    "multi_turn_case_count": 12,
+    "turn_count": 30,
+    "runtime": {
+      "mode": "disposable_copy",
+      "source_home": "/Users/pcloffice/.hermes-mtu",
+      "candidate_deploy_dir": "/Users/pcloffice/pcl/_worktrees/edna-s7-phase2/deploy/finexis/mtu",
+      "copy_home": "/private/var/folders/s9/3_6wbwsd2qqfnlr4z9lxsbgr0000gn/T/mtu-pa-eval-vsjm9kgf",
+      "live_home_written": false,
+      "model_provider": "custom",
+      "model": "gpt-5.4-mini",
+      "source_config_sha256": "6906557d159672c9e6beabde101d20d1199c13a9e5a7d0ee3c994fdf7ddec9aa",
+      "source_constitution_sha256": "26a6922644c2acb62947a851b885af80d4fa7a69d85ccf93cd43aa4ff89f39d9",
+      "copied_config_sha256": "3cf3cc57997186e175b84d381d15886f34bbe3fec64d4aebfa48016324dd7a5a",
+      "copied_constitution_sha256": "59ad1395cda48df753e4aaaa21eb2e535c7b372066a999372f133983d47e362d",
+      "instruction_placement": "skill",
+      "output_mode": "marker"
+    }
+  },
+  "deterministic_summary": {
+    "assertion_count": 35,
+    "passed": 35,
+    "failed": 0,
+    "case_runs_passed": 12,
+    "case_runs_failed": 0,
+    "case_runs_not_applicable": 0
+  },
+  "cases": [
+    {
+      "case_id": "MTU-048_rop_answered_never_reasked_across_turns",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "case-record",
+        "cross-turn-retention"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-048_rop_answered_never_reasked_across_turns-d1-8b38a3e50c",
+      "replay_namespace": "agent:replay:pa-eval-MTU-048_rop_answered_never_reasked_across_turns-d1-8b38a3e50c",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-048_rop_answered_never_reasked_across_turns-d1-8b38a3e50c-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 3,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-048_rop_answered_never_reasked_across_turns-d1-8b38a3e50c-turn-1",
+          "processed": 1,
+          "response": "Quick check: for Singlife Elite Term II, please send the proposed plan details — insurer, plan name, riders, category, sum assured by benefit, first-year premium, subsequent premium, and policy term.",
+          "response_digest": "sha256:b49403d8eed968b959a37eb1fa3e1395a1e3440af86502c9ae7880f811e51d11",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "treats the case as a replacement without asking whether it is a replacement",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks only for material facts the advisor has not already given",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-048_rop_answered_never_reasked_across_turns-d1-8b38a3e50c-turn-2",
+          "processed": 1,
+          "response": "The client currently has Prudential PruTerm, a Term Life plan with S$300,000 death/TPD cover to age 65 at S$1,200 yearly.\n\nThe client is replacing it with Singlife Elite Term II, which provides S$500,000 death/TPD/CI cover to age 70 at S$1,500 yearly.\n\nThe replacement increases the sum assured by S$200,000 and extends coverage from age 65 to age 70. It also adds CI coverage.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides the required protection coverage, broader CI protection and longer coverage to age 70.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:54b015bc157e42e1af759c1c9d164073b43359b3e676464705c136c6ac3e02d6",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "does not ask again whether this is replacing an existing policy",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks only for the remaining missing material facts",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 2,
+          "attempt_id": "pa-eval-MTU-048_rop_answered_never_reasked_across_turns-d1-8b38a3e50c-turn-3",
+          "processed": 1,
+          "response": "The client currently has Prudential PruTerm, a Term Life plan with S$300,000 death/TPD cover to age 65 at S$1,200 yearly.\n\nThe client is replacing it with Singlife Elite Term II, which provides S$500,000 death/TPD/CI cover to age 70 at S$1,500 yearly.\n\nThe replacement increases the sum assured by S$200,000, extends coverage from age 65 to age 70, and adds CI coverage.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides the required protection coverage, broader CI protection and longer coverage to age 70.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:03dba9cdc15d2e2aa1393af5d6cbdec27c40b4d78ee16ab5ad499a670fc17974",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the replacement status given in the first message for the whole case and never asks about it again",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor at any turn whether this is replacing an existing policy",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the conversational replacement question is absent from every reply",
+              "kind": "exact_absent",
+              "text": "is this replacing an existing policy? (yes/no)",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "is this replacing an existing policy? (yes/no)"
+            },
+            {
+              "label": "the final draft does not ask the advisor to confirm the replacement status",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the draft uses both plan names, S$300,000 and S$500,000 cover, the S$1,200 and S$1,500 premiums, and the age-65 to age-70 change",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1 for this replacement case",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-049_rop_answer_in_clarify_reply_not_reasked",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "case-record",
+        "cross-turn-retention"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-049_rop_answer_in_clarify_reply_not_reasked-d1-c4fc1baf77",
+      "replay_namespace": "agent:replay:pa-eval-MTU-049_rop_answer_in_clarify_reply_not_reasked-d1-c4fc1baf77",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-049_rop_answer_in_clarify_reply_not_reasked-d1-c4fc1baf77-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 3,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-049_rop_answer_in_clarify_reply_not_reasked-d1-c4fc1baf77-turn-1",
+          "processed": 1,
+          "response": "Quick check: what is the existing plan(s) for this case? Please share insurer, plan name, category, sum assured by benefit, premium, and coverage till age. If this is a first purchase, reply None.",
+          "response_digest": "sha256:4c995b19eaab87d06e831f19614c4df547bf1d47236ca6001f86263bf768bb7c",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question that includes existing plan(s)",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask existing plans and the replacement question as two separate items",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-049_rop_answer_in_clarify_reply_not_reasked-d1-c4fc1baf77-turn-2",
+          "processed": 1,
+          "response": "The client is replacing the existing Prudential PruTerm policy with Singlife Elite Term II.\n\nSinglife Elite Term II provides death and total and permanent disability coverage of S$400,000 until age 70 at a yearly premium of S$1,400.\n\nThe client requires adequate life protection for financial security in the event of death or total and permanent disability.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides the required coverage to age 70 at a suitable premium.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.",
+          "response_digest": "sha256:4a9a2058bade5246002ba21bba4d35899514ae1597aa9939cef6b0403ee923c7",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "takes the replacement status from this reply and does not ask it again",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks only for what is still genuinely missing",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 2,
+          "attempt_id": "pa-eval-MTU-049_rop_answer_in_clarify_reply_not_reasked-d1-c4fc1baf77-turn-3",
+          "processed": 1,
+          "response": "The client is replacing the existing Prudential PruTerm policy with Singlife Elite Term II.\n\nSinglife Elite Term II provides death and total and permanent disability coverage of S$400,000 until age 70 at a yearly premium of S$1,400.\n\nThe client requires adequate life protection for financial security in the event of death or total and permanent disability.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides the required coverage to age 70 at a suitable premium.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.",
+          "response_digest": "sha256:4a9a2058bade5246002ba21bba4d35899514ae1597aa9939cef6b0403ee923c7",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "takes the replacement status from the advisor's reply to its own question and never asks it again",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask a replacement question after the advisor's reply named the plan being replaced",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the conversational replacement question is absent from every reply",
+              "kind": "exact_absent",
+              "text": "is this replacing an existing policy? (yes/no)",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "is this replacing an existing policy? (yes/no)"
+            },
+            {
+              "label": "drafts a replacement BOR that names Prudential PruTerm as the plan being replaced",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-050_no_existing_plans_zero_replacement_questions",
+      "tags": [
+        "intake",
+        "rop",
+        "ask-once",
+        "ilp",
+        "case-record",
+        "never-ask"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-050_no_existing_plans_zero_replacement_questions-d1-007df7ba14",
+      "replay_namespace": "agent:replay:pa-eval-MTU-050_no_existing_plans_zero_replacement_questions-d1-007df7ba14",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-050_no_existing_plans_zero_replacement_questions-d1-007df7ba14-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 3,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-050_no_existing_plans_zero_replacement_questions-d1-007df7ba14-turn-1",
+          "processed": 1,
+          "response": "Quick check: please confirm the existing plan(s), or “none” for a first purchase; the CKA outcome; the client’s risk profile; the fund name(s) selected; and how the fund selection aligns with the client’s objective.",
+          "response_digest": "sha256:291b5e48019dc7bcf15c323b76570a0db2e795f98fe358161087be7fdcebc383",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks for existing plan(s) without separately asking whether the case is a replacement",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "recognizes Wealth Voyage 10pay without asking who the insurer is or what the number means",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-050_no_existing_plans_zero_replacement_questions-d1-007df7ba14-turn-2",
+          "processed": 1,
+          "response": "Quick check: please confirm the CKA outcome, the client’s risk profile, the fund name(s) selected, and how the fund selection aligns with the client’s objective.",
+          "response_digest": "sha256:76616e49c582d93e0c7b5cc24fe5da2c69e8ceab061c2ccfd3b7ba86bf587f3c",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "treats this as a new purchase and asks no replacement question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks in one compact question only for the material facts still missing",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 2,
+          "attempt_id": "pa-eval-MTU-050_no_existing_plans_zero_replacement_questions-d1-007df7ba14-turn-3",
+          "processed": 1,
+          "response": "Proposed plan: Wealth Voyage 10pay.\nCKA outcome: passed.\nFund selected: HSBC Global Balanced Fund 100%.\n\nThe client has no existing plans.\n\nThe client preferred Wealth Voyage 10pay after discussing the pros and cons of endowment, investment and annuity solutions because HSBC Global Balanced Fund 100% matches the client's balanced risk profile and the 10-year minimum investment period suits the client's objectives.\n\n\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:1e7b0a8b78e8f13aa1c2d0ef90928381af811c25956b1e877341abf9fe21f81e",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "derives new-purchase status from the no-existing-plans answer and asks no replacement question at any later turn",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask a replacement question after the advisor said there are no existing plans",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the conversational replacement question is absent from every reply",
+              "kind": "exact_absent",
+              "text": "is this replacing an existing policy? (yes/no)",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "is this replacing an existing policy? (yes/no)"
+            },
+            {
+              "label": "the draft contains no replacement disadvantages for this new-purchase case",
+              "kind": "exact_absent",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "does not ask the advisor for the insurer or for fund-objective alignment",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-051_early_facts_excluded_from_later_question",
+      "tags": [
+        "intake",
+        "case-record",
+        "cross-turn-retention",
+        "never-ask"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-051_early_facts_excluded_from_later_question-d1-825cb9464c",
+      "replay_namespace": "agent:replay:pa-eval-MTU-051_early_facts_excluded_from_later_question-d1-825cb9464c",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-051_early_facts_excluded_from_later_question-d1-825cb9464c-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-051_early_facts_excluded_from_later_question-d1-825cb9464c-turn-1",
+          "processed": 1,
+          "response": "Recommended plan: Singlife Elite Term II, term life, S$500,000 death/TPD/CI coverage, S$1,500 yearly premium, coverage to age 70.\n\nThe client requires sufficient life protection to provide financial security for dependants and loved ones in the event of death or total and permanent disability.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides the required coverage to age 70 at a suitable premium.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:4ce460882b875352e33870f9d1035ed0e10ed70d47505259673c387a8636a131",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks only for material facts not already given in this message",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask again for the plan name, sum assured, premium, or coverage age",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask a replacement question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-051_early_facts_excluded_from_later_question-d1-825cb9464c-turn-2",
+          "processed": 1,
+          "response": "Recommended plan: Singlife Elite Term II, term life, S$500,000 death/TPD/CI coverage, S$1,500 yearly premium, coverage to age 70.\n\nThe client requires sufficient life protection to provide financial security for dependants and loved ones in the event of death or total and permanent disability.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides the required coverage to age 70 at a suitable premium.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:a3fc59cc3667daf59ed94db071917ec2add867b459962f0e964ca492d6fa3be4",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "every question it asks covers only facts the advisor has not already given",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask again for the plan name, sum assured, premium, or coverage age already supplied in the first message",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the draft uses S$500,000 cover, the S$1,500 yearly premium, and coverage to age 70 exactly as supplied",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for the client's reason, alternatives considered, income or surplus, or a reference number",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not expose a missing-fact placeholder",
+              "kind": "exact_absent",
+              "text": "[[MISSING:",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING:"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-052_dripfed_facts_never_reasked",
+      "tags": [
+        "intake",
+        "shield",
+        "case-record",
+        "cross-turn-retention",
+        "ask-once"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-052_dripfed_facts_never_reasked-d1-c33078c30d",
+      "replay_namespace": "agent:replay:pa-eval-MTU-052_dripfed_facts_never_reasked-d1-c33078c30d",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-052_dripfed_facts_never_reasked-d1-c33078c30d-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 4,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-052_dripfed_facts_never_reasked-d1-c33078c30d-turn-1",
+          "processed": 1,
+          "response": "Please share exactly these two items for the BOR:\nExisting arrangement — insurer, exact base plan name, exact versioned rider name, and material premium. Reply “None” if this is a first purchase.\nThe client’s stated reason for the change.",
+          "response_digest": "sha256:a8e8929790f5fbbbaa4e0d8d30ebf30f19cd364245a301f628b0097d8fc1f28b",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks for existing plan(s) and the missing material Shield facts in one compact question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask existing plans and the replacement question as two separate items",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-052_dripfed_facts_never_reasked-d1-c33078c30d-turn-2",
+          "processed": 1,
+          "response": "What is the client’s stated reason for choosing Singlife Shield?",
+          "response_digest": "sha256:82ae48b15e6c368c193c4e7eff429478d21a020cadce31d22010886a053f316f",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "does not ask again for the base plan",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask a replacement question",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks only for the facts still missing, such as premium, payment frequency, and the 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 2,
+          "attempt_id": "pa-eval-MTU-052_dripfed_facts_never_reasked-d1-c33078c30d-turn-3",
+          "processed": 1,
+          "response": "What is the client’s stated reason for choosing Singlife Shield?",
+          "response_digest": "sha256:82ae48b15e6c368c193c4e7eff429478d21a020cadce31d22010886a053f316f",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "does not ask again for the base plan or the premium",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "asks only for the explicit 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 3,
+          "attempt_id": "pa-eval-MTU-052_dripfed_facts_never_reasked-d1-c33078c30d-turn-4",
+          "processed": 1,
+          "response": "Total annual premiums do not exceed 50% of the client's surplus.\nThe client requires adequate hospitalisation and medical coverage to manage the financial cost of hospital stays and treatment.\n\nAfter comparing Integrated Shield Plans from other insurers, the client preferred Singlife Shield Standard because it best meets the client's hospitalisation and medical coverage needs at a suitable premium.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:1be74769d94d21c418b5aba6bba3c1b36e59a1ed1c504bae42c5b9d1ed7784ee",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "each successive question covers only facts still missing at that point in the conversation",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask again for the base plan, the premium, or the existing-plans answer once each has been given",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the draft names Singlife Shield Standard and the S$780 yearly premium",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not state unsupported deductible, co-insurance, or rider-benefit claims",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not expose a missing-fact placeholder",
+              "kind": "exact_absent",
+              "text": "[[MISSING:",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING:"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-053_corrected_premium_used_in_draft",
+      "tags": [
+        "case-record",
+        "correction",
+        "new-case-boundary",
+        "arithmetic",
+        "cross-turn-retention"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-053_corrected_premium_used_in_draft-d1-751c2a0e41",
+      "replay_namespace": "agent:replay:pa-eval-MTU-053_corrected_premium_used_in_draft-d1-751c2a0e41",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-053_corrected_premium_used_in_draft-d1-751c2a0e41-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-053_corrected_premium_used_in_draft-d1-751c2a0e41-turn-1",
+          "processed": 1,
+          "response": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nBasis of recommendation\n\nThe client is replacing Prudential PruTerm, which provides S$300,000 death/TPD coverage to age 65 at S$1,200 yearly, with Singlife Elite Term II, which provides S$500,000 death/TPD/CI coverage to age 70 at S$1,500 yearly.\n\nThe proposed plan provides a higher sum assured and a longer coverage period, while the annual premium increases from S$1,200 to S$1,500.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides higher protection coverage for a longer period.\n\nThe client requires adequate protection coverage to help meet financial needs in the event of death, terminal illness or critical illness.\n\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:b3818119863193a851604ca4537418a26bb23ecb6c9694760c07715b42b31c6b",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the replacement BOR using the figures as given",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-053_corrected_premium_used_in_draft-d1-751c2a0e41-turn-2",
+          "processed": 1,
+          "response": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nBasis of recommendation\n\nThe client is replacing Prudential PruTerm, which provides S$300,000 death/TPD coverage to age 65 at S$1,200 yearly, with Singlife Elite Term II, which provides S$500,000 death/TPD/CI coverage to age 70 at S$1,650 yearly.\n\nThe proposed plan provides a higher sum assured and a longer coverage period, while the annual premium increases from S$1,200 to S$1,650.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides higher protection coverage for a longer period.\n\nThe client requires adequate protection coverage to help meet financial needs in the event of death, terminal illness or critical illness.\n\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:7b3faa9c438a4b7a423a5e8015bb15612929afa8d1ebf8f390826e4a95bb90d3",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "treats the correction as more detail on the current case and reissues the draft without asking a case-boundary question",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the reissued draft uses S$1,650 as the proposed yearly premium",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the reissued draft does not contain the superseded proposed premium",
+              "kind": "exact_absent",
+              "text": "S$1,500",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "S$1,500"
+            },
+            {
+              "label": "keeps every uncorrected fact, including both plan names, S$300,000 and S$500,000 cover, the S$1,200 existing premium, and the age-65 to age-70 change",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask the advisor to restate facts already given earlier in the case",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-054_corrected_plan_name_replaces_original",
+      "tags": [
+        "case-record",
+        "correction",
+        "new-case-boundary",
+        "product-validation"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-054_corrected_plan_name_replaces_original-d1-28bbca9d4e",
+      "replay_namespace": "agent:replay:pa-eval-MTU-054_corrected_plan_name_replaces_original-d1-28bbca9d4e",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-054_corrected_plan_name_replaces_original-d1-28bbca9d4e-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-054_corrected_plan_name_replaces_original-d1-28bbca9d4e-turn-1",
+          "processed": 1,
+          "response": "Recommended plan\nSinglife Elite Term II is a term life plan that provides death/TPD coverage of S$400,000 up to age 65, with annual premium of S$1,100.\n\nThe client requires protection coverage for death and total permanent disability, and Singlife Elite Term II meets this need with coverage to age 65 at a suitable premium.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides straightforward protection coverage to age 65 at a suitable premium.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:6c9c1e9917aae2ce367a44203ab05471d17515cc3c6f4afebc894f6f9c8700c6",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the new-purchase BOR using the plan as named",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-054_corrected_plan_name_replaces_original-d1-28bbca9d4e-turn-2",
+          "processed": 1,
+          "response": "Recommended plan\nHSBC Term Protector is a term life plan that provides death/TPD coverage of S$400,000 up to age 65, with annual premium of S$1,100.\n\nThe client requires protection coverage for death and total permanent disability, and HSBC Term Protector meets this need with coverage to age 65 at a suitable premium.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred HSBC Term Protector because it provides straightforward protection coverage to age 65 at a suitable premium.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:a9fd63b960f4d7cc8c7e6f5cb8ddcf1a457660f92277432d52aee50f9c03c924",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "reissues the draft naming HSBC Term Protector as the proposed plan",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the reissued draft does not name the superseded plan",
+              "kind": "exact_absent",
+              "text": "Elite Term II",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Elite Term II"
+            },
+            {
+              "label": "keeps the unchanged figures: S$400,000 cover, S$1,100 yearly premium, coverage to age 65",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not treat the correction as a new case or ask a case-boundary question",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask which insurer HSBC Term Protector belongs to",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the draft contains no replacement disadvantages for this new-purchase case",
+              "kind": "exact_absent",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-055_fresh_case_after_completed_case_no_bleed",
+      "tags": [
+        "new-case-boundary",
+        "case-record",
+        "intake",
+        "rop",
+        "disclosures"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-055_fresh_case_after_completed_case_no_bleed-d1-211548ef09",
+      "replay_namespace": "agent:replay:pa-eval-MTU-055_fresh_case_after_completed_case_no_bleed-d1-211548ef09",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-055_fresh_case_after_completed_case_no_bleed-d1-211548ef09-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-055_fresh_case_after_completed_case_no_bleed-d1-211548ef09-turn-1",
+          "processed": 1,
+          "response": "The client is currently covered under Prudential PruTerm, with S$300,000 death/TPD coverage to age 65 at a yearly premium of S$1,200.\n\nThe proposed replacement plan is Singlife Elite Term II, with S$500,000 death/TPD/CI coverage to age 70 at a yearly premium of S$1,500. This provides higher protection coverage and extends the coverage period, which better meets the client’s protection needs.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides higher coverage and a longer protection period that better fits the client’s needs.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:ac54bb9d19d84c6d8dc35ca1443a89921ddb5f6f03fd29d236fb34f95abb0d7d",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the replacement BOR for this case",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-055_fresh_case_after_completed_case_no_bleed-d1-211548ef09-turn-2",
+          "processed": 1,
+          "response": "The client has chosen HSBC Term Protector, a Term Life plan, with S$250,000 death/TPD coverage to age 65 at a yearly premium of S$900.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred HSBC Term Protector because it provides term protection coverage that meets the client’s needs at a suitable premium.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:268f07a36870ba2c2c3af9355ff4e0bf005174d3a5d5a2db8ea13492bdd61c58",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the second case as a fresh new-purchase BOR using only the facts given for it",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not carry the previous plan name into the new case",
+              "kind": "exact_absent",
+              "text": "PruTerm",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "PruTerm"
+            },
+            {
+              "label": "does not carry the previous proposed plan into the new case",
+              "kind": "exact_absent",
+              "text": "Elite Term II",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Elite Term II"
+            },
+            {
+              "label": "does not carry the previous sum assured into the new case",
+              "kind": "exact_absent",
+              "text": "S$500,000",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "S$500,000"
+            },
+            {
+              "label": "does not carry the previous premium into the new case",
+              "kind": "exact_absent",
+              "text": "S$1,500",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "S$1,500"
+            },
+            {
+              "label": "excludes replacement disadvantages from the new-purchase case",
+              "kind": "exact_absent",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "does not ask the advisor to restate facts already given for the new case",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence for the new case",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 6,
+        "passed": 6,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-056_ambiguous_continuation_one_boundary_question",
+      "tags": [
+        "new-case-boundary",
+        "case-record",
+        "intake"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-056_ambiguous_continuation_one_boundary_question-d1-6ecb943ccb",
+      "replay_namespace": "agent:replay:pa-eval-MTU-056_ambiguous_continuation_one_boundary_question-d1-6ecb943ccb",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-056_ambiguous_continuation_one_boundary_question-d1-6ecb943ccb-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 3,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-056_ambiguous_continuation_one_boundary_question-d1-6ecb943ccb-turn-1",
+          "processed": 1,
+          "response": "The client is replacing Prudential PruTerm, which provides S$300,000 death and TPD cover, premium S$1,200 yearly, and coverage to age 65, with Singlife Elite Term II, which provides S$500,000 death, TPD and CI cover, premium S$1,500 yearly, and coverage to age 70.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides higher coverage, adds critical illness protection, and extends the coverage period to age 70 at a suitable premium.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:411382a604bc7839abadd19298c14667f093d4fca86ee123240672037935f507",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the replacement BOR for this case",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-056_ambiguous_continuation_one_boundary_question-d1-6ecb943ccb-turn-2",
+          "processed": 1,
+          "response": "The client is replacing Prudential PruTerm, which provides S$300,000 death and TPD cover, premium S$1,200 yearly, and coverage to age 65, with HSBC Term Protector, which provides S$400,000 death and TPD cover, premium S$1,300 yearly, and coverage to age 70.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred HSBC Term Protector because it provides higher death and TPD coverage and extends protection to age 70 at a suitable premium.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:3b011fa483c77cd2cc15f54ab9e1c55cf2680b2e96bd682d2249784af41e22f8",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks exactly one short question about whether this is a new case or more detail on the current one",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not draft anything before the advisor answers",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for any other fact in the same message",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 2,
+          "attempt_id": "pa-eval-MTU-056_ambiguous_continuation_one_boundary_question-d1-6ecb943ccb-turn-3",
+          "processed": 1,
+          "response": "Quick check: what is the proposed plan — insurer, plan name, riders, category, sum assured by benefit, first-year and subsequent premium, and policy term?",
+          "response_digest": "sha256:fc32a66a69ca9b5441192dfad11c871c6d36cd6d75add54e82dbdda5d3e27ab1",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks exactly one short question resolving whether the message is a new case or more detail, and asks nothing else at that turn",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not produce a draft before the ambiguity is resolved",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "after the answer, drafts the new case as a new purchase using only its own facts",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "the final draft does not carry the previous existing plan",
+              "kind": "exact_absent",
+              "text": "PruTerm",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "PruTerm"
+            },
+            {
+              "label": "the final draft does not carry the previous premium",
+              "kind": "exact_absent",
+              "text": "S$1,500",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "S$1,500"
+            },
+            {
+              "label": "does not ask a replacement question after the advisor said there are no existing plans",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-057_natural_language_fresh_case_no_command",
+      "tags": [
+        "new-case-boundary",
+        "case-record",
+        "intake",
+        "formatting",
+        "scope"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-057_natural_language_fresh_case_no_command-d1-3f88b8f5dc",
+      "replay_namespace": "agent:replay:pa-eval-MTU-057_natural_language_fresh_case_no_command-d1-3f88b8f5dc",
+      "setup": {
+        "command": null,
+        "attempt_id": null,
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-057_natural_language_fresh_case_no_command-d1-3f88b8f5dc-turn-1",
+          "processed": 1,
+          "response": "Proposed plan: Singlife Elite Term II\n\nExisting plan being replaced: Prudential PruTerm, coverage to age 65, death/TPD cover of S$300,000, premium S$1,200 yearly.\n\nThe proposed plan increases the protection amount to S$500,000 for death/TPD/CI and extends coverage to age 70, with a yearly premium of S$1,500.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides higher term protection to age 70 to better meet their protection needs.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:284951f52f351ef4d5fda0514d388a7bc52e02c06210e626a0783cb81a45dcfc",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the replacement BOR for this case",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-057_natural_language_fresh_case_no_command-d1-3f88b8f5dc-turn-2",
+          "processed": 1,
+          "response": "The client has no existing plans and is applying for HSBC Term Protector, a term life plan with S$250,000 death/TPD coverage to age 65 and a yearly premium of S$900.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred HSBC Term Protector because it provides the required protection at a suitable premium.\n\nThe client requires adequate protection coverage to provide financial support in the event of death and total and permanent disability.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+          "response_digest": "sha256:21bb1721afc52bd05c4cb43ee30b1c1549a24f3244c466937d4de44f391195cf",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "starts the second case cleanly from the plain-language announcement, without requiring the advisor to type any command first",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not tell the advisor to type a command to start a new case",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "no command instruction appears in any reply",
+              "kind": "exact_absent",
+              "text": "/new",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "/new"
+            },
+            {
+              "label": "does not carry the previous existing plan into the new case",
+              "kind": "exact_absent",
+              "text": "PruTerm",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "PruTerm"
+            },
+            {
+              "label": "does not carry the previous premium into the new case",
+              "kind": "exact_absent",
+              "text": "S$1,500",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "S$1,500"
+            },
+            {
+              "label": "excludes replacement disadvantages from the new-purchase case",
+              "kind": "exact_absent",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence for the new case",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 5,
+        "passed": 5,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-058_draft_facts_traceable_to_advisor_messages",
+      "tags": [
+        "case-record",
+        "audit-trail",
+        "anti-fabrication",
+        "disclosures",
+        "cross-turn-retention"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-058_draft_facts_traceable_to_advisor_messages-d1-ceac1d3e9e",
+      "replay_namespace": "agent:replay:pa-eval-MTU-058_draft_facts_traceable_to_advisor_messages-d1-ceac1d3e9e",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-058_draft_facts_traceable_to_advisor_messages-d1-ceac1d3e9e-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-058_draft_facts_traceable_to_advisor_messages-d1-ceac1d3e9e-turn-1",
+          "processed": 1,
+          "response": "Please provide the proposed plan details: insurer, plan name, category, riders, sum assured by benefit, first-year and subsequent premium, and policy term.",
+          "response_digest": "sha256:c33129102ed7189a20043109b77a1fcefa8af835d9a135cec21f285450cea386",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks only for the proposed plan details and any other genuinely missing material facts",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-058_draft_facts_traceable_to_advisor_messages-d1-ceac1d3e9e-turn-2",
+          "processed": 1,
+          "response": "Recommended plan: Singlife Elite Term II\n\nThe client currently has Prudential PruTerm, Term Life, with S$300,000 death/TPD coverage to age 65 at S$1,200 yearly. The proposed plan is Singlife Elite Term II, Term Life, with S$500,000 death/TPD/CI coverage to age 70 at S$1,500 yearly. This replacement increases the coverage amount, extends the coverage term, and adds CI coverage.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides higher term protection for a suitable premium.\n\nThe client requires adequate protection for death, TPD and critical illness needs, and the proposed plan better meets those needs with higher coverage and a longer policy term.\n\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:d3c50350849de81dbb491a8ef7d531de8a33d50a0d795bdfc516d9d8c1ce13a3",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "every material case fact in the draft — plan names, coverage types, sums assured, premiums, coverage ages, replacement status, and the 50%-of-surplus answer — appeared in one of the advisor's messages",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not introduce a material case fact the advisor never supplied, such as the client's age, occupation, income, health status, dependants, or an application or reference number",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "standard template wording (replacement disadvantages, alternatives declaration, standard declarations) is used as approved wording and is not presented as something the advisor stated about this client",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose a missing-fact placeholder",
+              "kind": "exact_absent",
+              "text": "[[MISSING:",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING:"
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-059_never_supplied_premium_not_invented",
+      "tags": [
+        "case-record",
+        "audit-trail",
+        "anti-fabrication",
+        "intake",
+        "rop"
+      ],
+      "draw": 1,
+      "canary": true,
+      "run_id": "pa-eval-MTU-059_never_supplied_premium_not_invented-d1-dcdd7ed29f",
+      "replay_namespace": "agent:replay:pa-eval-MTU-059_never_supplied_premium_not_invented-d1-dcdd7ed29f",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-059_never_supplied_premium_not_invented-d1-dcdd7ed29f-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-059_never_supplied_premium_not_invented-d1-dcdd7ed29f-turn-1",
+          "processed": 1,
+          "response": "The client currently has Prudential PruTerm, a Term Life plan with death/TPD coverage of S$300,000 up to age 65. The proposed plan is Singlife Elite Term II, a Term Life plan with death/TPD/CI coverage of S$500,000 up to age 70.\n\nThis replacement provides higher coverage, adds critical illness coverage, and extends protection duration.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides higher coverage and a longer protection period.\n\nThe client requires adequate protection for death, total permanent disability and critical illness to help protect against the financial impact of unforeseen events.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:fe3c88de9fbd9d3bf6bdc9d02f225610ae1f0c012f25ec78050025390d821395",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks for the missing premiums in one compact question instead of drafting",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-059_never_supplied_premium_not_invented-d1-dcdd7ed29f-turn-2",
+          "processed": 1,
+          "response": "The client currently has Prudential PruTerm, a Term Life plan with death/TPD coverage of S$300,000 up to age 65. The proposed plan is Singlife Elite Term II, a Term Life plan with death/TPD/CI coverage of S$500,000 up to age 70.\n\nThis replacement provides higher coverage, adds critical illness coverage, and extends protection duration.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Singlife Elite Term II because it provides higher coverage and a longer protection period.\n\nThe client requires adequate protection for death, total permanent disability and critical illness to help protect against the financial impact of unforeseen events.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:fe3c88de9fbd9d3bf6bdc9d02f225610ae1f0c012f25ec78050025390d821395",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks for the existing and proposed premiums, which the advisor never supplied",
+              "kind": "must",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not state, estimate, or imply any premium amount for either plan",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present a completed BOR while the premiums remain unsupplied, even when pressed to draft",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not describe the premium as unchanged, comparable, higher, or lower without the figures",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose a missing-fact placeholder in place of the premiums",
+              "kind": "exact_absent",
+              "text": "[[MISSING:",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING:"
+            },
+            {
+              "label": "does not leave a bare placeholder anywhere in the reply",
+              "kind": "exact_absent",
+              "text": "[[MISSING]]",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "[[MISSING]]"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    }
+  ],
+  "generated_at": "2026-08-03T17:30:45.181045+00:00"
+}

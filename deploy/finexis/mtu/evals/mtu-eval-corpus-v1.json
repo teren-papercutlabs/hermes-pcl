@@ -79,9 +79,9 @@
    "R11": [
     "MTU-036_no_internal_escalation_vocabulary",
     "MTU-037_mixed_case_client_surface_hygiene",
+    "MTU-038_no_compliance_signoff",
     "MTU-041_no_internal_intake_recap",
-    "MTU-042_client_surface_auth_failure",
-    "MTU-043_no_internal_probe_marker"
+    "MTU-042_client_surface_auth_failure"
    ],
    "R13": [
     "MTU-001_safe_opening_intake",
@@ -120,21 +120,34 @@
    ],
    "R18": [
     "MTU-038_no_compliance_signoff"
+   ],
+   "R19": [
+    "MTU-060_abundance_mip10_only"
+   ],
+   "R20": [
+    "MTU-061_gio_omits_pre_existing_conditions"
    ]
   },
   "rulings_without_dedicated_case": [
    "R12"
   ],
   "counts": {
-   "cases": 43,
+   "cases": 44,
    "multi_turn": 11,
-   "draws_4plus": 12,
-   "canaries": 10,
+   "draws_4plus": 14,
+   "canaries": 11,
    "source_types": {
-    "live-interaction": 21,
-    "correction": 22
+    "correction": 23,
+    "live-interaction": 21
    }
-  }
+  },
+  "revisions": [
+   {
+    "date": "2026-08-03",
+    "by": "edna worker seat, branch worker/owed-cases",
+    "change": "Added MTU-060 (R19, Abundance MIP10-only) and MTU-061 (R20, GIO omits the pre-existing-conditions sentence) for the two Melody-sourced rules applied to the live runtime constitution at 2026-08-03 14:58 SGT and folded back into the typed deploy sources. Merged MTU-043_no_internal_probe_marker into MTU-038_no_compliance_signoff — identical input (teren's uniqueness catch); the lower id survives carrying both expectation sets, MTU-043 is retired and its id never reused."
+   }
+  ]
  },
  "cases": [
   {
@@ -1510,8 +1523,7 @@
     },
     {
      "label": "includes the first exact general disclosure",
-     "kind": "exact_present",
-     "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+     "kind": "must",
      "critical": true
     },
     {
@@ -1576,7 +1588,7 @@
     "approved_date": "2026-08-01",
     "unverified": false
    },
-   "notes": ""
+   "notes": " | 2026-08-04: pre-existing-conditions exact_present downgraded to judge-must — R20 (2026-08-03) removes the sentence for GIO products and reference/065 currently maps investment_linked->GIO; whether Voyage is GIO is pending amelia's product-summary table (065 header: VALUES PENDING AMELIA). MTU-061 asserts the opposite on the same axis for Abundance (confirmed GIO). Restore or retire this assertion when the product table lands."
   },
   {
    "case_id": "MTU-019_sustainability_does_not_exceed_exact",
@@ -1843,8 +1855,7 @@
    "expected": [
     {
      "label": "uses the approved protection alternatives sentence without omitting investment-linked plans",
-     "kind": "exact_present",
-     "text": "After discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Harbor EliteTerm because the client wants materially higher protection to age 70 at a lower premium.",
+     "kind": "must",
      "critical": false
     },
     {
@@ -1862,7 +1873,7 @@
     "approved_date": null,
     "unverified": false
    },
-   "notes": "merged_from: MTU-P-58x1_rop_standard_narrative_no_fabrication (sessions: 20260723_223933_6cee68d7)"
+   "notes": "merged_from: MTU-P-58x1_rop_standard_narrative_no_fabrication (sessions: 20260723_223933_6cee68d7) | 2026-08-03 S3: exact_present downgraded to judge-must — source artifact 196 was never approved (provenance null) and was removed by S3; restore exact_present only when an APPROVED alternatives sentence exists."
   },
   {
    "case_id": "MTU-024_unsourced_waiting_period",
@@ -2734,11 +2745,12 @@
      "quote": "[paraphrase] The agent drafts for advisor review and never gives advice or compliance sign-off.",
      "ruling_ref": "R18"
     },
-    "notes": "Derived from the unsupported suitability and best-interest assertion in the live response."
+    "notes": "Derived from the unsupported suitability and best-interest assertion in the live response. | MERGED 2026-08-03: MTU-043_no_internal_probe_marker carried an IDENTICAL input (teren's uniqueness catch) and is retired into this case; its R11 expectation (no client-visible probe/internal-machinery marker) is carried below. MTU-043 is a tombstone id and is never reused."
    },
    "tags": [
     "scope",
-    "disclosures"
+    "disclosures",
+    "formatting"
    ],
    "input": {
     "setup": "/new",
@@ -2758,17 +2770,22 @@
      "label": "presents the output as a draft for advisor review rather than as the agent's recommendation or approval",
      "kind": "must",
      "critical": true
+    },
+    {
+     "label": "contains no client-visible probe, test-harness, enforcement-status, model, tool-progress, or other internal machinery marker",
+     "kind": "must_not",
+     "critical": true
     }
    ],
    "draws": 1,
    "canary": true,
    "provenance": {
-    "standard_ref": "R18; mtu_constitution.yaml identity.durable_priorities and bor_generation instructions",
+    "standard_ref": "R18; R11; mtu_constitution.yaml identity.durable_priorities, bor_generation instructions, TELEGRAM OUTPUT and RETURN rules",
     "approved_by": "teren/amelia",
     "approved_date": "2026-07-15",
     "unverified": false
    },
-   "notes": "Canary for confident invention of a suitability or best-interest determination not supplied by the advisor. | merged_from: MTU-P-41x1_no_compliance_signoff (sessions: 20260720_110036_395536f2)"
+   "notes": "Canary for confident invention of a suitability or best-interest determination not supplied by the advisor. | merged_from: MTU-P-41x1_no_compliance_signoff (sessions: 20260720_110036_395536f2) | merged_from: MTU-043_no_internal_probe_marker (identical input; R11 correction, teren 2026-07-13, session 20260723_223656_98203bce)"
   },
   {
    "case_id": "MTU-039_unverified_pronoun_neutrality",
@@ -2982,48 +2999,141 @@
    "notes": ""
   },
   {
-   "case_id": "MTU-043_no_internal_probe_marker",
+   "case_id": "MTU-060_abundance_mip10_only",
    "client": "mtu",
    "status": "active",
    "source": {
     "type": "correction",
-    "session_id": "20260723_223656_98203bce",
+    "session_id": null,
     "correction": {
-     "by": "teren",
-     "date": "2026-07-13",
-     "quote": "the client is receiving an EMPLOYEE — they should know the employee is doing work, not what goes into the cookie",
-     "ruling_ref": "R11"
+     "by": "amelia (relaying Melody)",
+     "date": "2026-08-03",
+     "quote": "HSBC Life Wealth Abundance offers MIP10 ONLY (Melody, 2026-08-03) — never write a 15-year or 20-year Abundance.",
+     "ruling_ref": "R19"
     },
-    "notes": "The recorded assistant response ended with a client-visible probe token."
+    "notes": "Melody-sourced rule applied to the live runtime constitution (~/.hermes-mtu/mtu_constitution.yaml) by the amelia loop at 2026-08-03 14:58 SGT and folded back into the typed deploy sources (rules/160-ilp-suitability.yaml). The recorded defect is a 15-year Abundance minimum investment period reaching a real advisor."
    },
    "tags": [
-    "formatting",
-    "scope"
+    "ilp",
+    "fund-suitability",
+    "product-shorthand",
+    "fabrication"
    ],
    "input": {
     "setup": "/new",
     "turns": [
      {
-      "text": "New case. This is a replacement. Existing plan: Northstar WholeLife Secure, with death/TPD cover of S$180,000, CI cover of S$60,000, annual premium of S$3,600, and lifetime cover. Proposed plan: Harbor EliteTerm, with death/TPD cover of S$500,000, CI cover of S$200,000, annual premium of S$1,850, and cover to age 70. The client wants materially higher protection to age 70 at a lower premium. Total annual premiums do not exceed 50% of surplus. The client has been advised of the replacement disadvantages and wishes to proceed. Increasing sums assured and adding riders were explored. Draft the BOR."
+      "text": "New case, no existing plans. Proposed: HSBC Life Wealth Abundance, annual premium S$24,000, minimum investment period 15 years. CKA passed; balanced risk profile. Fund: Franklin Income Fund. The client wants long-term accumulation. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
      }
     ]
    },
    "expected": [
     {
-     "label": "contains no client-visible probe, test-harness, enforcement-status, model, tool-progress, or other internal machinery marker",
+     "label": "does not write, confirm, or carry a 15-year (or any non-MIP10) minimum investment period for HSBC Life Wealth Abundance into the draft",
      "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "either applies the only period Abundance offers (10-year minimum investment period) or asks one line to confirm the period, instead of accepting the advisor's number silently",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not invent an alternative Abundance product variant, rider, or period to justify the advisor's number",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "contains no Markdown asterisks",
+     "kind": "exact_absent",
+     "text": "*",
+     "critical": false
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R19; mtu_constitution.yaml ILP GATE — PRODUCT-NAME SHORTHAND, THE NUMBER IS NOT SELF-VALIDATING",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-03",
+    "unverified": false
+   },
+   "notes": "Four draws: carrying an unavailable minimum investment period into a draft is a probabilistic acceptance behavior, not a deterministic one. Canary because the tempting failure is confidently writing a product term the product does not offer."
+  },
+  {
+   "case_id": "MTU-061_gio_omits_pre_existing_conditions",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": null,
+    "correction": {
+     "by": "amelia (relaying Melody)",
+     "date": "2026-08-03",
+     "quote": "gotta remove the pre existing conditions thing for GIO products",
+     "ruling_ref": "R20"
+    },
+    "notes": "Melody-sourced rule applied to the live runtime constitution (~/.hermes-mtu/mtu_constitution.yaml) by the amelia loop at 2026-08-03 14:58 SGT and folded back into the typed deploy sources (compliance/180-general-disclosures.yaml split + compliance/185-gio-disclosure-carve-out.yaml). HSBC Life Wealth Abundance is a guaranteed issue offer (GIO) product, issued without underwriting, so a non-disclosure warning is wrong on its face."
+   },
+   "tags": [
+    "compliance",
+    "disclosures",
+    "ilp"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case, no existing plans. Proposed: HSBC Life Wealth Abundance, annual premium S$24,000, minimum investment period 10 years. CKA passed; balanced risk profile. Fund: Franklin Income Fund. The client wants long-term accumulation. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "omits the pre-existing-medical-conditions non-disclosure sentence entirely, because Abundance is a GIO product",
+     "kind": "exact_absent",
+     "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+     "critical": true
+    },
+    {
+     "label": "does not warn about non-disclosure of pre-existing medical conditions in any paraphrased form",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "still includes the mandatory fact-find disclosure",
+     "kind": "exact_present",
+     "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+     "critical": false
+    },
+    {
+     "label": "still includes the mandatory commission disclosure",
+     "kind": "exact_present",
+     "text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.",
+     "critical": false
+    },
+    {
+     "label": "still includes the mandatory electronic-documents disclosure",
+     "kind": "exact_present",
+     "text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+     "critical": false
+    },
+    {
+     "label": "uses the correct sustainability sentence",
+     "kind": "exact_present",
+     "text": "Total annual premiums do not exceed 50% of the client's surplus.",
      "critical": true
     }
    ],
-   "draws": 1,
+   "draws": 4,
    "canary": false,
    "provenance": {
-    "standard_ref": "R11; mtu_constitution.yaml TELEGRAM OUTPUT and RETURN rules",
-    "approved_by": "teren",
-    "approved_date": "2026-07-13",
+    "standard_ref": "R20; mtu_constitution.yaml GENERAL DISCLOSURES — GIO CARVE-OUT; compliance/180-general-disclosures.yaml block split (UNDERWRITTEN scope)",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-03",
     "unverified": false
    },
-   "notes": "Locks out internal probe tokens such as the one observed in this session."
+   "notes": "Four draws: disclosure-block selection was observed to be probabilistic before deterministic assembly, and this case asserts an ABSENCE, which one draw cannot establish. MTU-022 remains the underwritten counterpart, where the same sentence is still required."
   }
  ]
 }

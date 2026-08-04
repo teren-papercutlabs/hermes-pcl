@@ -18,7 +18,16 @@ POLICY = ROOT / "deploy/finexis/mtu/eval-policy.yaml"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from mtu_eval_policy import compare_baseline, load_policy
+from mtu_eval_policy import canonical_digest, compare_baseline, load_policy
+
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from mtu_baseline_fixture import (  # noqa: E402
+    rebind_report_to_corpus,
+    synthesize_missing_selected_cases,
+)
 
 
 def _module(name):
@@ -31,7 +40,41 @@ def _module(name):
 
 
 def _baseline():
-    return json.loads(BASELINE.read_text())
+    """Committed baseline, re-labelled to the CURRENT corpus declarations.
+
+    The baseline replay predates later corpus amendments (an expectation's
+    kind can be downgraded, a case can be merged away, a surviving case can
+    gain an expectation, without a fresh replay existing yet), so the report is
+    re-bound to the current corpus — case coverage via
+    ``rebind_report_to_corpus`` and each assertion's kind/text by (case, label)
+    — before use. The fixtures stay corpus-consistent by construction.
+    """
+    report = json.loads(BASELINE.read_text())
+    corpus = json.loads((ROOT / "deploy/finexis/mtu/evals/mtu-eval-corpus-v1.json").read_text())
+    report = rebind_report_to_corpus(report, corpus)
+    declared = {
+        str(case.get("case_id")): {
+            str(item.get("label")): item for item in case.get("expected") or []
+        }
+        for case in corpus.get("cases") or []
+    }
+    for case in report["cases"]:
+        expected_by_label = declared.get(str(case.get("case_id")), {})
+        for turn in case["turns"]:
+            for assertion in turn["assertions"]:
+                current = expected_by_label.get(str(assertion.get("label")))
+                if current is None:
+                    continue
+                new_kind = current.get("kind", assertion["kind"])
+                if new_kind != assertion["kind"]:
+                    assertion["kind"] = new_kind
+                    if new_kind in {"must", "must_not"}:
+                        assertion.pop("text", None)
+                        assertion.update(status="pending_judge", passed=None)
+                elif "text" in current:
+                    assertion["text"] = current["text"]
+    report["corpus"]["source_digest"] = canonical_digest(corpus)
+    return report
 
 
 def _nightly(status="green"):
@@ -44,6 +87,8 @@ def _passing_rule_report():
     report["corpus"]["tags"] = [
         "intake", "rop", "never-ask", "fabrication", "compliance", "client-surface"
     ]
+    corpus = json.loads((ROOT / "deploy/finexis/mtu/evals/mtu-eval-corpus-v1.json").read_text())
+    synthesize_missing_selected_cases(report, corpus)
     semantic_turns = semantic_assertions = 0
     for case in report["cases"]:
         for turn in case["turns"]:
@@ -79,8 +124,10 @@ def test_baseline_comparison_names_population_and_new_failures():
     baseline = _baseline()
     assert compare_baseline(baseline, baseline) == {
         "status": "green",
-        "accepted_failure_count": 10,
-        "current_failure_count": 10,
+        # 9 = the rebound baseline's exact-assertion failures after the MTU-023
+        # and MTU-018 pending-client downgrades (both exact->judge, corpus-driven)
+        "accepted_failure_count": 9,
+        "current_failure_count": 9,
         "new_failure_count": 0,
         "new_failure_keys": [],
         "expected_case_count": 43,

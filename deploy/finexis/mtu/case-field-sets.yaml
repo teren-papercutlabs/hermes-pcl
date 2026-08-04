@@ -1,0 +1,322 @@
+# MTU — case field sets (CLIENT CONFIG)
+#
+# The required-field set per case type, consumed by the PA-generic case
+# record module (agent/pa_case_record.py).  Field ids are opaque to that
+# module; all MTU/Finexis vocabulary lives HERE, in the deployment tree, and
+# never in the shared layer.
+#
+# Grounded in deploy/finexis/mtu/knowledge/bor-required-checks.yaml
+# (category_requirements) and the intake / material-missing rules.  Those files
+# remain the authority on WHY a field is required; this file is the machine
+# -readable form the record queries against.
+#
+# Field semantics:
+#   required  - the case cannot be drafted from without it
+#   askable   - false means asking for it is a DEFECT: it is derived,
+#               template default, or maintained outside the case.  An
+#               unaskable field never appears in the empty-required set that
+#               intake generates questions from.
+#   ask_hint  - the question shape when it IS asked; intake composes from it,
+#               it is not sent verbatim
+#   holds     - what the field HOLDS, for the extractor that has to recognise
+#               a value in a message. Separate from ask_hint on purpose: an
+#               ask_hint enumerates everything a COMPLETE answer eventually
+#               carries, so an extractor reading it as a description treats it
+#               as a bar the message must clear and drops a short but genuine
+#               answer ("BOR for Voyage 15" states the proposed plan). Falls
+#               back to ask_hint when absent.
+#   derived_from - advisory: which recorded answer a derivation may stand on
+#
+# Phase-2 note: the record module supplies the query and the derivation hook;
+# the derivation CALLABLES (e.g. is_replacement from existing_plans) are
+# client-owned and wired at the deployment, not in the shared module.
+
+version: 1
+
+field_sets:
+
+  # ── Protection / life: term, whole life, ILP-protection, CI ──────────
+  protection_life:
+    case_type: protection_life
+    fields:
+      - id: existing_plans
+        required: true
+        askable: true
+        ask_hint: >-
+          Existing plan(s) with the facts the matching category contract needs
+          — insurer, plan name, category, sum assured by benefit, premium,
+          coverage till age. "None" for a first purchase.
+        holds: >-
+          The plan(s) the client already holds, however the advisor names
+          them — a product name alone IS the value. "None" for a first
+          purchase.
+        notes: "The starting position the BOR must state clearly."
+
+      - id: proposed_plan
+        required: true
+        askable: true
+        ask_hint: >-
+          Proposed plan — insurer, plan name, riders, category, sum assured by
+          benefit, first-year and subsequent premium, policy term.
+        holds: >-
+          The plan being proposed, however the advisor names it. A product
+          name or shorthand on its own IS the value, INCLUDING when it appears
+          inside a request to produce a document ("BOR for <product>") — the
+          product named in the request IS the proposed plan, so record that
+          name. When a later message adds detail about that same plan —
+          premium, term, riders, sum assured, category — record the field
+          again as the name PLUS that detail, so the value grows instead of
+          either staying a bare name or losing it.
+
+      - id: is_replacement
+        required: true
+        askable: false
+        derived_from: [existing_plans]
+        notes: >-
+          DERIVED, never asked as its own item (amelia-ruled 2026-08-01).
+          No existing plans = non-ROP, no further question. An existing plan
+          stated as being replaced = ROP. The yes/no replacement question is
+          asked only when an existing plan exists and its replacement status
+          was not stated — and it is asked against existing_plans, not as a
+          separate ROP item.
+
+      - id: replaced_products
+        required: false
+        askable: true
+        applies_when: rop
+        ask_hint: "Which product(s) are being replaced?"
+
+      - id: replacing_products
+        required: false
+        askable: true
+        applies_when: rop
+        ask_hint: "Which product(s) are replacing them?"
+
+      - id: client_stated_rationale
+        required: false
+        askable: false
+        notes: >-
+          NEVER SOLICITED. Standard narrative defaults supply this; record it
+          only when the advisor volunteers it.
+
+      - id: product_category
+        required: false
+        askable: false
+        derived_from: [proposed_plan]
+        notes: >-
+          DERIVED from the proposed plan, never asked. Drives the deterministic
+          disclaimer-set selection in reference/065-disclaimer-selection.yaml
+          (investment products are GIO — no medical underwriting — so they must
+          not carry the medical non-disclosure line).
+
+  # ── ILP: protection/life contract plus suitability facts ─────────────
+  investment_linked:
+    case_type: investment_linked
+    fields:
+      - id: existing_plans
+        required: true
+        askable: true
+        ask_hint: "Existing plan(s), or 'none' for a first purchase."
+        holds: >-
+          The plan(s) the client already holds, however the advisor names
+          them — a product name alone IS the value. "None" for a first
+          purchase.
+
+      - id: proposed_plan
+        required: true
+        askable: true
+        ask_hint: >-
+          Proposed ILP — insurer, plan name, riders, sum assured by benefit,
+          first-year and subsequent premium, policy term, minimum investment
+          period.
+        holds: >-
+          The plan being proposed, however the advisor names it. A product
+          name or shorthand on its own IS the value, INCLUDING when it appears
+          inside a request to produce a document ("BOR for <product>") — the
+          product named in the request IS the proposed plan, so record that
+          name. When a later message adds detail about that same plan —
+          premium, term, riders, sum assured, category — record the field
+          again as the name PLUS that detail, so the value grows instead of
+          either staying a bare name or losing it.
+
+      - id: is_replacement
+        required: true
+        askable: false
+        derived_from: [existing_plans]
+
+      - id: min_investment_period
+        required: true
+        askable: true
+        ask_hint: "Minimum investment period for the proposed ILP."
+
+      - id: cka_status
+        required: true
+        askable: true
+        ask_hint: "CKA outcome for the client."
+
+      - id: risk_profile
+        required: true
+        askable: true
+        ask_hint: "Client risk profile."
+
+      - id: fund_selection
+        required: true
+        askable: true
+        ask_hint: "Fund name(s) selected."
+
+      - id: objective_alignment
+        required: true
+        askable: false
+        derived_from: [fund_selection, risk_profile]
+        notes: >-
+          NEVER ASKED (R09, amelia-ruled 2026-08-01). Alignment is COMPUTED from
+          the named fund's equity allocation against the client's stated risk
+          profile — the advisor is not the source. This field was `askable: true`
+          with an ask_hint reading "How the fund selection aligns with the
+          client's objective", which is verbatim the question the ILP GATE
+          forbids: intake builds its questions from the empty-required set, so
+          the record was generating the exact defect the rules prohibit. An
+          unresolvable fund asks for the specific FUND NAME, never for alignment.
+
+      - id: high_premium_declaration_wording
+        required: false
+        askable: true
+        applies_when: annual_ilp_premium_above_36000_sgd
+        ask_hint: >-
+          Approved wording for the annual-ILP-premium-above-S$36,000
+          declaration.
+
+      - id: product_category
+        required: false
+        askable: false
+        derived_from: [proposed_plan]
+        notes: >-
+          DERIVED from the proposed plan, never asked. Drives the deterministic
+          disclaimer-set selection in reference/065-disclaimer-selection.yaml
+          (investment products are GIO — no medical underwriting — so they must
+          not carry the medical non-disclosure line).
+
+  # ── Shield / hospitalisation ─────────────────────────────────────────
+  shield_hospitalisation:
+    case_type: shield_hospitalisation
+    fields:
+      - id: existing_plans
+        required: true
+        askable: true
+        ask_hint: >-
+          Existing arrangement — insurer, exact base plan name, exact
+          versioned rider name, material premium. "None" for a first purchase.
+        holds: >-
+          The plan(s) the client already holds, however the advisor names
+          them — a product name alone IS the value. "None" for a first
+          purchase.
+
+      - id: proposed_plan
+        required: true
+        askable: true
+        ask_hint: >-
+          Proposed arrangement — insurer, exact base plan name, exact
+          versioned rider name, material premium.
+        holds: >-
+          The plan being proposed, however the advisor names it. A product
+          name or shorthand on its own IS the value, INCLUDING when it appears
+          inside a request to produce a document ("BOR for <product>") — the
+          product named in the request IS the proposed plan, so record that
+          name. When a later message adds detail about that same plan —
+          premium, term, riders, sum assured, category — record the field
+          again as the name PLUS that detail, so the value grows instead of
+          either staying a bare name or losing it.
+
+      - id: is_replacement
+        required: true
+        askable: false
+        derived_from: [existing_plans]
+
+      - id: replaced_products
+        required: false
+        askable: true
+        applies_when: rop
+        ask_hint: "Which product(s) are being replaced?"
+
+      - id: replacing_products
+        required: false
+        askable: true
+        applies_when: rop
+        ask_hint: "Which product(s) are replacing them?"
+
+      - id: client_stated_rationale
+        required: true
+        askable: true
+        ask_hint: "The client's stated reason for the change."
+        notes: >-
+          Shield is the one contract where the rationale is a collected case
+          fact rather than a narrative default (bor-required-checks
+          category_requirements.shield_hospitalisation.collect_rationale).
+
+      - id: exact_versioned_rider_name
+        required: false
+        askable: true
+        ask_hint: "Exact / versioned rider name."
+        notes: >-
+          Identifies the arrangement ONLY. Rider benefit limits, deductible,
+          and coinsurance are never collected and never printed.
+      - id: product_category
+        required: false
+        askable: false
+        derived_from: [proposed_plan]
+        notes: >-
+          DERIVED from the proposed plan, never asked. Drives the deterministic
+          disclaimer-set selection in reference/065-disclaimer-selection.yaml
+          (investment products are GIO — no medical underwriting — so they must
+          not carry the medical non-disclosure line).
+
+
+# ── Derivations (CLIENT-OWNED) ───────────────────────────────────────────
+#
+# The record module supplies the derivation HOOK; what may be derived from
+# what is a domain judgment, so the rules live here. Each rule reads ONE
+# recorded answer and resolves the target field from it; the derived value
+# inherits the source answer's message id, so provenance leads back to the
+# message the advisor actually wrote. A derived field is filled, and a filled
+# field is never re-asked.
+#
+# Ordering matters within `matches`: the first pattern that matches wins.
+# `default: null` means "cannot be derived yet" — the field stays empty.
+
+derivations:
+
+  # R06/R08 (amelia-ruled 2026-08-01): "no existing plans" is a complete
+  # answer — it makes the case non-ROP with no further question. An existing
+  # plan the advisor describes as being replaced is ROP. Anything else stays
+  # underived, so the ROP GATE's single conversational question still applies.
+  is_replacement:
+    # Rules are tried in order against whichever answer is recorded; the first
+    # that resolves wins. A named replaced product IS the replacement answer,
+    # so it settles ROP without the existing-plans wording having to say so.
+    - from: replaced_products
+      matches:
+        - pattern: '\S'
+          value: "yes"
+      default: null
+    - from: existing_plans
+      matches:
+        - pattern: '(?i)^[\s\[\{"'']*(none|no|nil|n/?a|no existing|not applicable|first purchase|new purchase)\b'
+          value: "no"
+        - pattern: '(?i)(replac|switch(ing)? (from|out)|surrender|terminat|cancel(ling|ing)?)'
+          value: "yes"
+      default: null
+
+  # PRODUCT-NAME SHORTHAND (amelia-ruled 2026-08-01): "Voyage 15" / "10pay" names
+  # the minimum investment period. The number is IN the product name the advisor
+  # already gave, so asking for it is the defect this derivation removes. It fires
+  # only when the field is empty, so an explicitly stated period always wins (and
+  # a product rule that contradicts a stated period — R19's MIP10-only Abundance —
+  # is still the rules layer's to challenge).
+  min_investment_period:
+    - from: proposed_plan
+      matches:
+        - pattern: '(?i)(\d{1,2})\s*pay\b'
+          value_template: '\1-year minimum investment period'
+        - pattern: '(?i)(?:voyage|abundance)\s*(\d{1,2})\b'
+          value_template: '\1-year minimum investment period'
+      default: null

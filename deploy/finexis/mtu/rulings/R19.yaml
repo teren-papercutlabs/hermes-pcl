@@ -1,0 +1,27 @@
+id: R19
+who: amelia
+date: 2026-08-03
+verbatim: "HSBC Life Wealth Abundance offers MIP10 ONLY (Melody, 2026-08-03) — never write a 15-year or 20-year Abundance."
+source: >-
+  Melody-sourced rule, relayed and applied to the live runtime
+  (~/.hermes-mtu/mtu_constitution.yaml) by the amelia loop at 2026-08-03 14:58 SGT.
+  The verbatim above is the exact wording landed in the live constitution; the
+  underlying advisor-facing defect was a 15-year Abundance reaching a real advisor.
+  Melody's original words for this rule were not captured separately, so the applied
+  constitution wording is the record of the ruling.
+scope:
+  knowledge_type: A
+  artifacts:
+    - rules/160-ilp-suitability.yaml
+  tags:
+    - ilp
+    - fund-suitability
+    - product-shorthand
+    - fabrication
+expected_behavior: >-
+  A proposed Abundance carrying a non-MIP10 minimum investment period (e.g.
+  "Abundance 15" / 20-year Abundance) is never drafted with that period: the agent
+  states or applies MIP10 for Abundance, or asks one line to confirm the period —
+  and never carries an unconfirmed advisor-supplied period into the draft.
+eval_cases:
+  - MTU-060_abundance_mip10_only

@@ -1,0 +1,27 @@
+# pa-source:
+# approved_by:
+# - teren
+# approved_date:
+# - '2026-08-03'
+# ruling_ref:
+# - 'WB 6c20d4a8'
+# - S7-case-record-design
+# status: approved
+# sequence: 13
+# ---
+      case_record:
+        enabled: true
+        # Client-owned required-field set (also carries the derivation table).
+        field_sets: case-field-sets.yaml
+        # Used until the turn classifies the case.
+        default_case_type: protection_life
+        # The recorded field that drives deterministic disclaimer selection,
+        # and the answer it is derived from.
+        category_field: product_category
+        category_source_field: proposed_plan
+        # Product category -> required disclaimer set (deploy-tree config).
+        disclaimer_selection: reference/065-disclaimer-selection.yaml
+        extraction:
+          enabled: true
+          max_tokens: 900
+          timeout: 45

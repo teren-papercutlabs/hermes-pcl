@@ -20,9 +20,22 @@
         variants to the lookup and never alter the generic tool's exact-match rule.
         Build the replacement-path key only from the two exact taxonomy entries.
         Never fetch a whole structured reference. Use the returned
-        entry only when found=true. A miss means no approved example exists: follow
-        the returned escalation cue and route the unresolved case to Melody. Never
-        substitute a nearby key, reuse a number from another path, ask the advisor
-        for a file number, or expose internal lookup vocabulary. Resolving an
-        example does not make an unsupported product category draftable; the
+        entry only when found=true.
+        A MISS IS NOT ONE VERDICT — which lookup missed decides what happens.
+        MISS ON 061 (replacement path) or on 064 (category not in the approved
+        taxonomy): the replacement TYPE has no approved reference example.
+        Withhold that component, name the old and new plan types in the advisor's
+        own words, say the case is with Melody, add NO_REFERENCE_EXAMPLE to the
+        scope marker, and place [[PA_BLOCK:NO_REFERENCE_EXAMPLE]] where the
+        explanation belongs — never type or paraphrase that sentence yourself.
+        MISS ON 062 (approved products) or 063 (product insurers): only this
+        PRODUCT NAME is absent from the reference examples. That NEVER withholds a
+        draft on its own. When the replacement path resolves and both categories
+        are supported, DRAFT the case from the advisor's supplied facts; an
+        unfamiliar product name is not an escalation and not a reason to reach for
+        a nearby product. Escalating a draftable case over an unlisted product
+        name is a defect (MTU-021).
+        Never substitute a nearby key, reuse a number from another path, ask the
+        advisor for a file number, or expose internal lookup vocabulary. Resolving
+        an example does not make an unsupported product category draftable; the
         supported-category contract still governs.

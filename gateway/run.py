@@ -9420,21 +9420,130 @@ class GatewayRunner:
             if _replay_ctx is None:
                 await self.hooks.emit("agent:start", hook_ctx)
 
-            # Run the agent
-            agent_result = await self._run_agent(
-                message=message_text,
-                context_prompt=context_prompt,
-                history=history,
-                source=source,
-                session_id=session_entry.session_id,
-                session_key=session_key,
-                run_generation=run_generation,
-                event_message_id=_pa_action_message_id,
-                channel_prompt=event.channel_prompt,
-                pa_job_type=event.pa_job_type,
-                pa_context=event.pa_context,
-                suppress_delivery=(_pa_suppress_reply_send or _replay_ctx is not None),
+            # Run the agent.  PA deterministic output assembly suppresses streaming:
+            # protected text must be spliced and verified before any byte reaches an
+            # adapter.  A missing marker gets a bounded number of regenerations
+            # with the exact missing-marker contract, then fails closed.
+            from agent.pa_output_assembly import (
+                PAOutputAssemblyRetry,
+                assemble_pa_response,
+                output_assembly_enabled,
+                output_assembly_max_attempts,
+                retry_instruction,
             )
+
+            _assembly_enabled = output_assembly_enabled(_pa_action_context)
+            _assembly_attempts = output_assembly_max_attempts(_pa_action_context)
+            _assembly_source_text = "\n".join(
+                [
+                    str(item.get("content") or "")
+                    for item in history
+                    if isinstance(item, dict) and item.get("role") == "user"
+                ]
+                + [message_text]
+            )
+            _assembly_retry_note = ""
+            _assembly_evidence = {"enabled": False, "inserted": []}
+            agent_result = None
+            for _assembly_attempt in range(1, _assembly_attempts + 1):
+                _attempt_context_prompt = context_prompt
+                if _assembly_retry_note:
+                    _attempt_context_prompt = (
+                        f"{context_prompt}\n\n{_assembly_retry_note}"
+                        if context_prompt
+                        else _assembly_retry_note
+                    )
+                agent_result = await self._run_agent(
+                    message=message_text,
+                    context_prompt=_attempt_context_prompt,
+                    history=history,
+                    source=source,
+                    session_id=session_entry.session_id,
+                    session_key=session_key,
+                    run_generation=run_generation,
+                    event_message_id=_pa_action_message_id,
+                    channel_prompt=event.channel_prompt,
+                    pa_job_type=event.pa_job_type,
+                    pa_context=event.pa_context,
+                    suppress_delivery=(
+                        _pa_suppress_reply_send
+                        or _replay_ctx is not None
+                        or _assembly_enabled
+                    ),
+                )
+                if not _assembly_enabled or agent_result.get("failed"):
+                    break
+                # Deterministic disclaimer selection: the case record's product
+                # category — not the model's scope tags — decides WHICH approved
+                # block the shared anchor resolves to. Read after the turn so it
+                # sees the facts this turn supplied.
+                _pa_block_selection = None
+                _pa_record_stamp = None
+                _pa_field_values: dict[str, Any] = {}
+                try:
+                    from agent.pa_case_runtime import (
+                        case_record_enabled as _case_record_enabled,
+                        resolve_disclaimer_selection as _resolve_disclaimer_selection,
+                    )
+
+                    if _case_record_enabled(_pa_action_context):
+                        _pa_session_db = getattr(self, "_session_db", None)
+                        _pa_agent_id = _pa_action_agent_id(_pa_action_context)
+                        _pa_block_selection = _resolve_disclaimer_selection(
+                            session_db=_pa_session_db,
+                            pa_context=_pa_action_context,
+                            agent_id=_pa_agent_id,
+                            chat_id=source.chat_id,
+                        )
+                        if _pa_session_db is not None:
+                            from agent.pa_case_record import CaseRecordStore
+
+                            _pa_open_case = CaseRecordStore(_pa_session_db).get_open_case(
+                                agent_id=_pa_agent_id, chat_id=source.chat_id
+                            )
+                            if _pa_open_case is not None:
+                                _pa_record_stamp = _pa_open_case.version_stamp()
+                                # Slotted approved sentences read their values
+                                # from the record, so the model never authors
+                                # the variable part of a compliance line.
+                                _pa_field_values = {
+                                    str(_fid): _entry.value
+                                    for _fid, _entry in (
+                                        _pa_open_case.fields or {}
+                                    ).items()
+                                }
+                except Exception as _pa_sel_exc:  # noqa: BLE001
+                    logger.debug(
+                        "PA disclaimer selection unavailable (non-fatal): %s",
+                        _pa_sel_exc,
+                    )
+                try:
+                    _assembled, _assembly_evidence = assemble_pa_response(
+                        agent_result.get("final_response") or "",
+                        _pa_action_context,
+                        source_text=_assembly_source_text,
+                        block_selection=_pa_block_selection,
+                        record_version_stamp=_pa_record_stamp,
+                        field_values=_pa_field_values,
+                    )
+                    agent_result["final_response"] = _assembled
+                    agent_result["pa_output_assembly"] = {
+                        **_assembly_evidence,
+                        "attempt": _assembly_attempt,
+                    }
+                    break
+                except PAOutputAssemblyRetry as _assembly_error:
+                    if _assembly_attempt >= _assembly_attempts:
+                        raise
+                    _assembly_retry_note = retry_instruction(_assembly_error)
+                    logger.warning(
+                        "PA output assembly withheld attempt %d/%d for %s: %s",
+                        _assembly_attempt,
+                        _assembly_attempts,
+                        session_key or "?",
+                        _assembly_error,
+                    )
+            assert agent_result is not None
 
             # Stop persistent typing indicator now that the agent is done
             try:
@@ -16860,6 +16969,44 @@ class GatewayRunner:
         pa_tenant_slug = _pa_tenant_slug(pa_resolved_context)
         pa_max_output_tokens = _pa_max_output_tokens(pa_resolved_context)
 
+        # ── PA structured case record (S7) ────────────────────────────────
+        # Once per inbound turn: resolve which case this message belongs to
+        # (minting on the runtime's own new-case boundary), record the facts
+        # the message supplied against their source message id, run the
+        # config-declared derivations, and render the record back into the
+        # turn.  The rendered block is the intake surface (ask EXACTLY the
+        # empty required set) and the draft's fact source (build FROM the
+        # record).  Best-effort throughout: the record is substrate for the
+        # turn, never a gate on it.
+        pa_case_state = None
+        try:
+            from agent.pa_case_runtime import (
+                case_record_enabled as _case_record_enabled,
+                update_case_for_turn as _update_case_for_turn,
+            )
+
+            if _case_record_enabled(pa_resolved_context):
+                pa_case_state = await _update_case_for_turn(
+                    session_db=getattr(self, "_session_db", None),
+                    pa_context=pa_resolved_context,
+                    agent_id=_pa_action_agent_id(pa_resolved_context),
+                    chat_id=source.chat_id,
+                    session_id=session_id,
+                    message=message,
+                    message_id=event_message_id,
+                )
+        except Exception as _pa_case_exc:  # noqa: BLE001
+            logger.debug("PA case-record turn hook failed (non-fatal): %s", _pa_case_exc)
+            pa_case_state = None
+        if pa_case_state is not None:
+            logger.info(
+                "PA case record %s: recorded=%s derived=%s still-missing=%s",
+                pa_case_state.version_stamp,
+                list(pa_case_state.recorded_field_ids),
+                list(pa_case_state.derived_field_ids),
+                [spec.field_id for spec in pa_case_state.empty_fields],
+            )
+
         display_config = user_config.get("display", {})
         if not isinstance(display_config, dict):
             display_config = {}
@@ -17392,6 +17539,17 @@ class GatewayRunner:
             pa_prompt = _render_pa_ephemeral_prompt(pa_resolved_context)
             if pa_prompt:
                 combined_ephemeral = (combined_ephemeral + "\n\n" + pa_prompt).strip()
+            if pa_case_state is not None:
+                try:
+                    from agent.pa_case_runtime import render_case_record_prompt
+
+                    _case_prompt = render_case_record_prompt(pa_case_state)
+                except Exception:
+                    _case_prompt = ""
+                if _case_prompt:
+                    combined_ephemeral = (
+                        combined_ephemeral + "\n\n" + _case_prompt
+                    ).strip()
             if self._ephemeral_system_prompt:
                 combined_ephemeral = (combined_ephemeral + "\n\n" + self._ephemeral_system_prompt).strip()
             _record_pa_behavior_event(

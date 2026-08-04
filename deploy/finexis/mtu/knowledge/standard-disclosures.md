@@ -21,7 +21,7 @@ Plus the standard acknowledgements seen in the narratives:
 
 ## B. General recommendation disclosures — insert on every BOR
 
-- The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.
+- The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions. **GIO CARVE-OUT (R20, Melody 2026-08-03): omit this sentence entirely for a guaranteed issue offer (GIO) product — it is issued without underwriting, so a non-disclosure warning is wrong on its face. HSBC Life Wealth Abundance is GIO. If GIO status is unclear, ask one line before drafting rather than inserting the sentence by default.** The other three sentences below are inserted regardless.
 - The product was recommended after fact-find, needs analysis, and product comparison.
 - The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.
 - The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.

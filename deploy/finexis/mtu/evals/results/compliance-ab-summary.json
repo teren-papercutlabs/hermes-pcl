@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "corpus": "../compliance-ab-cases.json",
+  "draws_per_case": 4,
+  "dimensions": [
+    "instruction_placement",
+    "output_mode"
+  ],
+  "variants": [
+    {
+      "instruction_placement": "skill",
+      "output_mode": "marker",
+      "report": "compliance-ab-skill-marker.json",
+      "assertion_count": 80,
+      "passed": 80,
+      "failed": 0,
+      "case_runs_passed": 8,
+      "case_runs_failed": 0,
+      "case_runs_not_applicable": 0,
+      "turn_count": 12,
+      "marker_drop": {
+        "definition": "turns delivered with a residual [[PA_ marker or a fail-closed case run; marker mode fails closed after bounded regeneration, verbatim mode has no splice layer",
+        "residual_marker_turns": 0,
+        "failed_case_runs": 0,
+        "rate": 0.0,
+        "pre_splice_first_attempt_withheld": 4,
+        "pre_splice_unrecovered": 0,
+        "pre_splice_evidence": "../../evidence/compliance-ab-marker-retries-2026-08-03.log (mtu-pa-eval-mv7p_17f)"
+      },
+      "verbatim_fidelity": {
+        "definition": "exact_present/exact_absent assertions passed over total exact assertions",
+        "exact_assertions": 80,
+        "exact_passed": 80,
+        "rate": 1.0
+      }
+    },
+    {
+      "instruction_placement": "skill",
+      "output_mode": "verbatim",
+      "report": "compliance-ab-skill-verbatim.json",
+      "assertion_count": 80,
+      "passed": 78,
+      "failed": 2,
+      "case_runs_passed": 6,
+      "case_runs_failed": 2,
+      "case_runs_not_applicable": 0,
+      "turn_count": 12,
+      "marker_drop": {
+        "definition": "turns delivered with a residual [[PA_ marker or a fail-closed case run; marker mode fails closed after bounded regeneration, verbatim mode has no splice layer",
+        "residual_marker_turns": 0,
+        "failed_case_runs": 2,
+        "rate": 0.25,
+        "pre_splice_first_attempt_withheld": null,
+        "pre_splice_unrecovered": null,
+        "pre_splice_evidence": "not applicable: verbatim mode has no splice layer"
+      },
+      "verbatim_fidelity": {
+        "definition": "exact_present/exact_absent assertions passed over total exact assertions",
+        "exact_assertions": 80,
+        "exact_passed": 78,
+        "rate": 0.975
+      }
+    },
+    {
+      "instruction_placement": "constitution",
+      "output_mode": "marker",
+      "report": "compliance-ab-constitution-marker.json",
+      "assertion_count": 80,
+      "passed": 80,
+      "failed": 0,
+      "case_runs_passed": 8,
+      "case_runs_failed": 0,
+      "case_runs_not_applicable": 0,
+      "turn_count": 12,
+      "marker_drop": {
+        "definition": "turns delivered with a residual [[PA_ marker or a fail-closed case run; marker mode fails closed after bounded regeneration, verbatim mode has no splice layer",
+        "residual_marker_turns": 0,
+        "failed_case_runs": 0,
+        "rate": 0.0,
+        "pre_splice_first_attempt_withheld": 2,
+        "pre_splice_unrecovered": 0,
+        "pre_splice_evidence": "../../evidence/compliance-ab-marker-retries-2026-08-03.log (mtu-pa-eval-tyluarcz)"
+      },
+      "verbatim_fidelity": {
+        "definition": "exact_present/exact_absent assertions passed over total exact assertions",
+        "exact_assertions": 80,
+        "exact_passed": 80,
+        "rate": 1.0
+      }
+    },
+    {
+      "instruction_placement": "constitution",
+      "output_mode": "verbatim",
+      "report": "compliance-ab-constitution-verbatim.json",
+      "assertion_count": 80,
+      "passed": 73,
+      "failed": 7,
+      "case_runs_passed": 5,
+      "case_runs_failed": 3,
+      "case_runs_not_applicable": 0,
+      "turn_count": 12,
+      "marker_drop": {
+        "definition": "turns delivered with a residual [[PA_ marker or a fail-closed case run; marker mode fails closed after bounded regeneration, verbatim mode has no splice layer",
+        "residual_marker_turns": 0,
+        "failed_case_runs": 3,
+        "rate": 0.375,
+        "pre_splice_first_attempt_withheld": null,
+        "pre_splice_unrecovered": null,
+        "pre_splice_evidence": "not applicable: verbatim mode has no splice layer"
+      },
+      "verbatim_fidelity": {
+        "definition": "exact_present/exact_absent assertions passed over total exact assertions",
+        "exact_assertions": 80,
+        "exact_passed": 73,
+        "rate": 0.9125
+      }
+    }
+  ],
+  "selected": {
+    "instruction_placement": "skill",
+    "output_mode": "marker",
+    "basis": "Both marker variants are assertion-clean (80/80, 8/8 case runs) and both verbatim variants lose protected wording (skill 78/80, constitution 73/80), so output_mode=marker is decided by the eval: runtime-owned insertion of the approved artifact keeps protected text out of model authorship. Every first-attempt marker drop (skill 4, constitution 2 of 12 turns) was recovered by bounded regeneration; none shipped, none left residual markers. On this 2-case corpus the placement axis does not separate on assertions, so placement=skill stands on the teren ruling (task-adjacent end-of-context instruction) rather than on a measured gap."
+  },
+  "run_date": "2026-08-03",
+  "runtime_source": "/private/tmp/mtu-s3-source-9057826a-run2 (worktree deploy tree + eval .env; live home never written)"
+}

@@ -1,0 +1,36 @@
+# pa-source:
+# approved_by:
+# - amelia
+# approved_date:
+# - '2026-07-23'
+# ruling_ref:
+# - R03
+# - MTU-032
+# - MTU-033
+# - MTU-034
+# status: approved
+# sequence: 196
+# compose: false
+# ---
+# R03 (amelia, 2026-07-23) approved the EXACT wording for the case where the
+# replacement path has no approved reference example. It was carried as prose in
+# reference/061-ekyc-directory-map.yaml's escalation_cue and relayed by the
+# model, which paraphrased it in three of three nightly cases. It is compliance
+# wording like any other: the model places the marker, the runtime writes the
+# sentence.
+#
+# The plan types the ruling also requires are NOT part of this sentence — they
+# are named separately by the model in the advisor's own words (a judged
+# expectation), so this block carries no slot.
+schema_version: 1
+blocks:
+  - id: no_reference_example
+    marker: '[[PA_BLOCK:NO_REFERENCE_EXAMPLE]]'
+    # Deliberately NOT gated on DRAFT/NO_DRAFT: a mixed case withholds one
+    # component while drafting another, so the sentence must be available in
+    # both scopes.
+    required_tags: [NO_REFERENCE_EXAMPLE]
+    # A mixed case can withhold more than one component.
+    repeatable: true
+    text: |-
+      This type of replacement has not been submitted before, as Melody has not approved a reference example for it.

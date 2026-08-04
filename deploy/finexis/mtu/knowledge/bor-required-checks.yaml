@@ -51,9 +51,9 @@ intake:
     why: "ROP cases need the extra replacement checks + more careful wording."
     applies_when: always
 
-# Category is a field contract, not a prose label. Do not apply one category's
+# Category is a structured requirement set, not a prose label. Do not apply one category's
 # required fields to another category.
-field_contracts:
+category_requirements:
   protection_life:
     categories: [term_life, whole_life, investment_linked_protection, critical_illness]
     collect_existing: [insurer, plan_name, category, sum_assured_by_benefit, premium, coverage_till_age]
@@ -75,7 +75,7 @@ field_contracts:
     excluded_categories: [health_medical, careshield, eldershield, personal_accident, accident, accident_and_health]
   other_or_unknown:
     resolution: operational_escalation
-    rule: "Do not force protection/life or Shield fields onto a different category. If the category itself is unclear, ask one short category clarification. If the category is known but has no approved field contract here—including CareShield/ElderShield, accident, or other A&H—do not draft or invent its required fields; escalate to Melody for the category contract."
+    rule: "Do not force protection/life or Shield fields onto a different category. If the category itself is unclear, ask one short category clarification. If the category is known but has no approved requirement set here—including CareShield/ElderShield, accident, or other A&H—do not draft or invent its required fields; withhold that component and route it to Melody."
 
 # ── Required checks (the compliant-BOR must-covers) ───────────────────────────
 checks:
@@ -211,7 +211,7 @@ output:
     - "Do not ask for derived conclusions, standard alternatives, product-comparison freshness, or reference numbers by default."
     - "For Shield/hospitalisation, ask for an exact/versioned rider name when missing or ambiguous; never ask for or print rider benefit limits, deductible, or coinsurance."
     - "For ROP, insert the standard replacement-disadvantages sentence without asking; explicit contradiction or uncertainty suppresses it and escalates to Melody."
-    - "A known product category with no approved field contract is a Melody escalation, not permission to draft from generic fields."
+    - "A known product category with no approved requirement set is withheld and routed to Melody, not permission to draft from generic fields."
     - "For affordability, ask only the 50%-of-income yes/no question. Never request or print the client's income or surplus figures."
     - "Preserve the affordability boolean exactly: YES = exceeds threshold and caution; NO = does not exceed threshold."
     - "Use plain text only: no Markdown asterisks, decorative headings, tables, or repeated offers to reformat."

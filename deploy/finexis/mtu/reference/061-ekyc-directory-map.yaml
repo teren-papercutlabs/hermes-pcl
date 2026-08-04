@@ -13,10 +13,12 @@ kind: keyed-reference
 schema_version: 1
 key_semantics: exact old category arrow new category
 escalation_cue: >-
-  This type of replacement has not been submitted before, as Melody has not
-  approved a reference example for it. Name the old and new plan types in the
-  advisor's own words and say the case is with Melody. Do not expose lookup
-  mechanics or a file number.
+  No approved reference example exists for this replacement path. Withhold the
+  component: add NO_REFERENCE_EXAMPLE to the scope marker and place
+  [[PA_BLOCK:NO_REFERENCE_EXAMPLE]] where the explanation belongs — the approved
+  sentence is written by the runtime, never typed here. Name the old and new plan
+  types in the advisor's own words and say the case is with Melody. Do not expose
+  lookup mechanics or a file number.
 entries:
   - {key: "ILP-with-coverage -> Term", reference_examples: [1]}
   - {key: "Whole Life -> Term", reference_examples: [1, 2, 16]}

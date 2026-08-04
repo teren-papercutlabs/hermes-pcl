@@ -1,0 +1,72 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - melody-defect-3-investment-disclaimer
+# status: unverified
+# sequence: 65
+# compose: false
+# ---
+# MTU — product category -> required disclaimer set (CLIENT CONFIG)
+#
+# WHY THIS FILE EXISTS
+# Melody's third reported defect: the assistant carried the health/medical
+# disclaimer on an INVESTMENT product. Investment products here are GIO
+# (guaranteed issue offer) — no medical underwriting — so the medical
+# non-disclosure line does not belong in their BOR. Selection must therefore be
+# DETERMINISTIC from the product category, not a model judgment.
+#
+# HOW IT WORKS
+# The case record's `selection_field` (a recorded, provenance-carrying field)
+# names the case's product category. The runtime looks the category up here and
+# hands the result to output assembly, which resolves the shared anchor block to
+# the mapped variant. The model still decides only WHERE the disclosure block
+# goes; it never decides WHICH approved text lands there.
+#
+# STATUS: MECHANISM LIVE, VALUES PENDING AMELIA (via edna-mtu). The two-value
+# mapping below is the current best reading of the defect report. Confirming or
+# changing it is a one-line edit per category — no code change.
+
+version: 1
+
+# ONE CONFIG, TWO CONSUMERS. The same product-category mapping drives (a) which
+# approved disclosure block the shared anchor resolves to, and (b) the
+# underwriting scope tag a completed draft must declare. Melody R20: the
+# pre-existing-conditions disclosure rides the UNDERWRITTEN scope, so a draft
+# must declare EXACTLY ONE of the tags below, sourced from the case record's
+# product-type field. A draft whose category resolves to no scope tag FAILS
+# ASSEMBLY CLOSED rather than shipping without a compliance sentence.
+exclusive_scope_tags: [GIO, UNDERWRITTEN]
+
+# Case-record field consulted first; the case's own type is the fallback.
+selection_field: product_category
+default_category: protection_life
+
+categories:
+
+  # Medically underwritten protection/life: the full approved disclosure set.
+  protection_life:
+    scope_tag: UNDERWRITTEN
+    substitutions: {}
+    forbid: []
+
+  # Shield / hospitalisation: medically underwritten, full set.
+  shield_hospitalisation:
+    scope_tag: UNDERWRITTEN
+    substitutions: {}
+    forbid: []
+
+  # Investment-linked (GIO — no medical underwriting): the general-disclosures
+  # anchor resolves to the GIO variant, which drops the medical non-disclosure
+  # line and keeps every other approved line verbatim.
+  investment_linked:
+    scope_tag: GIO
+    # ADDITIVE scope tags (R07): they union into the draft's scope instead of
+    # displacing the exclusive underwriting tag. The record already knows this
+    # case is an ILP, so the CKA declaration block stops depending on the model
+    # re-declaring it.
+    scope_tags: [ILP]
+    substitutions: {}
+    forbid: []

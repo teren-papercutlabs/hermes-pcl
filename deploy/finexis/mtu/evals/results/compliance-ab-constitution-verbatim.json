@@ -1,0 +1,1529 @@
+{
+  "schema_version": 1,
+  "corpus": {
+    "source_path": "/Users/pcloffice/pcl/_worktrees/edna-ccaff87c-9057826a/deploy/finexis/mtu/evals/compliance-ab-cases.json",
+    "source_digest": "sha256:f1466ce4bd04f6b783334ee4947d4ef5bd2efd9378744432fe7fed15d42e74e3",
+    "declared_case_count": 2,
+    "selected_case_count": 2,
+    "tags": [],
+    "honor_draws": true
+  },
+  "execution": {
+    "platform": "telegram",
+    "case_run_count": 8,
+    "multi_turn_case_count": 1,
+    "turn_count": 12,
+    "runtime": {
+      "mode": "disposable_copy",
+      "source_home": "/private/tmp/mtu-s3-source-9057826a-run2",
+      "copy_home": "/private/var/folders/s9/3_6wbwsd2qqfnlr4z9lxsbgr0000gn/T/mtu-pa-eval-hs63c4f8",
+      "live_home_written": false,
+      "model_provider": "custom",
+      "model": "gpt-5.4-mini",
+      "source_config_sha256": "6906557d159672c9e6beabde101d20d1199c13a9e5a7d0ee3c994fdf7ddec9aa",
+      "source_constitution_sha256": "d5c294c4ede39471ff418abb98e2c81e837a11f7bc5eff12366f0e2c9c0e7bec",
+      "copied_config_sha256": "49e4e2085328509e469c1fd1650f83aaf63ac2b8378efa461cd666498a14965b",
+      "copied_constitution_sha256": "66ba2e2aa561545bd4092d6f0f789334949ca9a4217e4cdd7600e9a9a6fc632f",
+      "instruction_placement": "constitution",
+      "output_mode": "verbatim"
+    }
+  },
+  "deterministic_summary": {
+    "assertion_count": 80,
+    "passed": 73,
+    "failed": 7,
+    "case_runs_passed": 5,
+    "case_runs_failed": 3,
+    "case_runs_not_applicable": 0
+  },
+  "cases": [
+    {
+      "case_id": "MTU-017_rop_targeted_intake_and_exact_output",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "never-ask",
+        "disclosures",
+        "formatting"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-9b699f4d49",
+      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-9b699f4d49",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-9b699f4d49-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-9b699f4d49-turn-1",
+          "processed": 1,
+          "response": "Quick check: do the client’s total annual premiums exceed 50% of annual income? Answer yes or no.",
+          "response_digest": "sha256:a6e28e45426acf562969d0d5085360f5505280bb70572f632ead300cb42b5247",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question only for the explicit yes/no 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for rationale, alternatives, replacement-disadvantages wording, income or surplus, reference number, arithmetic, or comparison freshness",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d1-9b699f4d49-turn-2",
+          "processed": 1,
+          "response": "Check before use: Melody review needed. The replacement path is Term -> Term and the sustainability check is resolved as not exceeding 50% of surplus, but the existing plan name “Prudential PruTerm” does not resolve against the approved product mapping, so I can’t produce a compliant BOR draft without confirmation of the exact approved existing-plan label.",
+          "response_digest": "sha256:0f35704f089790c14e971187390d3048d3b666a401ad57b2b4672bfea7db1bf3",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the supported Term-to-Term ROP BOR after receiving the sole missing material answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for any standard narrative default or never-ask item",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not invert the sustainability declaration",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 2",
+              "kind": "exact_present",
+              "text": "2. Financial benefits accumulated over the years may be lost.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "2. Financial benefits accumulated over the years may be lost."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 3",
+              "kind": "exact_present",
+              "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 4",
+              "kind": "exact_present",
+              "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost."
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            },
+            {
+              "label": "contains no Markdown heading markers",
+              "kind": "exact_absent",
+              "text": "#",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "#"
+            },
+            {
+              "label": "does not expose an internal coverage recap",
+              "kind": "exact_absent",
+              "text": "Coverage note",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Coverage note"
+            },
+            {
+              "label": "does not end with a closing offer",
+              "kind": "exact_absent",
+              "text": "If you want",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "If you want"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "failed",
+        "assertion_count": 10,
+        "passed": 5,
+        "failed": 5
+      }
+    },
+    {
+      "case_id": "MTU-017_rop_targeted_intake_and_exact_output",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "never-ask",
+        "disclosures",
+        "formatting"
+      ],
+      "draw": 2,
+      "canary": false,
+      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-377b383c3b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-377b383c3b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-377b383c3b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-377b383c3b-turn-1",
+          "processed": 1,
+          "response": "Do the client’s total annual premiums exceed 50% of the client’s surplus? Answer yes or no.",
+          "response_digest": "sha256:84965cffe90d32695ae13457b212b359bfa872b5e594dc5bc2651c06b69955a5",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question only for the explicit yes/no 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for rationale, alternatives, replacement-disadvantages wording, income or surplus, reference number, arithmetic, or comparison freshness",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d2-377b383c3b-turn-2",
+          "processed": 1,
+          "response": "To address the client’s need for additional protection coverage, the client currently has Prudential PruTerm, Term Life, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wants CI cover and a longer term.\n\nThe client has chosen Elite Term (All Riders). The plan provides S$500,000 death/TPD/CI, costs S$1,500 yearly, and covers the client to age 70.\n\nThe client’s death/TPD coverage increases from S$300,000 to S$500,000, CI cover is added, and the coverage term is extended from age 65 to age 70. The annual premium increases from S$1,200 to S$1,500.\n\nTotal annual premiums do not exceed 50% of the client’s surplus.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\n\nPre-existing medical conditions may not be covered under the new policy; a 90-day waiting period may apply before certain benefits take effect.\nThe client may incur losses on premiums already paid on the existing policy, and will lose existing coverage on surrender.\nOther options — increasing the sum assured under the existing policy, attaching riders, or converting the policy — were explored; replacement was recommended only after assessment confirmed it suitable and in the client’s best interest.\nThe product was recommended after the Financial Consultant performed a cost-benefit comparison with the policy to be replaced, as this is a replacement of policy.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:12fb230ff99279b5940f93321880193e6c1ddcf4a9f7b70af87c1e00f5fe9564",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the supported Term-to-Term ROP BOR after receiving the sole missing material answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for any standard narrative default or never-ask item",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not invert the sustainability declaration",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 2",
+              "kind": "exact_present",
+              "text": "2. Financial benefits accumulated over the years may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "2. Financial benefits accumulated over the years may be lost."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 3",
+              "kind": "exact_present",
+              "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 4",
+              "kind": "exact_present",
+              "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost."
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            },
+            {
+              "label": "contains no Markdown heading markers",
+              "kind": "exact_absent",
+              "text": "#",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "#"
+            },
+            {
+              "label": "does not expose an internal coverage recap",
+              "kind": "exact_absent",
+              "text": "Coverage note",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Coverage note"
+            },
+            {
+              "label": "does not end with a closing offer",
+              "kind": "exact_absent",
+              "text": "If you want",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "If you want"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "failed",
+        "assertion_count": 10,
+        "passed": 9,
+        "failed": 1
+      }
+    },
+    {
+      "case_id": "MTU-017_rop_targeted_intake_and_exact_output",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "never-ask",
+        "disclosures",
+        "formatting"
+      ],
+      "draw": 3,
+      "canary": false,
+      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-21a48d7878",
+      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-21a48d7878",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-21a48d7878-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-21a48d7878-turn-1",
+          "processed": 1,
+          "response": "Quick check: do the total annual premiums exceed 50% of the client's surplus? yes or no",
+          "response_digest": "sha256:0016efb59ecbe7c258764c2d5956b7b3528987fe8776151a2aa341bb01884094",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question only for the explicit yes/no 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for rationale, alternatives, replacement-disadvantages wording, income or surplus, reference number, arithmetic, or comparison freshness",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d3-21a48d7878-turn-2",
+          "processed": 1,
+          "response": "BOR draft\n\nExisting plan: Prudential PruTerm, Term Life, S$300,000 death/TPD, premium S$1,200 yearly, coverage to age 65.\nProposed plan: Elite Term (All Riders), Term Life, S$500,000 death/TPD/CI, premium S$1,500 yearly, coverage to age 70.\nThis is a replacement of the existing policy.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wanted CI cover and a longer term.\n\nThe proposed plan provides higher protection with CI cover at S$500,000 death/TPD/CI compared with the existing S$300,000 death/TPD cover, and extends the coverage period from age 65 to age 70.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nCheck before use:\n- Confirm the exact product name formatting matches the application form.\n- Confirm “All Riders” is the intended plan name.",
+          "response_digest": "sha256:b5ad749bbfcec4f8b959fbf7e607ddf6991a4cb8c79f49a23114e2f49c3018fb",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the supported Term-to-Term ROP BOR after receiving the sole missing material answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for any standard narrative default or never-ask item",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not invert the sustainability declaration",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 2",
+              "kind": "exact_present",
+              "text": "2. Financial benefits accumulated over the years may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "2. Financial benefits accumulated over the years may be lost."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 3",
+              "kind": "exact_present",
+              "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 4",
+              "kind": "exact_present",
+              "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost."
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            },
+            {
+              "label": "contains no Markdown heading markers",
+              "kind": "exact_absent",
+              "text": "#",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "#"
+            },
+            {
+              "label": "does not expose an internal coverage recap",
+              "kind": "exact_absent",
+              "text": "Coverage note",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Coverage note"
+            },
+            {
+              "label": "does not end with a closing offer",
+              "kind": "exact_absent",
+              "text": "If you want",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "If you want"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 10,
+        "passed": 10,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-017_rop_targeted_intake_and_exact_output",
+      "tags": [
+        "intake",
+        "rop",
+        "sustainability",
+        "never-ask",
+        "disclosures",
+        "formatting"
+      ],
+      "draw": 4,
+      "canary": false,
+      "run_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-f73d33fbe6",
+      "replay_namespace": "agent:replay:pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-f73d33fbe6",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-f73d33fbe6-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 2,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-f73d33fbe6-turn-1",
+          "processed": 1,
+          "response": "Draft:\n\nThe client is currently covered under Prudential PruTerm, a term life policy with S$300,000 death/TPD cover, annual premium of S$1,200, and coverage to age 65.\n\nThe proposed replacement is Elite Term (All Riders), a term life plan with S$500,000 death/TPD/CI cover, annual premium of S$1,500, and coverage to age 70.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wanted CI cover and a longer term.\n\nThe proposed plan provides higher death/TPD cover, adds CI cover, and extends the coverage period from age 65 to age 70.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:e71fe54ed0a827abe61d3f1dcdddfcc14794e6c8cfb5ec812b36be10e039e695",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "asks one compact question only for the explicit yes/no 50%-of-surplus answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for rationale, alternatives, replacement-disadvantages wording, income or surplus, reference number, arithmetic, or comparison freshness",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            }
+          ]
+        },
+        {
+          "turn_index": 1,
+          "attempt_id": "pa-eval-MTU-017_rop_targeted_intake_and_exact_output-d4-f73d33fbe6-turn-2",
+          "processed": 1,
+          "response": "The client is currently covered under Prudential PruTerm, a term life policy with S$300,000 death/TPD cover, annual premium of S$1,200, and coverage to age 65.\n\nThe proposed replacement is Elite Term (All Riders), a term life plan with S$500,000 death/TPD/CI cover, annual premium of S$1,500, and coverage to age 70.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Elite Term (All Riders) because the client wanted CI cover and a longer term.\n\nThe proposed plan provides higher death/TPD cover, adds CI cover, and extends the coverage period from age 65 to age 70.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\n\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:7e0842cfe976e05c5ae5ea46fb948f128f495740c577db152b4d83733763071f",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the supported Term-to-Term ROP BOR after receiving the sole missing material answer",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not ask for any standard narrative default or never-ask item",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "does not invert the sustainability declaration",
+              "kind": "exact_absent",
+              "text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Client has catered enough savings and emergency funds for unforeseen circumstances, and is comfortable to proceed even though the premium amount is more than 50% of their surplus."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 1",
+              "kind": "exact_present",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 2",
+              "kind": "exact_present",
+              "text": "2. Financial benefits accumulated over the years may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "2. Financial benefits accumulated over the years may be lost."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 3",
+              "kind": "exact_present",
+              "text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable."
+            },
+            {
+              "label": "includes exact ROP disadvantage point 4",
+              "kind": "exact_present",
+              "text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost."
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            },
+            {
+              "label": "contains no Markdown heading markers",
+              "kind": "exact_absent",
+              "text": "#",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "#"
+            },
+            {
+              "label": "does not expose an internal coverage recap",
+              "kind": "exact_absent",
+              "text": "Coverage note",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Coverage note"
+            },
+            {
+              "label": "does not end with a closing offer",
+              "kind": "exact_absent",
+              "text": "If you want",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "If you want"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 10,
+        "passed": 10,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-018_complete_voyage_no_fabricated_intent",
+      "tags": [
+        "ilp",
+        "rop",
+        "sustainability",
+        "product-shorthand",
+        "fund-suitability",
+        "disclosures",
+        "formatting"
+      ],
+      "draw": 1,
+      "canary": true,
+      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-c24d980501",
+      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-c24d980501",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-c24d980501-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d1-c24d980501-turn-1",
+          "processed": 1,
+          "response": "To address the client's investment needs, the client currently has no existing plans.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage 15pay because it suits the client's long-term investment objectives.\n\nThe client has chosen HSBC Life Wealth Voyage 15pay with a 15-year minimum investment period, no riders, 100% allocated to Franklin Income Fund, and a yearly premium of S$12,000.\n\nThe client failed CKA and has a balanced risk profile. Franklin Income Fund is approximately 25% equity and is treated as balanced, pending Melody confirmation.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:43b6fa414f5e107c4f8073a3d814a6aa66ae237d2289f4f9195f80c77f32d66a",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the supported non-ROP Voyage BOR without asking what Voyage 15pay means",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "identifies HSBC Life Wealth Voyage and the 15-year minimum investment period",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "states the CKA result and balanced risk profile once without additional regulatory logic",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present Franklin Income Fund's pending classification as definitively Melody-approved",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes a concise Melody flag for the pending Franklin Income Fund classification while still drafting",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes one closing check line for any case-varying start-up bonus or promotion/gift wording without inventing values",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "uses the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "includes the first exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "includes the second exact general disclosure",
+              "kind": "exact_present",
+              "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The product was recommended after fact-find, needs analysis, and product comparison."
+            },
+            {
+              "label": "includes the third exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product."
+            },
+            {
+              "label": "includes the fourth exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them."
+            },
+            {
+              "label": "does not include ROP disadvantages for the new purchase",
+              "kind": "exact_absent",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "does not invent the observed future-shortfall intention",
+              "kind": "exact_absent",
+              "text": "the client would like to address any remaining shortfall at a later date.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "the client would like to address any remaining shortfall at a later date."
+            },
+            {
+              "label": "does not invent any other client goal, horizon, rationale, or future intention",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            },
+            {
+              "label": "contains no Markdown heading marker",
+              "kind": "exact_absent",
+              "text": "#",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "#"
+            },
+            {
+              "label": "contains no Markdown horizontal rule",
+              "kind": "exact_absent",
+              "text": "---",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "---"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 10,
+        "passed": 10,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-018_complete_voyage_no_fabricated_intent",
+      "tags": [
+        "ilp",
+        "rop",
+        "sustainability",
+        "product-shorthand",
+        "fund-suitability",
+        "disclosures",
+        "formatting"
+      ],
+      "draw": 2,
+      "canary": true,
+      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-c9b69d1b6f",
+      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-c9b69d1b6f",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-c9b69d1b6f-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d2-c9b69d1b6f-turn-1",
+          "processed": 1,
+          "response": "To address the client's wealth accumulation needs, the client has chosen HSBC Life Wealth Voyage (Voyage 15pay) with no riders and the Franklin Income Fund. The annual premium is S$12,000.\n\nClient did not pass CKA and has a risk profile of balanced.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage because the Franklin Income Fund is a balanced option that matches the client's balanced risk profile.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.",
+          "response_digest": "sha256:cb078f7f29a238ea2398b53f6f7f6405a82c9074a3fdc39ab58c49800fb8cbac",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the supported non-ROP Voyage BOR without asking what Voyage 15pay means",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "identifies HSBC Life Wealth Voyage and the 15-year minimum investment period",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "states the CKA result and balanced risk profile once without additional regulatory logic",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present Franklin Income Fund's pending classification as definitively Melody-approved",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes a concise Melody flag for the pending Franklin Income Fund classification while still drafting",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes one closing check line for any case-varying start-up bonus or promotion/gift wording without inventing values",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "uses the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "includes the first exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "includes the second exact general disclosure",
+              "kind": "exact_present",
+              "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The product was recommended after fact-find, needs analysis, and product comparison."
+            },
+            {
+              "label": "includes the third exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product."
+            },
+            {
+              "label": "includes the fourth exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them."
+            },
+            {
+              "label": "does not include ROP disadvantages for the new purchase",
+              "kind": "exact_absent",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "does not invent the observed future-shortfall intention",
+              "kind": "exact_absent",
+              "text": "the client would like to address any remaining shortfall at a later date.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "the client would like to address any remaining shortfall at a later date."
+            },
+            {
+              "label": "does not invent any other client goal, horizon, rationale, or future intention",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            },
+            {
+              "label": "contains no Markdown heading marker",
+              "kind": "exact_absent",
+              "text": "#",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "#"
+            },
+            {
+              "label": "contains no Markdown horizontal rule",
+              "kind": "exact_absent",
+              "text": "---",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "---"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 10,
+        "passed": 10,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-018_complete_voyage_no_fabricated_intent",
+      "tags": [
+        "ilp",
+        "rop",
+        "sustainability",
+        "product-shorthand",
+        "fund-suitability",
+        "disclosures",
+        "formatting"
+      ],
+      "draw": 3,
+      "canary": true,
+      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-0a685b6f1b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-0a685b6f1b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-0a685b6f1b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d3-0a685b6f1b-turn-1",
+          "processed": 1,
+          "response": "To address the client's need for a suitable long-term investment solution, the client currently has no existing plans.\n\nAfter discussing the pros and cons of endowment, investment and annuity solutions, the client preferred Wealth Voyage because it provides 100% exposure to the Franklin Income Fund, which is aligned with the client's balanced risk profile. The client did not pass CKA and has a balanced risk profile.\n\nThe client has chosen Wealth Voyage with a 15-year minimum investment period and no riders. The plan is invested 100% in the Franklin Income Fund, at a premium of S$12,000 per year.\n\nTotal annual premiums do not exceed 50% of the client's surplus.\n\nThe ILP comes with charges, investment risks, exposure to market volatility, and non-guaranteed returns; past performance is not an indication of future performance.\nSaving/investment needs may not be met and might be insufficient as returns are non-guaranteed and dependent on the future performance of the chosen fund; the client would like to address any remaining shortfall at a later date.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\nPlease check whether any start-up bonus or promotion/gift wording applies to this case, as these vary.",
+          "response_digest": "sha256:3792de6755afc767b0581cbd07c344f8aaef979b9d49096e57ea88941d4f8a26",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the supported non-ROP Voyage BOR without asking what Voyage 15pay means",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "identifies HSBC Life Wealth Voyage and the 15-year minimum investment period",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "states the CKA result and balanced risk profile once without additional regulatory logic",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present Franklin Income Fund's pending classification as definitively Melody-approved",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes a concise Melody flag for the pending Franklin Income Fund classification while still drafting",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes one closing check line for any case-varying start-up bonus or promotion/gift wording without inventing values",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "uses the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "includes the first exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "includes the second exact general disclosure",
+              "kind": "exact_present",
+              "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The product was recommended after fact-find, needs analysis, and product comparison."
+            },
+            {
+              "label": "includes the third exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product."
+            },
+            {
+              "label": "includes the fourth exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them."
+            },
+            {
+              "label": "does not include ROP disadvantages for the new purchase",
+              "kind": "exact_absent",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "does not invent the observed future-shortfall intention",
+              "kind": "exact_absent",
+              "text": "the client would like to address any remaining shortfall at a later date.",
+              "critical": true,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "the client would like to address any remaining shortfall at a later date."
+            },
+            {
+              "label": "does not invent any other client goal, horizon, rationale, or future intention",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            },
+            {
+              "label": "contains no Markdown heading marker",
+              "kind": "exact_absent",
+              "text": "#",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "#"
+            },
+            {
+              "label": "contains no Markdown horizontal rule",
+              "kind": "exact_absent",
+              "text": "---",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "---"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "failed",
+        "assertion_count": 10,
+        "passed": 9,
+        "failed": 1
+      }
+    },
+    {
+      "case_id": "MTU-018_complete_voyage_no_fabricated_intent",
+      "tags": [
+        "ilp",
+        "rop",
+        "sustainability",
+        "product-shorthand",
+        "fund-suitability",
+        "disclosures",
+        "formatting"
+      ],
+      "draw": 4,
+      "canary": true,
+      "run_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-3af42dee6b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-3af42dee6b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-3af42dee6b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-018_complete_voyage_no_fabricated_intent-d4-3af42dee6b-turn-1",
+          "processed": 1,
+          "response": "After discussing the pros and cons of endowment, investment and annuity solutions, the client preferred HSBC Life Wealth Voyage 15pay because it suits the client's balanced risk profile and long-term investment needs. The client has chosen to allocate 100% of the investment to Franklin Income Fund, and this is aligned with the client's balanced risk profile. Investment-linked policies are subject to charges, investment risk, market volatility and non-guaranteed returns. The value of the investment and any returns may fluctuate, and past performance is not indicative of future performance. Total annual premiums do not exceed 50% of the client's surplus.\n\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions. The product was recommended after fact-find, needs analysis, and product comparison. The client is aware that the Financial Consultant may receive additional commission for selling the recommended product. The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+          "response_digest": "sha256:5c69ac826eaeaabc4103478607a3efa81334ba6933792e98c2fcb5a795bcc0e9",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "drafts the supported non-ROP Voyage BOR without asking what Voyage 15pay means",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "identifies HSBC Life Wealth Voyage and the 15-year minimum investment period",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "states the CKA result and balanced risk profile once without additional regulatory logic",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present Franklin Income Fund's pending classification as definitively Melody-approved",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes a concise Melody flag for the pending Franklin Income Fund classification while still drafting",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "includes one closing check line for any case-varying start-up bonus or promotion/gift wording without inventing values",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "uses the exact does-not-exceed sustainability sentence",
+              "kind": "exact_present",
+              "text": "Total annual premiums do not exceed 50% of the client's surplus.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "Total annual premiums do not exceed 50% of the client's surplus."
+            },
+            {
+              "label": "includes the first exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions."
+            },
+            {
+              "label": "includes the second exact general disclosure",
+              "kind": "exact_present",
+              "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The product was recommended after fact-find, needs analysis, and product comparison."
+            },
+            {
+              "label": "includes the third exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client is aware that the Financial Consultant may receive additional commission for selling the recommended product."
+            },
+            {
+              "label": "includes the fourth exact general disclosure",
+              "kind": "exact_present",
+              "text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "The client has agreed for soft copies of the documents to be electronically mailed after the company has processed them."
+            },
+            {
+              "label": "does not include ROP disadvantages for the new purchase",
+              "kind": "exact_absent",
+              "text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them."
+            },
+            {
+              "label": "does not invent the observed future-shortfall intention",
+              "kind": "exact_absent",
+              "text": "the client would like to address any remaining shortfall at a later date.",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "the client would like to address any remaining shortfall at a later date."
+            },
+            {
+              "label": "does not invent any other client goal, horizon, rationale, or future intention",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "contains no Markdown asterisks",
+              "kind": "exact_absent",
+              "text": "*",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "*"
+            },
+            {
+              "label": "contains no Markdown heading marker",
+              "kind": "exact_absent",
+              "text": "#",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "#"
+            },
+            {
+              "label": "contains no Markdown horizontal rule",
+              "kind": "exact_absent",
+              "text": "---",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "---"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 10,
+        "passed": 10,
+        "failed": 0
+      }
+    }
+  ]
+}
