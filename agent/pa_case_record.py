@@ -1376,6 +1376,7 @@ __all__ = [
     "ValueContract",
     "ValueTable",
     "ValueTableEntry",
+    "SufficiencySpec",
     "FieldSpec",
     "FieldSet",
     "value_contracts_from_field_sets",
