@@ -207,6 +207,14 @@ class FieldSpec:
     required: bool = True
     askable: bool = True
     ask_hint: Optional[str] = None
+    #: What the field HOLDS, for the reader that has to recognise a value in
+    #: a message.  Distinct from ``ask_hint`` on purpose: an ask hint is a
+    #: QUESTION and usually enumerates everything a complete answer would
+    #: eventually carry, so reading it as a description turns it into a bar
+    #: the message must clear — and a short but genuine answer gets dropped
+    #: as "not stated".  Falls back to ``ask_hint`` when a deployment has not
+    #: distinguished the two.
+    holds: Optional[str] = None
     #: Field ids this one may be derived from.  Advisory metadata for the
     #: derivation layer; this module does not derive anything by itself.
     derived_from: Sequence[str] = ()
@@ -244,6 +252,7 @@ def _spec_from_mapping(raw: Mapping[str, Any]) -> FieldSpec:
         required=bool(raw.get("required", True)),
         askable=bool(raw.get("askable", True)),
         ask_hint=raw.get("ask_hint"),
+        holds=raw.get("holds"),
         derived_from=tuple(raw.get("derived_from") or ()),
         applies_when=raw.get("applies_when"),
         notes=raw.get("notes"),
@@ -263,7 +272,8 @@ def parse_field_sets(data: Mapping[str, Any]) -> Dict[str, FieldSet]:
               - id: <field id>
                 required: true
                 askable: true
-                ask_hint: "..."
+                ask_hint: "..."     # the QUESTION intake composes from
+                holds: "..."        # what the field HOLDS, for recognition
                 derived_from: [<field id>, ...]
 
     Keys are opaque: this parser never inspects a field id's meaning.

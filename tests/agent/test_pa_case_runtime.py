@@ -62,6 +62,10 @@ field_sets:
       - id: f_other
         required: true
         ask_hint: "other?"
+      - id: f_beta_only
+        required: false
+        ask_hint: "beta only?"
+        holds: "what beta cases carry"
       - id: f_category
         required: false
         askable: false
@@ -526,3 +530,70 @@ def test_multi_source_derivation_takes_the_first_recorded_answer():
     )
     assert [r.source_field_id for r in rules] == ["a", "b"]
     assert rules[0].resolve("anything") == "from-a"
+
+
+# ── The contract the first extraction pass could not offer ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_opening_message_records_facts_its_default_contract_lacks(
+    db, knowledge_root, monkeypatch
+):
+    """A case-opening message states facts the DEFAULT contract has no id for."""
+    seen: list[str] = []
+
+    async def _fake(*, config, prompt):
+        seen.append(prompt)
+        assert "f_beta_only" in prompt, "extraction must see every contract's ids"
+        return {
+            "boundary": "new",
+            "case_type": "beta",
+            "fields": {"f_beta_only": "beta fact", "f_source": "swap"},
+        }
+
+    monkeypatch.setattr(pcrt, "_run_extraction", _fake)
+    state = await _turn(db, knowledge_root, message="a beta case", message_id="m1")
+
+    assert len(seen) == 1, "one read of the message, not one per contract"
+    assert state.record.value_of("f_beta_only") == "beta fact"
+    assert "f_beta_only" in state.recorded_field_ids
+
+
+@pytest.mark.asyncio
+async def test_extraction_never_writes_a_field_the_chosen_contract_lacks(
+    db, knowledge_root, monkeypatch
+):
+    """The union is a READING vocabulary; the contract still owns the record."""
+    _stub_extraction(
+        monkeypatch,
+        {
+            "boundary": "new",
+            "case_type": "alpha",
+            "fields": {"f_source": "swap", "f_beta_only": "not alpha's field"},
+        },
+    )
+    state = await _turn(db, knowledge_root, message="an alpha case", message_id="m1")
+
+    assert state.record.value_of("f_source") == "swap"
+    assert state.record.value_of("f_beta_only") is None
+    assert "f_beta_only" not in state.recorded_field_ids
+
+
+def test_extraction_prompt_describes_what_a_field_holds_not_how_to_ask(
+    knowledge_root,
+):
+    from agent.pa_case_record import load_field_sets, select_field_set
+
+    field_sets = load_field_sets(knowledge_root / "fields.yaml")
+    prompt = pcrt.build_extraction_prompt(
+        message="anything",
+        message_id="m1",
+        field_set=select_field_set(field_sets, case_type="beta"),
+        record=None,
+        case_types=["alpha", "beta"],
+        has_open_case=False,
+    )
+    assert "f_beta_only — what beta cases carry" in prompt
+    assert "beta only?" not in prompt
+    # A field with no description still falls back to its question.
+    assert "f_source — source?" in prompt

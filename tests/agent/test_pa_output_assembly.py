@@ -9,6 +9,7 @@ from agent.pa_output_assembly import (
     assemble_pa_response,
     load_compliance_blocks,
     render_output_assembly_skill,
+    retry_instruction,
 )
 
 
@@ -289,7 +290,7 @@ def test_skill_tells_the_model_to_repeat_the_marker_per_component(tmp_path):
 # ── Slotted blocks: approved wording, case-record values ───────────────────
 
 
-def _slotted_artifact(path: Path) -> None:
+def _slotted_artifact(path: Path, *, drop_guard: list[str] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         "\n".join(
@@ -317,6 +318,11 @@ def _slotted_artifact(path: Path) -> None:
                 "        field: risk_profile",
                 "        matches:",
                 "          - {pattern: '(?i)aggressive', value: 'Aggressive'}",
+                *(
+                    ["    drop_guard:"] + [f"      - '{item}'" for item in drop_guard]
+                    if drop_guard
+                    else []
+                ),
                 "    text: Client {cka_result} CKA and has a risk profile of {risk_profile}.",
                 "",
             ]
@@ -412,3 +418,74 @@ def test_additive_runtime_scope_tag_does_not_wait_for_the_model_to_declare_it(tm
         field_values={"cka_status": "passed", "risk_profile": "Aggressive"},
     )
     assert "Client passed CKA and has a risk profile of Aggressive." in assembled
+
+
+# ── Drop is not a licence to paraphrase ────────────────────────────────────
+
+
+def test_dropped_block_refuses_when_the_model_wrote_its_topic_itself(tmp_path):
+    """The hole the drop-not-hole rule left open: the model's own sentence."""
+    _slotted_artifact(tmp_path / "cka.yaml", drop_guard=[r"(?i)\bCKA\b"])
+    with pytest.raises(PAOutputAssemblyRetry, match="model's own words") as excinfo:
+        assemble_pa_response(
+            "[[PA_SCOPE:DRAFT,ILP]] The client passed CKA and is aggressive. "
+            "[[PA_BLOCK:CKA]]",
+            _context("cka.yaml"),
+            knowledge_root=tmp_path,
+            field_values={"cka_status": "passed"},
+        )
+    assert "do not write that sentence yourself" in retry_instruction(excinfo.value)
+
+
+def test_dropped_block_still_drops_quietly_when_the_draft_stays_off_the_topic(tmp_path):
+    _slotted_artifact(tmp_path / "cka.yaml", drop_guard=[r"(?i)\bCKA\b"])
+    assembled, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,ILP]] Draft with no protected topic. [[PA_BLOCK:CKA]]",
+        _context("cka.yaml"),
+        knowledge_root=tmp_path,
+        field_values={"cka_status": "passed"},
+    )
+    assert "CKA" not in assembled
+    assert evidence["unresolved_slots"][0]["id"] == "cka_declaration"
+
+
+def test_guard_is_silent_when_the_block_resolves_and_splices(tmp_path):
+    _slotted_artifact(tmp_path / "cka.yaml", drop_guard=[r"(?i)\bCKA\b"])
+    assembled, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,ILP]] Draft. [[PA_BLOCK:CKA]]",
+        _context("cka.yaml"),
+        knowledge_root=tmp_path,
+        field_values={"cka_status": "passed", "risk_profile": "Aggressive"},
+    )
+    assert "Client passed CKA and has a risk profile of Aggressive." in assembled
+    assert "unresolved_slots" not in evidence
+
+
+def test_drop_guard_on_a_block_that_cannot_drop_refuses_to_load(tmp_path):
+    path = tmp_path / "bad.yaml"
+    path.write_text(
+        "\n".join(
+            [
+                "# pa-source:",
+                "# approved_by: [amelia]",
+                "# approved_date: ['2026-07-31']",
+                "# ruling_ref: [R07]",
+                "# status: approved",
+                "# sequence: 1",
+                "# compose: false",
+                "# ---",
+                "schema_version: 1",
+                "blocks:",
+                "  - id: fixed",
+                "    marker: '[[PA_BLOCK:FIXED]]'",
+                "    required_tags: [DRAFT]",
+                "    drop_guard:",
+                "      - '(?i)fixed'",
+                "    text: An approved sentence with no slots.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(PAOutputAssemblyError, match="no slots to drop on"):
+        load_compliance_blocks(_context("bad.yaml"), knowledge_root=tmp_path)

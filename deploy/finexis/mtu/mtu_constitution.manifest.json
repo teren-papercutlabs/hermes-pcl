@@ -1,7 +1,7 @@
 {
   "allow_unverified": true,
   "composed_source_count": 27,
-  "constitution_sha256": "15e8359c26669002d21e4aefd029fc8c27276257ee689f93998e5fe77e8c1919",
+  "constitution_sha256": "5df6bf8be1788098ea2dfe02dc7f0e657f2208b406ac103e121a8c09be366b65",
   "schema_version": 1,
   "source_count": 38,
   "source_root": "mtu",
@@ -124,7 +124,7 @@
       "approved_date": [
         "2026-08-03"
       ],
-      "body_sha256": "d131afac56e53d76a6721dbe79ed16d0e9032f98167a01d7733a2786a8299fc7",
+      "body_sha256": "932173b5276ac592d03d36d0e0a67ff252fd34b3daf992ff71d3d1017b091f10",
       "included_in_constitution": true,
       "path": "job-briefs/031-case-record-authority.yaml",
       "ruling_ref": [
@@ -132,7 +132,7 @@
         "S7-case-record-design"
       ],
       "sequence": 31,
-      "source_sha256": "04eb99f0fc02b1dd0aca576d7094d3218b74a1c26988ffba1f4caf474ec0aeea",
+      "source_sha256": "dbba7831193731ac367c59be6c04f714a8b2c2846c1f300b24a5d087c4351cc4",
       "status": "approved",
       "type": "job-briefs"
     },
@@ -599,7 +599,7 @@
       "approved_date": [
         "2026-07-31"
       ],
-      "body_sha256": "6abe7cadbdbedcfa4caa5ef5788647ca5ec0c0d96c62f9929f31559c16098893",
+      "body_sha256": "72fd5dce3c17076b2d6af0929170315ab5fb4a5e88da0801c87b2f8116cd1a4b",
       "included_in_constitution": false,
       "path": "compliance/197-cka-declaration.yaml",
       "ruling_ref": [
@@ -607,7 +607,7 @@
         "MTU-007"
       ],
       "sequence": 197,
-      "source_sha256": "d4dc9bf97605569f10f95229dbc0fb2cace8feb1c268b3b2f5398dafac9087ef",
+      "source_sha256": "225428dc9ff53b7a0a19776f315028a0f59826f278a2da18b7ad71460af367b2",
       "status": "approved",
       "type": "compliance"
     },
@@ -726,7 +726,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "9409cfb3f0b7b49dab4d0953dfe0a49f061f7900d260809042882427e3bd0a21",
+  "sources_sha256": "0ab4b81b3c37a77ff7d3bfe125e8642f3dbeaf70ab27a8e73afb87c0e8521746",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml"
   ]
