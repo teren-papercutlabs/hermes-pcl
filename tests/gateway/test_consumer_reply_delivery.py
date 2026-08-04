@@ -163,6 +163,52 @@ def test_multi_photo_delivery_uses_send_media_and_distinct_durable_keys(
     assert len(keys) == 2 and all(key.startswith(f"media::{MGMT_CHAT}::MSG1::") for key in keys)
 
 
+def test_composite_bundle_anchor_resolves_to_handled_component(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A multi-message turn bundle anchors its reply to a synthetic composite
+    id ("MSG1+MSG2"). The gate must resolve it to a handled component instead
+    of silently suppressing (2026-08-04 incident: every multi-message ask
+    composed a reply that never reached the bridge)."""
+    sent: list[tuple[str, dict]] = []
+
+    def fake_urlopen(request, timeout=0):
+        sent.append((request.full_url, json.loads(request.data)))
+        return _FakeResponse({"success": True, "messageId": "WA-1"})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[_captured(MGMT_CHAT, reply_to="MSG1+MSG2")],
+        batch_records=[
+            _record(MGMT_CHAT, message_id="MSG1"),
+            _record(MGMT_CHAT, message_id="MSG2"),
+        ],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1", "MSG2"),
+    )
+    assert summary["delivered"] == 1
+    assert summary["suppressed"] == 0
+    # newest component wins the anchor
+    assert sent and sent[0][1]["replyTo"] == {"messageId": "MSG2"}
+
+
+def test_composite_anchor_with_no_handled_component_stays_suppressed(
+    inbox: DurableInbox, config_path: Path
+) -> None:
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[_captured(MGMT_CHAT, reply_to="MSGX+MSGY")],
+        batch_records=[_record(MGMT_CHAT, message_id="MSG1")],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1"),
+    )
+    assert summary["delivered"] == 0
+    assert summary["suppressed"] == 1
+
+
 def test_streamed_media_directive_becomes_one_native_media_send(
     inbox: DurableInbox, config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
