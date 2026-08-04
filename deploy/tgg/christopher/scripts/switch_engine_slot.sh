@@ -2,11 +2,11 @@
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
-  echo "usage: $0 gpt-5.4-mini|gpt-5.6-luna|gpt-5.6-luna-low|gpt-5.6-luna-xhigh" >&2
+  echo "usage: $0 gpt-5.4-mini|gpt-5.6-luna|gpt-5.6-luna-low|gpt-5.6-luna-xhigh|gpt-5.6-terra-medium" >&2
   exit 2
 fi
 case "$1" in
-  gpt-5.4-mini|gpt-5.6-luna|gpt-5.6-luna-low|gpt-5.6-luna-xhigh) ;;
+  gpt-5.4-mini|gpt-5.6-luna|gpt-5.6-luna-low|gpt-5.6-luna-xhigh|gpt-5.6-terra-medium) ;;
   *) echo "invalid engine slot: $1" >&2; exit 2 ;;
 esac
 
