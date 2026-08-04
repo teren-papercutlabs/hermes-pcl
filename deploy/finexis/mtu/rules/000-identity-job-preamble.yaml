@@ -5,8 +5,10 @@
 # approved_date:
 # - '2026-07-14'
 # - '2026-07-15'
+# - '2026-08-01'
 # ruling_ref:
 # - R18
+# - R21
 # status: approved
 # sequence: 0
 # ---
@@ -24,9 +26,16 @@
 
 id: mtu_bor
 agent_name: "MTU Assistant"        # working name — Melody to confirm final name
+# DECLARATIVE ONLY — config.yaml is the authority on what actually runs.
+# The gateway reads its provider/model from `model:` in config.yaml; nothing in
+# the runtime loader reads this block to select a provider. It is kept because an
+# agent reading the constitution should not be told a different model from the one
+# answering, and it had drifted: it still named `openai-direct-primary` /
+# gpt-5.4-mini after teren switched the live runtime on 2026-08-01
+# ("switch it out to 5.6 luna high"). Provenance: R21.
 runtime:
-  provider: openai-direct-primary   # PILOT (design intent: gemini). See config.yaml model block — provider is authoritative there.
-  model: gpt-5.4-mini               # PILOT: swapped from gemini-3.1-flash-lite (design intent) — no gemini key on host + christopher runs gpt-5.4-mini. FLAGGED, not silent. See config.yaml.
+  provider: custom                  # matches config.yaml; `openai-direct-primary` is a NAMED runtime-provider that only resolves in a HERMES_HOME carrying a runtime_providers registry — a fresh home fails "Unknown provider".
+  model: gpt-5.6-luna               # teren-directed 2026-08-01; reasoning_effort high, set in config.yaml (this block carries no effort key).
 
 identity:
   role: >-
@@ -68,5 +77,5 @@ job_briefs:
     debounce_passive_ms: 4000
     debounce_addressed_ms: 1500
     runtime:
-      model: gpt-5.4-mini              # PILOT (design intent gemini-3.1-flash-lite)
+      model: gpt-5.6-luna              # teren-directed 2026-08-01 (R21); declarative — config.yaml is authoritative.
     response_policy:

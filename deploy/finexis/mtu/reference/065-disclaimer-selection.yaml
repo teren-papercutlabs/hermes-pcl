@@ -40,11 +40,29 @@ version: 1
 # ASSEMBLY CLOSED rather than shipping without a compliance sentence.
 exclusive_scope_tags: [GIO, UNDERWRITTEN]
 
-# Case-record field consulted first; the case's own type is the fallback.
+# Case-record field consulted first; the case's own CLASSIFIED type is the only
+# fallback. THERE IS DELIBERATELY NO `default_category`. It used to read
+# `default_category: protection_life`, which meant a case whose category could not
+# be resolved at all still resolved to protection_life -> scope UNDERWRITTEN ->
+# the pre-existing-medical-conditions sentence, on no evidence whatsoever. That is
+# Melody's third reported defect wearing a default's clothes: the one category a
+# guess must never land on is the one that ADDS a compliance sentence. With no
+# default, an unresolvable category carries no scope tag and output assembly fails
+# closed on a completed draft (see agent/pa_output_assembly.py, the exclusive-scope
+# gate). Failing closed is recoverable; a wrong compliance sentence in an advisor's
+# copy-pasted BOR is not.
 selection_field: product_category
-default_category: protection_life
 
 categories:
+
+  # Explicit terminal value for "the product names a category with no approved
+  # requirement set" (CareShield/ElderShield, IUL, accident, platform/wrap,
+  # annuity/income). It maps to NO scope_tag on purpose, so a completed draft
+  # fails assembly closed. These categories are withheld by SUPPORTED CATEGORIES
+  # anyway; the gate only bites a COMPLETED draft, never a withhold/ask reply.
+  unresolved:
+    substitutions: {}
+    forbid: []
 
   # Medically underwritten protection/life: the full approved disclosure set.
   protection_life:

@@ -15,6 +15,7 @@ import tempfile
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import yaml
@@ -116,6 +117,49 @@ def _stage_runtime(
     }
 
 
+def _approved_block_texts() -> tuple[str, ...]:
+    """Every approved compliance block's text, from the runtime under test.
+
+    These are the needles a ``no_approved_block`` assertion looks for: a
+    completed BOR splices its disclosures verbatim, so their presence is a
+    draft, deterministically. Read from the ARTIFACTS rather than a list in
+    the corpus, so adding or rewording a block cannot leave the detector
+    quietly checking for sentences nobody writes any more.
+
+    Returns empty on any failure, which makes the assertion ``not_applicable``
+    and keeps it OUT of the deterministic summary — a detector with no
+    needles must never report a pass.
+    """
+    from agent.pa_constitution import load_constitution
+    from agent.pa_output_assembly import load_compliance_blocks
+    from hermes_constants import get_hermes_home
+
+    home = get_hermes_home()
+    try:
+        constitution = load_constitution(home / "mtu_constitution.yaml")
+    except Exception as exc:  # noqa: BLE001
+        print(f"approved-block texts unavailable ({exc})", file=sys.stderr)
+        return ()
+    texts: list[str] = []
+    for brief in constitution.job_briefs.values():
+        context = SimpleNamespace(job_brief=brief)
+        try:
+            blocks = load_compliance_blocks(
+                context, knowledge_root=home / "knowledge"
+            )
+        except Exception:  # noqa: BLE001 — a brief with no assembly is normal
+            continue
+        for block in blocks:
+            # A SLOTTED block's text carries placeholders and never appears
+            # literally in a response, so it is not a usable needle.
+            if block.slots:
+                continue
+            texts.append(block.text)
+    if not texts:
+        print("no approved block texts found for draft detection", file=sys.stderr)
+    return tuple(dict.fromkeys(texts))
+
+
 async def _run(args: argparse.Namespace, runtime_manifest: dict[str, Any]) -> dict[str, Any]:
     # Import after HERMES_HOME is bound so every profile-aware path resolves to
     # the disposable copy rather than the live MTU home.
@@ -139,6 +183,7 @@ async def _run(args: argparse.Namespace, runtime_manifest: dict[str, Any]) -> di
             honor_draws=args.honor_draws,
             platform="telegram",
             runtime_manifest=runtime_manifest,
+            approved_texts=_approved_block_texts(),
         )
     finally:
         session_db = getattr(runner, "_session_db", None)

@@ -12,7 +12,7 @@
 #   on this host — swap back by setting provider: gemini + default: gemini-3.1-flash-lite.
 model:
   provider: custom
-  default: gpt-5.4-mini
+  default: gpt-5.6-luna   # teren-directed 2026-08-01 ("switch it out to 5.6 luna high"); was gpt-5.4-mini. R21.
   base_url: https://api.openai.com/v1
   api_key_source:
     type: env
@@ -20,6 +20,7 @@ model:
 agent:
   profile: pa
   max_turns: 12
+  reasoning_effort: high  # luna high (teren 2026-08-01). R21.
 pa:
   enabled: true
   job_type: bor_generation                 # REQUIRED — MTU declares no selectors; without this the constitution is silently ignored

@@ -235,7 +235,7 @@ EVENT_LABELS_NEW = (
 
 NEW_OPERATIONS = ("tgg_clarification_raise", "tgg_attention_raise", "tgg_case_wc_attach")
 NEW_INSTRUCTION_COUNT = 14
-MGMT_NEW_INSTRUCTION_COUNT = 15
+MGMT_NEW_INSTRUCTION_COUNT = 16
 
 # The ingest brief is unscoped (no `business_operations` block at all), which
 # grants it the full registry — that is exactly what makes it reachable for
@@ -440,6 +440,14 @@ def _safe_config(source: str, slot: dict) -> str:
         )
     if model != BASELINE_MODEL:
         rendered = rendered.replace(BASELINE_MODEL, model)
+    # Teren-directed 2026-08-04: raise the tool-iteration budget for
+    # document-analysis asks (12 starved a 2-workbook cross-check).
+    rendered = _replace_once(
+        rendered,
+        "  max_turns: 12\n",
+        "  max_turns: 90\n",
+        label="agent max_turns",
+    )
     return rendered
 
 

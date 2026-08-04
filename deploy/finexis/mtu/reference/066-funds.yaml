@@ -1,0 +1,75 @@
+# pa-source:
+# approved_by:
+# - unverified
+# approved_date:
+# - unverified
+# ruling_ref:
+# - R09
+# status: unverified
+# sequence: 66
+# compose: false
+# ---
+# STATUS IS `unverified` ON PURPOSE, AND IT IS NOT A HEDGE.
+# Every VALUE below is transcribed from rules/160-ilp-suitability.yaml, which
+# amelia approved — but this FILE has not been through her. `unverified` is the
+# status that says exactly that, and it is load-bearing: the compose layer
+# refuses to splice unverified content into a client-facing artifact, which is
+# the correct treatment for a lookup table. Nothing here is client-visible
+# wording; it is a set of names the record checks against. Promote to
+# `approved` only when amelia has reviewed the table itself.
+# MTU — fund reference table (CLIENT CONFIG)
+#
+# WHY THIS FILE EXISTS
+# R09 (amelia, 2026-08-01) rules that fund-objective alignment is COMPUTED, never
+# asked: read the fund's equity allocation, classify it, and compare against the
+# client's stated risk profile. That computation needs a place to look the fund
+# up, and the case record needs somewhere to check that a stated fund is a fund
+# we actually know — "only a fund house named, or the fund cannot be resolved"
+# is R09's own trigger for asking the advisor for the SPECIFIC fund name.
+#
+# PROVENANCE — READ THIS BEFORE ADDING A ROW
+# Every value below is TRANSCRIBED from rules/160-ilp-suitability.yaml, which
+# amelia approved. Nothing here is new judgment, and nothing may be added from
+# inference: a fund's equity allocation is a product fact, and the file that
+# holds it must never be the place a guess enters. Add a row only from a fund
+# fact sheet or an approved ruling, and name the source in the row.
+#
+# Franklin Income Fund's classification is PENDING MELODY's confirmation (as
+# recorded in 160). It is carried here with that status rather than left out,
+# because leaving it out would make a fund the rules already name read as
+# unknown.
+#
+# HOW IT IS CONSUMED
+# case-field-sets.yaml declares `fund_selection` with a table-kind value
+# contract naming this file. A stated fund that matches a row is recorded in the
+# row's canonical name; one that matches nothing leaves the field EMPTY, which
+# is what puts R09's "ask for the specific fund name" question in front of the
+# advisor before any draft.
+
+kind: keyed-reference
+schema_version: 1
+key_semantics: exact fund name as it appears on the fund fact sheet
+
+entries:
+  - key: "Franklin Technology Fund"
+    aliases: ["Franklin Tech Fund", "Franklin Technology"]
+    equity_allocation: "~99.8%"
+    risk_classification: "Aggressive"
+    source: "R09 via rules/160-ilp-suitability.yaml (amelia, 2026-08-01)"
+
+  - key: "Franklin Income Fund"
+    aliases: ["Franklin Income"]
+    equity_allocation: "~25%"
+    risk_classification: "Balanced"
+    status: "pending melody confirmation"
+    source: "R09 via rules/160-ilp-suitability.yaml (amelia, 2026-08-01)"
+
+  - key: "Fundsmith"
+    aliases: ["Fundsmith Equity", "Fundsmith Equity Fund"]
+    equity_allocation: unverified
+    risk_classification: unverified
+    source: >-
+      Named as a Voyage fund variant in reference/062-approved-products.yaml
+      ("Voyage (Fundsmith)"). Carried so a stated Fundsmith selection resolves
+      rather than reading as an unknown fund; its equity allocation is NOT on
+      file, so the R09 comparison must ask rather than assume.

@@ -7,10 +7,10 @@ This is the concise narrative structure used per recommended product / need-buck
 - Use every fact already supplied. Do not repeat it back as an intake recap.
 - Derive coverage and premium movement from the category-appropriate facts provided. For sustainability, use only the advisor's yes/no answer to whether total annual premiums exceed 50% of annual income; never request or print income or surplus figures.
 - Insert the category-specific alternatives sentence below. Do not ask which alternatives were considered unless the path is novel, the advisor names an exception, or the standard wording conflicts with the case.
-- Match intake and comparison fields to the product category. For Shield/hospitalisation, collect exact base-plan and exact/versioned rider names, material premium, ROP mapping/status, and the client's rationale. Never ask for or print rider benefit limits, deductible, or coinsurance. If a rider is missing or ambiguous, ask only for its exact/versioned name.
+- Match intake and comparison fields to the product category. For Shield/hospitalisation, collect exact base-plan and exact/versioned rider names, material premium, and ROP mapping/status. The client's rationale is NOT collected — the standard hospitalisation-needs reason supplies it, and a volunteered client-specific reason is used in its place. Never ask for or print rider benefit limits, deductible, or coinsurance. If a rider is missing or ambiguous, ask only for its exact/versioned name.
 - If a known category has no approved required-field set in bor-required-checks.yaml—including CareShield/ElderShield, accident, or other A&H—do not draft from generic assumptions. Withhold that component and route it to Melody.
 - Do not ask about comparison-list freshness or reference numbers by default. Reference numbers are outside the BOR narrative unless the advisor explicitly requests one or names a workflow that requires one.
-- If irreducible facts are missing, ask for all of them once in one compact message instead of drafting. Irreducible facts are: category-appropriate material plan facts needed for a truthful comparison; the client's stated rationale; old→new mapping and ROP status; and ILP-only suitability facts when an ILP is involved. ROP acknowledgement wording is a template default, not an intake question. Do not output a partial BOR, placeholders, or an unresolved list in that turn.
+- If irreducible facts are missing, ask for all of them once in one compact message instead of drafting. Irreducible facts are: category-appropriate material plan facts needed for a truthful comparison; old→new mapping and ROP status; and ILP-only suitability facts when an ILP is involved (CKA, risk profile, fund name). The client's stated rationale is NOT irreducible and is NEVER asked for (R13 never-ask list) — STANDARD NARRATIVE DEFAULTS supplies it. ROP acknowledgement wording is a template default, not an intake question. Do not output a partial BOR, placeholders, or an unresolved list in that turn.
 - If the missing fact is non-blocking, draft with a clear [[MISSING: ...]] placeholder instead of conducting another question round.
 
 ## Category-specific standard alternatives sentences
@@ -25,7 +25,9 @@ ILP / wealth path — recommended ILP, investment platform, endowment, annuity, 
 
 Shield path — recommended Integrated Shield Plan / medical plan:
 
-> After comparing Shield plans from other insurers, the client preferred {{RECOMMENDED_PLAN}} because {{CLIENT_STATED_RATIONALE_OR_SUPPLIED_PRODUCT_FIT}}.
+> After comparing Integrated Shield Plans from other insurers, the client preferred {{RECOMMENDED_PLAN}} because {{CLIENT_STATED_RATIONALE_OR_SUPPLIED_PRODUCT_FIT}}.
+
+The approved wording is "Integrated Shield Plans"; STANDARD NARRATIVE DEFAULTS in the constitution is its single home. This file reproduces it, it does not define it.
 
 The reason slot may use only the client's stated rationale or an objective product fit directly supported by supplied figures/features. Do not invent alternatives outside the approved template, a product preference not supplied by the advisor, or a rationale. For an unknown category, ask one short clarification instead of forcing a template.
 
@@ -38,6 +40,8 @@ The reason slot may use only the client's stated rationale or an objective produ
 2. Client's reason
 
 > After a recent review, the client stated {{CLIENT_STATED_RATIONALE}}.
+
+Fill this slot from a rationale the advisor VOLUNTEERED; otherwise use the category-standard product-fit reason from STANDARD NARRATIVE DEFAULTS. Never ask the advisor for it and never leave `[[MISSING]]` here.
 
 3. Standard alternatives sentence
 
@@ -65,9 +69,9 @@ For protection/life, state supplied before/after sums assured and durations dire
 
 6. Conditional blocks
 
-- ROP only: insert "The client was advised of the replacement disadvantages and wishes to proceed." as standard template text without asking the advisor to reconfirm it. If the advisor explicitly contradicts this or expresses uncertainty, suppress it and return only a concise Melody-escalation note—no holding draft, partial BOR, disclosures, or placeholders. The replacement-options declaration is also standard template text; insert it without asking.
+- ROP only: insert "The client was advised of the replacement disadvantages and wishes to proceed." as standard template text without asking the advisor to reconfirm it. If the advisor explicitly contradicts this or expresses uncertainty, replace **that one sentence** with `[[ESCALATE: client not yet advised of replacement disadvantages — confirm with Melody before use]]` and **still return the rest of the draft**. Never fabricate the acknowledgement. (This file previously said to suppress the whole draft and return only an escalation note; the ROP GATE in the constitution — replace the line, flag, return the rest — is the authority and wins.) The replacement-options declaration is also standard template text; insert it without asking.
 - Non-ROP: exclude every ROP acknowledgement and replacement disclosure.
-- ILP only: include CKA, risk profile, fund/objective alignment, and the ILP disclosure block. Fill product-specific disclosure values from supplied product documents only.
+- ILP only: include CKA, risk profile, and the ILP disclosure block. Fund/objective alignment is COMPUTED, never asked (R09): aligned → say nothing, mismatched → one flagging sentence. Insert only the generic ILP sentences (charges, investment risk, market volatility, non-guaranteed returns, past performance) plus product-specific sentences whose exact applicability and values a supplied product summary confirms. Do NOT insert the whole historical section C, and never state surrender-charge, welcome/start-up bonus, premium-holiday, or promotion/gift values that were not supplied.
 - Non-ILP: exclude every ILP-specific question and disclosure.
 
 7. General disclosures
@@ -85,6 +89,6 @@ Insert the approved general disclosure block from standard-disclosures.md withou
 
 ## Hard rules
 
-- Do not invent SA, premiums, reference numbers, client rationale, CKA/risk profile, fund alignment, or product-specific disclosure values. The approved ROP acknowledgement and alternatives declarations are template defaults; suppress them on explicit contradiction or uncertainty.
+- Do not invent SA, premiums, reference numbers, client rationale, CKA/risk profile, fund alignment, or product-specific disclosure values. The approved ROP acknowledgement and alternatives declarations are template defaults; on an explicit contradiction or stated uncertainty, replace the contradicted SENTENCE with the `[[ESCALATE: ...]]` marker and return the rest of the draft — do not suppress the draft.
 - Do not make the product recommendation. The advisor chooses the product; the agent drafts the justification.
 - The draft is for advisor review, not compliance sign-off. Escalate sensitive or unclear cases to Melody.

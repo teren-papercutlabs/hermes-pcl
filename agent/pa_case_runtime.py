@@ -45,13 +45,19 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from agent.pa_case_record import (
+    CANON_UNMAPPABLE,
     CaseRecord,
     CaseRecordStore,
     FieldSet,
     FieldSpec,
+    ValueContract,
+    ValueTable,
     empty_required_fields,
     load_field_sets,
+    parse_value_table_entries,
+    parse_value_tables,
     select_field_set,
+    value_contracts_from_field_sets,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,6 +141,9 @@ class DerivationRule:
 @dataclass(frozen=True)
 class CaseRuntimeConfig:
     field_sets: Mapping[str, FieldSet]
+    #: Reference tables a table-kind value contract checks against, already
+    #: resolved out of the deployment tree.
+    value_tables: Mapping[str, ValueTable] = dc_field(default_factory=dict)
     derivations: Tuple[DerivationRule, ...] = ()
     default_case_type: Optional[str] = None
     category_field_id: Optional[str] = None
@@ -149,6 +158,22 @@ class CaseRuntimeConfig:
     @property
     def case_types(self) -> List[str]:
         return [fs.case_type or fs.field_set_id for fs in self.field_sets.values()]
+
+    @property
+    def value_contracts(self) -> Mapping[str, ValueContract]:
+        """Every contracted field the deployment declares, across case types.
+
+        Handed to the store so that EVERY write is checked — the record write
+        is the single place a value contract is enforced.
+        """
+        return value_contracts_from_field_sets(self.field_sets)
+
+    def open_store(self, session_db: Any) -> CaseRecordStore:
+        return CaseRecordStore(
+            session_db,
+            value_contracts=self.value_contracts,
+            value_tables=self.value_tables,
+        )
 
 
 def _parse_derivations(raw: Any) -> Tuple[DerivationRule, ...]:
@@ -212,6 +237,75 @@ def _parse_derivations(raw: Any) -> Tuple[DerivationRule, ...]:
     return tuple(rules)
 
 
+def load_value_tables(
+    raw: Any,
+    *,
+    knowledge_root: str | Path | None = None,
+) -> Dict[str, ValueTable]:
+    """Resolve the deployment's value tables, following ``source:`` files.
+
+    A table either declares its entries inline or points at a REFERENCE FILE
+    that some other owner maintains on its own schedule (the approved-product
+    list, the fund list).  Pointing is the better shape: copying those values
+    into the field-set config would fork them the first time the real file
+    changed, and the copy would keep answering with confidence.
+
+    The file's own column names are read from the table's declaration
+    (``select`` / ``value_key`` / ``aliases_key``), so the reference file is
+    never reshaped to suit this consumer.
+
+    A table whose source cannot be read is DROPPED with a warning rather than
+    failing the deployment: the contract that names it then accepts answers as
+    written (see ``ValueContract._resolve_table``).  A missing table must not
+    silently become a refusal of every answer.
+    """
+    tables = parse_value_tables({"value_tables": raw} if raw else {})
+    if not tables:
+        return {}
+    import yaml
+
+    resolved: Dict[str, ValueTable] = {}
+    raw_tables = raw if isinstance(raw, Mapping) else {}
+    for table_id, table in tables.items():
+        declaration = raw_tables.get(table_id) or {}
+        declaration = declaration if isinstance(declaration, Mapping) else {}
+        source = table.source
+        if not source:
+            resolved[table_id] = table
+            continue
+        try:
+            path = _resolve_config_path(str(source), knowledge_root)
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            if not isinstance(data, Mapping):
+                raise ValueError(f"value table source must be a mapping: {path}")
+            select = str(declaration.get("select") or "entries")
+            rows = data.get(select)
+            if not isinstance(rows, (list, tuple)):
+                raise ValueError(
+                    f"value table source {source} has no list at {select!r}"
+                )
+            entries = parse_value_table_entries(
+                rows,
+                table_id=table_id,
+                value_key=str(declaration.get("value_key") or "key"),
+                aliases_key=str(declaration.get("aliases_key") or "aliases"),
+            )
+            resolved[table_id] = ValueTable(
+                table_id=table_id,
+                entries=tuple(table.entries) + entries,
+                source=source,
+            )
+        except Exception as exc:  # noqa: BLE001 — a bad table never blocks intake
+            logger.warning(
+                "value table %r could not be loaded from %r (%s); contracts "
+                "naming it will accept answers as written",
+                table_id,
+                source,
+                exc,
+            )
+    return resolved
+
+
 def load_case_runtime_config(
     pa_context: Any,
     *,
@@ -228,11 +322,16 @@ def load_case_runtime_config(
 
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     derivations = _parse_derivations(raw.get("derivations") if isinstance(raw, Mapping) else None)
+    value_tables = load_value_tables(
+        raw.get("value_tables") if isinstance(raw, Mapping) else None,
+        knowledge_root=knowledge_root,
+    )
 
     extraction = policy.get("extraction")
     extraction = extraction if isinstance(extraction, Mapping) else {}
     return CaseRuntimeConfig(
         field_sets=field_sets,
+        value_tables=value_tables,
         derivations=derivations,
         default_case_type=(
             str(policy["default_case_type"]) if policy.get("default_case_type") else None
@@ -272,6 +371,21 @@ class CaseTurnState:
     recorded_field_ids: Tuple[str, ...] = ()
     derived_field_ids: Tuple[str, ...] = ()
     extraction_ok: bool = True
+    #: Contracted fields whose answer resolved to no permitted value.  They
+    #: are EMPTY (so they are in ``empty_fields`` and intake asks), but the
+    #: ask is a clarification of something already said.
+    unmappable_field_ids: Tuple[str, ...] = ()
+    #: Required fields that are ``askable: false`` and that the derivation
+    #: layer did not resolve.  They are absent from ``empty_fields`` by
+    #: design — asking them as intake items is a defect — but the case is NOT
+    #: complete while they are unknown, and saying otherwise is how a draft
+    #: gets built without a required fact.
+    unresolved_unaskable_fields: Tuple[FieldSpec, ...] = ()
+    #: Carried so the rendered intake block can name the permitted values in
+    #: the clarification question — an ask that repeats the original question
+    #: verbatim invites the same unusable answer a second time.
+    value_contracts: Mapping[str, ValueContract] = dc_field(default_factory=dict)
+    value_tables: Mapping[str, ValueTable] = dc_field(default_factory=dict)
 
     @property
     def version_stamp(self) -> str:
@@ -289,6 +403,10 @@ class CaseTurnState:
             "recorded_fields": list(self.recorded_field_ids),
             "derived_fields": list(self.derived_field_ids),
             "empty_required_fields": [spec.field_id for spec in self.empty_fields],
+            "unmappable_fields": list(self.unmappable_field_ids),
+            "unresolved_unaskable_fields": [
+                spec.field_id for spec in self.unresolved_unaskable_fields
+            ],
             "extraction_ok": self.extraction_ok,
         }
 
@@ -441,11 +559,24 @@ def _category_of(
     record: CaseRecord,
     config: CaseRuntimeConfig,
     fallback: Optional[str] = None,
+    *,
+    allow_default: bool = True,
 ) -> Optional[str]:
+    """The case's category, for selecting the contract to work against.
+
+    ``allow_default=False`` returns only a category the record can DEFEND — a
+    recorded/derived category field or an actual classification — and never the
+    deployment's default case type.  Choosing a field set from the default is
+    harmless (something has to be chosen); writing the default into the record as
+    though it were a finding is not, because a downstream consumer cannot tell a
+    stand-in apart from evidence.
+    """
     if config.category_field_id:
         value = record.value_of(config.category_field_id)
         if value:
             return str(value)
+    if not allow_default:
+        return record.case_type or None
     return record.case_type or fallback or config.default_case_type
 
 
@@ -528,7 +659,10 @@ async def update_case_for_turn(
     if config is None:
         config = load_case_runtime_config(pa_context, knowledge_root=knowledge_root)
 
-    store = CaseRecordStore(session_db)
+    # The store carries the deployment's enum contracts, so every write this
+    # turn makes — stated, category-derived, or config-derived — canonicalises
+    # at the record rather than leaving a variant for a downstream reader.
+    store = config.open_store(session_db)
     record = store.get_open_case(agent_id=agent_id, chat_id=chat_id)
 
     # A reset session (/new) is a boundary the runtime already owns: the case
@@ -586,8 +720,18 @@ async def update_case_for_turn(
 
     minted = False
     if record is None or session_reset or boundary == BOUNDARY_NEW:
-        case_type = extracted_case_type or config.default_case_type
-        case_field_set = select_field_set(config.field_sets, case_type=case_type)
+        # AN UNCLASSIFIED CASE MUST NOT READ AS A CLASSIFIED ONE. The default
+        # case type still SELECTS the field set — something has to — but it is
+        # never STORED as the case's type, because a stored default is
+        # indistinguishable from a real classification. Downstream that made
+        # every unclassified case "protection_life", which the disclaimer
+        # selection reads as scope UNDERWRITTEN, which inserts the
+        # pre-existing-medical-conditions sentence — on a GIO product, on no
+        # evidence. A null case type is honest and fails closed.
+        case_type = extracted_case_type
+        case_field_set = select_field_set(
+            config.field_sets, case_type=case_type or config.default_case_type
+        )
         case_id = store.mint_case(
             case_type=case_type,
             agent_id=agent_id,
@@ -620,7 +764,11 @@ async def update_case_for_turn(
             # extractor's — that is what keeps their provenance honest.
             continue
         current = record.get(field_id)
-        if current is not None and current.is_filled and current.value == value:
+        # Compare against the CONTRACTED form: an advisor restating
+        # "aggressive" over a stored "Aggressive" has changed nothing about
+        # the case, and bumping the record version on it would say otherwise.
+        candidate, _outcome = store.canonicalize(field_id, value, record=record)
+        if current is not None and current.is_filled and current.value == candidate:
             continue  # nothing changed: do not churn the version
         try:
             store.record_field(
@@ -633,30 +781,75 @@ async def update_case_for_turn(
         except Exception as exc:  # noqa: BLE001
             logger.debug("PA case field write failed (non-fatal): %s", exc)
 
+    # CLIENT-DECLARED DERIVATIONS RUN FIRST, and they OWN any field they target.
+    # A deployment that declares a derivation for the category field has said the
+    # category is a deterministic property of a recorded answer (which product was
+    # proposed); the generic case-type mirror below is the weaker, model-classified
+    # source and must not overwrite it. Ordering matters because the store skips
+    # already-filled targets: with the mirror first, the mirror's value landed on
+    # turn one and the declared derivation could never fire at all.
+    derived = _apply_config_derivations(store, record.case_id, config)
+
     # The product category is DERIVED from the answer that revealed it, so it
     # carries that answer's provenance rather than the turn it was inferred on.
+    # `classified_category` deliberately excludes the deployment's DEFAULT case
+    # type: a default is a stand-in for the missing classification, not a finding
+    # about the product, and writing it here is what let an unclassified case ship
+    # as protection_life/UNDERWRITTEN.
     refreshed = store.get_case(record.case_id) or record
+    classified_category = extracted_case_type or _category_of(
+        refreshed, config, allow_default=False
+    )
+    category_owned_by_derivation = bool(config.category_field_id) and any(
+        rule.target_field_id == config.category_field_id
+        for rule in config.derivations
+    )
     if (
         config.category_field_id
-        and category
+        and classified_category
         and config.category_source_field_id
         and refreshed.is_filled(config.category_source_field_id)
-        and refreshed.value_of(config.category_field_id) != category
+        and refreshed.value_of(config.category_field_id) != classified_category
+        and not (
+            category_owned_by_derivation
+            and refreshed.is_filled(config.category_field_id)
+        )
     ):
         try:
             store.record_derived_field(
                 refreshed.case_id,
                 config.category_field_id,
-                category,
+                classified_category,
                 derived_from_field_id=config.category_source_field_id,
             )
             recorded.append(config.category_field_id)
         except Exception as exc:  # noqa: BLE001
             logger.debug("PA category derivation failed (non-fatal): %s", exc)
 
-    derived = _apply_config_derivations(store, record.case_id, config)
     final = store.get_case(record.case_id) or record
     empty = tuple(empty_required_fields(final, field_set)) if field_set else ()
+    # Required fields the config says must NOT be asked as intake items, which
+    # the derivation layer could not resolve either.  They are missing from
+    # the ask set BY DESIGN, and that is exactly why they need naming
+    # somewhere: otherwise the case reads as complete while a required fact —
+    # replacement status, say — is genuinely unknown.
+    askable_ids = {spec.field_id for spec in empty}
+    unresolved_unaskable = (
+        tuple(
+            spec
+            for spec in empty_required_fields(
+                final, field_set, include_unaskable=True
+            )
+            if spec.field_id not in askable_ids
+        )
+        if field_set
+        else ()
+    )
+    unmappable = tuple(
+        field_id
+        for field_id, entry in final.fields.items()
+        if entry.is_unmappable
+    )
     return CaseTurnState(
         record=final,
         field_set=field_set,
@@ -667,6 +860,10 @@ async def update_case_for_turn(
         recorded_field_ids=tuple(recorded),
         derived_field_ids=tuple(derived),
         extraction_ok=extraction_ok,
+        unmappable_field_ids=unmappable,
+        unresolved_unaskable_fields=unresolved_unaskable,
+        value_contracts=config.value_contracts,
+        value_tables=config.value_tables,
     )
 
 
@@ -721,12 +918,81 @@ def render_case_record_prompt(state: Optional[CaseTurnState]) -> str:
         )
         for spec in state.empty_fields:
             hint = (spec.ask_hint or "").strip().replace("\n", " ")
+            entry = record.get(spec.field_id)
+            gap = spec.sufficiency_gap(record.value_of(spec.field_id))
+            if gap:
+                # PARTIALLY ANSWERED. The advisor named the thing; what is
+                # missing is the material detail. Asking the whole question
+                # again would read as not having heard the name, so ask for
+                # exactly the parts that are absent — and say what is already
+                # held, so they do not repeat it.
+                held = str(record.value_of(spec.field_id)).replace("\n", " ")
+                needed = (
+                    spec.sufficiency.description
+                    if spec.sufficiency is not None and spec.sufficiency.description
+                    else ", ".join(gap)
+                )
+                lines.append(
+                    f'- {hint or spec.field_id} — "{held}" is on record, but a '
+                    f"draft still needs {needed} for it. Ask for that, not for "
+                    "the name again."
+                )
+                continue
+            if entry is not None and entry.is_unmappable:
+                # ASK A CLARIFICATION, NOT THE ORIGINAL QUESTION AGAIN.  The
+                # advisor DID answer; the answer just is not one this case
+                # can be built on.  Repeating the question as if nothing was
+                # said reads as not listening, and usually earns the same
+                # unusable answer a second time.
+                contract = state.value_contracts.get(spec.field_id)
+                permitted = ""
+                if contract is not None:
+                    permitted = contract.describe_values(
+                        state.value_tables,
+                        # A keyed contract's permitted set belongs to the row
+                        # the KEYING answer selects, not to the table.
+                        key_value=(
+                            record.value_of(contract.key_field_id)
+                            if contract.key_field_id
+                            else None
+                        ),
+                    )
+                said = (entry.raw_value or "").strip().replace("\n", " ")
+                clarify = f"{hint or spec.field_id} — the advisor answered"
+                if said:
+                    clarify += f' "{said}"'
+                clarify += ", which is not one this case can use"
+                if permitted:
+                    clarify += f"; it must be one of: {permitted}"
+                clarify += (
+                    ". Ask them to confirm which one it is; never pick one for "
+                    "them."
+                )
+                lines.append(f"- {clarify}")
+                continue
             lines.append(f"- {hint or spec.field_id}")
     else:
         lines.append(
-            "STILL MISSING: nothing. Do not ask any intake question — draft now "
-            "from the facts above."
+            "STILL MISSING: nothing to ask the advisor for."
+            if state.unresolved_unaskable_fields
+            else "STILL MISSING: nothing. Do not ask any intake question — draft "
+            "now from the facts above."
         )
+    if state.unresolved_unaskable_fields:
+        # NOT an intake question. These are fields the config says the agent
+        # resolves itself, and the derivation layer could not. Naming them as
+        # intake items would produce exactly the question the rules forbid;
+        # saying nothing lets the case read as complete while a required fact
+        # is unknown. So: named, with the resolution route, and NO draft-now.
+        lines.append("")
+        lines.append(
+            "NOT YET RESOLVED — these are NOT questions to put to the advisor "
+            "as intake items; your own rules say how each is settled. Settle "
+            "them the way those rules direct BEFORE drafting:"
+        )
+        for spec in state.unresolved_unaskable_fields:
+            note = (spec.notes or "").strip().replace("\n", " ")
+            lines.append(f"- {spec.field_id}" + (f" — {note}" if note else ""))
     if state.boundary == BOUNDARY_AMBIGUOUS:
         lines.append("")
         lines.append(
@@ -903,6 +1169,7 @@ __all__ = [
     "DerivationRule",
     "DisclaimerSelection",
     "build_extraction_prompt",
+    "load_value_tables",
     "case_record_enabled",
     "case_record_policy",
     "load_case_runtime_config",
