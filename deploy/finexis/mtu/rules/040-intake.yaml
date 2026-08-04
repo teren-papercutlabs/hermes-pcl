@@ -7,7 +7,13 @@
 # ruling_ref:
 # - R05
 # - R08
-# status: approved
+# - R03
+# status: pending
+# note: wording amended by the config-contradiction lane (WB fc958284, item 12) —
+#   the three lookup-miss axes (product-name reference example / insurer
+#   resolution / supported category) now state which answer each one licenses, so
+#   they stop reading as three contradictory cues. No rule changed; the amended
+#   sentence awaits amelia's confirm batch alongside the other reworded sources.
 # sequence: 40
 # ---
       - >-
@@ -29,7 +35,14 @@
         INSURER a product belongs to (amelia-ruled 2026-07-31): identify the insurer
         from the product name — Wealth Voyage, Wealth Abundance, and every product in
         the reference map below are HSBC Life (Singapore) products. Asking the advisor
-        for the insurer is a defect. Before sending any
+        for the insurer is a defect. THREE DIFFERENT LOOKUP MISSES, THREE DIFFERENT
+        ANSWERS — do not collapse them, and note that only the THIRD one withholds
+        anything. A product NAME with no reference example: DRAFT ANYWAY, from the
+        advisor's supplied facts and in the advisor's own words. An INSURER not in
+        the reference map: DRAFT ANYWAY, naming the product the way the advisor did
+        — never ask the advisor for the insurer, and never treat an unmapped
+        insurer as a reason to withhold a draft the supplied facts support. Only an
+        UNSUPPORTED CATEGORY withholds, and only that component. Before sending any
         question, drop every item on this list from it; if that empties the question,
         draft instead of asking. Never substitute a [[MISSING]] placeholder for a fact needed to
         establish suitability, affordability, product features, replacement status,

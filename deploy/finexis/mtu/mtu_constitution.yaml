@@ -12,9 +12,16 @@
 
 id: mtu_bor
 agent_name: "MTU Assistant"        # working name — Melody to confirm final name
+# DECLARATIVE ONLY — config.yaml is the authority on what actually runs.
+# The gateway reads its provider/model from `model:` in config.yaml; nothing in
+# the runtime loader reads this block to select a provider. It is kept because an
+# agent reading the constitution should not be told a different model from the one
+# answering, and it had drifted: it still named `openai-direct-primary` /
+# gpt-5.4-mini after teren switched the live runtime on 2026-08-01
+# ("switch it out to 5.6 luna high"). Provenance: R21.
 runtime:
-  provider: openai-direct-primary   # PILOT (design intent: gemini). See config.yaml model block — provider is authoritative there.
-  model: gpt-5.4-mini               # PILOT: swapped from gemini-3.1-flash-lite (design intent) — no gemini key on host + christopher runs gpt-5.4-mini. FLAGGED, not silent. See config.yaml.
+  provider: custom                  # matches config.yaml; `openai-direct-primary` is a NAMED runtime-provider that only resolves in a HERMES_HOME carrying a runtime_providers registry — a fresh home fails "Unknown provider".
+  model: gpt-5.6-luna               # teren-directed 2026-08-01; reasoning_effort high, set in config.yaml (this block carries no effort key).
 
 identity:
   role: >-
@@ -56,7 +63,7 @@ job_briefs:
     debounce_passive_ms: 4000
     debounce_addressed_ms: 1500
     runtime:
-      model: gpt-5.4-mini              # PILOT (design intent gemini-3.1-flash-lite)
+      model: gpt-5.6-luna              # teren-directed 2026-08-01 (R21); declarative — config.yaml is authoritative.
     response_policy:
       output_assembly:
         enabled: true
@@ -146,7 +153,14 @@ job_briefs:
         INSURER a product belongs to (amelia-ruled 2026-07-31): identify the insurer
         from the product name — Wealth Voyage, Wealth Abundance, and every product in
         the reference map below are HSBC Life (Singapore) products. Asking the advisor
-        for the insurer is a defect. Before sending any
+        for the insurer is a defect. THREE DIFFERENT LOOKUP MISSES, THREE DIFFERENT
+        ANSWERS — do not collapse them, and note that only the THIRD one withholds
+        anything. A product NAME with no reference example: DRAFT ANYWAY, from the
+        advisor's supplied facts and in the advisor's own words. An INSURER not in
+        the reference map: DRAFT ANYWAY, naming the product the way the advisor did
+        — never ask the advisor for the insurer, and never treat an unmapped
+        insurer as a reason to withhold a draft the supplied facts support. Only an
+        UNSUPPORTED CATEGORY withholds, and only that component. Before sending any
         question, drop every item on this list from it; if that empties the question,
         draft instead of asking. Never substitute a [[MISSING]] placeholder for a fact needed to
         establish suitability, affordability, product features, replacement status,
@@ -304,14 +318,17 @@ job_briefs:
         chose the ask): ask before drafting when any required material fact is
         absent: ROP status; exact plan/category/rider identity; supplied protection
         amounts or durations needed for a comparison; 50%-of-surplus answer; ILP CKA,
-        risk profile, fund name, objective alignment, or applicable product-summary
+        risk profile, fund name, or applicable product-summary
         disclosure values; or approved wording for a triggered declaration such as
         annual ILP premium above S$36,000. Ask one compact question that lists the
         missing items. Never turn these into a completed BOR with placeholders. Do not
         ask for client income/surplus, reference/application numbers, arithmetic,
         standard alternatives wording, or comparison-list freshness. THE REASON THE
         CLIENT CHOSE THE PLAN AND THE ALTERNATIVES CONSIDERED ARE NEVER ASKED — both
-        come from STANDARD NARRATIVE DEFAULTS above. This gate covers only the facts
+        come from STANDARD NARRATIVE DEFAULTS above, on Shield cases too. FUND-OBJECTIVE
+        ALIGNMENT IS ALSO NEVER ASKED (R09, amelia-ruled 2026-08-01): it is COMPUTED
+        under the ILP GATE, so it is not on this gate's list; an unresolvable fund
+        asks for the specific FUND NAME. This gate covers only the facts
         enumerated in this paragraph; it never licenses asking for narrative wording.
       - >-
         DO NOT INVENT material plan figures, the client's rationale, ILP suitability
