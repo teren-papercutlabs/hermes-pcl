@@ -110,8 +110,8 @@ if [[ "$sandbox_enabled" == "true" ]]; then
 import pathlib, sys, yaml
 config = yaml.safe_load(open(sys.argv[1])) or {}
 datasets = (config.get("python_sandbox") or {}).get("datasets") or {}
-assert set(datasets) == {"cases", "media"}, sorted(datasets)
-for name in ("cases", "media"):
+assert set(datasets) == {"cases", "documents", "media"}, sorted(datasets)
+for name in ("cases", "documents", "media"):
     path = pathlib.Path(datasets[name]["path"])
     assert path.exists(), (name, str(path))
 PY2
