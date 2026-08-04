@@ -393,6 +393,14 @@ CREATE TABLE IF NOT EXISTS pa_case_records (
 -- provenance: which message it came from, when it was recorded, and whether
 -- the agent was told it (``user_stated``) or worked it out from another
 -- answer (``derived``, with the field it came from).
+--
+-- ``raw_value`` + ``canonicalization`` carry the ENUM audit trail.  An
+-- enum-valued field stores ONE canonical value in ``value_json``; when the
+-- writer's own wording differed, that wording is kept in ``raw_value`` so
+-- the trail shows what was actually said, not only what the record kept.
+-- ``canonicalization = 'unmappable'`` is the row for an answer that resolved
+-- to nothing: ``value_json`` is null (the field stays empty and therefore
+-- still askable) and ``raw_value`` holds the answer intake must clarify.
 CREATE TABLE IF NOT EXISTS pa_case_fields (
     case_id TEXT NOT NULL,
     field_id TEXT NOT NULL,
@@ -400,6 +408,8 @@ CREATE TABLE IF NOT EXISTS pa_case_fields (
     origin TEXT,
     source_message_id TEXT,
     derived_from_field_id TEXT,
+    raw_value TEXT,
+    canonicalization TEXT,
     recorded_at REAL NOT NULL,
     record_version INTEGER NOT NULL,
     PRIMARY KEY (case_id, field_id)
@@ -416,6 +426,8 @@ CREATE TABLE IF NOT EXISTS pa_case_field_history (
     origin TEXT,
     source_message_id TEXT,
     derived_from_field_id TEXT,
+    raw_value TEXT,
+    canonicalization TEXT,
     recorded_at REAL NOT NULL,
     record_version INTEGER NOT NULL,
     superseded_at REAL NOT NULL,
@@ -1540,6 +1552,8 @@ class SessionDB:
         origin: str,
         source_message_id: Optional[str] = None,
         derived_from_field_id: Optional[str] = None,
+        raw_value: Optional[str] = None,
+        canonicalization: Optional[str] = None,
         recorded_at: Optional[float] = None,
     ) -> int:
         """Write (or correct) one field on a case.  Returns the new version.
@@ -1553,6 +1567,12 @@ class SessionDB:
 
         ``value`` is JSON-encoded, so structured field values (lists, dicts)
         are first-class; readers get the decoded object back.
+
+        ``raw_value`` / ``canonicalization`` are set by the record layer for
+        enum-valued fields (see ``agent/pa_case_record.py``): the canonical
+        value lands in ``value``, and the writer's own wording — or, for an
+        answer that mapped to nothing, the whole unresolved answer beside a
+        null value — lands here.  Storage does not interpret them.
 
         Raises KeyError if the case does not exist.
         """
@@ -1577,9 +1597,10 @@ class SessionDB:
                     """INSERT INTO pa_case_field_history (
                         case_id, field_id, value_json, origin,
                         source_message_id, derived_from_field_id,
+                        raw_value, canonicalization,
                         recorded_at, record_version, superseded_at,
                         superseded_by_version
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         case_id,
                         field_id,
@@ -1587,6 +1608,8 @@ class SessionDB:
                         prior["origin"],
                         prior["source_message_id"],
                         prior["derived_from_field_id"],
+                        prior["raw_value"],
+                        prior["canonicalization"],
                         prior["recorded_at"],
                         prior["record_version"],
                         now,
@@ -1597,8 +1620,9 @@ class SessionDB:
             conn.execute(
                 """INSERT OR REPLACE INTO pa_case_fields (
                     case_id, field_id, value_json, origin, source_message_id,
-                    derived_from_field_id, recorded_at, record_version
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    derived_from_field_id, raw_value, canonicalization,
+                    recorded_at, record_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     case_id,
                     field_id,
@@ -1606,6 +1630,8 @@ class SessionDB:
                     origin,
                     source_message_id,
                     derived_from_field_id,
+                    raw_value,
+                    canonicalization,
                     now,
                     new_version,
                 ),

@@ -37,18 +37,22 @@ blocks:
     # resolves it from the case record's product category, so the model is never
     # asked to re-declare that this case is an ILP.
     required_tags: [DRAFT, ILP]
+    # A slot NAMES a recorded field and nothing more. The variant mapping that
+    # used to live here (aggressive -> Aggressive, "not pass" -> "did not
+    # pass") moved to the fields' value_contract in case-field-sets.yaml, where
+    # it runs ONCE at the record write (teren's canonicalise-at-the-write
+    # ruling). `expects` is the CHECK, not a mapping: a value the field's
+    # contract does not permit means the record write did not do its job, so
+    # the block
+    # is dropped and the defect logged rather than splicing an unverified word
+    # into approved compliance text.
     slots:
       - name: cka_result
         field: cka_status
-        matches:
-          - {pattern: '(?i)(did not pass|not pass|fail|unsuccessful|\bno\b)', value: 'did not pass'}
-          - {pattern: '(?i)(pass|clear|complet|\byes\b)', value: 'passed'}
+        expects: ['passed', 'did not pass']
       - name: risk_profile
         field: risk_profile
-        matches:
-          - {pattern: '(?i)\bconservative\b', value: 'Conservative'}
-          - {pattern: '(?i)\bbalanced\b', value: 'Balanced'}
-          - {pattern: '(?i)\baggressive\b', value: 'Aggressive'}
+        expects: ['Conservative', 'Balanced', 'Aggressive']
     drop_guard:
       - '(?i)\bCKA\b'
       - '(?i)risk profile of\b'

@@ -12,6 +12,16 @@ import yaml
 MTU_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = MTU_ROOT / "eval-policy.yaml"
 
+#: Assertion kinds the RUNNER scores, so the gates count them as evidence
+#: rather than waiting on a judge.  Kept as a literal set rather than imported
+#: from ``gateway.pa_eval``: these gate scripts run standalone against a
+#: report file, with no gateway import path and often no runtime at all.
+#: ``gateway/pa_eval.py`` is the definition; ``test_deterministic_kinds_match``
+#: keeps the two from drifting.
+DETERMINISTIC_KINDS = frozenset(
+    {"exact_present", "exact_absent", "no_approved_block"}
+)
+
 
 def load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -34,7 +44,7 @@ def deterministic_failures(report: dict[str, Any]) -> set[str]:
         for case in report.get("cases") or []
         for turn in case.get("turns") or []
         for assertion in turn.get("assertions") or []
-        if assertion.get("kind") in {"exact_present", "exact_absent"}
+        if assertion.get("kind") in DETERMINISTIC_KINDS
         and assertion.get("passed") is False
     }
 
@@ -106,7 +116,11 @@ def validate_report_shape(
             turn_has_semantic = False
             for assertion in actual_assertions:
                 kind = assertion.get("kind")
-                if kind in {"exact_present", "exact_absent"}:
+                if kind in DETERMINISTIC_KINDS:
+                    if assertion.get("status") == "not_applicable":
+                        # A draft detector with no needles neither passed nor
+                        # failed; it is reported, not counted.
+                        continue
                     if not isinstance(assertion.get("passed"), bool):
                         defects.append(f"{case_id}|{draw}|{index} has unscored exact assertion")
                     elif assertion.get("status") != (

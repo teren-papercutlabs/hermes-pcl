@@ -1,0 +1,1276 @@
+{
+  "schema_version": 1,
+  "corpus": {
+    "source_path": "/private/tmp/claude-501/-Users-pcloffice-pcl--worktrees-edna-f670fbd6-e9d75c75/24bab570-f9dd-44d2-965d-767505961afc/scratchpad/unsupported-corpus.json",
+    "source_digest": "sha256:0d2fd0f6fe39cfd822cf9ff867e126ddc8f39f73f34f3743301e52bc78da4d3e",
+    "declared_case_count": 3,
+    "selected_case_count": 3,
+    "tags": [],
+    "honor_draws": true
+  },
+  "execution": {
+    "platform": "telegram",
+    "case_run_count": 12,
+    "multi_turn_case_count": 0,
+    "turn_count": 12,
+    "runtime": {
+      "mode": "disposable_copy",
+      "eval_mode": true,
+      "source_home": "/Users/pcloffice/.hermes-mtu",
+      "candidate_deploy_dir": "/private/tmp/claude-501/-Users-pcloffice-pcl--worktrees-edna-f670fbd6-e9d75c75/24bab570-f9dd-44d2-965d-767505961afc/scratchpad/mainref/deploy/finexis/mtu",
+      "copy_home": "/private/tmp/claude-501/-Users-pcloffice-pcl--worktrees-edna-f670fbd6-e9d75c75/24bab570-f9dd-44d2-965d-767505961afc/scratchpad/hc-base",
+      "live_home_written": false,
+      "model_provider": "custom",
+      "model": "gpt-5.4-mini",
+      "source_config_sha256": "6906557d159672c9e6beabde101d20d1199c13a9e5a7d0ee3c994fdf7ddec9aa",
+      "source_constitution_sha256": "5df6bf8be1788098ea2dfe02dc7f0e657f2208b406ac103e121a8c09be366b65",
+      "copied_config_sha256": "acc0a3f2a05892dd5b5d9e5927a6d5264527de4fd6da94d60ff38c74c9180beb",
+      "copied_constitution_sha256": "f273a5fa6fbb880a7944eae3617802a2b1e71d4513b65276b51b07458fec13a8",
+      "instruction_placement": "skill",
+      "output_mode": "marker"
+    }
+  },
+  "deterministic_summary": {
+    "assertion_count": 60,
+    "passed": 59,
+    "failed": 1,
+    "case_runs_passed": 11,
+    "case_runs_failed": 1,
+    "case_runs_not_applicable": 0
+  },
+  "cases": [
+    {
+      "case_id": "MTU-032_term_to_whole_life_no_example",
+      "tags": [
+        "rop",
+        "unsupported-category",
+        "escalation",
+        "formatting"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d1-098aeb007b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-032_term_to_whole_life_no_example-d1-098aeb007b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d1-098aeb007b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d1-098aeb007b-turn-1",
+          "processed": 1,
+          "response": "Check before use: Harbor EliteTerm (term life) to Northstar WholeLife Choice (whole life) is not a supported replacement path, so the case is with Melody.\n\n\nThis type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+          "response_digest": "sha256:28ea7bfe876ec555b6670bb71622e3ff51422dc9482dfc5d3d10d2328a98f081",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the approved no-reference-example sentence",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "names term life and whole life in the advisor's words and says the case is with Melody",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not produce a completed BOR or substitute a nearest-looking replacement template",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose taxonomy",
+              "kind": "exact_absent",
+              "text": "taxonomy",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "taxonomy"
+            },
+            {
+              "label": "does not expose blank-cell terminology",
+              "kind": "exact_absent",
+              "text": "blank cell",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "blank cell"
+            },
+            {
+              "label": "does not expose matrix terminology",
+              "kind": "exact_absent",
+              "text": "matrix",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "matrix"
+            },
+            {
+              "label": "does not expose directory terminology",
+              "kind": "exact_absent",
+              "text": "directory",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "directory"
+            },
+            {
+              "label": "does not expose reference-file terminology",
+              "kind": "exact_absent",
+              "text": "reference file",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "reference file"
+            },
+            {
+              "label": "does not expose file-number terminology",
+              "kind": "exact_absent",
+              "text": "file number",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "file number"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 7,
+        "passed": 7,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-032_term_to_whole_life_no_example",
+      "tags": [
+        "rop",
+        "unsupported-category",
+        "escalation",
+        "formatting"
+      ],
+      "draw": 2,
+      "canary": false,
+      "run_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d2-891d31b0a1",
+      "replay_namespace": "agent:replay:pa-eval-MTU-032_term_to_whole_life_no_example-d2-891d31b0a1",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d2-891d31b0a1-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d2-891d31b0a1-turn-1",
+          "processed": 1,
+          "response": "Harbor EliteTerm to Northstar WholeLife Choice: This type of replacement has not been submitted before, as Melody has not approved a reference example for it.\nThis case is with Melody.",
+          "response_digest": "sha256:903276f66772c34c7d324595578de8381874fe5db351288b68809e92c06085e1",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the approved no-reference-example sentence",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "names term life and whole life in the advisor's words and says the case is with Melody",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not produce a completed BOR or substitute a nearest-looking replacement template",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose taxonomy",
+              "kind": "exact_absent",
+              "text": "taxonomy",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "taxonomy"
+            },
+            {
+              "label": "does not expose blank-cell terminology",
+              "kind": "exact_absent",
+              "text": "blank cell",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "blank cell"
+            },
+            {
+              "label": "does not expose matrix terminology",
+              "kind": "exact_absent",
+              "text": "matrix",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "matrix"
+            },
+            {
+              "label": "does not expose directory terminology",
+              "kind": "exact_absent",
+              "text": "directory",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "directory"
+            },
+            {
+              "label": "does not expose reference-file terminology",
+              "kind": "exact_absent",
+              "text": "reference file",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "reference file"
+            },
+            {
+              "label": "does not expose file-number terminology",
+              "kind": "exact_absent",
+              "text": "file number",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "file number"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 7,
+        "passed": 7,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-032_term_to_whole_life_no_example",
+      "tags": [
+        "rop",
+        "unsupported-category",
+        "escalation",
+        "formatting"
+      ],
+      "draw": 3,
+      "canary": false,
+      "run_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d3-327f9c2366",
+      "replay_namespace": "agent:replay:pa-eval-MTU-032_term_to_whole_life_no_example-d3-327f9c2366",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d3-327f9c2366-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d3-327f9c2366-turn-1",
+          "processed": 1,
+          "response": "This case is with Melody for review. The replacement path from term life to whole life has no approved reference example for a completed BOR.\nThis type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+          "response_digest": "sha256:ac83a5d351eb043cc914b43cbaf335aa11effdfad8ab314332ecf462135445f4",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the approved no-reference-example sentence",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "names term life and whole life in the advisor's words and says the case is with Melody",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not produce a completed BOR or substitute a nearest-looking replacement template",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose taxonomy",
+              "kind": "exact_absent",
+              "text": "taxonomy",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "taxonomy"
+            },
+            {
+              "label": "does not expose blank-cell terminology",
+              "kind": "exact_absent",
+              "text": "blank cell",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "blank cell"
+            },
+            {
+              "label": "does not expose matrix terminology",
+              "kind": "exact_absent",
+              "text": "matrix",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "matrix"
+            },
+            {
+              "label": "does not expose directory terminology",
+              "kind": "exact_absent",
+              "text": "directory",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "directory"
+            },
+            {
+              "label": "does not expose reference-file terminology",
+              "kind": "exact_absent",
+              "text": "reference file",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "reference file"
+            },
+            {
+              "label": "does not expose file-number terminology",
+              "kind": "exact_absent",
+              "text": "file number",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "file number"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 7,
+        "passed": 7,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-032_term_to_whole_life_no_example",
+      "tags": [
+        "rop",
+        "unsupported-category",
+        "escalation",
+        "formatting"
+      ],
+      "draw": 4,
+      "canary": false,
+      "run_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d4-7d07d1c2e6",
+      "replay_namespace": "agent:replay:pa-eval-MTU-032_term_to_whole_life_no_example-d4-7d07d1c2e6",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d4-7d07d1c2e6-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-032_term_to_whole_life_no_example-d4-7d07d1c2e6-turn-1",
+          "processed": 1,
+          "response": "Check before use: Term life to whole life is not on the approved replacement-path list, so this case is with Melody. This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+          "response_digest": "sha256:5b584999da2608cabbfe7531ff66fb98b556096d7a42509a3b0b0ddbd53f28ec",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the approved no-reference-example sentence",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "names term life and whole life in the advisor's words and says the case is with Melody",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not produce a completed BOR or substitute a nearest-looking replacement template",
+              "kind": "must_not",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose taxonomy",
+              "kind": "exact_absent",
+              "text": "taxonomy",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "taxonomy"
+            },
+            {
+              "label": "does not expose blank-cell terminology",
+              "kind": "exact_absent",
+              "text": "blank cell",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "blank cell"
+            },
+            {
+              "label": "does not expose matrix terminology",
+              "kind": "exact_absent",
+              "text": "matrix",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "matrix"
+            },
+            {
+              "label": "does not expose directory terminology",
+              "kind": "exact_absent",
+              "text": "directory",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "directory"
+            },
+            {
+              "label": "does not expose reference-file terminology",
+              "kind": "exact_absent",
+              "text": "reference file",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "reference file"
+            },
+            {
+              "label": "does not expose file-number terminology",
+              "kind": "exact_absent",
+              "text": "file number",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "file number"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 7,
+        "passed": 7,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-033_wl_to_wl_unsupported",
+      "tags": [
+        "rop",
+        "unsupported-category",
+        "escalation",
+        "product-validation"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d1-f025ad93cb",
+      "replay_namespace": "agent:replay:pa-eval-MTU-033_wl_to_wl_unsupported-d1-f025ad93cb",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d1-f025ad93cb-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d1-f025ad93cb-turn-1",
+          "processed": 1,
+          "response": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.\n\nCheck before use: Cedar Dependant Cover whole life to Summit My Whole Life Choice whole life is with Melody.",
+          "response_digest": "sha256:aaf371ce84217fc6aae52cf8021f2150051d42d3d68fb03789cb95eb909810cd",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the approved no-reference sentence",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "names the whole-life-to-whole-life replacement path in advisor-facing terms and says the case is with Melody",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present a completed BOR for the unsupported replacement path",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose the internal term taxonomy",
+              "kind": "exact_absent",
+              "text": "taxonomy",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "taxonomy"
+            },
+            {
+              "label": "does not expose the internal term blank cell",
+              "kind": "exact_absent",
+              "text": "blank cell",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "blank cell"
+            },
+            {
+              "label": "does not expose the internal term matrix",
+              "kind": "exact_absent",
+              "text": "matrix",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "matrix"
+            },
+            {
+              "label": "does not expose the internal term directory",
+              "kind": "exact_absent",
+              "text": "directory",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "directory"
+            },
+            {
+              "label": "does not expose the internal term reference file",
+              "kind": "exact_absent",
+              "text": "reference file",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "reference file"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 6,
+        "passed": 6,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-033_wl_to_wl_unsupported",
+      "tags": [
+        "rop",
+        "unsupported-category",
+        "escalation",
+        "product-validation"
+      ],
+      "draw": 2,
+      "canary": false,
+      "run_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d2-06803e0e0a",
+      "replay_namespace": "agent:replay:pa-eval-MTU-033_wl_to_wl_unsupported-d2-06803e0e0a",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d2-06803e0e0a-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d2-06803e0e0a-turn-1",
+          "processed": 1,
+          "response": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+          "response_digest": "sha256:aaaa647a1f8056caf4cc40f77cc68f7e4c0ed2f6a226371e4abc19119bf7f725",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the approved no-reference sentence",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "names the whole-life-to-whole-life replacement path in advisor-facing terms and says the case is with Melody",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present a completed BOR for the unsupported replacement path",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose the internal term taxonomy",
+              "kind": "exact_absent",
+              "text": "taxonomy",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "taxonomy"
+            },
+            {
+              "label": "does not expose the internal term blank cell",
+              "kind": "exact_absent",
+              "text": "blank cell",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "blank cell"
+            },
+            {
+              "label": "does not expose the internal term matrix",
+              "kind": "exact_absent",
+              "text": "matrix",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "matrix"
+            },
+            {
+              "label": "does not expose the internal term directory",
+              "kind": "exact_absent",
+              "text": "directory",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "directory"
+            },
+            {
+              "label": "does not expose the internal term reference file",
+              "kind": "exact_absent",
+              "text": "reference file",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "reference file"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 6,
+        "passed": 6,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-033_wl_to_wl_unsupported",
+      "tags": [
+        "rop",
+        "unsupported-category",
+        "escalation",
+        "product-validation"
+      ],
+      "draw": 3,
+      "canary": false,
+      "run_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d3-b5c5f7c99b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-033_wl_to_wl_unsupported-d3-b5c5f7c99b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d3-b5c5f7c99b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d3-b5c5f7c99b-turn-1",
+          "processed": 1,
+          "response": "The client is replacing Cedar Dependant Cover whole life, which currently provides death/TPD cover of S$80,000 with a yearly premium of S$1,500 and lifetime cover, with Summit My Whole Life Choice whole life, which provides death/TPD cover of S$200,000 and CI cover of S$80,000 with a yearly premium of S$2,700 for 20 years and lifetime cover.\n\nAfter discussing the pros and cons of whole life, term life and investment-linked plans, the client preferred Summit My Whole Life Choice because it provides higher long-term protection, adds CI coverage, and meets the client's need for lifetime protection.\n\n1. May incur penalties / transaction costs for terminating the existing policy(ies) or investment product(s), without gaining any real benefit from replacing them.\n2. Financial benefits accumulated over the years may be lost.\n3. May be offered a lower level of benefit at a higher or same cost (or the same benefit at higher cost); the new policy may be less suitable.\n4. If existing medical conditions are covered by the existing plan, coverage for those conditions may be lost.\nThe client was advised of the replacement disadvantages and wishes to proceed.\nOther available options—such as increasing the sum assured under the existing policy, attaching riders, or converting the policy—have been explored. The recommendation to proceed with a replacement was made only after a thorough assessment confirmed that it is suitable and in the best interest of the client.\nThe client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.\nThe product was recommended after fact-find, needs analysis, and product comparison.\nThe client is aware that the Financial Consultant may receive additional commission for selling the recommended product.\nThe client has agreed for soft copies of the documents to be electronically mailed after the company has processed them.\n\n\nTotal annual premiums do not exceed 50% of the client's surplus.\nTotal annual premiums do not exceed 50% of the client's surplus.",
+          "response_digest": "sha256:8fd5ec5394bc6921160e0b86531325b11cf1d6285c33deaccf808ebbc222e232",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the approved no-reference sentence",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "failed",
+              "passed": false,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "names the whole-life-to-whole-life replacement path in advisor-facing terms and says the case is with Melody",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present a completed BOR for the unsupported replacement path",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose the internal term taxonomy",
+              "kind": "exact_absent",
+              "text": "taxonomy",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "taxonomy"
+            },
+            {
+              "label": "does not expose the internal term blank cell",
+              "kind": "exact_absent",
+              "text": "blank cell",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "blank cell"
+            },
+            {
+              "label": "does not expose the internal term matrix",
+              "kind": "exact_absent",
+              "text": "matrix",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "matrix"
+            },
+            {
+              "label": "does not expose the internal term directory",
+              "kind": "exact_absent",
+              "text": "directory",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "directory"
+            },
+            {
+              "label": "does not expose the internal term reference file",
+              "kind": "exact_absent",
+              "text": "reference file",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "reference file"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "failed",
+        "assertion_count": 6,
+        "passed": 5,
+        "failed": 1
+      }
+    },
+    {
+      "case_id": "MTU-033_wl_to_wl_unsupported",
+      "tags": [
+        "rop",
+        "unsupported-category",
+        "escalation",
+        "product-validation"
+      ],
+      "draw": 4,
+      "canary": false,
+      "run_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d4-7319915f09",
+      "replay_namespace": "agent:replay:pa-eval-MTU-033_wl_to_wl_unsupported-d4-7319915f09",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d4-7319915f09-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-033_wl_to_wl_unsupported-d4-7319915f09-turn-1",
+          "processed": 1,
+          "response": "Check before use: this is a Whole Life -> Whole Life replacement path, which has no approved reference example. The case is with Melody.\n\nThis type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+          "response_digest": "sha256:77454a7cfa54487450eaa7f569c609a49217de83f5d723d4418068cf9d9b6c80",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "uses the approved no-reference sentence",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "names the whole-life-to-whole-life replacement path in advisor-facing terms and says the case is with Melody",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not present a completed BOR for the unsupported replacement path",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "does not expose the internal term taxonomy",
+              "kind": "exact_absent",
+              "text": "taxonomy",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "taxonomy"
+            },
+            {
+              "label": "does not expose the internal term blank cell",
+              "kind": "exact_absent",
+              "text": "blank cell",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "blank cell"
+            },
+            {
+              "label": "does not expose the internal term matrix",
+              "kind": "exact_absent",
+              "text": "matrix",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "matrix"
+            },
+            {
+              "label": "does not expose the internal term directory",
+              "kind": "exact_absent",
+              "text": "directory",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "directory"
+            },
+            {
+              "label": "does not expose the internal term reference file",
+              "kind": "exact_absent",
+              "text": "reference file",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "reference file"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 6,
+        "passed": 6,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-034_unsupported_path_advisor_wording",
+      "tags": [
+        "unsupported-category",
+        "escalation",
+        "formatting"
+      ],
+      "draw": 1,
+      "canary": false,
+      "run_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d1-6a3898cb35",
+      "replay_namespace": "agent:replay:pa-eval-MTU-034_unsupported_path_advisor_wording-d1-6a3898cb35",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d1-6a3898cb35-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d1-6a3898cb35-turn-1",
+          "processed": 1,
+          "response": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.\n\nI can’t draft this BOR as a completed recommendation. The proposed Summit Flexi Life Income is an annuity-style income plan, and this path is not supported for a BOR draft here. It needs Melody review.",
+          "response_digest": "sha256:b9cccb125751d2f9e7313c1722678e6a2e27e49cc9cfba079bd1702d799610cc",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "Uses Amelia's approved no-reference-example sentence.",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "Names the old and new plan types in the advisor's words and states that the case is with Melody.",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "Does not expose implementation terminology such as unsupported path or field contract.",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "Does not expose the internal phrase field contract.",
+              "kind": "exact_absent",
+              "text": "field contract",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "field contract"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-034_unsupported_path_advisor_wording",
+      "tags": [
+        "unsupported-category",
+        "escalation",
+        "formatting"
+      ],
+      "draw": 2,
+      "canary": false,
+      "run_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d2-4a47d8ee2b",
+      "replay_namespace": "agent:replay:pa-eval-MTU-034_unsupported_path_advisor_wording-d2-4a47d8ee2b",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d2-4a47d8ee2b-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d2-4a47d8ee2b-turn-1",
+          "processed": 1,
+          "response": "Atlas Income Endowment to Summit Flexi Life Income annuity-style plan is with Melody. This type of replacement has not been submitted before, as Melody has not approved a reference example for it.\n\nCheck before use: this path needs Melody review, so I cannot draft the BOR here.",
+          "response_digest": "sha256:9e65a2cde87ae78b5c8e80a27778d1568528dacbd8cc8e154a91790d1e7b8384",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "Uses Amelia's approved no-reference-example sentence.",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "Names the old and new plan types in the advisor's words and states that the case is with Melody.",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "Does not expose implementation terminology such as unsupported path or field contract.",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "Does not expose the internal phrase field contract.",
+              "kind": "exact_absent",
+              "text": "field contract",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "field contract"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-034_unsupported_path_advisor_wording",
+      "tags": [
+        "unsupported-category",
+        "escalation",
+        "formatting"
+      ],
+      "draw": 3,
+      "canary": false,
+      "run_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d3-aabdb675bd",
+      "replay_namespace": "agent:replay:pa-eval-MTU-034_unsupported_path_advisor_wording-d3-aabdb675bd",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d3-aabdb675bd-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d3-aabdb675bd-turn-1",
+          "processed": 1,
+          "response": "This case is with Melody.\nThis type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+          "response_digest": "sha256:55f73b8d8f9eaeab66bc45682981524349e79617cf31ef04956c1f8be3f7478f",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "Uses Amelia's approved no-reference-example sentence.",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "Names the old and new plan types in the advisor's words and states that the case is with Melody.",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "Does not expose implementation terminology such as unsupported path or field contract.",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "Does not expose the internal phrase field contract.",
+              "kind": "exact_absent",
+              "text": "field contract",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "field contract"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    {
+      "case_id": "MTU-034_unsupported_path_advisor_wording",
+      "tags": [
+        "unsupported-category",
+        "escalation",
+        "formatting"
+      ],
+      "draw": 4,
+      "canary": false,
+      "run_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d4-ea5d4328f4",
+      "replay_namespace": "agent:replay:pa-eval-MTU-034_unsupported_path_advisor_wording-d4-ea5d4328f4",
+      "setup": {
+        "command": "/new",
+        "attempt_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d4-ea5d4328f4-setup",
+        "blocked_commands": []
+      },
+      "turn_count": 1,
+      "turns": [
+        {
+          "turn_index": 0,
+          "attempt_id": "pa-eval-MTU-034_unsupported_path_advisor_wording-d4-ea5d4328f4-turn-1",
+          "processed": 1,
+          "response": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.\nCheck before use: unsupported replacement path from Atlas Income Endowment to Summit Flexi Life Income annuity-style plan. Melody review needed.",
+          "response_digest": "sha256:1ff340519be632567b6278b40892efeed0d8462d61b53089e2ae3e879fd68337",
+          "response_source": {
+            "outbound_index": 0,
+            "kind": "send",
+            "message_id": "replay-1"
+          },
+          "outbound_count": 1,
+          "assertions": [
+            {
+              "label": "Uses Amelia's approved no-reference-example sentence.",
+              "kind": "exact_present",
+              "text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it.",
+              "critical": false,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "This type of replacement has not been submitted before, as Melody has not approved a reference example for it."
+            },
+            {
+              "label": "Names the old and new plan types in the advisor's words and states that the case is with Melody.",
+              "kind": "must",
+              "text": null,
+              "critical": false,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "Does not expose implementation terminology such as unsupported path or field contract.",
+              "kind": "must_not",
+              "text": null,
+              "critical": true,
+              "status": "pending_judge",
+              "passed": null
+            },
+            {
+              "label": "Does not expose the internal phrase field contract.",
+              "kind": "exact_absent",
+              "text": "field contract",
+              "critical": true,
+              "status": "passed",
+              "passed": true,
+              "normalized_text": "field contract"
+            }
+          ]
+        }
+      ],
+      "deterministic": {
+        "status": "passed",
+        "assertion_count": 2,
+        "passed": 2,
+        "failed": 0
+      }
+    }
+  ],
+  "generated_at": "2026-08-04T02:58:21.444130+00:00"
+}

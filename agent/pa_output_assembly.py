@@ -7,6 +7,7 @@ verbatim compliance text out of the model's authorship surface.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,8 @@ from typing import Any, Iterable, Mapping, Sequence
 import yaml
 
 from hermes_constants import get_hermes_home
+
+logger = logging.getLogger(__name__)
 
 
 class PAOutputAssemblyError(ValueError):
@@ -43,28 +46,59 @@ class PAOutputAssemblyRetry(PAOutputAssemblyError):
 class ComplianceSlot:
     """A deterministic hole in an approved sentence, filled from case state.
 
-    The approved WORDING still lives whole in the typed artifact; a slot only
-    names which recorded field supplies a value and which canonical tokens that
-    field's answers map to.  The model never authors slot content, and an
-    unmappable answer resolves to nothing rather than to a guess.
+    The approved WORDING lives whole in the typed artifact; a slot only names
+    which recorded field supplies the value.  It does NOT map variants onto
+    canonical tokens — that happened once, at the record write, where the
+    field was populated (``agent/pa_case_record.py``).  A slot that carried
+    its own mapping would be a second place the same decision gets made, and
+    two places drift: the sentence would say "Aggressive" while the record,
+    the suitability computation, and every eval said something else.
+
+    ``expects`` is therefore a CHECK, not a mapping.  A value reaching a slot
+    that is not one the field's contract permits means the record write did
+    not do its job, so it is a DEFECT: it is logged and the block is dropped
+    rather than shipping an unverified word inside approved compliance text.
     """
 
     name: str
     field: str
-    matches: tuple[tuple[re.Pattern[str], str], ...] = ()
+    #: The values this slot's field is contracted to hold.  Empty means the
+    #: deployment declares no closed set for it, and any non-empty value
+    #: passes.
+    expects: tuple[str, ...] = ()
 
     def resolve(self, raw_value: Any) -> str | None:
         if raw_value is None:
             return None
+        if isinstance(raw_value, bool):
+            # A boolean-contracted field has no self-evident prose form; a
+            # slot needing one must be given an approved wording, not "True".
+            logger.error(
+                "compliance slot %r reads boolean field %r, which has no "
+                "approved wording; dropping the block",
+                self.name,
+                self.field,
+            )
+            return None
         text = str(raw_value).strip()
         if not text:
             return None
-        if not self.matches:
-            return text
-        for pattern, value in self.matches:
-            if pattern.search(text):
-                return value
-        return None
+        if self.expects and text not in self.expects:
+            # THE DEFECT PATH.  Canonicalisation happens at the record write;
+            # a non-contracted value here means it did not, so the value has
+            # never been checked by anything and must not be spliced into
+            # approved text.
+            logger.error(
+                "compliance slot %r received non-contracted value %r for "
+                "field %r (expected one of %s) — the case record should have "
+                "resolved this at the field write; dropping the block",
+                self.name,
+                text,
+                self.field,
+                ", ".join(self.expects),
+            )
+            return None
+        return text
 
 
 @dataclass(frozen=True)
@@ -170,26 +204,24 @@ def _parse_slots(
             raise PAOutputAssemblyError(
                 f"{relative_path}: {block_id} declares slot {name!r} that its text never uses"
             )
-        matches: list[tuple[re.Pattern[str], str]] = []
-        for match in item.get("matches") or ():
-            if not isinstance(match, Mapping):
-                raise PAOutputAssemblyError(
-                    f"{relative_path}: {block_id}.slots.{name}.matches entries must be mappings"
-                )
-            pattern = str(match.get("pattern") or "")
-            value = match.get("value")
-            if not pattern or value is None:
-                raise PAOutputAssemblyError(
-                    f"{relative_path}: {block_id}.slots.{name}.matches needs pattern and value"
-                )
-            try:
-                compiled = re.compile(pattern)
-            except re.error as exc:
-                raise PAOutputAssemblyError(
-                    f"{relative_path}: {block_id}.slots.{name} bad pattern {pattern!r}: {exc}"
-                ) from exc
-            matches.append((compiled, str(value)))
-        slots.append(ComplianceSlot(name=name, field=field, matches=tuple(matches)))
+        if item.get("matches"):
+            # A slot no longer maps variants onto canonical tokens: the case
+            # record does that at the field write.  Failing loudly here is the
+            # point — a config left carrying its own mapping would keep a
+            # SECOND, silently divergent source of truth for the same value.
+            raise PAOutputAssemblyError(
+                f"{relative_path}: {block_id}.slots.{name} declares 'matches'. "
+                "Slot-level variant mapping is retired: declare the field's "
+                "value_contract in the case field-set config so the record "
+                "canonicalises at the write, and use 'expects' here for the "
+                "permitted values."
+            )
+        expects = tuple(
+            str(value).strip()
+            for value in item.get("expects") or ()
+            if str(value).strip()
+        )
+        slots.append(ComplianceSlot(name=name, field=field, expects=expects))
     declared = {"{" + slot.name + "}" for slot in slots}
     for found in re.findall(r"\{[a-zA-Z0-9_]+\}", block_text):
         if found not in declared:
@@ -456,6 +488,42 @@ def _render_output_instruction(
     return "\n".join(lines)
 
 
+def _scope_from_record(
+    policy: Mapping[str, Any],
+    field_values: Mapping[str, Any] | None,
+) -> str | None:
+    """Resolve a scope tag from a boolean-contracted case-record field.
+
+    Config shape (the field id and both tags are deployment vocabulary)::
+
+        output_assembly:
+          scope_from_fields:
+            - field: <recorded field id>
+              when_true: <SCOPE_TAG>
+              when_false: <SCOPE_TAG>
+
+    Only a real boolean counts.  A field holding free text has not been
+    through its contract, and guessing its truth here would reintroduce the
+    text-matching this exists to replace.
+    """
+    entries = policy.get("scope_from_fields")
+    if not isinstance(entries, list) or not field_values:
+        return None
+    for entry in entries:
+        if not isinstance(entry, Mapping):
+            continue
+        field = str(entry.get("field") or "").strip()
+        if not field or field not in field_values:
+            continue
+        value = field_values.get(field)
+        if not isinstance(value, bool):
+            continue
+        tag = entry.get("when_true") if value else entry.get("when_false")
+        if tag:
+            return str(tag).strip().upper()
+    return None
+
+
 def _scope_tags(response: str) -> tuple[frozenset[str], str]:
     matches = list(_SCOPE_RE.finditer(response))
     if len(matches) != 1:
@@ -503,18 +571,32 @@ def assemble_pa_response(
     tags, assembled = _scope_tags(response)
     normalized_source = " ".join(source_text.lower().split())
     deterministic_scope: str | None = None
-    sustainability_facts = list(
-        re.finditer(
-            r"do not exceed 50%|more than 50%|(?<!not )exceed 50%",
-            normalized_source,
-        )
+    # THE RECORD ANSWERS FIRST.  A scope that a contracted case-record field
+    # already decides must not be re-derived here from raw conversation text:
+    # the record's value was checked once, at the write, and re-reading the
+    # transcript is exactly the second source of truth this reshape removes.
+    # The field id and its tags are CONFIG — no client vocabulary here.
+    deterministic_scope = _scope_from_record(
+        output_assembly_policy(pa_context), field_values
     )
-    if sustainability_facts:
-        deterministic_scope = (
-            "SUSTAINABILITY_NO"
-            if sustainability_facts[-1].group(0).startswith("do not")
-            else "SUSTAINABILITY_YES"
+    if deterministic_scope is None:
+        # TRANSITIONAL FALLBACK: cases whose record does not (yet) carry the
+        # field still resolve from the source text, so an unpopulated field
+        # cannot silently drop a compliance scope. Delete this branch once the
+        # field is reliably populated — or with the field itself, if the
+        # pending 50%-removal ruling retires the question.
+        sustainability_facts = list(
+            re.finditer(
+                r"do not exceed 50%|more than 50%|(?<!not )exceed 50%",
+                normalized_source,
+            )
         )
+        if sustainability_facts:
+            deterministic_scope = (
+                "SUSTAINABILITY_NO"
+                if sustainability_facts[-1].group(0).startswith("do not")
+                else "SUSTAINABILITY_YES"
+            )
     if deterministic_scope:
         tags = frozenset(
             (tags - {"SUSTAINABILITY_NO", "SUSTAINABILITY_YES"})

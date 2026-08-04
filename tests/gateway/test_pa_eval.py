@@ -7,6 +7,7 @@ from gateway.pa_eval import (
     adapt_case_to_replay,
     normalize_for_exact_match,
     run_exact_assertion,
+    run_no_draft_assertion,
     run_replay_bundle,
 )
 from gateway.replay import ReplayResult
@@ -196,3 +197,72 @@ def test_bundle_runner_preserves_per_turn_outputs_and_assertions(tmp_path):
         "passed": 2,
         "failed": 0,
     }
+
+
+# ── no_approved_block: the deterministic NO-DRAFT check ────────────────────
+#
+# A material-missing gate fails by PRODUCING a draft, so its guard must not be
+# judge-kind: an unrun judge scores nothing while the case still reports a
+# clean deterministic summary. Naming individual sentences with exact_absent
+# only guards the sentences somebody listed.
+
+
+def _no_draft_expectation():
+    return PAEvalExpectation.from_mapping(
+        {
+            "label": "returns no completed draft",
+            "kind": "no_approved_block",
+            "critical": True,
+        }
+    )
+
+
+def test_no_approved_block_passes_on_an_intake_question():
+    result = run_no_draft_assertion(
+        "Before I draft, could you confirm the premium and the coverage term?",
+        _no_draft_expectation(),
+        ["Total annual premiums do not exceed 50% of the client's surplus."],
+    )
+    assert result["passed"] is True
+    assert result["status"] == "passed"
+
+
+def test_no_approved_block_catches_a_draft_by_its_approved_text():
+    approved = "Total annual premiums do not exceed 50% of the client's surplus."
+    result = run_no_draft_assertion(
+        f"Here is the BOR.\n\n{approved}\n\nRegards.",
+        _no_draft_expectation(),
+        [approved, "Some other approved sentence."],
+    )
+    assert result["passed"] is False
+    assert result["approved_blocks_present"] == [approved]
+
+
+def test_no_approved_block_folds_typography_like_every_exact_check():
+    result = run_no_draft_assertion(
+        "Premiums do not exceed 50% of the client’s surplus.",
+        _no_draft_expectation(),
+        ["Premiums do not exceed 50% of the client's surplus."],
+    )
+    assert result["passed"] is False
+
+
+def test_no_approved_block_without_needles_is_not_applicable():
+    """A detector with nothing to detect must never report a pass."""
+    result = run_no_draft_assertion("anything at all", _no_draft_expectation(), [])
+    assert result["status"] == "not_applicable"
+    assert result["passed"] is None
+
+
+def test_a_not_applicable_draft_check_is_not_counted_as_evidence():
+    """...and the summary must not count it either."""
+    from gateway.pa_eval import DETERMINISTIC_KINDS
+
+    assert "no_approved_block" in DETERMINISTIC_KINDS
+    assert "exact_present" in DETERMINISTIC_KINDS
+
+
+def test_no_approved_block_needs_no_text_field():
+    """Its needles come from the artifacts, so authoring text would be wrong."""
+    expectation = _no_draft_expectation()
+    assert expectation.text is None

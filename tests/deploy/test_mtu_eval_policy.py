@@ -312,3 +312,17 @@ def test_judge_layer_only_scores_semantic_assertions(monkeypatch):
     assert scored["judge_summary"]["model"] == "gpt-5.6-sol"
     assert scored["judge_summary"]["status"] == "passed"
     assert scored["cases"][0]["turns"][0]["assertions"][1]["status"] == "passed"
+
+
+def test_deterministic_kinds_match_the_runner():
+    """The gates re-declare the runner's deterministic set; keep them equal.
+
+    mtu_eval_policy runs standalone against a report file, with no gateway
+    import path, so it cannot import the definition. A drift here is silent
+    and one-directional: a kind the runner scores but the gate does not count
+    passes through the gate unexamined.
+    """
+    from gateway.pa_eval import DETERMINISTIC_KINDS as runner_kinds
+    from mtu_eval_policy import DETERMINISTIC_KINDS as gate_kinds
+
+    assert set(gate_kinds) == set(runner_kinds)
