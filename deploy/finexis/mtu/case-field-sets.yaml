@@ -18,6 +18,13 @@
 #               intake generates questions from.
 #   ask_hint  - the question shape when it IS asked; intake composes from it,
 #               it is not sent verbatim
+#   holds     - what the field HOLDS, for the extractor that has to recognise
+#               a value in a message. Separate from ask_hint on purpose: an
+#               ask_hint enumerates everything a COMPLETE answer eventually
+#               carries, so an extractor reading it as a description treats it
+#               as a bar the message must clear and drops a short but genuine
+#               answer ("BOR for Voyage 15" states the proposed plan). Falls
+#               back to ask_hint when absent.
 #   derived_from - advisory: which recorded answer a derivation may stand on
 #
 # Phase-2 note: the record module supplies the query and the derivation hook;
@@ -39,6 +46,10 @@ field_sets:
           Existing plan(s) with the facts the matching category contract needs
           — insurer, plan name, category, sum assured by benefit, premium,
           coverage till age. "None" for a first purchase.
+        holds: >-
+          The plan(s) the client already holds, however the advisor names
+          them — a product name alone IS the value. "None" for a first
+          purchase.
         notes: "The starting position the BOR must state clearly."
 
       - id: proposed_plan
@@ -47,6 +58,15 @@ field_sets:
         ask_hint: >-
           Proposed plan — insurer, plan name, riders, category, sum assured by
           benefit, first-year and subsequent premium, policy term.
+        holds: >-
+          The plan being proposed, however the advisor names it. A product
+          name or shorthand on its own IS the value, INCLUDING when it appears
+          inside a request to produce a document ("BOR for <product>") — the
+          product named in the request IS the proposed plan, so record that
+          name. When a later message adds detail about that same plan —
+          premium, term, riders, sum assured, category — record the field
+          again as the name PLUS that detail, so the value grows instead of
+          either staying a bare name or losing it.
 
       - id: is_replacement
         required: true
@@ -97,6 +117,10 @@ field_sets:
         required: true
         askable: true
         ask_hint: "Existing plan(s), or 'none' for a first purchase."
+        holds: >-
+          The plan(s) the client already holds, however the advisor names
+          them — a product name alone IS the value. "None" for a first
+          purchase.
 
       - id: proposed_plan
         required: true
@@ -105,6 +129,15 @@ field_sets:
           Proposed ILP — insurer, plan name, riders, sum assured by benefit,
           first-year and subsequent premium, policy term, minimum investment
           period.
+        holds: >-
+          The plan being proposed, however the advisor names it. A product
+          name or shorthand on its own IS the value, INCLUDING when it appears
+          inside a request to produce a document ("BOR for <product>") — the
+          product named in the request IS the proposed plan, so record that
+          name. When a later message adds detail about that same plan —
+          premium, term, riders, sum assured, category — record the field
+          again as the name PLUS that detail, so the value grows instead of
+          either staying a bare name or losing it.
 
       - id: is_replacement
         required: true
@@ -173,6 +206,10 @@ field_sets:
         ask_hint: >-
           Existing arrangement — insurer, exact base plan name, exact
           versioned rider name, material premium. "None" for a first purchase.
+        holds: >-
+          The plan(s) the client already holds, however the advisor names
+          them — a product name alone IS the value. "None" for a first
+          purchase.
 
       - id: proposed_plan
         required: true
@@ -180,6 +217,15 @@ field_sets:
         ask_hint: >-
           Proposed arrangement — insurer, exact base plan name, exact
           versioned rider name, material premium.
+        holds: >-
+          The plan being proposed, however the advisor names it. A product
+          name or shorthand on its own IS the value, INCLUDING when it appears
+          inside a request to produce a document ("BOR for <product>") — the
+          product named in the request IS the proposed plan, so record that
+          name. When a later message adds detail about that same plan —
+          premium, term, riders, sum assured, category — record the field
+          again as the name PLUS that detail, so the value grows instead of
+          either staying a bare name or losing it.
 
       - id: is_replacement
         required: true

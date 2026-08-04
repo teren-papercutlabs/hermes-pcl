@@ -315,7 +315,9 @@ def build_extraction_prompt(
     lines: List[str] = []
     lines.append("FIELDS THE RECORD HOLDS (id — what it holds):")
     for spec in (field_set.fields if field_set else ()):
-        hint = (spec.ask_hint or spec.notes or "").strip().replace("\n", " ")
+        # `holds` describes the value; `ask_hint` is the question and only
+        # stands in when the deployment has not written a description.
+        hint = (spec.holds or spec.ask_hint or spec.notes or "").strip().replace("\n", " ")
         lines.append(f"- {spec.field_id}" + (f" — {hint}" if hint else ""))
     if case_types:
         lines.append("")
@@ -346,6 +348,19 @@ def build_extraction_prompt(
     lines.append(
         "- A value that CONTRADICTS a recorded value is a correction: include it "
         "with the new value."
+    )
+    # A field description says what the field will EVENTUALLY hold, so it reads
+    # like a checklist the message has to satisfy: an extractor shown a full
+    # description withholds a short answer as "not stated", and the record loses
+    # a fact the writer plainly gave — most often on the case-opening message,
+    # which names the subject and nothing else. What is still missing is
+    # computed from the record afterwards; it is not the extractor's call.
+    lines.append(
+        "- Record what the message DOES state even when it is less complete than "
+        "the field description: the description is what the field will hold in "
+        "the end, not a bar the message must clear. A short or informal name for "
+        "something IS a stated value, so record the name the writer used, "
+        "verbatim and on its own. A later message with fuller detail replaces it."
     )
     if has_open_case:
         lines.append(
@@ -468,6 +483,28 @@ def _apply_config_derivations(
         return []
 
 
+def _extraction_field_set(config: CaseRuntimeConfig) -> Optional[FieldSet]:
+    """Every field id any contract declares, as one set for extraction.
+
+    Reading a message is not the same job as deciding what is still missing:
+    the second needs ONE contract, the first must not presuppose which.  Ids
+    are opaque and shared across contracts by design, so the union is just the
+    vocabulary the deployment can record; the first contract to declare an id
+    supplies its description.
+    """
+    merged: Dict[str, FieldSpec] = {}
+    for field_set in config.field_sets.values():
+        for spec in field_set.fields:
+            merged.setdefault(spec.field_id, spec)
+    if not merged:
+        return None
+    return FieldSet(
+        field_set_id="__all_contracts__",
+        case_type=None,
+        fields=tuple(merged.values()),
+    )
+
+
 async def update_case_for_turn(
     *,
     session_db: Any,
@@ -519,7 +556,19 @@ async def update_case_for_turn(
                 prompt=build_extraction_prompt(
                     message=message,
                     message_id=message_id,
-                    field_set=field_set,
+                    # EXTRACT AGAINST EVERY CONTRACT, CLASSIFY AFTERWARDS. The
+                    # contract a message belongs to is decided BY that message,
+                    # so offering the extractor only the contract the case is
+                    # currently on loses exactly the facts that reveal the real
+                    # one: a case is minted on the default type, and the opening
+                    # message's type-specific facts have no id to land in. They
+                    # then read downstream as never stated — intake re-asks
+                    # them, and an approved sentence whose slots live in those
+                    # fields cannot resolve, so it is dropped from a draft the
+                    # writer gave every fact for. Classification still picks ONE
+                    # contract below, and the write loop keeps out anything that
+                    # contract does not declare.
+                    field_set=_extraction_field_set(config),
                     record=record,
                     case_types=config.case_types,
                     has_open_case=record is not None and not session_reset,

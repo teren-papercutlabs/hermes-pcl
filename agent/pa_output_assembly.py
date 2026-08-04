@@ -24,8 +24,18 @@ class PAOutputAssemblyError(ValueError):
 class PAOutputAssemblyRetry(PAOutputAssemblyError):
     """Raised when the model omitted a required scope or block marker."""
 
-    def __init__(self, missing_markers: Sequence[str], detail: str) -> None:
+    def __init__(
+        self,
+        missing_markers: Sequence[str],
+        detail: str,
+        *,
+        instruction: str | None = None,
+    ) -> None:
         self.missing_markers = tuple(missing_markers)
+        #: Overrides the default marker-shaped retry note when the defect is
+        #: not a missing marker (e.g. model-authored text standing in for a
+        #: dropped approved block).
+        self.instruction = instruction
         super().__init__(detail)
 
 
@@ -77,6 +87,13 @@ class ComplianceBlock:
     repeatable: bool = False
     #: Slots resolved from case-record fields before insertion.
     slots: tuple[ComplianceSlot, ...] = ()
+    #: Patterns that identify THIS block's subject matter in model-authored
+    #: prose.  Drop-not-hole means an unresolvable slot removes the approved
+    #: sentence; it must not mean the model's own version of that sentence
+    #: ships in its place.  When the block is dropped and the draft still
+    #: speaks to the topic in the model's words, assembly fails closed.
+    #: The patterns are CLIENT vocabulary and live in the typed artifact.
+    drop_guard: tuple[re.Pattern[str], ...] = ()
 
     def render(self, field_values: Mapping[str, Any] | None) -> str | None:
         """Return the approved text with every slot filled, or None."""
@@ -93,6 +110,9 @@ class ComplianceBlock:
 
 
 _SCOPE_RE = re.compile(r"\[\[PA_SCOPE:([^\]]+)\]\]")
+#: A block marker is the RUNTIME's token, not the model's prose — it must not
+#: read as the model having written the block's topic.
+_MARKER_RE = re.compile(r"\[\[PA_BLOCK:[^\]]+\]\]")
 _HEADER_START = "# pa-source:"
 _HEADER_END = "# ---"
 _REQUIRED_PROVENANCE = ("approved_by", "approved_date", "ruling_ref", "status")
@@ -179,6 +199,45 @@ def _parse_slots(
     return tuple(slots)
 
 
+def _parse_drop_guard(
+    raw: Any,
+    relative_path: str,
+    block_id: str,
+    has_slots: bool,
+) -> tuple[re.Pattern[str], ...]:
+    """Compile a block's model-authorship guard patterns.
+
+    A guard only has meaning for a block that can be DROPPED at assembly
+    time — today that is a slotted block whose recorded values may not
+    resolve — so declaring one anywhere else is a config error rather than a
+    silently inert setting.
+    """
+    if raw in (None, (), []):
+        return ()
+    if not isinstance(raw, list) or not raw:
+        raise PAOutputAssemblyError(
+            f"{relative_path}: {block_id}.drop_guard must be a non-empty list"
+        )
+    if not has_slots:
+        raise PAOutputAssemblyError(
+            f"{relative_path}: {block_id} declares drop_guard but has no slots to drop on"
+        )
+    patterns: list[re.Pattern[str]] = []
+    for item in raw:
+        pattern = str(item or "")
+        if not pattern:
+            raise PAOutputAssemblyError(
+                f"{relative_path}: {block_id}.drop_guard entries must be non-empty patterns"
+            )
+        try:
+            patterns.append(re.compile(pattern))
+        except re.error as exc:
+            raise PAOutputAssemblyError(
+                f"{relative_path}: {block_id}.drop_guard bad pattern {pattern!r}: {exc}"
+            ) from exc
+    return tuple(patterns)
+
+
 def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBlock]:
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
@@ -237,6 +296,9 @@ def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBloc
         if not marker.startswith("[[PA_BLOCK:") or not marker.endswith("]]" ):
             raise PAOutputAssemblyError(f"{relative_path}: invalid marker {marker!r}")
         slots = _parse_slots(raw.get("slots"), relative_path, block_id, block_text)
+        drop_guard = _parse_drop_guard(
+            raw.get("drop_guard"), relative_path, block_id, bool(slots)
+        )
         blocks.append(
             ComplianceBlock(
                 block_id=block_id,
@@ -249,6 +311,7 @@ def _parse_typed_artifact(path: Path, relative_path: str) -> list[ComplianceBloc
                 selection_only=bool(raw.get("selection_only", False)),
                 repeatable=bool(raw.get("repeatable", False)),
                 slots=slots,
+                drop_guard=drop_guard,
             )
         )
     return blocks
@@ -540,6 +603,42 @@ def assemble_pa_response(
             )
             continue
         rendered_text[block.block_id] = text
+    # DROP IS NOT A LICENCE TO PARAPHRASE.  Dropping the approved sentence
+    # removes the RUNTIME's text; it does nothing about the model's own
+    # sentence on the same subject, which is exactly what the marker
+    # discipline exists to keep out of the draft.  So when a dropped block
+    # declares how its topic reads in prose and the model's own text (checked
+    # BEFORE any approved text is spliced in, so every match is model-authored)
+    # speaks to it, assembly fails closed rather than shipping the paraphrase.
+    guard_subject = _MARKER_RE.sub(" ", assembled) if unresolved else assembled
+    for entry in unresolved:
+        guarded = by_id.get(str(entry.get("id") or ""))
+        if guarded is None or not guarded.drop_guard:
+            continue
+        hits = [
+            pattern.pattern
+            for pattern in guarded.drop_guard
+            if pattern.search(guard_subject)
+        ]
+        if not hits:
+            continue
+        entry["model_authored_topic"] = hits
+        raise PAOutputAssemblyRetry(
+            (guarded.marker,),
+            (
+                f"block {guarded.block_id} was dropped because the case record does "
+                f"not resolve {', '.join(slot.field for slot in guarded.slots)}, but "
+                "the draft states its subject in the model's own words"
+            ),
+            instruction=(
+                "OUTPUT COMPLIANCE RETRY: the previous draft was withheld by the "
+                "runtime. It stated in your own words something only an approved "
+                "block may state, and the case record does not hold the facts that "
+                "block needs. Regenerate the entire answer: do not write that "
+                "sentence yourself and do not restate its content anywhere. If the "
+                "case genuinely lacks those facts, ask for them instead of drafting."
+            ),
+        )
     missing = [
         block.marker
         for block in required
@@ -612,6 +711,8 @@ def assemble_pa_response(
 
 
 def retry_instruction(error: PAOutputAssemblyRetry) -> str:
+    if error.instruction:
+        return error.instruction
     markers = ", ".join(error.missing_markers)
     return (
         "OUTPUT COMPLIANCE RETRY: the previous draft was withheld by the runtime. "
