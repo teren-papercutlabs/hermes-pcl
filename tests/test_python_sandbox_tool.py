@@ -86,6 +86,37 @@ def test_timeout_is_clamped_to_configured_bounds():
     assert sandbox._wall_seconds("bad", config) == 33
 
 
+def test_workspace_scope_defaults_to_run_and_requires_explicit_session_id(monkeypatch):
+    assert sandbox._workspace_mode({}) == "run"
+    assert sandbox._workspace_mode({"workspace": "session"}) == "session"
+    assert sandbox._workspace_mode({"workspace": "unexpected"}) == "run"
+    monkeypatch.setattr(
+        sandbox,
+        "_load_config",
+        lambda: {"enabled": True, "workspace": "session"},
+    )
+    monkeypatch.setattr(sandbox, "_probe", lambda force=False: (True, "ok"))
+    response = json.loads(sandbox.python_sandbox("print(1)"))
+    assert response["status"] == "error"
+    assert "requires a session_id" in response["error"]
+
+
+def test_handler_forwards_explicit_session_id(monkeypatch):
+    monkeypatch.setattr(sandbox, "_probe", lambda force=False: (True, "ok"))
+    captured = {}
+
+    def fake_python_sandbox(*args, **kwargs):
+        captured.update(kwargs)
+        return json.dumps({"status": "success"})
+
+    monkeypatch.setattr(sandbox, "python_sandbox", fake_python_sandbox)
+    response = json.loads(
+        sandbox._handle_python_sandbox({"code": "print(1)"}, session_id="chat-a")
+    )
+    assert response["status"] == "success"
+    assert captured["session_id"] == "chat-a"
+
+
 def test_unknown_dataset_lists_valid_names(tmp_path):
     db, csv = tmp_path / "records.db", tmp_path / "input.csv"
     _db(db)
@@ -749,6 +780,7 @@ rc = libc.ptrace(16, 1, None, None)  # PTRACE_ATTACH namespace PID 1
 blocked["ptrace_pid1"] = rc == -1 and ctypes.get_errno() == errno.EPERM
 open("/work/ok.txt", "w").write("ok")
 os.symlink("/etc/passwd", "/work/host-pointer")
+os.mkfifo("/work/host-fifo")
 open(os.environ["RESULT_PATH"], "w").write(json.dumps(blocked))
 '''
     response = json.loads(
@@ -770,8 +802,10 @@ open(os.environ["RESULT_PATH"], "w").write(json.dumps(blocked))
     }
     assert any(item["path"] == "work/ok.txt" for item in response["files"])
     assert all(item["path"] != "work/host-pointer" for item in response["files"])
+    assert all(item["path"] != "work/host-fifo" for item in response["files"])
     run_work = home / "sandbox_runs" / response["run_id"] / "work"
     assert not os.path.lexists(run_work / "host-pointer")
+    assert not os.path.lexists(run_work / "host-fifo")
 
 
 @pytest.mark.skipif(not _can_run_jail(), reason="kernel user namespaces unavailable")
@@ -930,6 +964,7 @@ def test_jailed_scratch_total_is_bounded(tmp_path, monkeypatch):
         file_size_mb=4,
         scratch_mb=4,
     )
+    config["workspace"] = "session"
     monkeypatch.setattr(sandbox, "_load_config", lambda: config)
     monkeypatch.setattr(sandbox, "get_hermes_home", lambda: home)
     code = r'''
@@ -955,13 +990,28 @@ open(os.environ["RESULT_PATH"], "w").write(json.dumps(
     {"written": len(written), "error": error}
 ))
 '''
-    response = json.loads(sandbox.python_sandbox(code, timeout_seconds=20))
+    response = json.loads(
+        sandbox.python_sandbox(
+            code,
+            timeout_seconds=20,
+            session_id="scratch-budget-chat",
+        )
+    )
     assert response["status"] == "success", response
     assert response["result"]["error"] == errno.ENOSPC
     run_work = home / "sandbox_runs" / response["run_id"] / "work"
     assert sum(path.stat().st_size for path in run_work.rglob("*") if path.is_file()) <= (
         4 * 1024 * 1024
     )
+    retained_work = (
+        home
+        / "sandbox_workspaces"
+        / sandbox._workspace_key("scratch-budget-chat")
+        / "work"
+    )
+    assert sum(
+        path.stat().st_size for path in retained_work.rglob("*") if path.is_file()
+    ) <= (4 * 1024 * 1024)
 
 
 def test_prune_removes_expired_and_excess_runs(tmp_path):
@@ -973,3 +1023,114 @@ def test_prune_removes_expired_and_excess_runs(tmp_path):
         os.utime(path, (time.time() - index * 10, time.time() - index * 10))
     sandbox._prune_runs(root, {"artifact_ttl_days": 0, "max_runs_kept": 2})
     assert len(list(root.iterdir())) == 2
+
+
+def test_prune_workspaces_removes_expired_and_excess_sessions(tmp_path):
+    root = tmp_path / "workspaces"
+    root.mkdir()
+    now = time.time()
+    for index in range(4):
+        path = root / f"s_{index}"
+        path.mkdir()
+        age = 3 * 86400 if index == 3 else index * 10
+        os.utime(path, (now - age, now - age))
+    sandbox._prune_workspaces(
+        root,
+        {"artifact_ttl_days": 1, "max_session_workspaces": 10},
+    )
+    assert {path.name for path in root.iterdir()} == {"s_0", "s_1", "s_2"}
+    sandbox._prune_workspaces(
+        root,
+        {"artifact_ttl_days": 0, "max_session_workspaces": 2},
+    )
+    assert {path.name for path in root.iterdir()} == {"s_0", "s_1"}
+
+
+@pytest.mark.skipif(not _can_run_jail(), reason="kernel user namespaces unavailable")
+@pytest.mark.sandbox_e2e
+def test_session_workspace_persists_and_isolates_across_runs(tmp_path, monkeypatch):
+    source, csv = tmp_path / "records.db", tmp_path / "input.csv"
+    _db(source)
+    _csv(csv)
+    config = _config(
+        source,
+        csv,
+        wall_seconds=20,
+        max_wall_seconds=20,
+        scratch_mb=4,
+    )
+    config.update(
+        {
+            "workspace": "session",
+            "artifact_ttl_days": 7,
+            "max_session_workspaces": 4,
+        }
+    )
+    home = tmp_path / "home"
+    monkeypatch.setattr(sandbox, "_load_config", lambda: config)
+    monkeypatch.setattr(sandbox, "get_hermes_home", lambda: home)
+
+    first = json.loads(
+        sandbox.python_sandbox(
+            'open("/work/state.txt", "w").write("alpha")',
+            timeout_seconds=20,
+            session_id="chat-a",
+        )
+    )
+    assert first["status"] == "success", first
+
+    second = json.loads(
+        sandbox.python_sandbox(
+            'import json,os; open(os.environ["RESULT_PATH"], "w").write('
+            'json.dumps({"state": open("/work/state.txt").read()}))',
+            timeout_seconds=20,
+            session_id="chat-a",
+        )
+    )
+    assert second["status"] == "success", second
+    assert second["result"] == {"state": "alpha"}
+
+    no_stale_result = json.loads(
+        sandbox.python_sandbox(
+            'assert open("/work/state.txt").read() == "alpha"',
+            timeout_seconds=20,
+            session_id="chat-a",
+        )
+    )
+    assert no_stale_result["status"] == "success", no_stale_result
+    assert no_stale_result["result"] is None
+
+    isolated = json.loads(
+        sandbox.python_sandbox(
+            'import json,os; open(os.environ["RESULT_PATH"], "w").write('
+            'json.dumps({"exists": os.path.exists("/work/state.txt")}))',
+            timeout_seconds=20,
+            session_id="chat-b",
+        )
+    )
+    assert isolated["status"] == "success", isolated
+    assert isolated["result"] == {"exists": False}
+    workspace_root = home / "sandbox_workspaces"
+    assert len(list(workspace_root.iterdir())) == 2
+
+
+@pytest.mark.skipif(not _can_run_jail(), reason="kernel user namespaces unavailable")
+@pytest.mark.sandbox_e2e
+def test_invalid_dataset_does_not_create_session_workspace(tmp_path, monkeypatch):
+    source, csv = tmp_path / "records.db", tmp_path / "input.csv"
+    _db(source)
+    _csv(csv)
+    config = _config(source, csv)
+    config["workspace"] = "session"
+    home = tmp_path / "home"
+    monkeypatch.setattr(sandbox, "_load_config", lambda: config)
+    monkeypatch.setattr(sandbox, "get_hermes_home", lambda: home)
+    response = json.loads(
+        sandbox.python_sandbox(
+            "print(1)",
+            datasets=["missing"],
+            session_id="bad-dataset-chat",
+        )
+    )
+    assert response["status"] == "dataset_unknown"
+    assert not (home / "sandbox_workspaces").exists()
