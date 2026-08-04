@@ -21,6 +21,14 @@
 # sentence with a hole in it. The ILP GATE already blocks drafting when CKA or
 # risk profile is missing, so a dropped block means the record disagrees with
 # the draft — visible in assembly evidence as unresolved_slots.
+#
+# Dropping the approved sentence removes OUR text, not the model's. The
+# drop_guard below names how this block's subject reads when the model writes
+# it instead: a CKA mention, or the approved sentence's own "risk profile of X"
+# shape. Either one in a draft whose CKA block was dropped fails the response
+# closed. It is deliberately NOT a bare "risk profile" match — R09 fund-
+# suitability prose legitimately compares a fund against the client's risk
+# profile, and that sentence is the model's to write.
 schema_version: 1
 blocks:
   - id: cka_declaration
@@ -41,5 +49,8 @@ blocks:
           - {pattern: '(?i)\bconservative\b', value: 'Conservative'}
           - {pattern: '(?i)\bbalanced\b', value: 'Balanced'}
           - {pattern: '(?i)\baggressive\b', value: 'Aggressive'}
+    drop_guard:
+      - '(?i)\bCKA\b'
+      - '(?i)risk profile of\b'
     text: |-
       Client {cka_result} CKA and has a risk profile of {risk_profile}.
