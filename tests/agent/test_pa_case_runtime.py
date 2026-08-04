@@ -1063,3 +1063,288 @@ async def test_a_keyed_clarification_lists_the_keys_values_not_the_tables(
     assert "must be one of: 10-year minimum investment period" in rendered
     # The table's PRODUCT names must not be offered as period answers.
     assert "must be one of: Wealth Abundance" not in rendered
+
+
+# ── MTU-011: identity is not completeness, end to end ──────────────────────
+
+
+@pytest.mark.skipif(
+    not (MTU_CONFIG / "case-field-sets.yaml").is_file(),
+    reason="deployment config not present in this checkout",
+)
+@pytest.mark.asyncio
+async def test_two_bare_product_names_do_not_make_a_case_draftable(db, monkeypatch):
+    """The MTU-011 defect, at its actual cause.
+
+    "Client replacing from GE term plan to Singlife term plan" filled both
+    plan fields, emptied the required set, and the rendered block then told
+    the model — in as many words — that nothing was missing and it should
+    draft now. The model did. R01's material-missing gate never got a chance,
+    because the record had already reported the case complete.
+    """
+    context = SimpleNamespace(
+        job_brief=SimpleNamespace(
+            response_policy={
+                "case_record": {
+                    "enabled": True,
+                    "field_sets": "case-field-sets.yaml",
+                    "default_case_type": "protection_life",
+                    "category_field": "product_category",
+                    "category_source_field": "proposed_plan",
+                    "extraction": {"enabled": True},
+                }
+            }
+        )
+    )
+
+    async def _fake(*, config, prompt):
+        # Exactly what PR #51's `holds:` text instructs: a bare product name
+        # IS the value. That instruction is correct and stays.
+        return {
+            "boundary": "new",
+            "case_type": "protection_life",
+            "fields": {
+                "existing_plans": "GE term plan",
+                "proposed_plan": "Singlife term plan",
+            },
+        }
+
+    monkeypatch.setattr(pcrt, "_run_extraction", _fake)
+    state = await pcrt.update_case_for_turn(
+        session_db=db,
+        pa_context=context,
+        agent_id="a",
+        chat_id="c",
+        session_id="s",
+        message="Client replacing from GE term plan to Singlife term plan",
+        message_id="m1",
+        knowledge_root=MTU_CONFIG,
+    )
+
+    # The names are KEPT — they are real facts the advisor gave.
+    assert state.record.value_of("existing_plans") == "GE term plan"
+    assert state.record.value_of("proposed_plan") == "Singlife term plan"
+    # ...and both fields are still to be answered.
+    missing = [spec.field_id for spec in state.empty_fields]
+    assert "existing_plans" in missing
+    assert "proposed_plan" in missing
+
+    rendered = pcrt.render_case_record_prompt(state)
+    # The draft-now instruction must NOT appear.
+    assert "Do not ask any intake question" not in rendered
+    assert "STILL MISSING — ask for EXACTLY these" in rendered
+    # And the ask is for the material facts, not for the name again.
+    assert "is on record, but a draft still needs" in rendered
+    assert "Ask for that, not for the name again." in rendered
+
+
+@pytest.mark.skipif(
+    not (MTU_CONFIG / "case-field-sets.yaml").is_file(),
+    reason="deployment config not present in this checkout",
+)
+@pytest.mark.asyncio
+async def test_a_first_purchase_none_answer_is_complete_as_it_stands(db, monkeypatch):
+    """Sufficiency must not trap the answer that has no amounts to give."""
+    context = SimpleNamespace(
+        job_brief=SimpleNamespace(
+            response_policy={
+                "case_record": {
+                    "enabled": True,
+                    "field_sets": "case-field-sets.yaml",
+                    "default_case_type": "protection_life",
+                    "extraction": {"enabled": True},
+                }
+            }
+        )
+    )
+
+    async def _fake(*, config, prompt):
+        return {
+            "boundary": "new",
+            "case_type": "protection_life",
+            "fields": {"existing_plans": "None"},
+        }
+
+    monkeypatch.setattr(pcrt, "_run_extraction", _fake)
+    state = await pcrt.update_case_for_turn(
+        session_db=db,
+        pa_context=context,
+        agent_id="a",
+        chat_id="c",
+        session_id="s",
+        message="first purchase, no existing plans",
+        message_id="m1",
+        knowledge_root=MTU_CONFIG,
+    )
+    assert "existing_plans" not in [spec.field_id for spec in state.empty_fields]
+
+
+@pytest.mark.skipif(
+    not (MTU_CONFIG / "case-field-sets.yaml").is_file(),
+    reason="deployment config not present in this checkout",
+)
+@pytest.mark.asyncio
+async def test_a_product_shorthand_carrying_its_own_period_is_sufficient(
+    db, monkeypatch
+):
+    """"Voyage 15" states a material fact inside the name — MTU-007's opener."""
+    context = SimpleNamespace(
+        job_brief=SimpleNamespace(
+            response_policy={
+                "case_record": {
+                    "enabled": True,
+                    "field_sets": "case-field-sets.yaml",
+                    "default_case_type": "investment_linked",
+                    "extraction": {"enabled": True},
+                }
+            }
+        )
+    )
+
+    async def _fake(*, config, prompt):
+        return {
+            "boundary": "new",
+            "case_type": "investment_linked",
+            "fields": {"proposed_plan": "Voyage 15"},
+        }
+
+    monkeypatch.setattr(pcrt, "_run_extraction", _fake)
+    state = await pcrt.update_case_for_turn(
+        session_db=db,
+        pa_context=context,
+        agent_id="a",
+        chat_id="c",
+        session_id="s",
+        message="BOR for Voyage 15.",
+        message_id="m1",
+        knowledge_root=MTU_CONFIG,
+    )
+    missing = [spec.field_id for spec in state.empty_fields]
+    assert "proposed_plan" not in missing
+    # The case still holds — the ILP facts and the existing plan are absent.
+    assert "existing_plans" in missing
+    assert "cka_status" in missing
+
+
+@pytest.mark.skipif(
+    not (MTU_CONFIG / "case-field-sets.yaml").is_file(),
+    reason="deployment config not present in this checkout",
+)
+@pytest.mark.asyncio
+async def test_an_unresolved_unaskable_field_withholds_the_draft_now_instruction(
+    db, monkeypatch
+):
+    """The same defect class as MTU-011, on the other axis.
+
+    A required field marked ``askable: false`` is absent from the ask set BY
+    DESIGN — the config says asking it as an intake item is a defect. But when
+    the derivation layer cannot resolve it either, it vanishes from the record
+    entirely and the case reads as complete. Here: both plans fully stated,
+    nothing saying whether it is a replacement, and the record would have said
+    "draft now" with ROP status unknown.
+    """
+    context = SimpleNamespace(
+        job_brief=SimpleNamespace(
+            response_policy={
+                "case_record": {
+                    "enabled": True,
+                    "field_sets": "case-field-sets.yaml",
+                    "default_case_type": "protection_life",
+                    "extraction": {"enabled": True},
+                }
+            }
+        )
+    )
+
+    async def _fake(*, config, prompt):
+        return {
+            "boundary": "new",
+            "case_type": "protection_life",
+            "fields": {
+                "existing_plans": (
+                    "GE Term, $300,000 death, premium S$1,200 yearly, to age 65"
+                ),
+                "proposed_plan": (
+                    "Singlife Elite Term, $500,000 death, premium S$1,500 yearly, "
+                    "to age 70"
+                ),
+            },
+        }
+
+    monkeypatch.setattr(pcrt, "_run_extraction", _fake)
+    state = await pcrt.update_case_for_turn(
+        session_db=db,
+        pa_context=context,
+        agent_id="a",
+        chat_id="c",
+        session_id="s",
+        message="switching plans",
+        message_id="m1",
+        knowledge_root=MTU_CONFIG,
+    )
+    # Nothing to ASK — the plan facts are all there.
+    assert [spec.field_id for spec in state.empty_fields] == []
+    # ...but ROP status is genuinely unknown.
+    assert "is_replacement" in [
+        spec.field_id for spec in state.unresolved_unaskable_fields
+    ]
+    assert state.evidence()["unresolved_unaskable_fields"] == ["is_replacement"]
+
+    rendered = pcrt.render_case_record_prompt(state)
+    assert "draft now from the facts above" not in rendered
+    assert "NOT YET RESOLVED" in rendered
+    assert "is_replacement" in rendered
+
+
+@pytest.mark.skipif(
+    not (MTU_CONFIG / "case-field-sets.yaml").is_file(),
+    reason="deployment config not present in this checkout",
+)
+@pytest.mark.asyncio
+async def test_a_fully_resolved_case_still_gets_the_draft_now_instruction(
+    db, monkeypatch
+):
+    """Control: the hold must not become permanent."""
+    context = SimpleNamespace(
+        job_brief=SimpleNamespace(
+            response_policy={
+                "case_record": {
+                    "enabled": True,
+                    "field_sets": "case-field-sets.yaml",
+                    "default_case_type": "protection_life",
+                    "extraction": {"enabled": True},
+                }
+            }
+        )
+    )
+
+    async def _fake(*, config, prompt):
+        return {
+            "boundary": "new",
+            "case_type": "protection_life",
+            "fields": {
+                "existing_plans": (
+                    "GE Term, $300,000 death, premium S$1,200 yearly, to age 65, "
+                    "being replaced"
+                ),
+                "proposed_plan": (
+                    "Singlife Elite Term, $500,000 death, premium S$1,500 yearly, "
+                    "to age 70"
+                ),
+            },
+        }
+
+    monkeypatch.setattr(pcrt, "_run_extraction", _fake)
+    state = await pcrt.update_case_for_turn(
+        session_db=db,
+        pa_context=context,
+        agent_id="a",
+        chat_id="c",
+        session_id="s",
+        message="replacing plans",
+        message_id="m1",
+        knowledge_root=MTU_CONFIG,
+    )
+    assert state.record.value_of("is_replacement") is True
+    assert state.unresolved_unaskable_fields == ()
+    assert "draft now from the facts above" in pcrt.render_case_record_prompt(state)

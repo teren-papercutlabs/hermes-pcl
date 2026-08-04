@@ -953,6 +953,11 @@
      "critical": true
     },
     {
+     "label": "returns no completed BOR draft at all while material facts are missing",
+     "kind": "no_approved_block",
+     "critical": true
+    },
+    {
      "label": "does not put material placeholders into a completed BOR",
      "kind": "exact_absent",
      "text": "[[MISSING]]",

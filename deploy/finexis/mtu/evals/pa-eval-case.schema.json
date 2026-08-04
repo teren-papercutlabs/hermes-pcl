@@ -74,8 +74,8 @@
         "properties": {
           "label": { "type": "string", "description": "Short judgeable statement, e.g. 'derives ROP from existing-plans answer without asking'." },
           "kind": {
-            "enum": ["must", "must_not", "exact_present", "exact_absent"],
-            "description": "must/must_not are judge-scored; exact_present/exact_absent are deterministic string checks scored by the runner, not the judge (compliance sentences, disclosures, markdown markers)."
+            "enum": ["must", "must_not", "exact_present", "exact_absent", "no_approved_block"],
+            "description": "must/must_not are judge-scored; exact_present/exact_absent are deterministic string checks scored by the runner, not the judge (compliance sentences, disclosures, markdown markers). no_approved_block is the deterministic NO-DRAFT check: it passes when the response carries none of the deployment's approved compliance block texts, which a completed draft always splices verbatim. Use it wherever the ruled behaviour is to withhold a draft, because a judge-kind must_not scores nothing when the judge has not run."
           },
           "text": { "type": ["string", "null"], "description": "For exact_* kinds: the literal string. Whitespace-normalized comparison." },
           "critical": { "type": "boolean", "default": false, "description": "A critical miss fails the case regardless of everything else (compliance inversion, fabricated product fact, client-visible internals)." }

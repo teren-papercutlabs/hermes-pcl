@@ -838,3 +838,125 @@ def test_an_enum_without_values_refuses_to_parse():
         pcr.parse_field_sets(
             {"field_sets": {"a": {"fields": [{"id": "f", "value_contract": {"kind": "enum"}}]}}}
         )
+
+
+# ── Sufficiency: identity is not completeness ───────────────────────────
+#
+# MTU-011: "Client replacing from GE term plan to Singlife term plan" — one
+# line, two bare product names — produced a COMPLETE BOR. The record was the
+# cause, not the model: both plan fields were filled, so the empty-required
+# set was empty, so the rendered block told the model in as many words that
+# nothing was missing and it should draft now.
+
+
+@pytest.fixture
+def sufficiency_set():
+    return pcr.parse_field_sets(
+        {
+            "version": 1,
+            "field_sets": {
+                "alpha": {
+                    "case_type": "alpha",
+                    "fields": [
+                        {
+                            "id": "f_plan",
+                            "required": True,
+                            "ask_hint": "which plan?",
+                            "sufficiency": {
+                                "description": "the premium or the term",
+                                "any_of": [
+                                    {"name": "an amount", "pattern": r"\$\s?[\d,]+"},
+                                    {
+                                        "name": "a duration",
+                                        "pattern": r"(?i)\b\d{1,2}\s*-?\s*years?\b",
+                                    },
+                                ],
+                            },
+                        },
+                        {
+                            "id": "f_both",
+                            "required": True,
+                            "sufficiency": {
+                                "all_of": [
+                                    {"name": "an insurer", "pattern": r"(?i)insurer:"},
+                                    {"name": "an amount", "pattern": r"\$\s?[\d,]+"},
+                                ]
+                            },
+                        },
+                    ],
+                }
+            },
+        }
+    )["alpha"]
+
+
+def test_a_bare_name_fills_the_field_but_does_not_answer_it(store, sufficiency_set):
+    """The MTU-011 shape, at the record."""
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_plan", "Singlife term plan")
+    record = store.get_case(case_id)
+    # The name IS a fact and is KEPT — dropping it would lose what was said.
+    assert record.value_of("f_plan") == "Singlife term plan"
+    assert record.is_filled("f_plan")
+    # ...and the case is NOT ready to draft from.
+    assert "f_plan" in pcr.empty_required_field_ids(record, sufficiency_set)
+    assert not pcr.is_record_complete(record, sufficiency_set)
+
+
+def test_a_value_carrying_the_material_fact_answers_the_field(store, sufficiency_set):
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_plan", "Singlife term plan, premium $1,500 yearly")
+    record = store.get_case(case_id)
+    assert "f_plan" not in pcr.empty_required_field_ids(record, sufficiency_set)
+
+
+def test_any_of_is_satisfied_by_either_probe(store, sufficiency_set):
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_plan", "Singlife term plan, 20 years")
+    assert "f_plan" not in pcr.empty_required_field_ids(
+        store.get_case(case_id), sufficiency_set
+    )
+
+
+def test_all_of_needs_every_probe(store, sufficiency_set):
+    case_id = store.mint_case(case_type="alpha")
+    store.record_field(case_id, "f_both", "insurer: Singlife")
+    record = store.get_case(case_id)
+    assert "f_both" in pcr.empty_required_field_ids(record, sufficiency_set)
+    store.record_field(case_id, "f_both", "insurer: Singlife, $500,000")
+    assert "f_both" not in pcr.empty_required_field_ids(
+        store.get_case(case_id), sufficiency_set
+    )
+
+
+def test_the_gap_names_the_missing_parts_not_the_whole_field(sufficiency_set):
+    """So intake can ask for what is absent instead of re-asking the name."""
+    spec = sufficiency_set.spec("f_plan")
+    assert spec.sufficiency_gap("Singlife term plan") == ["an amount or a duration"]
+    assert spec.sufficiency_gap("Singlife term plan, $1,200") == []
+    both = sufficiency_set.spec("f_both")
+    assert both.sufficiency_gap("insurer: Singlife") == ["an amount"]
+
+
+def test_a_field_with_no_sufficiency_is_answered_by_any_value(store, field_set):
+    case_id = store.mint_case(case_type=field_set.case_type)
+    store.record_field(case_id, "f_one", "x")
+    assert "f_one" not in pcr.empty_required_field_ids(
+        store.get_case(case_id), field_set
+    )
+
+
+def test_an_empty_field_reports_no_sufficiency_gap(sufficiency_set):
+    """Empty is a DIFFERENT problem, already handled by the filled check."""
+    assert sufficiency_set.spec("f_plan").sufficiency_gap(None) == []
+
+
+def test_a_sufficiency_with_no_probes_refuses_to_parse():
+    with pytest.raises(ValueError, match="can never fail"):
+        pcr.parse_field_sets(
+            {
+                "field_sets": {
+                    "a": {"fields": [{"id": "f", "sufficiency": {"description": "x"}}]}
+                }
+            }
+        )

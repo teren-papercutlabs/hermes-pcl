@@ -20,9 +20,29 @@ from typing import Any, Iterable, Mapping, Sequence
 from gateway.replay import ReplayCorpus, ReplayPlan, canonical_digest
 
 
+#: Assertions scored against the response text alone.
 EXACT_KINDS = frozenset({"exact_present", "exact_absent"})
+
+#: "No completed draft was returned", scored DETERMINISTICALLY.
+#:
+#: A material-missing gate is a behaviour whose failure mode is producing a
+#: draft, so the guard on it must not be judge-kind: a judge that has not run
+#: scores nothing, and the case passes its deterministic summary while the
+#: very thing it exists to catch goes unnoticed. Naming individual sentences
+#: with ``exact_absent`` only guards the sentences somebody thought to list —
+#: a draft that omits one still ships.
+#:
+#: This kind takes the approved compliance blocks of the deployment UNDER
+#: TEST as its needle set. Assembly splices those verbatim and a completed
+#: BOR carries its disclosures, so "any approved block text is present" is a
+#: sound draft detector that stays correct as blocks are added, reworded, or
+#: retired — the needles come from the artifacts, never from a hand-list.
+DRAFT_KINDS = frozenset({"no_approved_block"})
+
 JUDGE_KINDS = frozenset({"must", "must_not"})
-SUPPORTED_KINDS = EXACT_KINDS | JUDGE_KINDS
+#: Everything the report counts as deterministic evidence.
+DETERMINISTIC_KINDS = EXACT_KINDS | DRAFT_KINDS
+SUPPORTED_KINDS = DETERMINISTIC_KINDS | JUDGE_KINDS
 
 
 class PAEvalError(ValueError):
@@ -377,6 +397,45 @@ def normalize_for_exact_match(value: str) -> str:
     return _WHITESPACE_RE.sub(" ", folded).strip()
 
 
+def run_no_draft_assertion(
+    response: str,
+    expectation: PAEvalExpectation,
+    approved_texts: Sequence[str],
+) -> dict[str, Any]:
+    """Pass when the response carries NO approved compliance block text.
+
+    ``approved_texts`` comes from the deployment's own artifacts, so this
+    assertion cannot drift out of date the way a hand-written list of
+    sentences does.
+
+    An EMPTY needle set makes the assertion ``not_applicable`` rather than
+    passing.  A detector with nothing to detect that reports success is the
+    exact failure this kind was added to remove.
+    """
+    if expectation.kind not in DRAFT_KINDS:
+        raise PAEvalError(f"{expectation.kind} is not a draft-presence assertion")
+    if not approved_texts:
+        return {
+            **expectation.to_dict(),
+            "status": "not_applicable",
+            "passed": None,
+            "detail": "no approved block texts were supplied to detect a draft with",
+        }
+    normalized_response = normalize_for_exact_match(response)
+    found = [
+        text
+        for text in approved_texts
+        if normalize_for_exact_match(text) in normalized_response
+    ]
+    return {
+        **expectation.to_dict(),
+        "status": "failed" if found else "passed",
+        "passed": not found,
+        "needle_count": len(approved_texts),
+        **({"approved_blocks_present": found} if found else {}),
+    }
+
+
 def run_exact_assertion(
     response: str,
     expectation: PAEvalExpectation,
@@ -421,7 +480,12 @@ def _final_outbound_text(
     }
 
 
-async def run_replay_bundle(runner: Any, bundle: PAEvalReplayBundle) -> dict[str, Any]:
+async def run_replay_bundle(
+    runner: Any,
+    bundle: PAEvalReplayBundle,
+    *,
+    approved_texts: Sequence[str] = (),
+) -> dict[str, Any]:
     """Run one adapted case and return per-turn assertion evidence."""
     setup_result = None
     if bundle.setup_plan is not None:
@@ -435,6 +499,10 @@ async def run_replay_bundle(runner: Any, bundle: PAEvalReplayBundle) -> dict[str
         for expectation in turn.expectations:
             if expectation.kind in EXACT_KINDS:
                 assertions.append(run_exact_assertion(response, expectation))
+            elif expectation.kind in DRAFT_KINDS:
+                assertions.append(
+                    run_no_draft_assertion(response, expectation, approved_texts)
+                )
             else:
                 assertions.append({
                     **expectation.to_dict(),
@@ -452,11 +520,16 @@ async def run_replay_bundle(runner: Any, bundle: PAEvalReplayBundle) -> dict[str
             "assertions": assertions,
         })
 
+    # A draft-presence assertion that came up not_applicable (no needles) is
+    # NOT counted as deterministic evidence: it neither passed nor failed, and
+    # letting it count as a pass is how a detector with nothing to detect ends
+    # up certifying the behaviour it never checked.
     deterministic = [
         assertion
         for turn in turn_results
         for assertion in turn["assertions"]
-        if assertion["kind"] in EXACT_KINDS
+        if assertion["kind"] in DETERMINISTIC_KINDS
+        and assertion["status"] != "not_applicable"
     ]
     failed = [item for item in deterministic if not item["passed"]]
     return {
@@ -492,8 +565,13 @@ async def run_pa_eval_corpus(
     honor_draws: bool = False,
     platform: str = "telegram",
     runtime_manifest: Mapping[str, Any] | None = None,
+    approved_texts: Sequence[str] = (),
 ) -> dict[str, Any]:
-    """Execute selected cases through native Hermes replay."""
+    """Execute selected cases through native Hermes replay.
+
+    ``approved_texts`` are the deployment's approved compliance block texts,
+    used by ``no_approved_block`` assertions to detect a completed draft.
+    """
     selected = corpus.select(tags)
     cases: list[dict[str, Any]] = []
     for case in selected:
@@ -505,7 +583,11 @@ async def run_pa_eval_corpus(
                 platform=platform,
                 runtime_manifest=runtime_manifest,
             )
-            cases.append(await run_replay_bundle(runner, bundle))
+            cases.append(
+                await run_replay_bundle(
+                    runner, bundle, approved_texts=approved_texts
+                )
+            )
 
     deterministic = [item["deterministic"] for item in cases]
     return {

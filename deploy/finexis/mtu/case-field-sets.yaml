@@ -91,6 +91,26 @@ field_sets:
           The plan(s) the client already holds, however the advisor names
           them — a product name alone IS the value. "None" for a first
           purchase.
+        # IDENTITY IS NOT COMPLETENESS (see the value-contract note at the
+        # head of this file). `holds` deliberately lets a bare product name
+        # populate this field, because the name IS a stated fact. But a name
+        # is not what R01 calls a material fact: "supplied protection amounts
+        # or durations needed for a comparison". Without this, "GE term plan"
+        # fills the field, the field leaves the empty-required set, and the
+        # record tells the model the case is ready to draft — which is
+        # exactly the MTU-011 defect (a one-line replacement request produced
+        # a complete BOR). "None" satisfies it: a first purchase has no
+        # amounts to give, and the answer is complete as it stands.
+        sufficiency:
+          description: >-
+            the protection amount(s) or premium, or the coverage duration
+          any_of:
+            - name: "an amount"
+              pattern: '(?i)(s?\$\s?[\d,]+|\b[\d,]+\s*(sgd|dollars)\b|\b\d+\s?k\b)'
+            - name: "a duration"
+              pattern: '(?i)(\b\d{1,2}\s*-?\s*(year|yr)s?\b|\bto\s+age\s*\d{2}\b|\bage\s*\d{2}\b|\b\d{1,2}\s?pay\b|\bmip\s?\d{1,2}\b)'
+            - name: "an explicit none"
+              pattern: '(?i)^[\s\[\{"'']*(none|no|nil|n/?a|no existing|not applicable|first purchase|new purchase)\b'
         notes: "The starting position the BOR must state clearly."
 
       - id: proposed_plan
@@ -120,6 +140,20 @@ field_sets:
           table: approved_products
           on_unmatched: accept
           stored_form: as_written
+        # IDENTITY IS NOT COMPLETENESS. Same reasoning as existing_plans: the
+        # product name is a real fact and is recorded, but a BOR cannot be
+        # written from a name. A product-name shorthand that carries its own
+        # period ("Voyage 15", "10pay") satisfies the duration probe, which is
+        # correct — the advisor did state a material fact inside the name.
+        sufficiency:
+          description: >-
+            the premium or sum assured, or the policy term / minimum
+            investment period
+          any_of:
+            - name: "an amount"
+              pattern: '(?i)(s?\$\s?[\d,]+|\b[\d,]+\s*(sgd|dollars)\b|\b\d+\s?k\b)'
+            - name: "a duration"
+              pattern: '(?i)(\b\d{1,2}\s*-?\s*(year|yr)s?\b|\bto\s+age\s*\d{2}\b|\bage\s*\d{2}\b|\b\d{1,2}\s?pay\b|\bmip\s?\d{1,2}\b|\b(voyage|abundance)\s*\d{1,2}\b)'
 
       - id: is_replacement
         required: true
@@ -218,6 +252,26 @@ field_sets:
           The plan(s) the client already holds, however the advisor names
           them — a product name alone IS the value. "None" for a first
           purchase.
+        # IDENTITY IS NOT COMPLETENESS (see the value-contract note at the
+        # head of this file). `holds` deliberately lets a bare product name
+        # populate this field, because the name IS a stated fact. But a name
+        # is not what R01 calls a material fact: "supplied protection amounts
+        # or durations needed for a comparison". Without this, "GE term plan"
+        # fills the field, the field leaves the empty-required set, and the
+        # record tells the model the case is ready to draft — which is
+        # exactly the MTU-011 defect (a one-line replacement request produced
+        # a complete BOR). "None" satisfies it: a first purchase has no
+        # amounts to give, and the answer is complete as it stands.
+        sufficiency:
+          description: >-
+            the protection amount(s) or premium, or the coverage duration
+          any_of:
+            - name: "an amount"
+              pattern: '(?i)(s?\$\s?[\d,]+|\b[\d,]+\s*(sgd|dollars)\b|\b\d+\s?k\b)'
+            - name: "a duration"
+              pattern: '(?i)(\b\d{1,2}\s*-?\s*(year|yr)s?\b|\bto\s+age\s*\d{2}\b|\bage\s*\d{2}\b|\b\d{1,2}\s?pay\b|\bmip\s?\d{1,2}\b)'
+            - name: "an explicit none"
+              pattern: '(?i)^[\s\[\{"'']*(none|no|nil|n/?a|no existing|not applicable|first purchase|new purchase)\b'
 
       - id: proposed_plan
         required: true
@@ -247,6 +301,20 @@ field_sets:
           table: approved_products
           on_unmatched: accept
           stored_form: as_written
+        # IDENTITY IS NOT COMPLETENESS. Same reasoning as existing_plans: the
+        # product name is a real fact and is recorded, but a BOR cannot be
+        # written from a name. A product-name shorthand that carries its own
+        # period ("Voyage 15", "10pay") satisfies the duration probe, which is
+        # correct — the advisor did state a material fact inside the name.
+        sufficiency:
+          description: >-
+            the premium or sum assured, or the policy term / minimum
+            investment period
+          any_of:
+            - name: "an amount"
+              pattern: '(?i)(s?\$\s?[\d,]+|\b[\d,]+\s*(sgd|dollars)\b|\b\d+\s?k\b)'
+            - name: "a duration"
+              pattern: '(?i)(\b\d{1,2}\s*-?\s*(year|yr)s?\b|\bto\s+age\s*\d{2}\b|\bage\s*\d{2}\b|\b\d{1,2}\s?pay\b|\bmip\s?\d{1,2}\b|\b(voyage|abundance)\s*\d{1,2}\b)'
 
       - id: is_replacement
         required: true
@@ -432,6 +500,26 @@ field_sets:
           The plan(s) the client already holds, however the advisor names
           them — a product name alone IS the value. "None" for a first
           purchase.
+        # IDENTITY IS NOT COMPLETENESS (see the value-contract note at the
+        # head of this file). `holds` deliberately lets a bare product name
+        # populate this field, because the name IS a stated fact. But a name
+        # is not what R01 calls a material fact: "supplied protection amounts
+        # or durations needed for a comparison". Without this, "GE term plan"
+        # fills the field, the field leaves the empty-required set, and the
+        # record tells the model the case is ready to draft — which is
+        # exactly the MTU-011 defect (a one-line replacement request produced
+        # a complete BOR). "None" satisfies it: a first purchase has no
+        # amounts to give, and the answer is complete as it stands.
+        sufficiency:
+          description: >-
+            the protection amount(s) or premium, or the coverage duration
+          any_of:
+            - name: "an amount"
+              pattern: '(?i)(s?\$\s?[\d,]+|\b[\d,]+\s*(sgd|dollars)\b|\b\d+\s?k\b)'
+            - name: "a duration"
+              pattern: '(?i)(\b\d{1,2}\s*-?\s*(year|yr)s?\b|\bto\s+age\s*\d{2}\b|\bage\s*\d{2}\b|\b\d{1,2}\s?pay\b|\bmip\s?\d{1,2}\b)'
+            - name: "an explicit none"
+              pattern: '(?i)^[\s\[\{"'']*(none|no|nil|n/?a|no existing|not applicable|first purchase|new purchase)\b'
 
       - id: proposed_plan
         required: true
@@ -460,6 +548,20 @@ field_sets:
           table: approved_products
           on_unmatched: accept
           stored_form: as_written
+        # IDENTITY IS NOT COMPLETENESS. Same reasoning as existing_plans: the
+        # product name is a real fact and is recorded, but a BOR cannot be
+        # written from a name. A product-name shorthand that carries its own
+        # period ("Voyage 15", "10pay") satisfies the duration probe, which is
+        # correct — the advisor did state a material fact inside the name.
+        sufficiency:
+          description: >-
+            the premium or sum assured, or the policy term / minimum
+            investment period
+          any_of:
+            - name: "an amount"
+              pattern: '(?i)(s?\$\s?[\d,]+|\b[\d,]+\s*(sgd|dollars)\b|\b\d+\s?k\b)'
+            - name: "a duration"
+              pattern: '(?i)(\b\d{1,2}\s*-?\s*(year|yr)s?\b|\bto\s+age\s*\d{2}\b|\bage\s*\d{2}\b|\b\d{1,2}\s?pay\b|\bmip\s?\d{1,2}\b|\b(voyage|abundance)\s*\d{1,2}\b)'
 
       - id: is_replacement
         required: true

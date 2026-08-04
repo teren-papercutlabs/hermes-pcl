@@ -699,6 +699,91 @@ def parse_value_table_entries(
 
 
 @dataclass(frozen=True)
+class SufficiencySpec:
+    """What a field's value must CARRY before the field counts as answered.
+
+    IDENTITY IS NOT COMPLETENESS, and this is the axis that says so.
+
+    A field like "the plan being proposed" is populated by a bare product
+    name — correctly, because the name IS a stated fact and dropping it would
+    lose what the writer plainly gave.  But a name is not the set of facts a
+    draft needs.  Without this axis the two are indistinguishable: the field
+    is filled, so it leaves the empty-required set, so the record reports the
+    case as complete and tells the model to draft — off nothing but two
+    product names.
+
+    ``any_of`` is satisfied when at least one probe matches; ``all_of`` needs
+    every one.  Both are named, so an unmet probe becomes a SPECIFIC question
+    ("premium or sum assured") rather than re-asking the whole field.
+
+    The probes are deployment config: what makes an answer materially
+    complete is a domain judgment, and this module never makes it.
+    """
+
+    any_of: Tuple[Tuple[str, re.Pattern[str]], ...] = ()
+    all_of: Tuple[Tuple[str, re.Pattern[str]], ...] = ()
+    #: Human phrasing for what is still needed, when naming the probes is
+    #: clumsier than one written clause.
+    description: Optional[str] = None
+
+    def missing(self, value: Any) -> List[str]:
+        """Names of the probes this value does not satisfy.  Empty = complete."""
+        if value is None:
+            return []  # an EMPTY field is a different problem, already handled
+        text = str(value)
+        gaps = [name for name, pattern in self.all_of if not pattern.search(text)]
+        if self.any_of and not any(
+            pattern.search(text) for _name, pattern in self.any_of
+        ):
+            gaps.append(" or ".join(name for name, _p in self.any_of))
+        return gaps
+
+    def is_satisfied(self, value: Any) -> bool:
+        return not self.missing(value)
+
+
+def _sufficiency_from_mapping(raw: Any, field_id: str) -> Optional[SufficiencySpec]:
+    if raw in (None, (), [], {}):
+        return None
+    if not isinstance(raw, Mapping):
+        raise ValueError(f"field '{field_id}': sufficiency must be a mapping")
+
+    def _probes(key: str) -> Tuple[Tuple[str, re.Pattern[str]], ...]:
+        out: List[Tuple[str, re.Pattern[str]]] = []
+        for item in raw.get(key) or ():
+            if not isinstance(item, Mapping):
+                raise ValueError(
+                    f"field '{field_id}': sufficiency.{key} entries must be mappings"
+                )
+            name = str(item.get("name") or "").strip()
+            pattern = str(item.get("pattern") or "")
+            if not name or not pattern:
+                raise ValueError(
+                    f"field '{field_id}': sufficiency.{key} needs name and pattern"
+                )
+            try:
+                out.append((name, re.compile(pattern)))
+            except re.error as exc:
+                raise ValueError(
+                    f"field '{field_id}': sufficiency bad pattern {pattern!r}: {exc}"
+                ) from exc
+        return tuple(out)
+
+    any_of = _probes("any_of")
+    all_of = _probes("all_of")
+    if not any_of and not all_of:
+        raise ValueError(
+            f"field '{field_id}': sufficiency declares no probes, so it can never fail"
+        )
+    description = raw.get("description")
+    return SufficiencySpec(
+        any_of=any_of,
+        all_of=all_of,
+        description=str(description) if description else None,
+    )
+
+
+@dataclass(frozen=True)
 class FieldSpec:
     """One field a case type may require.
 
@@ -706,6 +791,9 @@ class FieldSpec:
     is supposed to DERIVE or fill from a standard default is still part of
     the record, but asking for it is a defect — so it never appears in the
     empty-required set even when empty.
+
+    ``sufficiency`` is the axis that keeps the intake HONEST THE OTHER WAY:
+    a field can hold a real value and still not hold enough to draft from.
     """
 
     field_id: str
@@ -731,6 +819,17 @@ class FieldSpec:
     #: or checked against a reference table).  Enforced at the record write,
     #: never downstream — see ``CaseRecordStore.record_field``.
     value_contract: Optional[ValueContract] = None
+    #: What the value must CARRY before the field counts as answered.  A
+    #: filled-but-insufficient required field STAYS in the empty-required set,
+    #: so the material-missing gate holds the draft and intake asks for the
+    #: specific parts that are missing.
+    sufficiency: Optional[SufficiencySpec] = None
+
+    def sufficiency_gap(self, value: Any) -> List[str]:
+        """What this value is still missing.  Empty when nothing is."""
+        if self.sufficiency is None or value is None:
+            return []
+        return self.sufficiency.missing(value)
 
 
 @dataclass(frozen=True)
@@ -768,6 +867,7 @@ def _spec_from_mapping(raw: Mapping[str, Any]) -> FieldSpec:
         value_contract=_contract_from_mapping(
             raw.get("value_contract") or raw.get("enum"), str(field_id)
         ),
+        sufficiency=_sufficiency_from_mapping(raw.get("sufficiency"), str(field_id)),
     )
 
 
@@ -895,18 +995,26 @@ def empty_required_fields(
     *,
     include_unaskable: bool = False,
 ) -> List[FieldSpec]:
-    """Required fields with nothing recorded yet — what may still be asked.
+    """Required fields still to be answered — what may still be asked.
 
     THIS IS THE INTAKE SURFACE.  Question generation asks for exactly these
     and nothing else; an empty list means the record is complete enough to
-    build from.
+    build from — and the rendered block says so in as many words, so an empty
+    list is a POSITIVE INSTRUCTION TO DRAFT, not merely the absence of a
+    question.  That is why what counts as answered has to be right.
 
-    A field is excluded when it is not required, when it already holds a
-    value (whatever the origin — a DERIVED field is filled, so it is never
-    re-asked), or when it is marked ``askable: false`` (the config says the
-    agent must resolve it some other way, so asking is a defect).  Pass
-    ``include_unaskable=True`` for the completeness view — everything still
-    missing, regardless of who is supposed to supply it.
+    A field is excluded when it is not required, when it holds a value that
+    satisfies its ``sufficiency`` (whatever the origin — a DERIVED field is
+    answered, so it is never re-asked), or when it is marked ``askable:
+    false`` (the config says the agent must resolve it some other way, so
+    asking is a defect).  Pass ``include_unaskable=True`` for the
+    completeness view — everything still missing, regardless of who supplies.
+
+    A field that is FILLED BUT INSUFFICIENT stays in this set.  A bare
+    product name populates "the plan being proposed" and is a real fact worth
+    keeping, but it is not the set of facts a draft needs; without the
+    sufficiency check the two are indistinguishable and the record reports a
+    two-product-name case as ready to draft.
 
     Returns FieldSpecs in field-set declaration order, so the caller can ask
     in the order the config intends.
@@ -915,7 +1023,9 @@ def empty_required_fields(
     for spec in field_set.fields:
         if not spec.required:
             continue
-        if record.is_filled(spec.field_id):
+        if record.is_filled(spec.field_id) and not spec.sufficiency_gap(
+            record.value_of(spec.field_id)
+        ):
             continue
         if not spec.askable and not include_unaskable:
             continue

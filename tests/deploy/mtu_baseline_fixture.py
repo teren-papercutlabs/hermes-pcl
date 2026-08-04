@@ -33,6 +33,11 @@ from gateway.pa_eval import normalize_for_exact_match
 
 _SEMANTIC = {"must", "must_not"}
 _EXACT = {"exact_present", "exact_absent"}
+#: Deterministic but not text-carrying: the runner scores it against the
+#: deployment's approved blocks, which a recorded baseline response cannot
+#: reconstruct. Rebinding preserves a recorded verdict and otherwise leaves
+#: the assertion NOT APPLICABLE rather than inventing a pass.
+_DRAFT = {"no_approved_block"}
 
 
 def rebind_report_to_corpus(report: dict[str, Any], corpus: dict[str, Any]) -> dict[str, Any]:
@@ -83,6 +88,18 @@ def rebind_report_to_corpus(report: dict[str, Any], corpus: dict[str, Any]) -> d
                     exact_total += 1
                     exact_passed += int(assertion.get("passed") is True)
                     exact_failed += int(assertion.get("passed") is False)
+                elif kind in _DRAFT:
+                    assertion["text"] = None
+                    assertion.pop("judge_why", None)
+                    assertion.pop("review_needed", None)
+                    if isinstance(previous.get("passed"), bool) and str(
+                        previous.get("kind")
+                    ) == kind:
+                        exact_total += 1
+                        exact_passed += int(assertion.get("passed") is True)
+                        exact_failed += int(assertion.get("passed") is False)
+                    else:
+                        assertion.update(status="not_applicable", passed=None)
                 else:
                     assertion["text"] = None
                     if not isinstance(assertion.get("passed"), bool):

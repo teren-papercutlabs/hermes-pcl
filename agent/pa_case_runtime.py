@@ -375,6 +375,12 @@ class CaseTurnState:
     #: are EMPTY (so they are in ``empty_fields`` and intake asks), but the
     #: ask is a clarification of something already said.
     unmappable_field_ids: Tuple[str, ...] = ()
+    #: Required fields that are ``askable: false`` and that the derivation
+    #: layer did not resolve.  They are absent from ``empty_fields`` by
+    #: design — asking them as intake items is a defect — but the case is NOT
+    #: complete while they are unknown, and saying otherwise is how a draft
+    #: gets built without a required fact.
+    unresolved_unaskable_fields: Tuple[FieldSpec, ...] = ()
     #: Carried so the rendered intake block can name the permitted values in
     #: the clarification question — an ask that repeats the original question
     #: verbatim invites the same unusable answer a second time.
@@ -398,6 +404,9 @@ class CaseTurnState:
             "derived_fields": list(self.derived_field_ids),
             "empty_required_fields": [spec.field_id for spec in self.empty_fields],
             "unmappable_fields": list(self.unmappable_field_ids),
+            "unresolved_unaskable_fields": [
+                spec.field_id for spec in self.unresolved_unaskable_fields
+            ],
             "extraction_ok": self.extraction_ok,
         }
 
@@ -773,6 +782,23 @@ async def update_case_for_turn(
     derived = _apply_config_derivations(store, record.case_id, config)
     final = store.get_case(record.case_id) or record
     empty = tuple(empty_required_fields(final, field_set)) if field_set else ()
+    # Required fields the config says must NOT be asked as intake items, which
+    # the derivation layer could not resolve either.  They are missing from
+    # the ask set BY DESIGN, and that is exactly why they need naming
+    # somewhere: otherwise the case reads as complete while a required fact —
+    # replacement status, say — is genuinely unknown.
+    askable_ids = {spec.field_id for spec in empty}
+    unresolved_unaskable = (
+        tuple(
+            spec
+            for spec in empty_required_fields(
+                final, field_set, include_unaskable=True
+            )
+            if spec.field_id not in askable_ids
+        )
+        if field_set
+        else ()
+    )
     unmappable = tuple(
         field_id
         for field_id, entry in final.fields.items()
@@ -789,6 +815,7 @@ async def update_case_for_turn(
         derived_field_ids=tuple(derived),
         extraction_ok=extraction_ok,
         unmappable_field_ids=unmappable,
+        unresolved_unaskable_fields=unresolved_unaskable,
         value_contracts=config.value_contracts,
         value_tables=config.value_tables,
     )
@@ -846,6 +873,25 @@ def render_case_record_prompt(state: Optional[CaseTurnState]) -> str:
         for spec in state.empty_fields:
             hint = (spec.ask_hint or "").strip().replace("\n", " ")
             entry = record.get(spec.field_id)
+            gap = spec.sufficiency_gap(record.value_of(spec.field_id))
+            if gap:
+                # PARTIALLY ANSWERED. The advisor named the thing; what is
+                # missing is the material detail. Asking the whole question
+                # again would read as not having heard the name, so ask for
+                # exactly the parts that are absent — and say what is already
+                # held, so they do not repeat it.
+                held = str(record.value_of(spec.field_id)).replace("\n", " ")
+                needed = (
+                    spec.sufficiency.description
+                    if spec.sufficiency is not None and spec.sufficiency.description
+                    else ", ".join(gap)
+                )
+                lines.append(
+                    f'- {hint or spec.field_id} — "{held}" is on record, but a '
+                    f"draft still needs {needed} for it. Ask for that, not for "
+                    "the name again."
+                )
+                continue
             if entry is not None and entry.is_unmappable:
                 # ASK A CLARIFICATION, NOT THE ORIGINAL QUESTION AGAIN.  The
                 # advisor DID answer; the answer just is not one this case
@@ -881,9 +927,26 @@ def render_case_record_prompt(state: Optional[CaseTurnState]) -> str:
             lines.append(f"- {hint or spec.field_id}")
     else:
         lines.append(
-            "STILL MISSING: nothing. Do not ask any intake question — draft now "
-            "from the facts above."
+            "STILL MISSING: nothing to ask the advisor for."
+            if state.unresolved_unaskable_fields
+            else "STILL MISSING: nothing. Do not ask any intake question — draft "
+            "now from the facts above."
         )
+    if state.unresolved_unaskable_fields:
+        # NOT an intake question. These are fields the config says the agent
+        # resolves itself, and the derivation layer could not. Naming them as
+        # intake items would produce exactly the question the rules forbid;
+        # saying nothing lets the case read as complete while a required fact
+        # is unknown. So: named, with the resolution route, and NO draft-now.
+        lines.append("")
+        lines.append(
+            "NOT YET RESOLVED — these are NOT questions to put to the advisor "
+            "as intake items; your own rules say how each is settled. Settle "
+            "them the way those rules direct BEFORE drafting:"
+        )
+        for spec in state.unresolved_unaskable_fields:
+            note = (spec.notes or "").strip().replace("\n", " ")
+            lines.append(f"- {spec.field_id}" + (f" — {note}" if note else ""))
     if state.boundary == BOUNDARY_AMBIGUOUS:
         lines.append("")
         lines.append(
