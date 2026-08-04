@@ -38,10 +38,12 @@ SLOT_MODELS = {
     "gpt-5.6-luna": "gpt-5.6-luna",
     "gpt-5.6-luna-low": "gpt-5.6-luna",
     "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
+    "gpt-5.6-terra-medium": "gpt-5.6-terra",
 }
 SLOT_REASONING_EFFORT = {
     "gpt-5.6-luna-low": "low",
     "gpt-5.6-luna-xhigh": "xhigh",
+    "gpt-5.6-terra-medium": "medium",
 }
 
 

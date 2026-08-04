@@ -5,16 +5,31 @@
 # - '2026-07-31'
 # ruling_ref:
 # - R05
-# status: approved
+# status: pending
+# note: escalation cue reworded by the config-contradiction lane (WB fc958284,
+#   item 12) to name its own axis (insurer resolution) and disclaim the other
+#   two. The rule it states — never ask the advisor for the insurer, route to
+#   Melody — is R05's and is unchanged. Awaits amelia's confirm batch.
 # sequence: 63
 # compose: false
 # ---
 kind: keyed-reference
 schema_version: 1
 key_semantics: exact product name
+# THIS FILE'S AXIS: which INSURER issues this product? Nothing else. A miss here
+# is not a statement about reference-example coverage (reference/062's axis) or
+# about whether the category is supported (rules/120's axis) — a product can be
+# absent here and still be perfectly draftable from the advisor's own facts, and a
+# product listed here can still sit in an unsupported category. The one thing a
+# miss on THIS axis forbids is asking the advisor: R05 (amelia, 2026-07-31) rules
+# the insurer question a defect, so an unresolvable insurer goes to Melody rather
+# than back to the advisor.
+axis: product -> insurer resolution
 escalation_cue: >-
-  The insurer cannot be resolved from the approved product mapping. Do not ask
-  the advisor to identify it and do not guess; route the product to Melody.
+  MISS ON THIS AXIS = the INSURER cannot be resolved from the approved product
+  mapping. Do not ask the advisor to identify it and do not guess; route the
+  product to Melody. This says nothing about whether a reference example exists
+  (reference/062) or whether the category is supported (rules/120).
 entries:
   - {key: "Wealth Voyage", insurer: "HSBC Life (Singapore)"}
   - {key: "Wealth Abundance", insurer: "HSBC Life (Singapore)"}

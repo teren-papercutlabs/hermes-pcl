@@ -291,6 +291,7 @@ def main() -> int:
         "gpt-5.6-luna",
         "gpt-5.6-luna-low",
         "gpt-5.6-luna-xhigh",
+        "gpt-5.6-terra-medium",
     }:
         raise RuntimeError(f"invalid engine slot {slot!r}")
     slot_root = app_root / "deploy" / "tgg" / "christopher" / "runtime-slots" / slot

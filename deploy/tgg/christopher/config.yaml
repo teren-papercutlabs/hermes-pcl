@@ -433,9 +433,9 @@ python_sandbox:
       path: /var/lib/tgg-capture/whatsapp/media/documents
       description: "Documents uploaded in WhatsApp chats, ORIGINAL filenames matching the saved-at path shown in the message (read-only)"
   limits:
-    wall_seconds: 120
-    max_wall_seconds: 300
-    cpu_seconds: 60
+    wall_seconds: 360
+    max_wall_seconds: 600
+    cpu_seconds: 300
     memory_mb: 1024
     file_size_mb: 64
     scratch_mb: 256

@@ -1,6 +1,6 @@
 model:
   provider: openai-direct-primary
-  default: gpt-5.6-luna
+  default: gpt-5.6-terra
   base_url: https://api.openai.com/v1
   api_key_source:
     type: env
@@ -8,7 +8,7 @@ model:
 agent:
   profile: pa
   max_turns: 90
-  reasoning_effort: xhigh
+  reasoning_effort: medium
 pa:
   enabled: false
   media_retention:
@@ -380,16 +380,16 @@ onboarding:
 auxiliary:
   compression:
     provider: main
-    model: gpt-5.6-luna
+    model: gpt-5.6-terra
     timeout: 120
   session_search:
     provider: main
-    model: gpt-5.6-luna
+    model: gpt-5.6-terra
     timeout: 60
     max_concurrency: 2
   title_generation:
     provider: main
-    model: gpt-5.6-luna
+    model: gpt-5.6-terra
     timeout: 30
   vision:
     provider: gemini
@@ -402,7 +402,7 @@ providers:
     name: OpenAI Direct Primary
     api: https://api.openai.com/v1
     key_env: OPENAI_API_KEY
-    default_model: gpt-5.6-luna
+    default_model: gpt-5.6-terra
     transport: codex_responses
 
 # one conversation per group chat (teren-greenlit 2026-06-17) — overrides per-participant default

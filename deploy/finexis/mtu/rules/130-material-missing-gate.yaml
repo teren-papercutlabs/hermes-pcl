@@ -3,9 +3,18 @@
 # - amelia
 # approved_date:
 # - '2026-07-23'
+# - '2026-08-01'
 # ruling_ref:
 # - R01
-# status: approved
+# - R09
+# - R13
+# status: pending
+# note: wording amended by the config-contradiction lane (WB fc958284, item 7) —
+#   "objective alignment" removed from the gate's material-missing list because
+#   R09 forbids asking for it (it is COMPUTED under the ILP GATE), and this gate
+#   is exactly the list intake builds its asks from. R01's substance — ask before
+#   drafting, never placeholder-fill a material fact — is unchanged. Awaits
+#   amelia's confirm batch.
 # sequence: 130
 # ---
       - >-
@@ -14,12 +23,15 @@
         chose the ask): ask before drafting when any required material fact is
         absent: ROP status; exact plan/category/rider identity; supplied protection
         amounts or durations needed for a comparison; 50%-of-surplus answer; ILP CKA,
-        risk profile, fund name, objective alignment, or applicable product-summary
+        risk profile, fund name, or applicable product-summary
         disclosure values; or approved wording for a triggered declaration such as
         annual ILP premium above S$36,000. Ask one compact question that lists the
         missing items. Never turn these into a completed BOR with placeholders. Do not
         ask for client income/surplus, reference/application numbers, arithmetic,
         standard alternatives wording, or comparison-list freshness. THE REASON THE
         CLIENT CHOSE THE PLAN AND THE ALTERNATIVES CONSIDERED ARE NEVER ASKED — both
-        come from STANDARD NARRATIVE DEFAULTS above. This gate covers only the facts
+        come from STANDARD NARRATIVE DEFAULTS above, on Shield cases too. FUND-OBJECTIVE
+        ALIGNMENT IS ALSO NEVER ASKED (R09, amelia-ruled 2026-08-01): it is COMPUTED
+        under the ILP GATE, so it is not on this gate's list; an unresolvable fund
+        asks for the specific FUND NAME. This gate covers only the facts
         enumerated in this paragraph; it never licenses asking for narrative wording.

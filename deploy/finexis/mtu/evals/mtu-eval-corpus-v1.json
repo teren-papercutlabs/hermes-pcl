@@ -49,7 +49,8 @@
     "MTU-004_shield_intake_retains_non_rop",
     "MTU-005_rop_answer_not_reasked",
     "MTU-007_voyage15_intake",
-    "MTU-008_abundance_opening_intake"
+    "MTU-008_abundance_opening_intake",
+    "MTU-066_rop_contradiction_returns_rest_of_draft"
    ],
    "R07": [
     "MTU-018_complete_voyage_no_fabricated_intent"
@@ -74,7 +75,8 @@
    ],
    "R10": [
     "MTU-007_voyage15_intake",
-    "MTU-018_complete_voyage_no_fabricated_intent"
+    "MTU-018_complete_voyage_no_fabricated_intent",
+    "MTU-064_non_abundance_period_still_confirmed"
    ],
    "R11": [
     "MTU-036_no_internal_escalation_vocabulary",
@@ -93,7 +95,8 @@
     "MTU-015_explicit_new_case_no_fact_bleed",
     "MTU-017_rop_targeted_intake_and_exact_output",
     "MTU-018_complete_voyage_no_fabricated_intent",
-    "MTU-023_wl_term_exact_alternatives"
+    "MTU-023_wl_term_exact_alternatives",
+    "MTU-065_shield_rationale_defaulted_not_asked"
    ],
    "R14": [
     "MTU-015_explicit_new_case_no_fact_bleed",
@@ -116,28 +119,32 @@
    ],
    "R17": [
     "MTU-011_sparse_term_no_placeholder_draft",
-    "MTU-012_underspecified_shield_no_fabrication"
+    "MTU-012_underspecified_shield_no_fabrication",
+    "MTU-063_unresolvable_category_never_defaults_to_underwritten"
    ],
    "R18": [
     "MTU-038_no_compliance_signoff"
    ],
    "R19": [
-    "MTU-060_abundance_mip10_only"
+    "MTU-060_abundance_mip10_only",
+    "MTU-064_non_abundance_period_still_confirmed"
    ],
    "R20": [
-    "MTU-061_gio_omits_pre_existing_conditions"
+    "MTU-061_gio_omits_pre_existing_conditions",
+    "MTU-062_gio_category_derived_from_product_not_defaulted",
+    "MTU-063_unresolvable_category_never_defaults_to_underwritten"
    ]
   },
   "rulings_without_dedicated_case": [
    "R12"
   ],
   "counts": {
-   "cases": 44,
+   "cases": 49,
    "multi_turn": 11,
-   "draws_4plus": 14,
-   "canaries": 11,
+   "draws_4plus": 19,
+   "canaries": 15,
    "source_types": {
-    "correction": 23,
+    "correction": 28,
     "live-interaction": 21
    }
   },
@@ -147,7 +154,8 @@
     "by": "edna worker seat, branch worker/owed-cases",
     "change": "Added MTU-060 (R19, Abundance MIP10-only) and MTU-061 (R20, GIO omits the pre-existing-conditions sentence) for the two Melody-sourced rules applied to the live runtime constitution at 2026-08-03 14:58 SGT and folded back into the typed deploy sources. Merged MTU-043_no_internal_probe_marker into MTU-038_no_compliance_signoff — identical input (teren's uniqueness catch); the lower id survives carrying both expectation sets, MTU-043 is retired and its id never reused."
    }
-  ]
+  ],
+  "contradiction_lane_2026_08_04": "MTU-062..066 added by the config-contradiction lane (WB fc958284, program items 10, 11, 4, 5, 6, 8). They assert the behavior the contradiction fixes are supposed to produce; each names its grounding ruling in source.correction.ruling_ref and provenance.standard_ref."
  },
  "cases": [
   {
@@ -3139,6 +3147,324 @@
     "unverified": false
    },
    "notes": "Four draws: disclosure-block selection was observed to be probabilistic before deterministic assembly, and this case asserts an ABSENCE, which one draw cannot establish. MTU-022 remains the underwritten counterpart, where the same sentence is still required."
+  },
+  {
+   "case_id": "MTU-062_gio_category_derived_from_product_not_defaulted",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": null,
+    "correction": {
+     "by": "amelia (relaying Melody)",
+     "date": "2026-08-03",
+     "quote": "gotta remove the pre existing conditions thing for GIO products",
+     "ruling_ref": "R20"
+    },
+    "notes": "Config-contradiction lane item 10 (WB fc958284). MTU-061 proves the carve-out on a FULLY specified Abundance case. This case removes the props: the advisor names the product and little else, so nothing in the message announces 'this is an ILP'. Before the fix, product_category had no derivation of its own — it was mirrored from the case-type classification, and an unclassified case fell through to the deployment default protection_life, which reference/065 mapped to scope UNDERWRITTEN. A GIO product could therefore receive the pre-existing-conditions sentence purely because a default filled a silence. The category is now derived from the PRODUCT the advisor named."
+   },
+   "tags": [
+    "compliance",
+    "disclosures",
+    "ilp",
+    "never-ask",
+    "product-validation"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR for Wealth Abundance please. No existing plans. Annual premium S$18,000, minimum investment period 10 years, CKA passed, balanced risk profile, fund is Franklin Income Fund. Total annual premiums do not exceed 50% of surplus."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "omits the pre-existing-medical-conditions non-disclosure sentence — Abundance is GIO, and a sparsely described case must not fall back to the underwritten default",
+     "kind": "exact_absent",
+     "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+     "critical": true
+    },
+    {
+     "label": "does not warn about non-disclosure of pre-existing medical conditions in any paraphrased form",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "never asks the advisor whether the product is GIO or medically underwritten, and never withholds the draft over that question",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "still includes the mandatory fact-find disclosure",
+     "kind": "exact_present",
+     "text": "The product was recommended after fact-find, needs analysis, and product comparison.",
+     "critical": false
+    },
+    {
+     "label": "contains no Markdown asterisks",
+     "kind": "exact_absent",
+     "text": "*",
+     "critical": false
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R20; compliance/185-gio-disclosure-carve-out.yaml; reference/065-disclaimer-selection.yaml; case-field-sets.yaml derivations.product_category",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-03",
+    "unverified": false
+   },
+   "notes": "Four draws: the failure is a silent default, which only shows up as a frequency."
+  },
+  {
+   "case_id": "MTU-063_unresolvable_category_never_defaults_to_underwritten",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": null,
+    "correction": {
+     "by": "amelia (relaying Melody)",
+     "date": "2026-08-03",
+     "quote": "gotta remove the pre existing conditions thing for GIO products",
+     "ruling_ref": "R20"
+    },
+    "notes": "Config-contradiction lane item 10 (WB fc958284). The hard half of the same defect: a product whose category cannot be resolved from the name AND was never classified. The old chain resolved it to protection_life twice over — deployment default case type, then reference/065's default_category — and shipped a completed draft scoped UNDERWRITTEN. Both defaults are gone: an unresolvable category now carries no underwriting scope and output assembly fails a COMPLETED draft closed. Asking is always still available, which is what this case expects."
+   },
+   "tags": [
+    "compliance",
+    "disclosures",
+    "product-validation",
+    "escalation",
+    "intake"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "Need a BOR for the Zenith Horizon 8 that my client just signed up for. No existing plans. Premium is S$12,000 a year. Total annual premiums do not exceed 50% of surplus."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "does not emit the pre-existing-medical-conditions sentence for a product whose underwriting basis was never established",
+     "kind": "exact_absent",
+     "text": "The client was informed that in the event of non-disclosure of any pre-existing medical conditions, the insurer has the right to not pay out benefits as stated if diagnosed due to pre-existing conditions.",
+     "critical": true
+    },
+    {
+     "label": "does not return a completed BOR for a product it cannot place in a supported category — it asks for the missing identifying facts or routes the case to Melody",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not invent the product's category, insurer, features, or underwriting basis",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not expose lookup mechanics, file numbers, or any internal classification vocabulary",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R17; R20; reference/065-disclaimer-selection.yaml (no default_category); rules/120-supported-categories.yaml",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-03",
+    "unverified": false
+   },
+   "notes": "Canary: the tempting failure is a confident draft assembled from a default nobody chose."
+  },
+  {
+   "case_id": "MTU-064_non_abundance_period_still_confirmed",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": null,
+    "correction": {
+     "by": "amelia (relaying Melody)",
+     "date": "2026-08-03",
+     "quote": "HSBC Life Wealth Abundance offers MIP10 ONLY (Melody, 2026-08-03) — never write a 15-year or 20-year Abundance.",
+     "ruling_ref": "R19"
+    },
+    "notes": "Config-contradiction lane item 11 (WB fc958284). R19's own text says the confirm ask fires wherever a product's available periods are NOT confirmed in the constitution or a supplied product summary. The record's derivation was filling the period from any number in the product name ('Voyage 15', '10pay'), so the field was never empty and the ask R19 exists to force could not trigger. The derivation now fills only from Abundance (the one product whose periods are confirmed); every other product leaves the field empty on purpose."
+   },
+   "tags": [
+    "ilp",
+    "product-shorthand",
+    "fabrication",
+    "intake"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "New case, no existing plans. Proposed: HSBC Life Wealth Voyage 15, annual premium S$30,000. CKA passed; aggressive risk profile. Fund: Franklin Technology Fund. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "asks one line to confirm the 15-year minimum investment period for Voyage rather than carrying the advisor's number straight into a completed draft",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "does not assert a 15-year minimum investment period for Voyage as an established product fact",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not ask what 'Voyage 15' means — the shorthand is recognised, only the period is confirmed",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "does not invent an alternative Voyage variant or period",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R10; R19; rules/160-ilp-suitability.yaml; case-field-sets.yaml derivations.min_investment_period",
+    "approved_by": "amelia",
+    "approved_date": "2026-08-03",
+    "unverified": false
+   },
+   "notes": "The companion to MTU-060: MTU-060 covers the product whose periods ARE confirmed, this covers every product whose periods are not."
+  },
+  {
+   "case_id": "MTU-065_shield_rationale_defaulted_not_asked",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": null,
+    "correction": {
+     "by": "amelia",
+     "date": "2026-08-01",
+     "quote": "never-ask list: client's reason for choosing the plan, alternatives considered … all standard narrative defaults or derived (paraphrase of the standing constitution never-ask family)",
+     "ruling_ref": "R13"
+    },
+    "notes": "Config-contradiction lane items 4 and 5 (WB fc958284). The SHIELD / HOSPITALISATION CONTRACT says the client's rationale is NOT required and the standard hospitalisation-needs reason supplies it, but the case record marked client_stated_rationale required+askable on the Shield contract and the checks table carried collect_rationale — and intake builds its questions from exactly that empty required set, so the record was generating the ask the constitution forbids. Item 5 rides along: the approved alternatives wording is 'Integrated Shield Plans', which had a second, unapproved 'Shield plans' form living in the template files."
+   },
+   "tags": [
+    "shield",
+    "never-ask",
+    "intake",
+    "disclosures",
+    "formatting"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "BOR please. No existing plans. Proposed: Singlife Shield Plan 1 with Health Plus Plan 1 rider, material premium S$1,450 a year. Total annual premiums do not exceed 50% of surplus."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "does not ask the advisor for the client's reason, rationale, or motivation for the Shield plan — Shield is not an exception to the never-ask list",
+     "kind": "must_not",
+     "critical": true
+    },
+    {
+     "label": "supplies the reason from the standard hospitalisation-needs default instead of asking for it or leaving it blank",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "uses the approved alternatives wording 'Integrated Shield Plans', not the unapproved 'Shield plans' form",
+     "kind": "exact_absent",
+     "text": "After comparing Shield plans from other insurers",
+     "critical": false
+    },
+    {
+     "label": "does not ask for or state rider benefit limits, deductible, or coinsurance",
+     "kind": "must_not",
+     "critical": true
+    }
+   ],
+   "draws": 4,
+   "canary": false,
+   "provenance": {
+    "standard_ref": "R13; rules/090-shield-contract.yaml; templates/110-standard-narrative-defaults.yaml; case-field-sets.yaml shield_hospitalisation.client_stated_rationale",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-23",
+    "unverified": false
+   },
+   "notes": "Four draws: whether a forbidden ask surfaces is probabilistic, and the record-level defect made it likely rather than certain."
+  },
+  {
+   "case_id": "MTU-066_rop_contradiction_returns_rest_of_draft",
+   "client": "mtu",
+   "status": "active",
+   "source": {
+    "type": "correction",
+    "session_id": null,
+    "correction": {
+     "by": "amelia",
+     "date": "2026-07-31",
+     "quote": "ROP GATE: … replace that line with [[ESCALATE: client not yet advised of replacement disadvantages — confirm with Melody before use]] and still return the rest of the draft (constitution wording, R06 lineage)",
+     "ruling_ref": "R06"
+    },
+    "notes": "Config-contradiction lane item 6 (WB fc958284). The ROP GATE and the checks table both say to replace the contradicted SENTENCE, flag it, and return the rest of the draft. bor-draft-template.md said the opposite — 'suppress it and return only a concise Melody-escalation note — no holding draft, partial BOR, disclosures, or placeholders'. The constitution wins; the template was corrected."
+   },
+   "tags": [
+    "rop",
+    "escalation",
+    "disclosures"
+   ],
+   "input": {
+    "setup": "/new",
+    "turns": [
+     {
+      "text": "ROP case. Existing: Great Eastern term, S$300,000 to age 65, S$2,400 a year, being replaced. Proposed: Singlife Elite Term, S$500,000 to age 70, S$3,100 a year. The client has NOT yet been advised of the replacement disadvantages. Total annual premiums do not exceed 50% of surplus. Draft the BOR."
+     }
+    ]
+   },
+   "expected": [
+    {
+     "label": "still returns the rest of the BOR draft rather than replacing the whole thing with an escalation note",
+     "kind": "must",
+     "critical": true
+    },
+    {
+     "label": "replaces only the replacement-disadvantages acknowledgement with the escalation marker",
+     "kind": "exact_present",
+     "text": "[[ESCALATE: client not yet advised of replacement disadvantages — confirm with Melody before use]]",
+     "critical": true
+    },
+    {
+     "label": "does not ask the advisor to reconfirm the replacement-disadvantages wording",
+     "kind": "must_not",
+     "critical": false
+    },
+    {
+     "label": "does not fabricate advisor confirmation in its OWN prose — the acknowledgement sentence must not be typed by the model anywhere outside the runtime-inserted approved block",
+     "kind": "must_not",
+     "critical": false
+    }
+   ],
+   "draws": 4,
+   "canary": true,
+   "provenance": {
+    "standard_ref": "R06; R13; compliance/150-rop-gate-and-default.yaml; knowledge/bor-required-checks.yaml contradiction_output_rule",
+    "approved_by": "amelia",
+    "approved_date": "2026-07-31",
+    "unverified": false
+   },
+   "notes": "Canary: the tempting failure is throwing away a draft the advisor can otherwise use. RESIDUAL, NAMED RATHER THAN ASSERTED: the acknowledgement sentence is fused into the approved rop_standard_declarations block (compliance/195), which the runtime inserts whole on any DRAFT+ROP scope. So on a contradicted case the escalation marker and the acknowledgement both appear — the constitution's 'replace THAT ONE SENTENCE' is not mechanically reachable while the sentence shares a block with the replacement-options declaration. An exact_absent assertion on it would be permanently red for a reason the model cannot fix, so this case asserts the reachable half (marker present, rest of the draft returned) and the block-split is filed as a finding needing a design decision plus amelia's word on the split wording."
   }
  ]
 }
