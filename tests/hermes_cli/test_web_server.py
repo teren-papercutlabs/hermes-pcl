@@ -2081,7 +2081,13 @@ class TestPtyWebSocket:
         self.ws_module = ws
         monkeypatch.setattr(ws, "_DASHBOARD_EMBEDDED_CHAT_ENABLED", True)
         self.token = ws._SESSION_TOKEN
-        self.client = TestClient(ws.app)
+        # Enter the client so every websocket session shares its single
+        # portal/event loop; bare TestClient gives each websocket_connect its
+        # own loop, making the app's cross-connection broadcast a cross-thread
+        # write into another loop's memory stream (bug e4b9d26e hang).
+        with TestClient(ws.app) as client:
+            self.client = client
+            yield
 
     def _url(self, token: str | None = None, **params: str) -> str:
         tok = token if token is not None else self.token
