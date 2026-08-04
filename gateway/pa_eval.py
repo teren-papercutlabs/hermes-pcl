@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from agent.pa_output_assembly import drain_assembly_defects
 from gateway.replay import ReplayCorpus, ReplayPlan, canonical_digest
 
 
@@ -493,7 +494,12 @@ async def run_replay_bundle(
 
     turn_results: list[dict[str, Any]] = []
     for turn in bundle.turns:
+        # DRAIN BEFORE THE TURN, COLLECT AFTER: whatever the trail holds when
+        # the turn returns belongs to THIS turn. Anything older is another
+        # turn's evidence and must not be attributed here.
+        drain_assembly_defects()
         replay_result = await runner.replay(turn.plan)
+        assembly_defects = drain_assembly_defects()
         response, response_source = _final_outbound_text(replay_result.outbound)
         assertions: list[dict[str, Any]] = []
         for expectation in turn.expectations:
@@ -517,6 +523,12 @@ async def run_replay_bundle(
             "response_digest": canonical_digest(response),
             "response_source": response_source,
             "outbound_count": len(replay_result.outbound),
+            # WHY a turn produced no draft, not merely THAT it did not.
+            # A refusal-exhaustion and a content regression are the same
+            # assertion failure without this field; with it, a reader can
+            # separate "the guard withheld three times over marker X" from
+            # "the model wrote the wrong sentence".
+            "assembly_defects": assembly_defects,
             "assertions": assertions,
         })
 
@@ -545,6 +557,21 @@ async def run_replay_bundle(
             "blocked_commands": setup_result.blocked_commands if setup_result else [],
         },
         "turn_count": len(turn_results),
+        "assembly_defect_count": sum(
+            len(turn["assembly_defects"]) for turn in turn_results
+        ),
+        "assembly_withheld_count": sum(
+            1
+            for turn in turn_results
+            for defect in turn["assembly_defects"]
+            if defect.get("outcome") == "withheld"
+        ),
+        "assembly_healed_count": sum(
+            1
+            for turn in turn_results
+            for defect in turn["assembly_defects"]
+            if defect.get("outcome") == "healed"
+        ),
         "turns": turn_results,
         "deterministic": {
             "status": "passed" if deterministic and not failed else (
@@ -606,6 +633,11 @@ async def run_pa_eval_corpus(
             "multi_turn_case_count": sum(1 for case in selected if len(case.turns) > 1),
             "turn_count": sum(item["turn_count"] for item in cases),
             "runtime": dict(runtime_manifest or {}),
+        },
+        "assembly_summary": {
+            "defect_count": sum(item["assembly_defect_count"] for item in cases),
+            "withheld_count": sum(item["assembly_withheld_count"] for item in cases),
+            "healed_count": sum(item["assembly_healed_count"] for item in cases),
         },
         "deterministic_summary": {
             "assertion_count": sum(item["assertion_count"] for item in deterministic),
