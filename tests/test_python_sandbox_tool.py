@@ -780,6 +780,7 @@ rc = libc.ptrace(16, 1, None, None)  # PTRACE_ATTACH namespace PID 1
 blocked["ptrace_pid1"] = rc == -1 and ctypes.get_errno() == errno.EPERM
 open("/work/ok.txt", "w").write("ok")
 os.symlink("/etc/passwd", "/work/host-pointer")
+os.mkfifo("/work/host-fifo")
 open(os.environ["RESULT_PATH"], "w").write(json.dumps(blocked))
 '''
     response = json.loads(
@@ -801,8 +802,10 @@ open(os.environ["RESULT_PATH"], "w").write(json.dumps(blocked))
     }
     assert any(item["path"] == "work/ok.txt" for item in response["files"])
     assert all(item["path"] != "work/host-pointer" for item in response["files"])
+    assert all(item["path"] != "work/host-fifo" for item in response["files"])
     run_work = home / "sandbox_runs" / response["run_id"] / "work"
     assert not os.path.lexists(run_work / "host-pointer")
+    assert not os.path.lexists(run_work / "host-fifo")
 
 
 @pytest.mark.skipif(not _can_run_jail(), reason="kernel user namespaces unavailable")
@@ -1109,3 +1112,25 @@ def test_session_workspace_persists_and_isolates_across_runs(tmp_path, monkeypat
     assert isolated["result"] == {"exists": False}
     workspace_root = home / "sandbox_workspaces"
     assert len(list(workspace_root.iterdir())) == 2
+
+
+@pytest.mark.skipif(not _can_run_jail(), reason="kernel user namespaces unavailable")
+@pytest.mark.sandbox_e2e
+def test_invalid_dataset_does_not_create_session_workspace(tmp_path, monkeypatch):
+    source, csv = tmp_path / "records.db", tmp_path / "input.csv"
+    _db(source)
+    _csv(csv)
+    config = _config(source, csv)
+    config["workspace"] = "session"
+    home = tmp_path / "home"
+    monkeypatch.setattr(sandbox, "_load_config", lambda: config)
+    monkeypatch.setattr(sandbox, "get_hermes_home", lambda: home)
+    response = json.loads(
+        sandbox.python_sandbox(
+            "print(1)",
+            datasets=["missing"],
+            session_id="bad-dataset-chat",
+        )
+    )
+    assert response["status"] == "dataset_unknown"
+    assert not (home / "sandbox_workspaces").exists()

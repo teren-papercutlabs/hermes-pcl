@@ -63,6 +63,7 @@ import ctypes
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -111,7 +112,7 @@ for root, dirs, files in os.walk("/work", topdown=True, followlinks=False):
             dirs.remove(name)
     for name in files:
         path = os.path.join(root, name)
-        if os.path.islink(path):
+        if not stat.S_ISREG(os.lstat(path).st_mode):
             os.unlink(path)
 
 subprocess.run(["mount", "-o", "remount,bind,rw", "/export"], check=True)
@@ -961,9 +962,6 @@ def _run_python_sandbox(
     seed_work = None
     if session_id is not None:
         workspace = workspace_root / _workspace_key(session_id)
-        _prune_workspaces(workspace_root, config, exclude=workspace)
-        seed_work = workspace / "work"
-        seed_work.mkdir(parents=True, exist_ok=True, mode=0o700)
     for path in (root, run, inputs, work):
         path.mkdir(parents=True, exist_ok=True, mode=0o700)
     (run / "script.py").write_text(code, encoding="utf-8")
@@ -977,6 +975,10 @@ def _run_python_sandbox(
         return json.dumps(
             {"status": status, "error": error, "run_id": run_id, "result": None}
         )
+    if workspace is not None:
+        _prune_workspaces(workspace_root, config, exclude=workspace)
+        seed_work = workspace / "work"
+        seed_work.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     limits = _limits(config)
     sqlite_datasets = {
