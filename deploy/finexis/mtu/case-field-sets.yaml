@@ -26,10 +26,51 @@
 #               answer ("BOR for Voyage 15" states the proposed plan). Falls
 #               back to ask_hint when absent.
 #   derived_from - advisory: which recorded answer a derivation may stand on
+#   value_contract - what the field is allowed to HOLD (see below)
 #
 # Phase-2 note: the record module supplies the query and the derivation hook;
 # the derivation CALLABLES (e.g. is_replacement from existing_plans) are
 # client-owned and wired at the deployment, not in the shared module.
+#
+# ── THE VALUE CONTRACT ────────────────────────────────────────────────────
+#
+# teren, 2026-08-04: a field whose values come from a fixed set must be
+# converted to that set AT THE RECORD WRITE, not by whoever reads it later.
+# The record is what the prompt, the suitability computation, an approved
+# sentence's slot, and every eval read; if each of them maps "aggressive" ->
+# "Aggressive" for itself, they drift one reader at a time, and the drift is
+# invisible until a client sees the wrong word in a BOR.
+#
+# So a field may declare a `value_contract`, enforced ONCE in
+# agent/pa_case_record.py at the moment the field is populated:
+#
+#   kind: enum      - a closed set. `values:` is canonical; `match:` maps the
+#                     free text advisors actually write onto one of them, in
+#                     DECLARATION ORDER (narrow patterns first).
+#   kind: boolean   - stored as a real boolean, so nothing downstream has to
+#                     decide whether "yes" and "true" are the same answer.
+#   kind: table     - the valid set lives in a reference file that someone
+#                     else maintains (see `value_tables` at the foot). Use
+#                     `key_field:` when the valid set depends on ANOTHER
+#                     field's answer.
+#
+#   on_unmatched: unpopulate (default) | accept
+#     unpopulate - the answer resolves to nothing, so the field STAYS EMPTY,
+#                  stays in the empty-required set, and intake asks a
+#                  clarification before any draft. The advisor's actual words
+#                  are kept in provenance (raw_value) so the ask can quote
+#                  them instead of repeating the original question.
+#     accept     - keep the answer as written. Correct when the table is a
+#                  list of KNOWN examples rather than a closed set: a name
+#                  missing from it is a gap in the table, not a bad answer.
+#   stored_form: entry_value (default) | as_written
+#     as_written - the table match VALIDATES but does not rewrite. Correct for
+#                  a descriptive field whose value carries far more than the
+#                  identifier; rewriting would destroy the premium, term, and
+#                  rider detail the advisor supplied.
+#
+# NEVER a guess: an answer that satisfies no contract leaves the field empty
+# and produces a question. It never resolves to the nearest plausible value.
 
 version: 1
 
@@ -67,6 +108,18 @@ field_sets:
           premium, term, riders, sum assured, category — record the field
           again as the name PLUS that detail, so the value grows instead of
           either staying a bare name or losing it.
+        # VALIDATE, NEVER REWRITE. The approved-product list (062) says in its
+        # own escalation_cue that a product with no entry is NOT a reason to
+        # withhold a draft — use the advisor's own words for it. So this
+        # contract accepts an unmatched name (on_unmatched: accept) and keeps
+        # the answer whole (stored_form: as_written); the match only records
+        # that the product IS one we hold reference examples for. Unpopulating
+        # here would invent a refusal amelia explicitly ruled against.
+        value_contract:
+          kind: table
+          table: approved_products
+          on_unmatched: accept
+          stored_form: as_written
 
       - id: is_replacement
         required: true
@@ -79,6 +132,11 @@ field_sets:
           asked only when an existing plan exists and its replacement status
           was not stated — and it is asked against existing_plans, not as a
           separate ROP item.
+        value_contract:
+          kind: boolean
+          match:
+            - {pattern: '(?i)^\s*(yes|rop|replacement)\b', value: true}
+            - {pattern: '(?i)^\s*(no|non-rop|not a replacement)\b', value: false}
 
       - id: replaced_products
         required: false
@@ -99,6 +157,32 @@ field_sets:
           NEVER SOLICITED. Standard narrative defaults supply this; record it
           only when the advisor volunteers it.
 
+      - id: sustainability_answer
+        required: false
+        askable: true
+        ask_hint: >-
+          Do the client's total annual premiums exceed 50% of their surplus?
+        holds: >-
+          Whether total annual premiums EXCEED 50% of the client's surplus.
+          True = they exceed it; false = they do not.
+        notes: >-
+          PROMOTED FROM RAW-TEXT MATCHING (2026-08-04). Output assembly used to
+          decide the sustainability scope by regex over the conversation text —
+          a second source of truth for a fact the record should hold. It is now
+          a contracted field, and compliance/012 maps it to the scope tag.
+          NOT required: the answer is volunteered, and forcing it into the
+          empty-required set would create an intake question amelia never
+          ruled. Assembly still falls back to text matching when the field is
+          empty, so nothing silently loses its compliance scope.
+          MAY RETIRE: if the pending 50%-removal ruling confirms, this field
+          and its block go away together — that is a deletion, not a rework.
+        value_contract:
+          kind: boolean
+          match:
+            # Ordered: the negations must be read before the bare "exceed".
+            - {pattern: '(?i)(do(es)? not exceed|below 50%|under 50%|less than 50%|within 50%)', value: false}
+            - {pattern: '(?i)(more than 50%|exceeds? 50%|above 50%|over 50%)', value: true}
+
       - id: product_category
         required: false
         askable: false
@@ -108,6 +192,19 @@ field_sets:
           disclaimer-set selection in reference/065-disclaimer-selection.yaml
           (investment products are GIO — no medical underwriting — so they must
           not carry the medical non-disclosure line).
+        # CONTRACT ONLY. The values are exactly the category keys
+        # 065-disclaimer-selection.yaml switches on, so a category that
+        # resolves here is guaranteed to select a disclaimer set rather than
+        # falling through to the assembly's fail-closed branch. The RULE that
+        # derives a category from a product name is a separate lane's item and
+        # is deliberately not built here.
+        value_contract:
+          kind: enum
+          values: [protection_life, investment_linked, shield_hospitalisation]
+          match:
+            - {pattern: '(?i)(investment[-_ ]?linked|\bilp\b)', value: investment_linked}
+            - {pattern: '(?i)(shield|hospitalisation|hospitalization)', value: shield_hospitalisation}
+            - {pattern: '(?i)(protection|life|term|whole[-_ ]?life|\bci\b)', value: protection_life}
 
   # ── ILP: protection/life contract plus suitability facts ─────────────
   investment_linked:
@@ -138,31 +235,107 @@ field_sets:
           premium, term, riders, sum assured, category — record the field
           again as the name PLUS that detail, so the value grows instead of
           either staying a bare name or losing it.
+        # VALIDATE, NEVER REWRITE. The approved-product list (062) says in its
+        # own escalation_cue that a product with no entry is NOT a reason to
+        # withhold a draft — use the advisor's own words for it. So this
+        # contract accepts an unmatched name (on_unmatched: accept) and keeps
+        # the answer whole (stored_form: as_written); the match only records
+        # that the product IS one we hold reference examples for. Unpopulating
+        # here would invent a refusal amelia explicitly ruled against.
+        value_contract:
+          kind: table
+          table: approved_products
+          on_unmatched: accept
+          stored_form: as_written
 
       - id: is_replacement
         required: true
         askable: false
         derived_from: [existing_plans]
+        # The derivation table below resolves to "yes"/"no"; the contract turns
+        # those into a real boolean, so no reader downstream has to decide
+        # whether "yes", "Yes", and "true" are the same answer.
+        value_contract:
+          kind: boolean
+          match:
+            - {pattern: '(?i)^\s*(yes|rop|replacement)\b', value: true}
+            - {pattern: '(?i)^\s*(no|non-rop|not a replacement)\b', value: false}
 
       - id: min_investment_period
         required: true
         askable: true
         ask_hint: "Minimum investment period for the proposed ILP."
+        # R19 (Melody, 2026-08-03): a minimum investment period is only real
+        # if the product actually offers it — Wealth Abundance is MIP10 ONLY,
+        # and a 15- or 20-year Abundance reached a real advisor once. So the
+        # valid set is KEYED on the proposed plan. A product whose confirmed
+        # periods are not on file constrains nothing (the table simply has no
+        # `values` for it), which is the honest behaviour: 160 already tells
+        # the agent to ask one line to confirm the period in that case, and
+        # inventing a restriction here would be the mirror defect.
+        value_contract:
+          kind: table
+          table: product_min_investment_periods
+          key_field: proposed_plan
+          on_unmatched: unpopulate
+          stored_form: entry_value
 
       - id: cka_status
         required: true
         askable: true
         ask_hint: "CKA outcome for the client."
+        # The canonical values ARE the words the approved R07(c) sentence
+        # needs ("Client {passed|did not pass} CKA ..."), so the slot in
+        # compliance/197 splices a recorded value straight in without mapping
+        # anything. Narrow pattern first: "did not pass" must never be read by
+        # the "pass" rule.
+        value_contract:
+          kind: enum
+          values: ["passed", "did not pass"]
+          match:
+            - {pattern: '(?i)(did not pass|not pass|fail|unsuccessful|\bno\b)', value: "did not pass"}
+            - {pattern: '(?i)(pass|clear|complet|\byes\b)', value: "passed"}
 
       - id: risk_profile
         required: true
         askable: true
         ask_hint: "Client risk profile."
+        # teren's probe that produced this whole reshape: "is aggressive a
+        # valid input". It is — and it is recorded as "Aggressive", once, here.
+        value_contract:
+          kind: enum
+          values: [Conservative, Balanced, Aggressive]
+          match:
+            - {pattern: '(?i)\bconservative\b', value: Conservative}
+            - {pattern: '(?i)\bbalanced\b', value: Balanced}
+            - {pattern: '(?i)\baggressive\b', value: Aggressive}
 
       - id: fund_selection
         required: true
         askable: true
         ask_hint: "Fund name(s) selected."
+        # A KNOWN fund is stored under the fund table's canonical name, because
+        # the R09 alignment computation looks it up by exactly that, and
+        # "Franklin Tech Fund" must not read as a different fund from
+        # "Franklin Technology Fund".
+        #
+        # An UNKNOWN fund is ACCEPTED as written, and this is deliberate.
+        # on_unmatched: unpopulate would be the tempting reading of R09's "if
+        # the fund cannot be resolved, ask for the specific fund name" — but
+        # 066 currently holds three funds, transcribed from the two that one
+        # rule happens to name. Against a table that thin, unpopulating turns
+        # "our list is incomplete" into "the advisor gave a bad answer", and
+        # blocks a draft on a perfectly specific fund name (the case-record
+        # eval's own "HSBC Global Balanced Fund" is one). R09's ask is aimed
+        # at a FUND HOUSE named without a fund — a judgment the rules layer
+        # makes on the wording, not something a membership test can see.
+        #
+        # TIGHTEN THIS TO unpopulate WHEN 066 IS COMPLETE, not before.
+        value_contract:
+          kind: table
+          table: funds
+          on_unmatched: accept
+          stored_form: entry_value
 
       - id: objective_alignment
         required: true
@@ -177,6 +350,16 @@ field_sets:
           forbids: intake builds its questions from the empty-required set, so
           the record was generating the exact defect the rules prohibit. An
           unresolvable fund asks for the specific FUND NAME, never for alignment.
+        # The comparison has exactly two outcomes, and 160 gives each a
+        # different behaviour: aligned -> proceed silently; mismatched -> do
+        # not block, flag it in one sentence. Two behaviours off one field is
+        # precisely a case for a closed set rather than free prose.
+        value_contract:
+          kind: enum
+          values: [aligned, mismatched]
+          match:
+            - {pattern: '(?i)(mismatch|does not match|not aligned|misaligned|conflict)', value: mismatched}
+            - {pattern: '(?i)(align|match|consistent|suitable)', value: aligned}
 
       - id: high_premium_declaration_wording
         required: false
@@ -185,6 +368,32 @@ field_sets:
         ask_hint: >-
           Approved wording for the annual-ILP-premium-above-S$36,000
           declaration.
+
+      - id: sustainability_answer
+        required: false
+        askable: true
+        ask_hint: >-
+          Do the client's total annual premiums exceed 50% of their surplus?
+        holds: >-
+          Whether total annual premiums EXCEED 50% of the client's surplus.
+          True = they exceed it; false = they do not.
+        notes: >-
+          PROMOTED FROM RAW-TEXT MATCHING (2026-08-04). Output assembly used to
+          decide the sustainability scope by regex over the conversation text —
+          a second source of truth for a fact the record should hold. It is now
+          a contracted field, and compliance/012 maps it to the scope tag.
+          NOT required: the answer is volunteered, and forcing it into the
+          empty-required set would create an intake question amelia never
+          ruled. Assembly still falls back to text matching when the field is
+          empty, so nothing silently loses its compliance scope.
+          MAY RETIRE: if the pending 50%-removal ruling confirms, this field
+          and its block go away together — that is a deletion, not a rework.
+        value_contract:
+          kind: boolean
+          match:
+            # Ordered: the negations must be read before the bare "exceed".
+            - {pattern: '(?i)(do(es)? not exceed|below 50%|under 50%|less than 50%|within 50%)', value: false}
+            - {pattern: '(?i)(more than 50%|exceeds? 50%|above 50%|over 50%)', value: true}
 
       - id: product_category
         required: false
@@ -195,6 +404,19 @@ field_sets:
           disclaimer-set selection in reference/065-disclaimer-selection.yaml
           (investment products are GIO — no medical underwriting — so they must
           not carry the medical non-disclosure line).
+        # CONTRACT ONLY. The values are exactly the category keys
+        # 065-disclaimer-selection.yaml switches on, so a category that
+        # resolves here is guaranteed to select a disclaimer set rather than
+        # falling through to the assembly's fail-closed branch. The RULE that
+        # derives a category from a product name is a separate lane's item and
+        # is deliberately not built here.
+        value_contract:
+          kind: enum
+          values: [protection_life, investment_linked, shield_hospitalisation]
+          match:
+            - {pattern: '(?i)(investment[-_ ]?linked|\bilp\b)', value: investment_linked}
+            - {pattern: '(?i)(shield|hospitalisation|hospitalization)', value: shield_hospitalisation}
+            - {pattern: '(?i)(protection|life|term|whole[-_ ]?life|\bci\b)', value: protection_life}
 
   # ── Shield / hospitalisation ─────────────────────────────────────────
   shield_hospitalisation:
@@ -226,11 +448,31 @@ field_sets:
           premium, term, riders, sum assured, category — record the field
           again as the name PLUS that detail, so the value grows instead of
           either staying a bare name or losing it.
+        # VALIDATE, NEVER REWRITE. The approved-product list (062) says in its
+        # own escalation_cue that a product with no entry is NOT a reason to
+        # withhold a draft — use the advisor's own words for it. So this
+        # contract accepts an unmatched name (on_unmatched: accept) and keeps
+        # the answer whole (stored_form: as_written); the match only records
+        # that the product IS one we hold reference examples for. Unpopulating
+        # here would invent a refusal amelia explicitly ruled against.
+        value_contract:
+          kind: table
+          table: approved_products
+          on_unmatched: accept
+          stored_form: as_written
 
       - id: is_replacement
         required: true
         askable: false
         derived_from: [existing_plans]
+        # The derivation table below resolves to "yes"/"no"; the contract turns
+        # those into a real boolean, so no reader downstream has to decide
+        # whether "yes", "Yes", and "true" are the same answer.
+        value_contract:
+          kind: boolean
+          match:
+            - {pattern: '(?i)^\s*(yes|rop|replacement)\b', value: true}
+            - {pattern: '(?i)^\s*(no|non-rop|not a replacement)\b', value: false}
 
       - id: replaced_products
         required: false
@@ -260,6 +502,32 @@ field_sets:
         notes: >-
           Identifies the arrangement ONLY. Rider benefit limits, deductible,
           and coinsurance are never collected and never printed.
+      - id: sustainability_answer
+        required: false
+        askable: true
+        ask_hint: >-
+          Do the client's total annual premiums exceed 50% of their surplus?
+        holds: >-
+          Whether total annual premiums EXCEED 50% of the client's surplus.
+          True = they exceed it; false = they do not.
+        notes: >-
+          PROMOTED FROM RAW-TEXT MATCHING (2026-08-04). Output assembly used to
+          decide the sustainability scope by regex over the conversation text —
+          a second source of truth for a fact the record should hold. It is now
+          a contracted field, and compliance/012 maps it to the scope tag.
+          NOT required: the answer is volunteered, and forcing it into the
+          empty-required set would create an intake question amelia never
+          ruled. Assembly still falls back to text matching when the field is
+          empty, so nothing silently loses its compliance scope.
+          MAY RETIRE: if the pending 50%-removal ruling confirms, this field
+          and its block go away together — that is a deletion, not a rework.
+        value_contract:
+          kind: boolean
+          match:
+            # Ordered: the negations must be read before the bare "exceed".
+            - {pattern: '(?i)(do(es)? not exceed|below 50%|under 50%|less than 50%|within 50%)', value: false}
+            - {pattern: '(?i)(more than 50%|exceeds? 50%|above 50%|over 50%)', value: true}
+
       - id: product_category
         required: false
         askable: false
@@ -269,6 +537,62 @@ field_sets:
           disclaimer-set selection in reference/065-disclaimer-selection.yaml
           (investment products are GIO — no medical underwriting — so they must
           not carry the medical non-disclosure line).
+        # CONTRACT ONLY. The values are exactly the category keys
+        # 065-disclaimer-selection.yaml switches on, so a category that
+        # resolves here is guaranteed to select a disclaimer set rather than
+        # falling through to the assembly's fail-closed branch. The RULE that
+        # derives a category from a product name is a separate lane's item and
+        # is deliberately not built here.
+        value_contract:
+          kind: enum
+          values: [protection_life, investment_linked, shield_hospitalisation]
+          match:
+            - {pattern: '(?i)(investment[-_ ]?linked|\bilp\b)', value: investment_linked}
+            - {pattern: '(?i)(shield|hospitalisation|hospitalization)', value: shield_hospitalisation}
+            - {pattern: '(?i)(protection|life|term|whole[-_ ]?life|\bci\b)', value: protection_life}
+
+
+# ── Value tables (CLIENT-OWNED) ──────────────────────────────────────────
+#
+# The reference sets a table-kind value_contract checks against. A table
+# either POINTS at a reference file someone else maintains on its own
+# schedule, or declares its entries inline when this file is their only home.
+#
+# Pointing is the better shape wherever the file exists: copying the approved
+# product list in here would fork it the first time 062 changed, and the copy
+# would keep answering with confidence. `select` / `value_key` / `aliases_key`
+# say how to read THAT file's own column names, so the reference file is never
+# reshaped to suit this consumer.
+
+value_tables:
+
+  # R03's approved-product reference. Consumed by proposed_plan as a
+  # VALIDATOR only — 062's own escalation_cue rules that an unlisted product
+  # still gets a draft in the advisor's own words.
+  approved_products:
+    source: reference/062-approved-products.yaml
+    select: entries
+    value_key: key
+    aliases_key: aliases
+
+  # R09's fund reference. Consumed by fund_selection, which UNPOPULATES on a
+  # miss so intake asks for the specific fund name.
+  funds:
+    source: reference/066-funds.yaml
+    select: entries
+    value_key: key
+    aliases_key: aliases
+
+  # R19 (Melody, 2026-08-03): which minimum investment periods each product
+  # actually offers. Keyed by proposed_plan. A product with no row here — or a
+  # row with no `values` — places NO constraint, which is deliberate: only
+  # Abundance's set is confirmed, and asserting a set for anything else would
+  # be inventing product facts. Adding a product means adding a row, no code.
+  product_min_investment_periods:
+    entries:
+      - value: "Wealth Abundance"
+        aliases: ["Abundance"]
+        values: ["10-year minimum investment period"]
 
 
 # ── Derivations (CLIENT-OWNED) ───────────────────────────────────────────

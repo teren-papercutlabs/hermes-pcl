@@ -51,6 +51,7 @@ source_tags:
   reference/063-product-insurers.yaml: [reference-lookup, insurer-resolution]
   reference/064-replacement-taxonomy.yaml: [reference-lookup, replacement]
   reference/065-disclaimer-selection.yaml: [compliance, disclosures, case-record]
+  reference/066-funds.yaml: [reference-lookup, fund-suitability, case-record]
 smoke_tags: [fabrication, compliance, client-surface]
 gates:
   rule:

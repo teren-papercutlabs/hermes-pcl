@@ -311,13 +311,10 @@ def _slotted_artifact(path: Path, *, drop_guard: list[str] | None = None) -> Non
                 "    slots:",
                 "      - name: cka_result",
                 "        field: cka_status",
-                "        matches:",
-                "          - {pattern: '(?i)(did not pass|not pass|fail)', value: 'did not pass'}",
-                "          - {pattern: '(?i)pass', value: 'passed'}",
+                "        expects: ['passed', 'did not pass']",
                 "      - name: risk_profile",
                 "        field: risk_profile",
-                "        matches:",
-                "          - {pattern: '(?i)aggressive', value: 'Aggressive'}",
+                "        expects: ['Conservative', 'Balanced', 'Aggressive']",
                 *(
                     ["    drop_guard:"] + [f"      - '{item}'" for item in drop_guard]
                     if drop_guard
@@ -337,21 +334,94 @@ def test_slots_are_filled_from_the_case_record_not_the_model(tmp_path):
         "[[PA_SCOPE:DRAFT,ILP]] Draft. [[PA_BLOCK:CKA]]",
         _context("cka.yaml"),
         knowledge_root=tmp_path,
-        field_values={"cka_status": "CKA passed", "risk_profile": "Aggressive"},
+        field_values={"cka_status": "passed", "risk_profile": "Aggressive"},
     )
     assert "Client passed CKA and has a risk profile of Aggressive." in assembled
     assert evidence["inserted"][0]["id"] == "cka_declaration"
 
 
-def test_slot_answers_map_to_canonical_tokens(tmp_path):
+def test_slot_splices_the_contracted_value_it_is_given(tmp_path):
+    """The slot no longer maps anything: it splices what the record holds.
+
+    The variants ("aggressive", "did not pass CKA") are resolved once, at the
+    record write — see tests/test_pa_case_record.py.
+    """
     _slotted_artifact(tmp_path / "cka.yaml")
     assembled, _ = assemble_pa_response(
         "[[PA_SCOPE:DRAFT,ILP]] Draft. [[PA_BLOCK:CKA]]",
         _context("cka.yaml"),
         knowledge_root=tmp_path,
-        field_values={"cka_status": "did not pass", "risk_profile": "aggressive"},
+        field_values={"cka_status": "did not pass", "risk_profile": "Balanced"},
     )
-    assert "Client did not pass CKA and has a risk profile of Aggressive." in assembled
+    assert "Client did not pass CKA and has a risk profile of Balanced." in assembled
+
+
+def test_a_non_contracted_value_reaching_a_slot_is_a_defect_not_a_splice(tmp_path):
+    """The record write is where canonicalisation happens.
+
+    So a raw variant arriving here means it did NOT happen — the value has
+    been checked by nothing. It must not be spliced into approved compliance
+    text; the block drops and the defect is logged.
+    """
+    _slotted_artifact(tmp_path / "cka.yaml")
+    assembled, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,ILP]] Draft. [[PA_BLOCK:CKA]]",
+        _context("cka.yaml"),
+        knowledge_root=tmp_path,
+        # "aggressive" is what an advisor writes; "Aggressive" is what the
+        # record is contracted to hold. Reaching a slot un-canonicalised is
+        # the defect this path exists to surface.
+        field_values={"cka_status": "passed", "risk_profile": "aggressive"},
+    )
+    assert "risk profile of" not in assembled
+    assert evidence["unresolved_slots"][0]["id"] == "cka_declaration"
+
+
+def test_slot_refuses_a_boolean_valued_field(tmp_path):
+    """A boolean-contracted field has no approved prose form."""
+    _slotted_artifact(tmp_path / "cka.yaml")
+    assembled, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,ILP]] Draft. [[PA_BLOCK:CKA]]",
+        _context("cka.yaml"),
+        knowledge_root=tmp_path,
+        field_values={"cka_status": "passed", "risk_profile": True},
+    )
+    assert "True" not in assembled
+    assert evidence["unresolved_slots"][0]["id"] == "cka_declaration"
+
+
+def test_slot_declaring_retired_matches_refuses_to_load(tmp_path):
+    """A config still mapping variants at the slot is a SECOND source of truth."""
+    path = tmp_path / "stale.yaml"
+    path.write_text(
+        "\n".join(
+            [
+                "# pa-source:",
+                "# approved_by: [amelia]",
+                "# approved_date: ['2026-07-31']",
+                "# ruling_ref: [R07]",
+                "# status: approved",
+                "# sequence: 197",
+                "# compose: false",
+                "# ---",
+                "schema_version: 1",
+                "blocks:",
+                "  - id: cka_declaration",
+                "    marker: '[[PA_BLOCK:CKA]]'",
+                "    required_tags: [DRAFT, ILP]",
+                "    slots:",
+                "      - name: cka_result",
+                "        field: cka_status",
+                "        matches:",
+                "          - {pattern: '(?i)pass', value: 'passed'}",
+                "    text: Client {cka_result} CKA.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(PAOutputAssemblyError, match="Slot-level variant mapping is retired"):
+        load_compliance_blocks(_context("stale.yaml"), knowledge_root=tmp_path)
 
 
 def test_unresolvable_slot_drops_the_block_instead_of_shipping_a_hole(tmp_path):
@@ -489,3 +559,97 @@ def test_drop_guard_on_a_block_that_cannot_drop_refuses_to_load(tmp_path):
     )
     with pytest.raises(PAOutputAssemblyError, match="no slots to drop on"):
         load_compliance_blocks(_context("bad.yaml"), knowledge_root=tmp_path)
+
+
+# ── Runtime scope from a contracted record field ───────────────────────────
+
+
+def _sustainability_artifact(path):
+    path.write_text(
+        "\n".join(
+            [
+                "# pa-source:",
+                "# approved_by: [amelia]",
+                "# approved_date: ['2026-07-23']",
+                "# ruling_ref: [R02]",
+                "# status: approved",
+                "# sequence: 10",
+                "# compose: false",
+                "# ---",
+                "schema_version: 1",
+                "blocks:",
+                "  - id: does_not_exceed",
+                "    marker: '[[PA_BLOCK:SUS_NO]]'",
+                "    required_tags: [DRAFT, SUSTAINABILITY_NO]",
+                "    exclusive_group: sustainability",
+                "    text: Premiums do not exceed the threshold.",
+                "  - id: exceeds",
+                "    marker: '[[PA_BLOCK:SUS_YES]]'",
+                "    required_tags: [DRAFT, SUSTAINABILITY_YES]",
+                "    exclusive_group: sustainability",
+                "    text: Premiums exceed the threshold and the client is comfortable.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _scope_field_context(artifact):
+    context = _context(artifact)
+    context.job_brief.response_policy["output_assembly"]["scope_from_fields"] = [
+        {
+            "field": "sustainability_answer",
+            "when_true": "SUSTAINABILITY_YES",
+            "when_false": "SUSTAINABILITY_NO",
+        }
+    ]
+    return context
+
+
+@pytest.mark.parametrize(
+    "recorded,expected_scope",
+    [(True, "SUSTAINABILITY_YES"), (False, "SUSTAINABILITY_NO")],
+)
+def test_a_contracted_field_decides_the_scope_over_the_conversation_text(
+    tmp_path, recorded, expected_scope
+):
+    """The record answers first; the transcript is not re-read behind it."""
+    _sustainability_artifact(tmp_path / "sus.yaml")
+    _, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,SUSTAINABILITY_NO,SUSTAINABILITY_YES]] Draft. "
+        "[[PA_BLOCK:SUS_NO]] [[PA_BLOCK:SUS_YES]]",
+        _scope_field_context("sus.yaml"),
+        knowledge_root=tmp_path,
+        # The source text says the OPPOSITE of the record on purpose: the
+        # record is the fact, the transcript is where the fact was said once.
+        source_text="premiums do not exceed 50% of surplus",
+        field_values={"sustainability_answer": recorded},
+    )
+    assert evidence["deterministic_scope"] == expected_scope
+
+
+def test_the_text_fallback_still_answers_when_the_field_is_unpopulated(tmp_path):
+    """A field nobody filled must not silently drop a compliance scope."""
+    _sustainability_artifact(tmp_path / "sus.yaml")
+    _, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,SUSTAINABILITY_NO]] Draft. [[PA_BLOCK:SUS_NO]]",
+        _scope_field_context("sus.yaml"),
+        knowledge_root=tmp_path,
+        source_text="premiums do not exceed 50% of surplus",
+        field_values={},
+    )
+    assert evidence["deterministic_scope"] == "SUSTAINABILITY_NO"
+
+
+def test_an_uncontracted_free_text_value_does_not_decide_a_scope(tmp_path):
+    """Only a real boolean counts — guessing here reintroduces text matching."""
+    _sustainability_artifact(tmp_path / "sus.yaml")
+    _, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,SUSTAINABILITY_NO]] Draft. [[PA_BLOCK:SUS_NO]]",
+        _scope_field_context("sus.yaml"),
+        knowledge_root=tmp_path,
+        source_text="premiums do not exceed 50% of surplus",
+        field_values={"sustainability_answer": "probably yes"},
+    )
+    assert evidence["deterministic_scope"] == "SUSTAINABILITY_NO"

@@ -51,9 +51,13 @@ actually reason with.
 from __future__ import annotations
 
 import json
+import logging
+import re
 from dataclasses import dataclass, field as dc_field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 # ── Origins ─────────────────────────────────────────────────────────────
@@ -80,6 +84,69 @@ STATUS_OPEN = "open"
 STATUS_SUPERSEDED = "superseded"
 
 
+# ── The value contract ──────────────────────────────────────────────────
+#
+# A field may declare a VALUE CONTRACT: a promise about the shape of what it
+# holds.  The contract is enforced ONCE, at the record write, because the
+# record is what every downstream reader — the prompt, a suitability
+# computation, an approved sentence's slot, an eval — actually reads.
+# Enforced anywhere further downstream, each reader re-derives the same
+# mapping from the same free text, and they drift apart one reader at a time.
+#
+# Three KINDS, and the kinds are the generic part.  What any particular
+# contract contains — which values, which patterns, which reference table —
+# is deployment config and never appears in this module.
+#
+#   enum     — a closed set of canonical values, plus how free text reaches
+#              one of them.
+#   boolean  — the two-valued case of the same idea, stored as a real bool
+#              so no reader has to decide whether "yes" and "true" differ.
+#   table    — the valid set lives in a declared reference file rather than
+#              in the field's own config, because it is maintained elsewhere
+#              and changes on its own schedule.  Optionally KEYED by another
+#              field, when the valid set depends on that field's answer.
+
+CONTRACT_ENUM = "enum"
+CONTRACT_BOOLEAN = "boolean"
+CONTRACT_TABLE = "table"
+VALID_CONTRACT_KINDS = (CONTRACT_ENUM, CONTRACT_BOOLEAN, CONTRACT_TABLE)
+
+#: What an unmatched value does.  ``unpopulate`` leaves the field empty so
+#: intake asks; ``accept`` keeps the value as written (the right setting when
+#: a reference table is a list of KNOWN examples rather than a closed set —
+#: a name missing from it is a gap in the table, not a bad answer).
+UNMATCHED_UNPOPULATE = "unpopulate"
+UNMATCHED_ACCEPT = "accept"
+
+#: Which form a table-contracted value is stored in once it matches.
+#: ``entry_value`` replaces the answer with the table's canonical spelling
+#: (right for a field that holds an identifier and nothing else).
+#: ``as_written`` keeps the answer whole and uses the match only to validate
+#: (right for a descriptive field whose value carries far more than the
+#: identifier — replacing it would DESTROY the premium, term, and rider
+#: detail the advisor supplied).
+FORM_ENTRY_VALUE = "entry_value"
+FORM_AS_WRITTEN = "as_written"
+
+
+# ── Canonicalisation outcomes ───────────────────────────────────────────
+
+#: The field carries no value contract; whatever was written is the value.
+CANON_UNCONTRACTED = "uncontracted"
+#: The written value already satisfied the contract exactly.
+CANON_EXACT = "exact"
+#: The contract resolved free text to a contracted value.  ``raw_value``
+#: keeps what the writer actually said.
+CANON_MAPPED = "mapped"
+#: A table contract matched a known entry but kept the answer as written.
+CANON_VALIDATED = "validated"
+#: The contract could not resolve the answer.  The field is NOT populated:
+#: the row exists only to carry the raw answer and the fact that it did not
+#: resolve, so the field stays in ``empty_required_fields`` and intake asks
+#: again.  Never a guess, never a silent drop.
+CANON_UNMAPPABLE = "unmappable"
+
+
 # ── Shape contract ──────────────────────────────────────────────────────
 
 
@@ -96,6 +163,13 @@ class CaseFieldValue:
     record_version: int = 0
     #: Set when origin is ``derived``.
     derived_from_field_id: Optional[str] = None
+    #: What the writer ACTUALLY said, before the field's contract resolved
+    #: it.  Set whenever canonicalisation changed or rejected the answer, so
+    #: the audit trail shows the advisor's own words next to the value the
+    #: record kept.  ``None`` when the written value stood unchanged.
+    raw_value: Optional[str] = None
+    #: One of the ``CANON_*`` outcomes above.
+    canonicalization: str = CANON_UNCONTRACTED
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> "CaseFieldValue":
@@ -107,7 +181,19 @@ class CaseFieldValue:
             recorded_at=row.get("recorded_at"),
             record_version=int(row.get("record_version") or 0),
             derived_from_field_id=row.get("derived_from_field_id"),
+            raw_value=row.get("raw_value"),
+            canonicalization=row.get("canonicalization") or CANON_UNCONTRACTED,
         )
+
+    @property
+    def is_unmappable(self) -> bool:
+        """The writer answered, but the answer maps to no canonical value.
+
+        Distinct from "never answered": the field is still empty (so intake
+        asks), but the ask should be a CLARIFICATION of what was said, not a
+        first request.
+        """
+        return self.canonicalization == CANON_UNMAPPABLE
 
     @property
     def is_filled(self) -> bool:
@@ -194,6 +280,401 @@ class CaseRecord:
 
 
 @dataclass(frozen=True)
+class ValueTableEntry:
+    """One row of a reference table: a canonical value and how to spot it."""
+
+    value: str
+    aliases: Tuple[str, ...] = ()
+    patterns: Tuple[re.Pattern[str], ...] = ()
+    #: Values this entry permits for a field KEYED on it.  Empty means the
+    #: entry places no constraint — which is the honest answer for a product
+    #: whose confirmed set nobody has recorded yet.
+    keyed_values: Tuple[str, ...] = ()
+
+    def matches(self, text: str) -> bool:
+        """Does this entry's identifier appear in the written answer?
+
+        CONTAINMENT, not equality: a field's answer is prose that carries the
+        identifier plus everything else the writer said ("Wealth Voyage, 15yr
+        MIP, $12k annual"), so an equality test would reject every real
+        answer.  Word-boundary anchored so "Voyage" does not match inside an
+        unrelated longer word.
+        """
+        for candidate in (self.value, *self.aliases):
+            if not candidate:
+                continue
+            if re.search(rf"(?<!\w){re.escape(candidate)}(?!\w)", text, re.IGNORECASE):
+                return True
+        return any(pattern.search(text) for pattern in self.patterns)
+
+
+@dataclass(frozen=True)
+class ValueTable:
+    """A named reference table of permitted values, loaded from config."""
+
+    table_id: str
+    entries: Tuple[ValueTableEntry, ...] = ()
+    source: Optional[str] = None
+
+    def find(self, text: str) -> Optional[ValueTableEntry]:
+        for entry in self.entries:
+            if entry.matches(text):
+                return entry
+        return None
+
+    @property
+    def values(self) -> Tuple[str, ...]:
+        return tuple(entry.value for entry in self.entries)
+
+
+@dataclass(frozen=True)
+class ValueContract:
+    """What a field promises about the values it holds.
+
+    ONE class for all three kinds rather than a subclass tree, because the
+    thing callers do with a contract is identical in every kind — hand it a
+    written answer, get back a contracted value or a refusal — and the store
+    must be able to hold a heterogeneous map of them without caring which is
+    which.
+
+    Every attribute here is filled from DEPLOYMENT CONFIG.  This module knows
+    a field can have a closed value set, a boolean shape, or a table to check
+    against; it never knows what any value means.
+    """
+
+    kind: str = CONTRACT_ENUM
+    #: enum: the canonical set.  table: unused (the table supplies it).
+    values: Tuple[str, ...] = ()
+    #: Free text -> contracted value, tried in DECLARATION ORDER, so a
+    #: deployment puts the narrower pattern first ("did not pass" before
+    #: "pass").  Values here are the raw config values, coerced by kind.
+    matches: Tuple[Tuple[re.Pattern[str], Any], ...] = ()
+    #: table kind: which reference table to check against.
+    table_id: Optional[str] = None
+    #: table kind: when set, the valid set is looked up in the table by the
+    #: value of THIS other field, rather than the table being the valid set.
+    key_field_id: Optional[str] = None
+    on_unmatched: str = UNMATCHED_UNPOPULATE
+    stored_form: str = FORM_ENTRY_VALUE
+
+    # ── the one operation ──
+
+    def resolve(
+        self,
+        raw: Any,
+        *,
+        tables: Optional[Mapping[str, ValueTable]] = None,
+        key_value: Any = None,
+    ) -> Tuple[Any, str]:
+        """Resolve a written answer to ``(contracted value, outcome)``.
+
+        Returns ``(None, CANON_UNMAPPABLE)`` when nothing resolves — the
+        caller must then leave the field EMPTY.  Resolving to the nearest
+        plausible value would put something in the record that nobody said,
+        wearing the record's authority.
+        """
+        if raw is None:
+            return None, CANON_UNMAPPABLE
+        text = str(raw).strip()
+        if not text:
+            return None, CANON_UNMAPPABLE
+        if self.kind == CONTRACT_BOOLEAN:
+            return self._resolve_boolean(raw, text)
+        if self.kind == CONTRACT_TABLE:
+            return self._resolve_table(text, tables or {}, key_value)
+        return self._resolve_enum(text)
+
+    # ── kinds ──
+
+    def _resolve_enum(self, text: str) -> Tuple[Any, str]:
+        lowered = text.casefold()
+        for value in self.values:
+            if lowered == value.casefold():
+                # Already contracted (modulo case): normalise to the declared
+                # spelling so the record holds exactly one form.
+                return value, CANON_EXACT if text == value else CANON_MAPPED
+        for pattern, value in self.matches:
+            if pattern.search(text):
+                return value, CANON_MAPPED
+        return None, CANON_UNMAPPABLE
+
+    def _resolve_boolean(self, raw: Any, text: str) -> Tuple[Any, str]:
+        if isinstance(raw, bool):
+            return raw, CANON_EXACT
+        for pattern, value in self.matches:
+            if pattern.search(text):
+                return bool(value), CANON_MAPPED
+        return None, CANON_UNMAPPABLE
+
+    def _resolve_table(
+        self,
+        text: str,
+        tables: Mapping[str, ValueTable],
+        key_value: Any,
+    ) -> Tuple[Any, str]:
+        table = tables.get(str(self.table_id or ""))
+        if table is None:
+            # A contract naming a table nobody loaded cannot judge anything.
+            # Refusing every answer here would silently block the deployment
+            # on a config typo, so the field is accepted and the defect is
+            # logged where an operator sees it.
+            logger.warning(
+                "value contract names unknown table %r; accepting as written",
+                self.table_id,
+            )
+            return text, CANON_UNCONTRACTED
+
+        if self.key_field_id:
+            # KEYED: the table row is chosen by ANOTHER field's answer, and
+            # that row's permitted values are the valid set for this field.
+            if key_value is None:
+                return self._unmatched(text)
+            key_entry = table.find(str(key_value))
+            if key_entry is None or not key_entry.keyed_values:
+                # The keying answer names nothing the table knows, or the
+                # table declares no constraint for it.  An UNDECLARED product
+                # constrains nothing — asserting otherwise would invent a
+                # restriction the deployment never ruled.
+                return text, CANON_UNCONTRACTED
+            sub = ValueContract(
+                kind=CONTRACT_ENUM,
+                values=key_entry.keyed_values,
+                matches=self.matches,
+            )
+            value, outcome = sub._resolve_enum(text)
+            if outcome == CANON_UNMAPPABLE:
+                return self._unmatched(text)
+            if self.stored_form == FORM_AS_WRITTEN:
+                return text, CANON_VALIDATED
+            return value, outcome
+
+        entry = table.find(text)
+        if entry is None:
+            return self._unmatched(text)
+        if self.stored_form == FORM_AS_WRITTEN:
+            # Validated, not rewritten: the answer carries more than the
+            # identifier and all of it is case fact.
+            return text, CANON_VALIDATED
+        return entry.value, (CANON_EXACT if text == entry.value else CANON_MAPPED)
+
+    def _unmatched(self, text: str) -> Tuple[Any, str]:
+        if self.on_unmatched == UNMATCHED_ACCEPT:
+            return text, CANON_UNCONTRACTED
+        return None, CANON_UNMAPPABLE
+
+    # ── reporting ──
+
+    def describe_values(
+        self, tables: Optional[Mapping[str, ValueTable]] = None
+    ) -> str:
+        """The permitted values, for the clarification question intake asks."""
+        if self.kind == CONTRACT_BOOLEAN:
+            return "yes, no"
+        if self.kind == CONTRACT_TABLE:
+            table = (tables or {}).get(str(self.table_id or ""))
+            return ", ".join(table.values) if table else ""
+        return ", ".join(self.values)
+
+
+#: Boolean fields accept the words humans actually write.  A deployment may
+#: add its own patterns; these are the floor, so declaring `kind: boolean`
+#: alone already works.
+_DEFAULT_BOOLEAN_MATCHES: Tuple[Tuple[re.Pattern[str], bool], ...] = (
+    (re.compile(r"(?i)^\s*(yes|y|true|t|1)\s*$"), True),
+    (re.compile(r"(?i)^\s*(no|n|false|f|0)\s*$"), False),
+)
+
+
+def _compile_matches(
+    raw: Any,
+    field_id: str,
+    *,
+    kind: str,
+    values: Sequence[str],
+) -> Tuple[Tuple[re.Pattern[str], Any], ...]:
+    matches: List[Tuple[re.Pattern[str], Any]] = []
+    for item in raw or ():
+        if not isinstance(item, Mapping):
+            raise ValueError(
+                f"field '{field_id}': value_contract match entries must be mappings"
+            )
+        pattern = str(item.get("pattern") or "")
+        value = item.get("value")
+        if not pattern or value is None:
+            raise ValueError(
+                f"field '{field_id}': value_contract match needs pattern and value"
+            )
+        if kind == CONTRACT_BOOLEAN:
+            resolved: Any = bool(value)
+        else:
+            resolved = str(value)
+            if values and resolved not in values:
+                # A mapping that produces a value outside the declared set
+                # defeats the whole point of declaring the set.
+                raise ValueError(
+                    f"field '{field_id}': value_contract match maps to "
+                    f"{resolved!r}, which is not one of the declared values"
+                )
+        try:
+            matches.append((re.compile(pattern), resolved))
+        except re.error as exc:
+            raise ValueError(
+                f"field '{field_id}': value_contract bad pattern {pattern!r}: {exc}"
+            ) from exc
+    return tuple(matches)
+
+
+def _contract_from_mapping(raw: Any, field_id: str) -> Optional[ValueContract]:
+    """Parse a field's ``value_contract:`` block, or None when it declares none."""
+    if raw in (None, (), [], {}):
+        return None
+    if not isinstance(raw, Mapping):
+        raise ValueError(f"field '{field_id}': value_contract must be a mapping")
+    kind = str(raw.get("kind") or CONTRACT_ENUM).strip().lower()
+    if kind not in VALID_CONTRACT_KINDS:
+        raise ValueError(
+            f"field '{field_id}': value_contract kind must be one of "
+            f"{VALID_CONTRACT_KINDS}, got {kind!r}"
+        )
+    on_unmatched = str(raw.get("on_unmatched") or UNMATCHED_UNPOPULATE).strip().lower()
+    if on_unmatched not in (UNMATCHED_UNPOPULATE, UNMATCHED_ACCEPT):
+        raise ValueError(
+            f"field '{field_id}': on_unmatched must be "
+            f"'{UNMATCHED_UNPOPULATE}' or '{UNMATCHED_ACCEPT}'"
+        )
+    stored_form = str(raw.get("stored_form") or FORM_ENTRY_VALUE).strip().lower()
+    if stored_form not in (FORM_ENTRY_VALUE, FORM_AS_WRITTEN):
+        raise ValueError(
+            f"field '{field_id}': stored_form must be "
+            f"'{FORM_ENTRY_VALUE}' or '{FORM_AS_WRITTEN}'"
+        )
+
+    values = tuple(
+        str(v).strip() for v in (raw.get("values") or ()) if str(v).strip()
+    )
+    if kind == CONTRACT_ENUM and not values:
+        raise ValueError(
+            f"field '{field_id}': an enum value_contract must declare values"
+        )
+    table_id = raw.get("table")
+    if kind == CONTRACT_TABLE and not table_id:
+        raise ValueError(
+            f"field '{field_id}': a table value_contract must name a table"
+        )
+    matches = _compile_matches(
+        raw.get("match") or raw.get("matches"),
+        field_id,
+        kind=kind,
+        values=values,
+    )
+    if kind == CONTRACT_BOOLEAN:
+        matches = matches + _DEFAULT_BOOLEAN_MATCHES
+    return ValueContract(
+        kind=kind,
+        values=values,
+        matches=matches,
+        table_id=str(table_id) if table_id else None,
+        key_field_id=(
+            str(raw["key_field"]) if raw.get("key_field") else None
+        ),
+        on_unmatched=on_unmatched,
+        stored_form=stored_form,
+    )
+
+
+def parse_value_tables(data: Mapping[str, Any]) -> Dict[str, ValueTable]:
+    """Build the reference tables a table-kind contract checks against.
+
+    Config shape (all of it deployment vocabulary)::
+
+        value_tables:
+          <table id>:
+            source: <relative path to a reference file>   # optional
+            select: <key in that file holding the entries>
+            value_key: <key within an entry holding the value>
+            aliases_key: <key within an entry holding alternate spellings>
+            entries:                                       # or declared inline
+              - value: "..."
+                aliases: ["..."]
+                match: ["<regex>", ...]
+                values: ["..."]      # permitted set when KEYED on this entry
+
+    ``source`` is resolved by the RUNTIME (which owns the knowledge root), not
+    here; this parser handles the inline form and the already-loaded rows the
+    runtime hands back.
+    """
+    raw_tables = data.get("value_tables") or {}
+    if not isinstance(raw_tables, Mapping):
+        raise ValueError("'value_tables' must be a mapping of id -> definition")
+    out: Dict[str, ValueTable] = {}
+    for table_id, raw in raw_tables.items():
+        raw = raw or {}
+        if not isinstance(raw, Mapping):
+            raise ValueError(f"value table '{table_id}' must be a mapping")
+        out[str(table_id)] = ValueTable(
+            table_id=str(table_id),
+            entries=parse_value_table_entries(
+                raw.get("entries"),
+                table_id=str(table_id),
+                value_key=str(raw.get("value_key") or "value"),
+                aliases_key=str(raw.get("aliases_key") or "aliases"),
+            ),
+            source=str(raw["source"]) if raw.get("source") else None,
+        )
+    return out
+
+
+def parse_value_table_entries(
+    raw: Any,
+    *,
+    table_id: str,
+    value_key: str = "value",
+    aliases_key: str = "aliases",
+) -> Tuple[ValueTableEntry, ...]:
+    """Turn a list of rows — inline or loaded from a reference file — into entries.
+
+    ``value_key`` / ``aliases_key`` exist because a reference file is owned by
+    whoever maintains it and names its columns its own way; the deployment
+    says which column carries the value rather than the file being reshaped
+    to suit this consumer.
+    """
+    entries: List[ValueTableEntry] = []
+    for item in raw or ():
+        if isinstance(item, str):
+            entries.append(ValueTableEntry(value=item))
+            continue
+        if not isinstance(item, Mapping):
+            raise ValueError(f"value table '{table_id}': entries must be mappings")
+        value = item.get(value_key)
+        if value is None:
+            value = item.get("value") or item.get("key")
+        if value is None:
+            raise ValueError(
+                f"value table '{table_id}': entry has no {value_key!r}: {item!r}"
+            )
+        patterns: List[re.Pattern[str]] = []
+        for pattern in item.get("match") or ():
+            try:
+                patterns.append(re.compile(str(pattern)))
+            except re.error as exc:
+                raise ValueError(
+                    f"value table '{table_id}': bad pattern {pattern!r}: {exc}"
+                ) from exc
+        aliases = item.get(aliases_key) or item.get("aliases") or ()
+        entries.append(
+            ValueTableEntry(
+                value=str(value),
+                aliases=tuple(str(a) for a in aliases if str(a).strip()),
+                patterns=tuple(patterns),
+                keyed_values=tuple(
+                    str(v) for v in (item.get("values") or ()) if str(v).strip()
+                ),
+            )
+        )
+    return tuple(entries)
+
+
+@dataclass(frozen=True)
 class FieldSpec:
     """One field a case type may require.
 
@@ -222,6 +703,10 @@ class FieldSpec:
     #: deployment interprets (e.g. "only when X"). Opaque here by design.
     applies_when: Optional[str] = None
     notes: Optional[str] = None
+    #: When set, the field promises a contracted value shape (enum, boolean,
+    #: or checked against a reference table).  Enforced at the record write,
+    #: never downstream — see ``CaseRecordStore.record_field``.
+    value_contract: Optional[ValueContract] = None
 
 
 @dataclass(frozen=True)
@@ -256,6 +741,9 @@ def _spec_from_mapping(raw: Mapping[str, Any]) -> FieldSpec:
         derived_from=tuple(raw.get("derived_from") or ()),
         applies_when=raw.get("applies_when"),
         notes=raw.get("notes"),
+        value_contract=_contract_from_mapping(
+            raw.get("value_contract") or raw.get("enum"), str(field_id)
+        ),
     )
 
 
@@ -275,6 +763,15 @@ def parse_field_sets(data: Mapping[str, Any]) -> Dict[str, FieldSet]:
                 ask_hint: "..."     # the QUESTION intake composes from
                 holds: "..."        # what the field HOLDS, for recognition
                 derived_from: [<field id>, ...]
+                value_contract:     # optional: what the field may hold
+                  kind: enum | boolean | table
+                  values: [<canonical>, ...]        # enum
+                  table: <value table id>           # table
+                  key_field: <field id>             # table, keyed lookup
+                  on_unmatched: unpopulate | accept
+                  stored_form: entry_value | as_written
+                  match:            # free text -> contracted, IN ORDER
+                    - {pattern: "...", value: <contracted>}
 
     Keys are opaque: this parser never inspects a field id's meaning.
     """
@@ -318,6 +815,33 @@ def load_field_sets(path: "str | Path") -> Dict[str, FieldSet]:
     if not isinstance(data, Mapping):
         raise ValueError(f"field-set config must be a mapping: {p}")
     return parse_field_sets(data)
+
+
+def value_contracts_from_field_sets(
+    field_sets: Mapping[str, FieldSet],
+) -> Dict[str, ValueContract]:
+    """Collect every contracted field id across all case types.
+
+    A field id means the SAME thing in every case type that declares it (that
+    is what makes the union safe for extraction), so its contract must agree
+    too.  A conflicting second declaration is a config defect: the first wins
+    and the conflict is logged rather than silently picked.
+    """
+    out: Dict[str, ValueContract] = {}
+    for field_set in field_sets.values():
+        for spec in field_set.fields:
+            if spec.value_contract is None:
+                continue
+            existing = out.get(spec.field_id)
+            if existing is None:
+                out[spec.field_id] = spec.value_contract
+            elif existing != spec.value_contract:
+                logger.warning(
+                    "field '%s' declares conflicting value contracts across "
+                    "case types; keeping the first",
+                    spec.field_id,
+                )
+    return out
 
 
 def select_field_set(
@@ -404,10 +928,60 @@ class CaseRecordStore:
     Thin by design: the transactions live on SessionDB (alongside the other
     ``pa_*`` writers), and this class supplies the dataclass shapes plus the
     derivation hook.
+
+    ``value_contracts`` makes this store the ONE place a field's value
+    contract is enforced.  Every write — stated, derived, or config-derivation
+    — funnels through ``record_field``, so a record built by this store holds
+    contracted values only, and no downstream reader has to know the mapping.
+    A store constructed without them (read-only callers) enforces nothing,
+    which is correct: it never writes.
     """
 
-    def __init__(self, session_db: Any):
+    def __init__(
+        self,
+        session_db: Any,
+        *,
+        value_contracts: Optional[Mapping[str, ValueContract]] = None,
+        value_tables: Optional[Mapping[str, ValueTable]] = None,
+    ):
         self._db = session_db
+        self._contracts: Dict[str, ValueContract] = dict(value_contracts or {})
+        self._tables: Dict[str, ValueTable] = dict(value_tables or {})
+
+    # ── the value contract ──
+
+    def value_contract(self, field_id: str) -> Optional[ValueContract]:
+        return self._contracts.get(field_id)
+
+    @property
+    def value_tables(self) -> Mapping[str, ValueTable]:
+        return self._tables
+
+    def canonicalize(
+        self,
+        field_id: str,
+        value: Any,
+        *,
+        record: Optional[CaseRecord] = None,
+    ) -> Tuple[Any, str]:
+        """``(contracted value, outcome)`` for a value about to be written.
+
+        Exposed so a caller can compare a candidate answer against what the
+        record already holds WITHOUT writing — an advisor restating
+        "aggressive" against a stored "Aggressive" has changed nothing, and
+        churning the record version on it would be a lie about the case.
+
+        ``record`` supplies the KEYING answer for a contract whose valid set
+        depends on another field (a minimum investment period is only valid
+        against the product that offers it).
+        """
+        contract = self._contracts.get(field_id)
+        if contract is None:
+            return value, CANON_UNCONTRACTED
+        key_value = None
+        if contract.key_field_id and record is not None:
+            key_value = record.value_of(contract.key_field_id)
+        return contract.resolve(value, tables=self._tables, key_value=key_value)
 
     # ── mint ──
 
@@ -478,6 +1052,20 @@ class CaseRecordStore:
 
         A second call for the same field is a CORRECTION: it overwrites,
         bumps the version, and pushes the replaced value into history.
+
+        **THIS IS WHERE A FIELD'S VALUE CONTRACT IS ENFORCED**, because this
+        is where the field is POPULATED.  A contracted field stores exactly
+        one of the values its contract permits; the writer's own wording is
+        preserved beside it as ``raw_value``, so the audit trail shows what
+        the advisor actually said.
+
+        An answer the contract cannot resolve does NOT populate the field.
+        The row is written with a null value and ``canonicalization =
+        unmappable``, which keeps the field in ``empty_required_fields`` —
+        so intake asks a clarification before anything is drafted.  Resolving
+        it to the nearest value would be a guess wearing the record's
+        authority, and a guess is the one thing this substrate must never
+        store.
         """
         if origin not in VALID_ORIGINS:
             raise ValueError(
@@ -487,13 +1075,33 @@ class CaseRecordStore:
             raise ValueError(
                 "a derived field must name derived_from_field_id"
             )
+        contract = self._contracts.get(field_id)
+        keying_record: Optional[CaseRecord] = None
+        if contract is not None and contract.key_field_id:
+            keying_record = self.get_case(case_id)
+        canonical, outcome = self.canonicalize(
+            field_id, value, record=keying_record
+        )
+        raw_value: Optional[str] = None
+        if outcome in (CANON_MAPPED, CANON_VALIDATED, CANON_UNMAPPABLE):
+            raw_value = None if value is None else str(value)
+        if outcome == CANON_UNMAPPABLE:
+            logger.info(
+                "case %s: field '%s' answer %r satisfies no contracted value; "
+                "leaving it empty so intake asks",
+                case_id,
+                field_id,
+                value,
+            )
         return self._db.record_pa_case_field(
             case_id=case_id,
             field_id=field_id,
-            value=value,
+            value=canonical,
             origin=origin,
             source_message_id=source_message_id,
             derived_from_field_id=derived_from_field_id,
+            raw_value=raw_value,
+            canonicalization=outcome,
         )
 
     # ── derivation hook ──
@@ -616,10 +1224,29 @@ __all__ = [
     "VALID_ORIGINS",
     "STATUS_OPEN",
     "STATUS_SUPERSEDED",
+    "CANON_UNCONTRACTED",
+    "CANON_EXACT",
+    "CANON_MAPPED",
+    "CANON_VALIDATED",
+    "CANON_UNMAPPABLE",
+    "CONTRACT_ENUM",
+    "CONTRACT_BOOLEAN",
+    "CONTRACT_TABLE",
+    "VALID_CONTRACT_KINDS",
+    "UNMATCHED_ACCEPT",
+    "UNMATCHED_UNPOPULATE",
+    "FORM_AS_WRITTEN",
+    "FORM_ENTRY_VALUE",
     "CaseFieldValue",
     "CaseRecord",
+    "ValueContract",
+    "ValueTable",
+    "ValueTableEntry",
     "FieldSpec",
     "FieldSet",
+    "value_contracts_from_field_sets",
+    "parse_value_tables",
+    "parse_value_table_entries",
     "parse_field_sets",
     "load_field_sets",
     "select_field_set",
