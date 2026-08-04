@@ -384,8 +384,7 @@ def test_xlsx_file_listing_promotes_atomically_and_idempotently(tmp_path):
     assert first["files"][0]["media_ref"] == (
         f"/media/tgg/hermes/{promoted[0].name}"
     )
-    assert "r_12ab34cd" in promoted[0].name
-    assert hashlib.sha256(workbook.read_bytes()).hexdigest() in promoted[0].name
+    assert promoted[0].name == "weekly-report__r_12ab34cd.xlsx"
 
     second, error = sandbox._harvest(
         work, "summary", "", "success", sandbox.DEFAULTS, **kwargs

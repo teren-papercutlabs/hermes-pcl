@@ -595,7 +595,11 @@ def _promote_workbook(
         return None
 
     hexdigest = digest.hexdigest()
-    basename = f"sandbox_{run_id}_{hexdigest}.xlsx"
+    # Deliverable filename: keep the model's chosen name (already constrained
+    # by _CLIENT_ARTIFACT_NAME) so the client receives a readable document;
+    # the run-id suffix keeps retained names collision-free across runs.
+    stem = source.stem[:100]
+    basename = f"{stem}__{run_id}.xlsx"
     media_root.mkdir(parents=True, exist_ok=True, mode=0o750)
     target = media_root / basename
     if target.exists():
