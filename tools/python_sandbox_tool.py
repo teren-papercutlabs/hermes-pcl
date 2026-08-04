@@ -54,11 +54,15 @@ RESULT_CAP = 8 * 1024
 INPUT_JSON_CAP = 32 * 1024
 _PROBE: tuple[float, bool, str] | None = None
 _PROBE_TTL = 30.0
+_WORKSPACE_LOCKS: dict[str, threading.Lock] = {}
+_WORKSPACE_LOCKS_GUARD = threading.Lock()
+_EXPORT_COMPLETE = ".hermes-export-complete"
 
 _SUPERVISOR_SOURCE = r"""\
 import ctypes
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -111,7 +115,14 @@ for root, dirs, files in os.walk("/work", topdown=True, followlinks=False):
             os.unlink(path)
 
 subprocess.run(["mount", "-o", "remount,bind,rw", "/export"], check=True)
+for name in os.listdir("/export"):
+    path = os.path.join("/export", name)
+    if os.path.isdir(path) and not os.path.islink(path):
+        shutil.rmtree(path)
+    else:
+        os.unlink(path)
 subprocess.run(["cp", "-a", "/work/.", "/export/"], check=True)
+open("/export/.hermes-export-complete", "wb").close()
 if completed.returncode < 0:
     os._exit(128 - completed.returncode)
 raise SystemExit(completed.returncode)
@@ -320,6 +331,7 @@ def _generate_init_script(
     cpu_seconds: int = 60,
     scratch_mb: int = 64,
     sqlite_datasets: set[str] | None = None,
+    seed_work: Path | None = None,
 ) -> str:
     """Generate the mount plan executed as namespace-root."""
     jail = run_dir / "jail"
@@ -331,7 +343,7 @@ def _generate_init_script(
         f'mount -t tmpfs -o size={int(tmpfs_mb)}m,nosuid,nodev tmpfs "$JAIL"',
         'mkdir -p "$JAIL/usr" "$JAIL/bin" "$JAIL/lib" "$JAIL/lib64" '
         '"$JAIL/venv" "$JAIL/etc" "$JAIL/inputs" "$JAIL/work" "$JAIL/export" '
-        '"$JAIL/proc" "$JAIL/.oldroot"',
+        '"$JAIL/proc" "$JAIL/seed" "$JAIL/.oldroot"',
         'ro_dir() { src=$1; dst=$2; [ -e "$src" ] || return 0; '
         'mount --rbind "$src" "$dst"; mount --make-rslave "$dst"; '
         'targets="$JAIL/.mount-targets"; : > "$targets"; '
@@ -372,6 +384,12 @@ def _generate_init_script(
         f'mount -t tmpfs -o size={int(scratch_mb)}m,nosuid,nodev,noexec '
         'tmpfs "$JAIL/work"'
     )
+    if seed_work is not None:
+        lines.append(f'ro_dir {_q(seed_work)} "$JAIL/seed"')
+        lines.append('cp -a "$JAIL/seed/." "$JAIL/work/"')
+        # result.json is the current invocation's return channel, not user
+        # workspace state. A prior result must never be harvested as this run's.
+        lines.append('rm -f "$JAIL/work/result.json"')
     for name, source in mounts.items():
         if name in sqlite_datasets:
             target = f'"$JAIL/work/{name}.db"'
@@ -756,6 +774,70 @@ def _prune_runs(root: Path, config: Mapping[str, Any]) -> None:
             shutil.rmtree(path, ignore_errors=True)
 
 
+def _workspace_mode(config: Mapping[str, Any]) -> str:
+    """Return the configured scratch lifetime, preserving run scope by default."""
+    return "session" if config.get("workspace") == "session" else "run"
+
+
+def _workspace_key(session_id: str) -> str:
+    return "s_" + hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+
+
+def _workspace_lock(session_id: str) -> threading.Lock:
+    key = _workspace_key(session_id)
+    with _WORKSPACE_LOCKS_GUARD:
+        return _WORKSPACE_LOCKS.setdefault(key, threading.Lock())
+
+
+def _prune_workspaces(
+    root: Path,
+    config: Mapping[str, Any],
+    *,
+    exclude: Path | None = None,
+) -> None:
+    """Bound retained session workspaces by the artifact TTL and a count cap."""
+    try:
+        ttl = max(0, int(config.get("artifact_ttl_days", 7))) * 86400
+        keep = max(1, int(config.get("max_session_workspaces", 40)))
+    except (TypeError, ValueError):
+        ttl, keep = 7 * 86400, 40
+    now = time.time()
+    entries = (
+        sorted(
+            (path for path in root.iterdir() if path.is_dir()),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        if root.exists()
+        else []
+    )
+    kept = 0
+    for path in entries:
+        if exclude is not None and path == exclude:
+            kept += 1
+            continue
+        expired = bool(ttl and now - path.stat().st_mtime > ttl)
+        if expired or kept >= keep:
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            kept += 1
+
+
+def _replace_workspace(source: Path, destination: Path) -> None:
+    """Mirror one completed run into its retained session workspace."""
+    parent = destination.parent
+    parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    staged = parent / f".work-{uuid.uuid4().hex}.tmp"
+    try:
+        shutil.copytree(source, staged, ignore=shutil.ignore_patterns("result.json"))
+        if destination.exists():
+            shutil.rmtree(destination)
+        os.replace(staged, destination)
+        os.utime(parent, None)
+    finally:
+        shutil.rmtree(staged, ignore_errors=True)
+
+
 def _kill_group(proc: subprocess.Popen, grace: float = 5.0) -> None:
     try:
         os.killpg(proc.pid, signal.SIGTERM)  # windows-footgun: ok — Linux-only jail
@@ -799,11 +881,50 @@ def python_sandbox(
     datasets: list[str] | None = None,
     input_json: dict | None = None,
     timeout_seconds: Any = None,
+    *,
+    session_id: str | None = None,
 ) -> str:
     config = _load_config()
     available, reason = _probe(force=True)
     if not available:
         return _unavailable(reason)
+    if _workspace_mode(config) == "session":
+        if not isinstance(session_id, str) or not session_id.strip():
+            return json.dumps(
+                {
+                    "status": "error",
+                    "error": "session-scoped python_sandbox requires a session_id",
+                    "result": None,
+                }
+            )
+        with _workspace_lock(session_id):
+            return _run_python_sandbox(
+                code,
+                datasets,
+                input_json,
+                timeout_seconds,
+                config=config,
+                session_id=session_id,
+            )
+    return _run_python_sandbox(
+        code,
+        datasets,
+        input_json,
+        timeout_seconds,
+        config=config,
+        session_id=None,
+    )
+
+
+def _run_python_sandbox(
+    code: str,
+    datasets: list[str] | None,
+    input_json: dict | None,
+    timeout_seconds: Any,
+    *,
+    config: Mapping[str, Any],
+    session_id: str | None,
+) -> str:
     if not isinstance(code, str) or not code.strip():
         return json.dumps(
             {"status": "error", "error": "code must be a non-empty string", "result": None}
@@ -831,9 +952,18 @@ def python_sandbox(
         )
 
     run_id = f"r_{uuid.uuid4().hex[:8]}"
-    root = get_hermes_home() / "sandbox_runs"
+    hermes_home = get_hermes_home()
+    root = hermes_home / "sandbox_runs"
     run = root / run_id
     inputs, work = run / "inputs", run / "work"
+    workspace_root = hermes_home / "sandbox_workspaces"
+    workspace = None
+    seed_work = None
+    if session_id is not None:
+        workspace = workspace_root / _workspace_key(session_id)
+        _prune_workspaces(workspace_root, config, exclude=workspace)
+        seed_work = workspace / "work"
+        seed_work.mkdir(parents=True, exist_ok=True, mode=0o700)
     for path in (root, run, inputs, work):
         path.mkdir(parents=True, exist_ok=True, mode=0o700)
     (run / "script.py").write_text(code, encoding="utf-8")
@@ -868,6 +998,7 @@ def python_sandbox(
             limits["cpu_seconds"],
             limits["scratch_mb"],
             sqlite_datasets,
+            seed_work,
         ),
         encoding="utf-8",
     )
@@ -973,6 +1104,11 @@ def python_sandbox(
         stderr = f"sandbox launch failed: {exc}"
 
     duration = round(time.monotonic() - started, 3)
+    export_complete = work / _EXPORT_COMPLETE
+    if export_complete.exists():
+        export_complete.unlink()
+        if workspace is not None:
+            _replace_workspace(work, workspace / "work")
     payload, harvest_error = _harvest(
         work,
         stdout,
@@ -1017,10 +1153,17 @@ def python_sandbox(
     shutil.rmtree(inputs, ignore_errors=True)
     shutil.rmtree(run / "jail", ignore_errors=True)
     _prune_runs(root, config)
+    if workspace is not None:
+        _prune_workspaces(workspace_root, config, exclude=workspace)
     return json.dumps(payload, ensure_ascii=False)
 
 
-def _handle_python_sandbox(args: dict, **_: Any) -> str:
+def _handle_python_sandbox(
+    args: dict,
+    *,
+    session_id: str | None = None,
+    **_: Any,
+) -> str:
     available, reason = _probe(force=True)
     if not available:
         return _unavailable(reason)
@@ -1029,12 +1172,15 @@ def _handle_python_sandbox(args: dict, **_: Any) -> str:
         args.get("datasets"),
         args.get("input_json"),
         args.get("timeout_seconds"),
+        session_id=session_id,
     )
 
 
 _BASE_DESCRIPTION = (
     "Run Python offline in a locked sandbox on this machine — no network, "
-    "no shell, read-only path datasets, one scratch directory (/work). SQLite "
+    "no shell, read-only path datasets, one scratch directory (/work). Depending "
+    "on deployment config, /work is run-scoped or persists across runs in this "
+    "chat session. SQLite "
     "datasets are writable copies at their SANDBOX_INPUTS path under /work. Use it for "
     "batch computation the chat should not do item-by-item: comparing or "
     "reconciling lists across sources, counting or deduplicating more than "

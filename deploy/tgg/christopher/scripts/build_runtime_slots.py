@@ -60,6 +60,7 @@ SESSION_RESET_BLOCK = "session_reset:\n  mode: none\n"
 PYTHON_SANDBOX_BLOCK = (
     "python_sandbox:\n"
     "  enabled: true\n"
+    "  workspace: session\n"
     "  artifact_url_base: https://systems.papercut-labs.com/api/view/sandbox-artifacts\n"
     "  media_retention:\n"
     "    root: /home/pclaw/.systems-pcl/data/media/tgg/hermes\n"
@@ -89,6 +90,7 @@ PYTHON_SANDBOX_BLOCK = (
     "    max_snapshot_mb: 512\n"
     "  artifact_ttl_days: 7\n"
     "  max_runs_kept: 40\n"
+    "  max_session_workspaces: 40\n"
 )
 REPORT_OPERATIONS_PA_BLOCK = (
     "  report_operations:\n"
@@ -594,6 +596,7 @@ def _validate(
     }
     assert config["python_sandbox"] == {
         "enabled": True,
+        "workspace": "session",
         "artifact_url_base": "https://systems.papercut-labs.com/api/view/sandbox-artifacts",
         "media_retention": {
             "root": "/home/pclaw/.systems-pcl/data/media/tgg/hermes",
@@ -629,6 +632,7 @@ def _validate(
         },
         "artifact_ttl_days": 7,
         "max_runs_kept": 40,
+        "max_session_workspaces": 40,
     }
     assert (
         config["python_sandbox"]["media_retention"]["root"]

@@ -416,6 +416,7 @@ memory:
   memory_char_limit: 2200
 python_sandbox:
   enabled: true
+  workspace: session
   artifact_url_base: https://systems.papercut-labs.com/api/view/sandbox-artifacts
   media_retention:
     root: /home/pclaw/.systems-pcl/data/media/tgg/hermes
@@ -445,6 +446,7 @@ python_sandbox:
     max_snapshot_mb: 512
   artifact_ttl_days: 7
   max_runs_kept: 40
+  max_session_workspaces: 40
 plugins:
   enabled:
   - report-operations
