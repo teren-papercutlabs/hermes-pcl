@@ -222,20 +222,34 @@ field_sets:
         askable: false
         derived_from: [proposed_plan]
         notes: >-
-          DERIVED from the proposed plan, never asked. Drives the deterministic
-          disclaimer-set selection in reference/065-disclaimer-selection.yaml
-          (investment products are GIO — no medical underwriting — so they must
-          not carry the medical non-disclosure line).
-        # CONTRACT ONLY. The values are exactly the category keys
-        # 065-disclaimer-selection.yaml switches on, so a category that
-        # resolves here is guaranteed to select a disclaimer set rather than
-        # falling through to the assembly's fail-closed branch. The RULE that
-        # derives a category from a product name is a separate lane's item and
-        # is deliberately not built here.
+        notes: >-
+          DERIVED from the PRODUCT the advisor named (see the product_category
+          derivation below), never asked. Drives the deterministic disclaimer-set
+          selection in reference/065-disclaimer-selection.yaml (investment products
+          are GIO — no medical underwriting — so they must not carry the medical
+          non-disclosure line). A category that cannot be defended from the product
+          or from an actual case classification stays EMPTY and output assembly
+          fails closed; it is never defaulted to protection_life, because a default
+          would silently mean UNDERWRITTEN.
+        # CONTRACT AND DERIVATION, COMPOSED. The derivation at the foot of this
+        # file PRODUCES the value from the product the advisor named; this
+        # contract is what the record CHECKS it against at the write, so the
+        # stored category is always one of the keys
+        # reference/065-disclaimer-selection.yaml switches on and can never be a
+        # variant spelling a later reader has to normalise for itself.
+        # `unresolved` IS one of the permitted values on purpose: it is the
+        # derivation's terminal answer for a product whose category has no
+        # approved requirement set ("Careshield Plus" is not an Integrated
+        # Shield Plan), and 065 maps it to NO scope tag, so a completed draft
+        # fails assembly closed. It therefore has to be STORABLE — a contract
+        # that unpopulated it would hand the field back to the weaker
+        # case-type mirror, which is exactly the guess the derivation exists to
+        # replace. An answer the contract cannot resolve populates nothing.
         value_contract:
           kind: enum
-          values: [protection_life, investment_linked, shield_hospitalisation]
+          values: [protection_life, investment_linked, shield_hospitalisation, unresolved]
           match:
+            - {pattern: '(?i)^unresolved$', value: unresolved}
             - {pattern: '(?i)(investment[-_ ]?linked|\bilp\b)', value: investment_linked}
             - {pattern: '(?i)(shield|hospitalisation|hospitalization)', value: shield_hospitalisation}
             - {pattern: '(?i)(protection|life|term|whole[-_ ]?life|\bci\b)', value: protection_life}
@@ -332,7 +346,17 @@ field_sets:
       - id: min_investment_period
         required: true
         askable: true
-        ask_hint: "Minimum investment period for the proposed ILP."
+        ask_hint: >-
+          Minimum investment period for the proposed ILP. When the advisor has
+          already named a period — including a number carried in the product name
+          ("Voyage 15", "10pay") — this is a ONE-LINE CONFIRM of that period for
+          that product, not a fresh question (R19: a period is only real if the
+          product offers it, and only Abundance's periods are confirmed today).
+        notes: >-
+          Derived ONLY for a product whose available periods are confirmed in this
+          constitution or a supplied product summary (currently Abundance = MIP10).
+          For every other product the derivation deliberately leaves this EMPTY so
+          the confirm ask fires.
         # R19 (Melody, 2026-08-03): a minimum investment period is only real
         # if the product actually offers it — Wealth Abundance is MIP10 ONLY,
         # and a 15- or 20-year Abundance reached a real advisor once. So the
@@ -341,12 +365,28 @@ field_sets:
         # `values` for it), which is the honest behaviour: 160 already tells
         # the agent to ask one line to confirm the period in that case, and
         # inventing a restriction here would be the mirror defect.
+        # THE CONTRACT AND THE DERIVATION GUARD DIFFERENT WRITERS. The
+        # derivation only ever fills a period for a product whose periods are
+        # confirmed, so an unconfirmed product stays empty and the confirm ask
+        # fires; this contract catches the other direction — a period the
+        # ADVISOR stated that the product does not offer ("Abundance 15")
+        # unpopulates and earns a clarification rather than being recorded.
+        # AND THE CONTRACT MUST ACCEPT THE ANSWER AN ADVISOR ACTUALLY WRITES.
+        # A table whose only permitted spelling is its own canonical entry
+        # refuses "minimum investment period 10 years" — a CORRECT answer to
+        # the confirm ask — and turns it into a second question about the
+        # thing the advisor just answered. `match:` is the wording map (it is
+        # what every enum contract in this file uses for the same reason); the
+        # permitted SET is still the keyed row's, so a period the product does
+        # not offer is refused however it is worded.
         value_contract:
           kind: table
           table: product_min_investment_periods
           key_field: proposed_plan
           on_unmatched: unpopulate
           stored_form: entry_value
+          match:
+            - {pattern: '(?i)\b(?:10|ten)\s*-?\s*(?:year|yr)|\bmip\s*-?\s*10\b', value: '10-year minimum investment period'}
 
       - id: cka_status
         required: true
@@ -468,20 +508,34 @@ field_sets:
         askable: false
         derived_from: [proposed_plan]
         notes: >-
-          DERIVED from the proposed plan, never asked. Drives the deterministic
-          disclaimer-set selection in reference/065-disclaimer-selection.yaml
-          (investment products are GIO — no medical underwriting — so they must
-          not carry the medical non-disclosure line).
-        # CONTRACT ONLY. The values are exactly the category keys
-        # 065-disclaimer-selection.yaml switches on, so a category that
-        # resolves here is guaranteed to select a disclaimer set rather than
-        # falling through to the assembly's fail-closed branch. The RULE that
-        # derives a category from a product name is a separate lane's item and
-        # is deliberately not built here.
+        notes: >-
+          DERIVED from the PRODUCT the advisor named (see the product_category
+          derivation below), never asked. Drives the deterministic disclaimer-set
+          selection in reference/065-disclaimer-selection.yaml (investment products
+          are GIO — no medical underwriting — so they must not carry the medical
+          non-disclosure line). A category that cannot be defended from the product
+          or from an actual case classification stays EMPTY and output assembly
+          fails closed; it is never defaulted to protection_life, because a default
+          would silently mean UNDERWRITTEN.
+        # CONTRACT AND DERIVATION, COMPOSED. The derivation at the foot of this
+        # file PRODUCES the value from the product the advisor named; this
+        # contract is what the record CHECKS it against at the write, so the
+        # stored category is always one of the keys
+        # reference/065-disclaimer-selection.yaml switches on and can never be a
+        # variant spelling a later reader has to normalise for itself.
+        # `unresolved` IS one of the permitted values on purpose: it is the
+        # derivation's terminal answer for a product whose category has no
+        # approved requirement set ("Careshield Plus" is not an Integrated
+        # Shield Plan), and 065 maps it to NO scope tag, so a completed draft
+        # fails assembly closed. It therefore has to be STORABLE — a contract
+        # that unpopulated it would hand the field back to the weaker
+        # case-type mirror, which is exactly the guess the derivation exists to
+        # replace. An answer the contract cannot resolve populates nothing.
         value_contract:
           kind: enum
-          values: [protection_life, investment_linked, shield_hospitalisation]
+          values: [protection_life, investment_linked, shield_hospitalisation, unresolved]
           match:
+            - {pattern: '(?i)^unresolved$', value: unresolved}
             - {pattern: '(?i)(investment[-_ ]?linked|\bilp\b)', value: investment_linked}
             - {pattern: '(?i)(shield|hospitalisation|hospitalization)', value: shield_hospitalisation}
             - {pattern: '(?i)(protection|life|term|whole[-_ ]?life|\bci\b)', value: protection_life}
@@ -589,13 +643,18 @@ field_sets:
         ask_hint: "Which product(s) are replacing them?"
 
       - id: client_stated_rationale
-        required: true
-        askable: true
-        ask_hint: "The client's stated reason for the change."
+        required: false
+        askable: false
         notes: >-
-          Shield is the one contract where the rationale is a collected case
-          fact rather than a narrative default (bor-required-checks
-          category_requirements.shield_hospitalisation.collect_rationale).
+          NEVER SOLICITED — on Shield too. The SHIELD / HOSPITALISATION CONTRACT
+          is explicit that "the client's rationale is NOT required — default to the
+          standard hospitalisation-needs reason (see STANDARD NARRATIVE DEFAULTS);
+          use a supplied client-specific reason only if the advisor gave one", and
+          R13's never-ask list covers the client's reason for every category. This
+          field previously read required+askable, which put the rationale into the
+          empty-required set intake builds questions from — i.e. the record was
+          generating exactly the ask the constitution forbids. Record it only when
+          the advisor volunteers it.
 
       - id: exact_versioned_rider_name
         required: false
@@ -635,24 +694,37 @@ field_sets:
         askable: false
         derived_from: [proposed_plan]
         notes: >-
-          DERIVED from the proposed plan, never asked. Drives the deterministic
-          disclaimer-set selection in reference/065-disclaimer-selection.yaml
-          (investment products are GIO — no medical underwriting — so they must
-          not carry the medical non-disclosure line).
-        # CONTRACT ONLY. The values are exactly the category keys
-        # 065-disclaimer-selection.yaml switches on, so a category that
-        # resolves here is guaranteed to select a disclaimer set rather than
-        # falling through to the assembly's fail-closed branch. The RULE that
-        # derives a category from a product name is a separate lane's item and
-        # is deliberately not built here.
+        notes: >-
+          DERIVED from the PRODUCT the advisor named (see the product_category
+          derivation below), never asked. Drives the deterministic disclaimer-set
+          selection in reference/065-disclaimer-selection.yaml (investment products
+          are GIO — no medical underwriting — so they must not carry the medical
+          non-disclosure line). A category that cannot be defended from the product
+          or from an actual case classification stays EMPTY and output assembly
+          fails closed; it is never defaulted to protection_life, because a default
+          would silently mean UNDERWRITTEN.
+        # CONTRACT AND DERIVATION, COMPOSED. The derivation at the foot of this
+        # file PRODUCES the value from the product the advisor named; this
+        # contract is what the record CHECKS it against at the write, so the
+        # stored category is always one of the keys
+        # reference/065-disclaimer-selection.yaml switches on and can never be a
+        # variant spelling a later reader has to normalise for itself.
+        # `unresolved` IS one of the permitted values on purpose: it is the
+        # derivation's terminal answer for a product whose category has no
+        # approved requirement set ("Careshield Plus" is not an Integrated
+        # Shield Plan), and 065 maps it to NO scope tag, so a completed draft
+        # fails assembly closed. It therefore has to be STORABLE — a contract
+        # that unpopulated it would hand the field back to the weaker
+        # case-type mirror, which is exactly the guess the derivation exists to
+        # replace. An answer the contract cannot resolve populates nothing.
         value_contract:
           kind: enum
-          values: [protection_life, investment_linked, shield_hospitalisation]
+          values: [protection_life, investment_linked, shield_hospitalisation, unresolved]
           match:
+            - {pattern: '(?i)^unresolved$', value: unresolved}
             - {pattern: '(?i)(investment[-_ ]?linked|\bilp\b)', value: investment_linked}
             - {pattern: '(?i)(shield|hospitalisation|hospitalization)', value: shield_hospitalisation}
             - {pattern: '(?i)(protection|life|term|whole[-_ ]?life|\bci\b)', value: protection_life}
-
 
 # ── Value tables (CLIENT-OWNED) ──────────────────────────────────────────
 #
@@ -740,11 +812,79 @@ derivations:
   # only when the field is empty, so an explicitly stated period always wins (and
   # a product rule that contradicts a stated period — R19's MIP10-only Abundance —
   # is still the rules layer's to challenge).
+  # R19 (amelia relaying Melody, 2026-08-03): "HSBC Life Wealth Abundance offers
+  # MIP10 ONLY — never write a 15-year or 20-year Abundance." A minimum investment
+  # period is only real if the product actually offers it, so the derivation may
+  # fill it ONLY from a product whose available periods are CONFIRMED in this
+  # constitution or a supplied product summary. Today that is exactly one product:
+  # Abundance = MIP10. Everything else — including "Voyage 15" and "10pay", whose
+  # number LOOKS self-validating — stays EMPTY on purpose, so the field is still in
+  # the empty-required set and R19's one-line confirm ask actually fires. The
+  # earlier rule filled every number straight out of the product name, which meant
+  # the confirm ask R19 exists to force could never trigger.
   min_investment_period:
     - from: proposed_plan
       matches:
-        - pattern: '(?i)(\d{1,2})\s*pay\b'
-          value_template: '\1-year minimum investment period'
-        - pattern: '(?i)(?:voyage|abundance)\s*(\d{1,2})\b'
-          value_template: '\1-year minimum investment period'
+        - pattern: '(?i)abundance'
+          value: '10-year minimum investment period'
+      default: null
+
+  # PRODUCT -> PRODUCT CATEGORY (the deterministic input to disclaimer selection).
+  #
+  # WHY THIS EXISTS: product_category drives reference/065-disclaimer-selection.yaml,
+  # which decides whether a completed draft is scoped UNDERWRITTEN (carries the
+  # pre-existing-medical-conditions sentence) or GIO (must not). Before this rule
+  # the field was only ever mirrored from the case-TYPE classification, and an
+  # unclassified case fell through to the default type protection_life —
+  # i.e. UNDERWRITTEN — so a GIO/ILP case could receive the pre-existing-conditions
+  # sentence with no evidence behind it. That is Melody's third reported defect,
+  # and it was reachable on the live runtime. The product the advisor named is the
+  # evidence; a default is not.
+  #
+  # ORDERING IS LOAD-BEARING (first match wins):
+  #   1. products whose category has NO approved requirement set resolve to
+  #      `unresolved` FIRST — "Careshield Plus" contains "shield" and must never
+  #      read as an Integrated Shield Plan. `unresolved` maps to no scope tag, so
+  #      output assembly FAILS CLOSED on a completed draft rather than guessing an
+  #      underwriting scope. These categories are withheld by SUPPORTED CATEGORIES
+  #      anyway, so failing closed agrees with the rules layer instead of fighting
+  #      it (the gate only applies to a COMPLETED draft; a withhold/ask reply is
+  #      NO_DRAFT and is unaffected).
+  #   2. named investment products, then Shield, then protection/life.
+  #   3. generic category words last, so an unlisted product still resolves by the
+  #      category the advisor named ("a Singlife term plan"). This is what keeps
+  #      reference/062's promise that an unlisted product never withholds a draft.
+  # Nothing matched = empty. An empty category is NOT protection_life; it leaves
+  # the field for the case-type mirror, and if that cannot defend a value either,
+  # assembly fails closed.
+  product_category:
+    - from: proposed_plan
+      matches:
+        # 1. known products with no approved requirement set -> fail closed
+        - pattern: '(?i)care\s*shield|elder\s*shield'
+          value: unresolved
+        - pattern: '(?i)indexed universal life|\biul\b|diamond iul'
+          value: unresolved
+        - pattern: '(?i)indexed flexi income'
+          value: unresolved
+        - pattern: '(?i)flexi life income'
+          value: unresolved
+        - pattern: '(?i)accident'
+          value: unresolved
+        - pattern: '(?i)navigator|ifast|flexiprotector'
+          value: unresolved
+        # 2. named investment-linked / investment products
+        - pattern: '(?i)abundance|voyage|savvyinvest'
+          value: investment_linked
+        # 3. Shield / hospitalisation
+        - pattern: '(?i)\bshield\b|hospitalisation|hospitalization'
+          value: shield_hospitalisation
+        # 4. named protection / life products
+        - pattern: '(?i)term protector|elite term|my wl choice'
+          value: protection_life
+        # 5. generic category words the advisor used, lowest priority
+        - pattern: '(?i)investment[- ]linked|\bilp\b'
+          value: investment_linked
+        - pattern: '(?i)whole life|\bwl\b|\bterm\b|critical illness|\bci\b'
+          value: protection_life
       default: null

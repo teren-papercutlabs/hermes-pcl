@@ -1,7 +1,7 @@
 {
   "allow_unverified": true,
   "composed_source_count": 27,
-  "constitution_sha256": "e255c826b95183967a6be1942944f6dde0db58a3bf88d11333a767bf21ef7fef",
+  "constitution_sha256": "a16c30b78810627b212a79b5621acc208a0fb40e0f2a6fd9622665f7bead2500",
   "schema_version": 1,
   "source_count": 39,
   "source_root": "mtu",
@@ -13,16 +13,18 @@
       ],
       "approved_date": [
         "2026-07-14",
-        "2026-07-15"
+        "2026-07-15",
+        "2026-08-01"
       ],
-      "body_sha256": "cb27072a3ddc0f133e3462db3636d6a1aaf197bfdb8bc450ec8566870ec90426",
+      "body_sha256": "e6b61faaae888159b66afc87deb99936e18e5ab2d1b8038e44a55917ac82840b",
       "included_in_constitution": true,
       "path": "rules/000-identity-job-preamble.yaml",
       "ruling_ref": [
-        "R18"
+        "R18",
+        "R21"
       ],
       "sequence": 0,
-      "source_sha256": "c245f265e71cb89b31e8676a0284f4e2a21c18674e579159aa49bcef335dac7b",
+      "source_sha256": "25debba076a72db7d4e605eee5d5bed7f3d5a97c22cd3f471c7e576e913e84c1",
       "status": "approved",
       "type": "rules"
     },
@@ -144,16 +146,17 @@
         "2026-07-31",
         "2026-08-01"
       ],
-      "body_sha256": "15d163e5674d77f28c2a81413c639e8ac4ca5c31a1f119906b96fa956ad838f1",
+      "body_sha256": "253b4735d3b8bcec04cd7c0df8a89a8e493cdc2f02a4cab429b066a7203574a8",
       "included_in_constitution": true,
       "path": "rules/040-intake.yaml",
       "ruling_ref": [
         "R05",
-        "R08"
+        "R08",
+        "R03"
       ],
       "sequence": 40,
-      "source_sha256": "fcec2f1c13dc382253a3f020c10e8a538e0b96dc27bbcab18b8db3f59c5c163e",
-      "status": "approved",
+      "source_sha256": "ac2d151931b424f4694f54dfc567f7bfb31961c152b5f868db58fd64d8f7a4da",
+      "status": "pending",
       "type": "rules"
     },
     {
@@ -217,15 +220,15 @@
       "approved_date": [
         "2026-07-23"
       ],
-      "body_sha256": "9711b94e4fae81ff792f2745004c69f08b86a900923e405a09ff9ba94528195c",
+      "body_sha256": "9210388ef80c581403c40c68aac36fe8fe3a4c051ac83e44afef2b95b7a64a95",
       "included_in_constitution": false,
       "path": "reference/062-approved-products.yaml",
       "ruling_ref": [
         "R03"
       ],
       "sequence": 62,
-      "source_sha256": "d4ec02a0ea3e1ba977b62114075a6af8be13c3606ed3cdbeea15b11ecb3dc29a",
-      "status": "approved",
+      "source_sha256": "64c62a7814a46fe752a92bd01730683225fa2650c8a2aa1b51133b0014013f6a",
+      "status": "pending",
       "type": "reference"
     },
     {
@@ -235,15 +238,15 @@
       "approved_date": [
         "2026-07-31"
       ],
-      "body_sha256": "a6829118617a32d75e65271dff5a0b977ebf3d43d2dcabc855174d95ff5f5395",
+      "body_sha256": "ae656ca08c69b8a6c02097a33252ada01e55dfb8f452cad903155b5fc8193d87",
       "included_in_constitution": false,
       "path": "reference/063-product-insurers.yaml",
       "ruling_ref": [
         "R05"
       ],
       "sequence": 63,
-      "source_sha256": "11f818cb20e2c13bda66e56d747aefa7e1f176f5b14f4b34d49499c86e72ec97",
-      "status": "approved",
+      "source_sha256": "7ebc7f5dd8b9a65fef846948d6883aaf22ffd1c6a64cd9a3e66610dc60f0fcf9",
+      "status": "pending",
       "type": "reference"
     },
     {
@@ -271,14 +274,14 @@
       "approved_date": [
         "unverified"
       ],
-      "body_sha256": "3747adff618b0f79a368db07754c55ffd01db9e8d70b0fcaef4e29e2ca0e8103",
+      "body_sha256": "284faae90c8a83433d516255cce00da14d948eeb250517dae32c1d2dbc7ca564",
       "included_in_constitution": false,
       "path": "reference/065-disclaimer-selection.yaml",
       "ruling_ref": [
         "melody-defect-3-investment-disclaimer"
       ],
       "sequence": 65,
-      "source_sha256": "8908c453d90059e94d522b661d1d395ff36f8f203ce3a49c648812be1e791f78",
+      "source_sha256": "3fde138ba611ca2da2d9f58c82e7cb65cf50504e3cc052aad3977acae44fb7f8",
       "status": "unverified",
       "type": "reference"
     },
@@ -414,17 +417,20 @@
         "amelia"
       ],
       "approved_date": [
-        "2026-07-23"
+        "2026-07-23",
+        "2026-08-01"
       ],
-      "body_sha256": "5ab43188ffad3982cbfddcbfa2bc56aad1b2f477f08469e07cbdea8bb598ffeb",
+      "body_sha256": "7791e408d315595ae434a3932385878077bf7e8afdc0fc692f59988853c20f18",
       "included_in_constitution": true,
       "path": "rules/130-material-missing-gate.yaml",
       "ruling_ref": [
-        "R01"
+        "R01",
+        "R09",
+        "R13"
       ],
       "sequence": 130,
-      "source_sha256": "4085b382905d60d755a718ca9944d8483d94bb12e87b60dd43e55502dfa9b248",
-      "status": "approved",
+      "source_sha256": "4c984048ac29b7ddced089de40579167439e11961bc053ed246658ca5d3634cb",
+      "status": "pending",
       "type": "rules"
     },
     {
@@ -744,7 +750,7 @@
       "type": "job-briefs"
     }
   ],
-  "sources_sha256": "3cb395c2c10b233f8cf5d89aae01f5881ed63807826b0f1f26aea5889332c381",
+  "sources_sha256": "19b27fbbd9248399958029659a4b51073a4dc4a765063a9e774880d401487745",
   "unverified_compliance": [
     "compliance/150-rop-gate-and-default.yaml"
   ]

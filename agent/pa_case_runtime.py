@@ -559,11 +559,24 @@ def _category_of(
     record: CaseRecord,
     config: CaseRuntimeConfig,
     fallback: Optional[str] = None,
+    *,
+    allow_default: bool = True,
 ) -> Optional[str]:
+    """The case's category, for selecting the contract to work against.
+
+    ``allow_default=False`` returns only a category the record can DEFEND — a
+    recorded/derived category field or an actual classification — and never the
+    deployment's default case type.  Choosing a field set from the default is
+    harmless (something has to be chosen); writing the default into the record as
+    though it were a finding is not, because a downstream consumer cannot tell a
+    stand-in apart from evidence.
+    """
     if config.category_field_id:
         value = record.value_of(config.category_field_id)
         if value:
             return str(value)
+    if not allow_default:
+        return record.case_type or None
     return record.case_type or fallback or config.default_case_type
 
 
@@ -707,8 +720,18 @@ async def update_case_for_turn(
 
     minted = False
     if record is None or session_reset or boundary == BOUNDARY_NEW:
-        case_type = extracted_case_type or config.default_case_type
-        case_field_set = select_field_set(config.field_sets, case_type=case_type)
+        # AN UNCLASSIFIED CASE MUST NOT READ AS A CLASSIFIED ONE. The default
+        # case type still SELECTS the field set — something has to — but it is
+        # never STORED as the case's type, because a stored default is
+        # indistinguishable from a real classification. Downstream that made
+        # every unclassified case "protection_life", which the disclaimer
+        # selection reads as scope UNDERWRITTEN, which inserts the
+        # pre-existing-medical-conditions sentence — on a GIO product, on no
+        # evidence. A null case type is honest and fails closed.
+        case_type = extracted_case_type
+        case_field_set = select_field_set(
+            config.field_sets, case_type=case_type or config.default_case_type
+        )
         case_id = store.mint_case(
             case_type=case_type,
             agent_id=agent_id,
@@ -758,28 +781,51 @@ async def update_case_for_turn(
         except Exception as exc:  # noqa: BLE001
             logger.debug("PA case field write failed (non-fatal): %s", exc)
 
+    # CLIENT-DECLARED DERIVATIONS RUN FIRST, and they OWN any field they target.
+    # A deployment that declares a derivation for the category field has said the
+    # category is a deterministic property of a recorded answer (which product was
+    # proposed); the generic case-type mirror below is the weaker, model-classified
+    # source and must not overwrite it. Ordering matters because the store skips
+    # already-filled targets: with the mirror first, the mirror's value landed on
+    # turn one and the declared derivation could never fire at all.
+    derived = _apply_config_derivations(store, record.case_id, config)
+
     # The product category is DERIVED from the answer that revealed it, so it
     # carries that answer's provenance rather than the turn it was inferred on.
+    # `classified_category` deliberately excludes the deployment's DEFAULT case
+    # type: a default is a stand-in for the missing classification, not a finding
+    # about the product, and writing it here is what let an unclassified case ship
+    # as protection_life/UNDERWRITTEN.
     refreshed = store.get_case(record.case_id) or record
+    classified_category = extracted_case_type or _category_of(
+        refreshed, config, allow_default=False
+    )
+    category_owned_by_derivation = bool(config.category_field_id) and any(
+        rule.target_field_id == config.category_field_id
+        for rule in config.derivations
+    )
     if (
         config.category_field_id
-        and category
+        and classified_category
         and config.category_source_field_id
         and refreshed.is_filled(config.category_source_field_id)
-        and refreshed.value_of(config.category_field_id) != category
+        and refreshed.value_of(config.category_field_id) != classified_category
+        and not (
+            category_owned_by_derivation
+            and refreshed.is_filled(config.category_field_id)
+        )
     ):
         try:
             store.record_derived_field(
                 refreshed.case_id,
                 config.category_field_id,
-                category,
+                classified_category,
                 derived_from_field_id=config.category_source_field_id,
             )
             recorded.append(config.category_field_id)
         except Exception as exc:  # noqa: BLE001
             logger.debug("PA category derivation failed (non-fatal): %s", exc)
 
-    derived = _apply_config_derivations(store, record.case_id, config)
     final = store.get_case(record.case_id) or record
     empty = tuple(empty_required_fields(final, field_set)) if field_set else ()
     # Required fields the config says must NOT be asked as intake items, which

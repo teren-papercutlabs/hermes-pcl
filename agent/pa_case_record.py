@@ -444,6 +444,15 @@ class ValueContract:
             value, outcome = sub._resolve_enum(text)
             if outcome == CANON_UNMAPPABLE:
                 return self._unmatched(text)
+            if value not in key_entry.keyed_values:
+                # A `match:` pattern is a WORDING map, never a permission.  The
+                # patterns are declared once for the whole table, so a pattern
+                # written for one key's value would otherwise authorise that
+                # value under EVERY key — "10 years" resolving for a product
+                # that only offers 15.  The permitted set belongs to the key's
+                # own row; anything outside it is unmatched, whatever wording
+                # it arrived in.
+                return self._unmatched(text)
             if self.stored_form == FORM_AS_WRITTEN:
                 return text, CANON_VALIDATED
             return value, outcome
@@ -1300,6 +1309,17 @@ class CaseRecordStore:
         filled targets are skipped unless ``overwrite`` is set — a derived
         answer never silently stomps a stated one.
 
+        A target the CONTRACT REFUSED is skipped too, and for the same
+        reason.  ``unmappable`` does not mean "unanswered": it means the
+        writer DID answer and the answer is not one this case can be built
+        on ("Abundance 15", when Abundance is MIP10 only).  Deriving over it
+        would replace their answer with ours silently — the record would then
+        hold a period nobody stated, on a field where they had just been
+        contradicted.  The clarification question owns that field until they
+        answer it, which is exactly the ask R19 exists to force.  An UNTOUCHED
+        empty field is different: nobody has said anything, so a derivation
+        that can resolve it is adding knowledge, not overruling a person.
+
         Returns the field ids that were recorded.
         """
         recorded: List[str] = []
@@ -1308,6 +1328,9 @@ class CaseRecordStore:
             if record is None:
                 raise KeyError(f"unknown case record: {case_id}")
             if record.is_filled(target_id) and not overwrite:
+                continue
+            existing = record.get(target_id)
+            if existing is not None and existing.is_unmappable and not overwrite:
                 continue
             resolved = deriver(record)
             if resolved is None:

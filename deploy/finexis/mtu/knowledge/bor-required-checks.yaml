@@ -45,9 +45,18 @@ intake:
     why: "The recommended product with its specifics anchors the whole BOR."
     applies_when: always
   - id: is_replacement
-    resolution: collect
-    ask_if_missing: "ROP or new purchase? If ROP, identify each replaced and replacing product."
-    collect: [is_rop, replaced_products, replacing_products, replaced_type_investment_or_insurance]
+    resolution: derive
+    # R08 (amelia, 2026-08-01): "never ask existing-plans and ROP as two separate
+    # items." This row used to carry its own collect ask ("ROP or new purchase?"),
+    # which IS the two-item intake the ruling forbids — the ruling wins, so the
+    # collect ask is gone and derivation owns the field.
+    derive: >-
+      From the existing-plans answer: no existing plans = non-ROP, no further
+      question; an existing plan stated as being replaced = ROP. The yes/no
+      replacement question is asked ONLY when an existing plan exists and its
+      replacement status was not stated, and it is asked AGAINST existing_plans
+      (ROP GATE ask-once), never as a separate intake item.
+    collect_when_rop: [replaced_products, replacing_products]
     why: "ROP cases need the extra replacement checks + more careful wording."
     applies_when: always
 
@@ -65,8 +74,15 @@ category_requirements:
     collect_existing: [insurer, exact_base_plan_name, exact_versioned_rider_name, material_premium]
     collect_proposed: [insurer, exact_base_plan_name, exact_versioned_rider_name, material_premium]
     collect_for_rop: [is_rop, replaced_products, replacing_products]
-    collect_rationale: [client_stated_rationale]
-    derive: "A qualitative before/after statement using the exact supplied base-plan and rider names plus the supplied client rationale."
+    # NOT COLLECTED. The SHIELD / HOSPITALISATION CONTRACT is explicit that the
+    # client's rationale is not required — the standard hospitalisation-needs
+    # reason from STANDARD NARRATIVE DEFAULTS supplies it, and a client-specific
+    # reason is used only when the advisor volunteered one. This row previously
+    # read `collect_rationale: [client_stated_rationale]`, which made Shield the
+    # one category that asked for the very item R13's never-ask list covers.
+    rationale_rule: "template_default — never solicited; a volunteered client-specific reason is preserved and used in place of the standard one."
+    never_collect_rationale: [client_stated_rationale]
+    derive: "A qualitative before/after statement using the exact supplied base-plan and rider names plus the standard hospitalisation-needs reason, or a volunteered client-specific reason when the advisor gave one."
     rider_name_rule: "The exact/versioned rider name identifies the arrangement only. It never establishes or licenses a numeric benefit claim."
     missing_rider_rule: "If the rider is missing or ambiguous, ask only for the exact/versioned rider name."
     never_collect: [rider_benefit_limits, deductible, coinsurance]
@@ -88,8 +104,8 @@ checks:
         derive: "State the supplied before/after sums assured and coverage durations; shortfalls are stated, not hidden."
       shield_hospitalisation:
         categories: [integrated_shield_plan, shield, hospitalisation]
-        inputs: [existing_plan.exact_base_plan_name, existing_plan.exact_versioned_rider_name, proposed_plan.exact_base_plan_name, proposed_plan.exact_versioned_rider_name, client_stated_rationale]
-        derive: "State the qualitative before/after arrangement using exact plan and rider names plus the supplied rationale. Do not infer or state numeric benefits, deductible, or coinsurance."
+        inputs: [existing_plan.exact_base_plan_name, existing_plan.exact_versioned_rider_name, proposed_plan.exact_base_plan_name, proposed_plan.exact_versioned_rider_name]
+        derive: "State the qualitative before/after arrangement using exact plan and rider names plus the standard hospitalisation-needs reason (or a volunteered client-specific one). Never ask for the rationale. Do not infer or state numeric benefits, deductible, or coinsurance."
     why: "The comparison must match the product category instead of importing life-plan fields into Shield cases."
     grounded_by_category:
       protection_life: "files 01, 17 — supplied sums assured and coverage durations drive the comparison"
@@ -134,19 +150,30 @@ checks:
       shield:
         categories: [integrated_shield_plan, shield, hospitalisation]
         standard_alternatives: [other_insurers_shield_plans]
-        sentence: "After comparing Shield plans from other insurers, the client preferred {{RECOMMENDED_PLAN}} because {{CLIENT_STATED_RATIONALE_OR_SUPPLIED_PRODUCT_FIT}}."
+        sentence: "After comparing Integrated Shield Plans from other insurers, the client preferred {{RECOMMENDED_PLAN}} because {{CLIENT_STATED_RATIONALE_OR_SUPPLIED_PRODUCT_FIT}}."
+        # The approved wording is "Integrated Shield Plans" (STANDARD NARRATIVE
+        # DEFAULTS is the single home). "Shield plans" was a second, unapproved
+        # form of the same sentence living here and in bor-draft-template.md.
     per_case_question: false
     exception_rule: "Do not ask for alternatives by default. Ask only when the path is novel, the advisor states different alternatives, or the standard sentence would conflict with supplied facts."
     why: "The BOR must explain why the recommended product was chosen over alternatives."
     grounded: "files 01, 17 — 'After discussing the pros and cons of [WL/term/ILP/endowment/…], the client preferred X because…'"
     applies_when: always
   - id: reason_for_change
-    resolution: collect
-    ask_if_missing: "Client's reason for the change/recommendation, in the client's own terms."
-    collect: [client_stated_rationale]
+    resolution: template_default
+    per_case_question: false
+    # R13 never-ask list + INTAKE + MATERIAL-MISSING GATE all forbid soliciting
+    # the client's reason. This row used to carry an ask_if_missing prompt, which
+    # is verbatim the question those rules call a defect — and intake composes its
+    # questions from exactly these prompts. The rules win: the standard narrative
+    # default owns the slot, and a volunteered rationale is preserved as-is.
+    derive: >-
+      Use the advisor's supplied client rationale when one was volunteered;
+      otherwise use the category-standard product-fit reason from STANDARD
+      NARRATIVE DEFAULTS. Never ask for it and never emit a placeholder for it.
     why: "The draft must reflect the client's ACTUAL rationale — the agent must not invent one."
     grounded: "every readable ROP case — 'the reason for the switch/replacement is highlighted below:'"
-    never: "invent a rationale the advisor did not state"
+    never: "invent a rationale the advisor did not state, or ask the advisor for it"
     applies_when: always
   - id: rop_disadvantages_acknowledged
     resolution: template_default
@@ -188,8 +215,20 @@ checks:
     applies_when: ilp
   - id: ilp_fund_justification
     resolution: collect
-    ask_if_missing: "ILP only: fund name, objective, and the client's goal/horizon it aligns with."
-    collect: [fund_name, fund_objective, client_goal_or_horizon]
+    # R09 (amelia, 2026-08-01): NEVER ask about fund-objective alignment — it is
+    # COMPUTED from the fund's equity allocation against the client's stated risk
+    # profile. The only askable item here is the specific FUND NAME when the fund
+    # cannot be resolved. `fund_objective` and `client_goal_or_horizon` were
+    # dropped from collect because listing them here is what put the forbidden
+    # alignment question into intake's ask.
+    ask_if_missing: "ILP only: the specific fund name."
+    collect: [fund_name]
+    derive: >-
+      Alignment: read the fund's equity allocation (below 30% = conservative,
+      30-70% = balanced, above 70% = aggressive) and compare against the client's
+      stated risk profile. Aligned -> proceed silently. Mismatched -> one
+      flagging sentence in the draft; never block, never ask.
+    never_collect: [fund_objective, objective_alignment, client_goal_or_horizon]
     why: "Fund choice must be justified against the client's investment horizon and goals."
     grounded: "file 01 — fund recommended as objective aligns with long-term horizon"
     applies_when: ilp
@@ -207,7 +246,14 @@ output:
     - "a concise Telegram-ready BOR draft (the recommendation-rationale narrative), per recommended product / need-bucket"
     - "only when needed, one short note listing unresolved placeholders or anything to check with Melody"
   interaction:
-    - "DRAFT-FIRST: once ROP status is known, produce the full BOR in the same turn. Any missing COLLECT fact becomes a specific [[MISSING: ...]] placeholder in the draft, never a pre-draft question and never a reason to withhold the draft. Do not recap facts already supplied."
+    # ASK-FIRST, NOT DRAFT-FIRST. This line used to read "DRAFT-FIRST … any missing
+    # COLLECT fact becomes a specific [[MISSING: ...]] placeholder … never a
+    # pre-draft question", which directly contradicts the amelia-ratified
+    # MATERIAL-MISSING GATE (R01, 2026-07-23: "Yes keep ask for compliance ones."
+    # — she was shown the placeholder-fill alternative and chose the ask). The
+    # RULING wins. Corpus coverage: MTU-010, MTU-011.
+    - "ASK-FIRST ON MATERIAL FACTS: when any required material fact is absent, ask ONE compact question listing the missing items before drafting — never a completed BOR with [[MISSING]] placeholders standing in for material facts. Material facts are those the MATERIAL-MISSING GATE enumerates: ROP status; exact plan/category/rider identity; supplied protection amounts or durations needed for a comparison; the 50%-of-income answer; ILP CKA, risk profile, fund name, or applicable product-summary disclosure values; approved wording for a triggered declaration. Once every material fact is in hand, produce the full BOR in the same turn. Do not recap facts already supplied."
+    - "A [[MISSING: ...]] placeholder is for NON-MATERIAL copy-entry blanks only, and only after the supported category contract and every material check are satisfied."
     - "Do not ask for derived conclusions, standard alternatives, product-comparison freshness, or reference numbers by default."
     - "For Shield/hospitalisation, ask for an exact/versioned rider name when missing or ambiguous; never ask for or print rider benefit limits, deductible, or coinsurance."
     - "For ROP, insert the standard replacement-disadvantages sentence without asking; explicit contradiction or uncertainty suppresses it and escalates to Melody."

@@ -5,20 +5,34 @@
 # - '2026-07-23'
 # ruling_ref:
 # - R03
-# status: approved
+# status: pending
+# note: escalation cue reworded by the config-contradiction lane (WB fc958284,
+#   item 12) to name its own axis (reference-example coverage) and disclaim the
+#   other two. The rule it states — an unlisted product NAME never withholds the
+#   draft — is R03's and is unchanged. Awaits amelia's confirm batch.
 # sequence: 62
 # compose: false
 # ---
 kind: keyed-reference
 schema_version: 1
 key_semantics: exact approved product name
+# THIS FILE'S AXIS: does an approved REFERENCE EXAMPLE exist for this product name?
+# Nothing else. A miss here says only "no example on file" — it says nothing about
+# the insurer (reference/063 owns that axis) and nothing about whether the category
+# is supported (rules/120 owns that one). The three cues read as contradictory only
+# when their axes are collapsed: an unlisted product NAME never withholds, an
+# unresolvable INSURER routes to Melody, and an unsupported CATEGORY withholds.
+# Different questions, different answers, no conflict.
+axis: product-name reference-example coverage
 escalation_cue: >-
-  This product name has no reference example on file. That is NOT a reason to
-  withhold the draft: when the replacement path resolves and both categories are
+  MISS ON THIS AXIS = this product NAME has no reference example on file. That is
+  NOT a reason to withhold the draft, and it is NOT an insurer or category
+  finding: when the replacement path resolves and both categories are
   supported, draft from the advisor's supplied facts and use the product name in
   the advisor's own words. Never choose the nearest product, never invent product
   facts for it, and never expose lookup mechanics or a file number. Withhold only
-  when the replacement PATH or the CATEGORY is unsupported.
+  when the replacement PATH or the CATEGORY is unsupported — decisions that belong
+  to rules/120-supported-categories.yaml and the replacement taxonomy, not here.
 entries:
   - {key: "Wealth Voyage", reference_examples: [1]}
   - {key: "Voyage (Fundsmith)", reference_examples: [1]}
