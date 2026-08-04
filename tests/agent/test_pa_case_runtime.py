@@ -599,6 +599,120 @@ def test_extraction_prompt_describes_what_a_field_holds_not_how_to_ask(
     assert "f_source — source?" in prompt
 
 
+# ── an unclassified case must not read as the default category ──────────
+#
+# The MTU defect these cover: product_category had no derivation of its own, so
+# it was mirrored from the case-type classification; an unclassified case fell
+# through to the deployment default (protection_life), the selection config's
+# default_category agreed, and the draft was scoped UNDERWRITTEN — inserting the
+# pre-existing-medical-conditions sentence on a GIO product with nothing behind
+# it.  Both halves are tested: the default never becomes a recorded finding, and
+# a client-declared derivation for the category field beats the mirror.
+
+
+SELECTION_NO_DEFAULT = """
+version: 1
+exclusive_scope_tags: [SCOPE_A, SCOPE_B]
+selection_field: f_category
+categories:
+  alpha:
+    scope_tag: SCOPE_A
+    substitutions: {}
+    forbid: [variant_block]
+  beta:
+    scope_tag: SCOPE_B
+    substitutions:
+      anchor_block: variant_block
+    forbid: []
+"""
+
+
+FIELD_SETS_CATEGORY_DERIVED = FIELD_SETS + """
+  f_category:
+    from: f_other
+    matches:
+      - pattern: '(?i)beta-ish'
+        value: "beta"
+    default: null
+"""
+
+
+@pytest.mark.asyncio
+async def test_unclassified_case_never_stores_the_default_case_type(
+    db, knowledge_root, monkeypatch
+):
+    _stub_extraction(
+        monkeypatch,
+        {"boundary": "new", "fields": {"f_source": "swap it", "f_other": "other value"}},
+    )
+    state = await _turn(db, knowledge_root, message="who knows", message_id="m1")
+    # The field set still had to be chosen, so the turn works against `alpha`...
+    assert state.field_set.field_set_id == "alpha"
+    # ...but nothing pretends the case WAS classified.
+    assert state.record.case_type is None
+    assert not state.record.is_filled("f_category")
+
+
+@pytest.mark.asyncio
+async def test_unclassified_case_fails_a_completed_draft_closed(
+    db, knowledge_root, monkeypatch
+):
+    from agent.pa_output_assembly import PAOutputAssemblyError
+
+    (knowledge_root / "selection.yaml").write_text(
+        SELECTION_NO_DEFAULT, encoding="utf-8"
+    )
+    _stub_extraction(
+        monkeypatch,
+        {"boundary": "new", "fields": {"f_source": "swap it", "f_other": "other value"}},
+    )
+    await _turn(db, knowledge_root, message="who knows", message_id="m1")
+    selection = pcrt.resolve_disclaimer_selection(
+        session_db=db,
+        pa_context=_context(),
+        agent_id="agent-x",
+        chat_id="chat-x",
+        knowledge_root=knowledge_root,
+    )
+    assert selection.category is None
+    assert selection.scope_tag is None
+    with pytest.raises(PAOutputAssemblyError, match="exactly one"):
+        assemble_pa_response(
+            "[[PA_SCOPE:DRAFT]] head [[PA_BLOCK:ANCHOR]] tail",
+            _context(),
+            knowledge_root=knowledge_root,
+            block_selection=selection,
+        )
+    # The same unresolved case may still ASK — failing closed gates the draft,
+    # not the conversation.
+    assembled, _ = assemble_pa_response(
+        "[[PA_SCOPE:NO_DRAFT]] one question please",
+        _context(),
+        knowledge_root=knowledge_root,
+        block_selection=selection,
+    )
+    assert "one question please" in assembled
+
+
+@pytest.mark.asyncio
+async def test_declared_category_derivation_beats_the_case_type_mirror(
+    db, knowledge_root, monkeypatch
+):
+    (knowledge_root / "fields.yaml").write_text(
+        FIELD_SETS_CATEGORY_DERIVED, encoding="utf-8"
+    )
+    # The model classifies this as `alpha`; the recorded ANSWER says beta.
+    _stub_extraction(
+        monkeypatch,
+        {
+            "boundary": "new",
+            "case_type": "alpha",
+            "fields": {"f_source": "swap it", "f_other": "beta-ish thing"},
+        },
+    )
+    state = await _turn(db, knowledge_root, message="a case", message_id="m1")
+    assert state.record.value_of("f_category") == "beta"
+
 # ── Value contracts, end to end through the runtime ─────────────────────
 #
 # The unit-level contract behaviour lives in tests/test_pa_case_record.py.

@@ -9429,6 +9429,7 @@ class GatewayRunner:
                 assemble_pa_response,
                 output_assembly_enabled,
                 output_assembly_max_attempts,
+                record_assembly_defect,
                 retry_instruction,
             )
 
@@ -9531,18 +9532,47 @@ class GatewayRunner:
                         **_assembly_evidence,
                         "attempt": _assembly_attempt,
                     }
+                    # A HEALED DEFECT IS STILL A DEFECT. The draft shipped, so
+                    # nothing downstream would otherwise know the model
+                    # duplicated a document-level marker — and a repair whose
+                    # trigger is invisible cannot be measured or retired.
+                    for _heal in _assembly_evidence.get("healed") or ():
+                        record_assembly_defect(
+                            {
+                                **_heal,
+                                "attempt": _assembly_attempt,
+                                "session_key": session_key,
+                            }
+                        )
                     break
                 except PAOutputAssemblyRetry as _assembly_error:
-                    if _assembly_attempt >= _assembly_attempts:
-                        raise
-                    _assembly_retry_note = retry_instruction(_assembly_error)
+                    # RECORD BEFORE RE-RAISING. On the final attempt the
+                    # exception leaves this frame and the user gets a generic
+                    # error string that names neither the marker nor the mode;
+                    # that is precisely how three exhausted refusals read
+                    # downstream as unrelated content regressions. The record
+                    # is written on EVERY attempt, exhausting one included.
+                    _assembly_defect = record_assembly_defect(
+                        _assembly_error.to_defect(
+                            attempt=_assembly_attempt,
+                            max_attempts=_assembly_attempts,
+                            session_key=session_key,
+                            exhausted=_assembly_attempt >= _assembly_attempts,
+                        )
+                    )
                     logger.warning(
-                        "PA output assembly withheld attempt %d/%d for %s: %s",
+                        "PA output assembly withheld attempt %d/%d for %s: "
+                        "mode=%s markers=%s: %s",
                         _assembly_attempt,
                         _assembly_attempts,
                         session_key or "?",
+                        _assembly_defect.get("mode"),
+                        ",".join(_assembly_defect.get("markers") or ()) or "-",
                         _assembly_error,
                     )
+                    if _assembly_attempt >= _assembly_attempts:
+                        raise
+                    _assembly_retry_note = retry_instruction(_assembly_error)
             assert agent_result is not None
 
             # Stop persistent typing indicator now that the agent is done

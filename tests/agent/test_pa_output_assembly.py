@@ -93,7 +93,7 @@ def test_four_model_draws_cannot_alter_approved_block(tmp_path, model_draw):
 
 def test_missing_or_mutated_marker_fails_closed(tmp_path):
     _artifact(tmp_path / "approved.yaml")
-    with pytest.raises(PAOutputAssemblyRetry, match="missing or duplicated"):
+    with pytest.raises(PAOutputAssemblyRetry, match="markers are missing"):
         assemble_pa_response(
             "[[PA_SCOPE:DRAFT]] [[PA_BLOCK:ALTERED]]",
             _context("approved.yaml"),
@@ -161,7 +161,7 @@ def test_explicit_source_fact_overrides_inverted_model_scope(tmp_path):
     target.parent.mkdir(parents=True)
     target.write_bytes(source.read_bytes())
     context = _context("compliance/010-sustainability-enforcement.yaml")
-    with pytest.raises(PAOutputAssemblyRetry, match="missing or duplicated"):
+    with pytest.raises(PAOutputAssemblyRetry, match="markers are missing"):
         assemble_pa_response(
             "[[PA_SCOPE:DRAFT,SUSTAINABILITY_YES]] "
             "[[PA_BLOCK:SUSTAINABILITY_YES]]",
@@ -259,7 +259,7 @@ def test_repeatable_block_lands_in_every_component(tmp_path):
 
 def test_repeatable_block_still_fails_closed_when_absent(tmp_path):
     _repeatable_artifact(tmp_path / "rop.yaml")
-    with pytest.raises(PAOutputAssemblyRetry, match="missing or duplicated"):
+    with pytest.raises(PAOutputAssemblyRetry, match="markers are missing"):
         assemble_pa_response(
             "[[PA_SCOPE:DRAFT,ROP]] no rop marker [[PA_BLOCK:ONCE]]",
             _context("rop.yaml"),
@@ -267,15 +267,70 @@ def test_repeatable_block_still_fails_closed_when_absent(tmp_path):
         )
 
 
-def test_non_repeatable_block_still_refuses_a_duplicate(tmp_path):
-    """MTU-022: a duplicated general disclosure remains a defect."""
+def test_non_repeatable_duplicate_is_healed_not_refused(tmp_path):
+    """MTU-022: a duplicated general disclosure is a DEFECT, not a refusal.
+
+    The marker is machine-replaced text, so keeping the first occurrence and
+    dropping the rest decides nothing about authorship — unlike a MISSING
+    marker, where the runtime would have to choose where approved text belongs.
+    The heal is recorded so the trigger stays measurable.
+    """
     _repeatable_artifact(tmp_path / "rop.yaml")
-    with pytest.raises(PAOutputAssemblyRetry, match="missing or duplicated"):
+    assembled, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,ROP]] [[PA_BLOCK:ROP]] [[PA_BLOCK:ONCE]] [[PA_BLOCK:ONCE]]",
+        _context("rop.yaml"),
+        knowledge_root=tmp_path,
+    )
+    assert assembled.count("Approved general disclosure.") == 1
+    healed = evidence["healed"]
+    assert len(healed) == 1
+    assert healed[0]["marker"] == "[[PA_BLOCK:ONCE]]"
+    assert healed[0]["mode"] == "duplicate"
+    assert healed[0]["outcome"] == "healed"
+    assert healed[0]["occurrences"] == 2
+    assert healed[0]["removed"] == 1
+
+
+def test_healed_duplicate_keeps_the_first_placement_the_model_chose(tmp_path):
+    """The runtime removes a repeat; it never MOVES a block."""
+    _repeatable_artifact(tmp_path / "rop.yaml")
+    assembled, _ = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,ROP]] Component one. [[PA_BLOCK:ONCE]]\n"
+        "[[PA_BLOCK:ROP]] Component two. [[PA_BLOCK:ONCE]]",
+        _context("rop.yaml"),
+        knowledge_root=tmp_path,
+    )
+    assert assembled.index("Approved general disclosure.") < assembled.index(
+        "Component two."
+    )
+
+
+def test_missing_non_repeatable_marker_still_fails_closed(tmp_path):
+    """Dedup is not a licence to invent placement: absence still refuses."""
+    _repeatable_artifact(tmp_path / "rop.yaml")
+    with pytest.raises(PAOutputAssemblyRetry, match="markers are missing") as excinfo:
         assemble_pa_response(
-            "[[PA_SCOPE:DRAFT,ROP]] [[PA_BLOCK:ROP]] [[PA_BLOCK:ONCE]] [[PA_BLOCK:ONCE]]",
+            "[[PA_SCOPE:DRAFT,ROP]] [[PA_BLOCK:ROP]]",
             _context("rop.yaml"),
             knowledge_root=tmp_path,
         )
+    assert excinfo.value.mode == "missing"
+    assert "[[PA_BLOCK:ONCE]]" in excinfo.value.missing_markers
+    assert excinfo.value.to_defect(attempt=2)["outcome"] == "withheld"
+    assert excinfo.value.to_defect(attempt=2)["attempt"] == 2
+
+
+def test_repeatable_marker_multi_occurrence_is_untouched_by_dedup(tmp_path):
+    """The repeatable block legitimately appears once per component."""
+    _repeatable_artifact(tmp_path / "rop.yaml")
+    assembled, evidence = assemble_pa_response(
+        "[[PA_SCOPE:DRAFT,ROP]] One. [[PA_BLOCK:ROP]] Two. [[PA_BLOCK:ROP]]"
+        " [[PA_BLOCK:ONCE]]",
+        _context("rop.yaml"),
+        knowledge_root=tmp_path,
+    )
+    assert assembled.count("Approved replacement disadvantages.") == 2
+    assert "healed" not in evidence
 
 
 def test_skill_tells_the_model_to_repeat_the_marker_per_component(tmp_path):
@@ -285,6 +340,28 @@ def test_skill_tells_the_model_to_repeat_the_marker_per_component(tmp_path):
     # The tag vocabulary is derived from the artifacts, never hard-coded.
     assert "Applicable tags: ROP." in rendered
     assert "Approved replacement disadvantages." not in rendered
+
+
+def test_skill_states_cardinality_for_non_repeatable_blocks(tmp_path):
+    """The duplication defect's source fix: say EXACTLY ONCE, do not imply it.
+
+    Stating only the per-component rule leaves the document-level blocks with
+    no placement guidance at all, and a model composing component by component
+    generalises the one rule it was given.
+    """
+    _repeatable_artifact(tmp_path / "rop.yaml")
+    rendered = render_output_assembly_skill(_context("rop.yaml"), knowledge_root=tmp_path)
+    once_line = [
+        line for line in rendered.splitlines() if "[[PA_BLOCK:ONCE]]" in line
+    ][0]
+    assert "EXACTLY ONCE in the whole draft" in once_line
+    assert "never once per component" in once_line
+    per_component_line = [
+        line for line in rendered.splitlines() if "[[PA_BLOCK:ROP]]" in line
+    ][0]
+    assert "EACH component" in per_component_line
+    assert "EXACTLY ONCE" not in per_component_line
+    assert "Marker cardinality is part of the contract" in rendered
 
 
 # ── Slotted blocks: approved wording, case-record values ───────────────────
@@ -472,7 +549,7 @@ def test_additive_runtime_scope_tag_does_not_wait_for_the_model_to_declare_it(tm
         additional_scope_tags=("ILP",),
         to_dict=lambda: {"additional_scope_tags": ["ILP"]},
     )
-    with pytest.raises(PAOutputAssemblyRetry, match="missing or duplicated"):
+    with pytest.raises(PAOutputAssemblyRetry, match="markers are missing"):
         assemble_pa_response(
             "[[PA_SCOPE:DRAFT]] Draft with no CKA marker.",
             _context("cka.yaml"),
@@ -653,3 +730,121 @@ def test_an_uncontracted_free_text_value_does_not_decide_a_scope(tmp_path):
         field_values={"sustainability_answer": "probably yes"},
     )
     assert evidence["deterministic_scope"] == "SUSTAINABILITY_NO"
+
+
+# ── MTU-021 shape: the only two-component case in the corpus ───────────────
+#
+# The corpus's highest-exposure shape for the duplication defect. A model that
+# closes EACH component with a marker run emits the document-level blocks once
+# per component, and the pre-fix guard withheld the whole draft for it.
+
+
+def _mtu_context():
+    root = Path(__file__).resolve().parents[2] / "deploy/finexis/mtu"
+    return root, SimpleNamespace(
+        job_brief=SimpleNamespace(
+            response_policy={
+                "output_assembly": {
+                    "enabled": True,
+                    "placement": "skill",
+                    "mode": "marker",
+                    "max_attempts": 3,
+                    "runtime_scope_tags": ["GIO", "UNDERWRITTEN", "ILP"],
+                    "artifacts": [
+                        "compliance/010-sustainability-enforcement.yaml",
+                        "compliance/180-general-disclosures.yaml",
+                        "compliance/190-rop-disadvantages.yaml",
+                        "compliance/195-rop-standard-declarations.yaml",
+                        "compliance/196-no-reference-example.yaml",
+                        "compliance/197-cka-declaration.yaml",
+                    ],
+                }
+            }
+        ),
+    )
+
+
+def _mtu_selection():
+    return SimpleNamespace(
+        exclusive_scope_tags=("UNDERWRITTEN", "GIO"),
+        scope_tag="UNDERWRITTEN",
+        additional_scope_tags=("ILP",),
+        category="term_and_ilp",
+        to_dict=lambda: {"scope_tag": "UNDERWRITTEN"},
+    )
+
+
+#: Luna's recorded composition style on a two-component replacement: each
+#: component closes with a marker run, and the document-level blocks ride the
+#: LAST run — one step from being emitted per component, which is what this
+#: draft does.
+_MTU021_DUPLICATED_DRAFT = """[[PA_SCOPE:DRAFT,ROP]]
+
+1. Cedar EliteTerm
+Replacing Atlas WholeLife 90 with Cedar EliteTerm.
+[[PA_BLOCK:ROP_DISADVANTAGES]]
+[[PA_BLOCK:ROP_STANDARD_DECLARATIONS]]
+[[PA_BLOCK:GENERAL_DISCLOSURES]]
+[[PA_BLOCK:PRE_EXISTING_CONDITIONS]]
+
+2. Cedar Voyage ILP
+Replacing Atlas Saver endowment with Cedar Voyage ILP.
+[[PA_BLOCK:ROP_DISADVANTAGES]]
+[[PA_BLOCK:ROP_STANDARD_DECLARATIONS]]
+[[PA_BLOCK:GENERAL_DISCLOSURES]]
+[[PA_BLOCK:PRE_EXISTING_CONDITIONS]]
+[[PA_BLOCK:SUSTAINABILITY_NO]]
+[[PA_BLOCK:CKA_DECLARATION]]
+"""
+
+
+def test_mtu021_two_component_duplicate_heals_and_splices():
+    root, context = _mtu_context()
+    assembled, evidence = assemble_pa_response(
+        _MTU021_DUPLICATED_DRAFT,
+        context,
+        knowledge_root=root,
+        source_text=(
+            "Total annual premiums do not exceed 50% of surplus. "
+            "CKA passed; balanced risk profile."
+        ),
+        block_selection=_mtu_selection(),
+        field_values={"cka_status": "passed", "risk_profile": "Balanced"},
+    )
+
+    # The repeatable ROP text lands once per component; the document-level
+    # blocks land exactly once each — the shape mini produced and the pre-fix
+    # guard refused to produce at all.
+    assert assembled.count("Financial benefits accumulated over the years may be lost.") == 2
+    assert assembled.count(
+        "The product was recommended after fact-find, needs analysis, and product comparison."
+    ) == 1
+    assert assembled.count(
+        "the insurer has the right to not pay out benefits"
+    ) == 1
+    assert assembled.count(
+        "Client passed CKA and has a risk profile of Balanced."
+    ) == 1
+    assert "[[PA_" not in assembled
+    # Component order survives the heal: the first placement is the one kept.
+    assert assembled.index("1. Cedar EliteTerm") < assembled.index("2. Cedar Voyage ILP")
+
+    healed = {entry["id"]: entry for entry in evidence["healed"]}
+    assert set(healed) == {"general_disclosures", "pre_existing_conditions_disclosure"}
+    assert all(entry["occurrences"] == 2 and entry["removed"] == 1 for entry in healed.values())
+    assert all(entry["mode"] == "duplicate" for entry in healed.values())
+
+
+def test_mtu021_shape_missing_a_document_level_marker_still_refuses():
+    root, context = _mtu_context()
+    with pytest.raises(PAOutputAssemblyRetry, match="markers are missing") as excinfo:
+        assemble_pa_response(
+            _MTU021_DUPLICATED_DRAFT.replace("[[PA_BLOCK:GENERAL_DISCLOSURES]]\n", ""),
+            context,
+            knowledge_root=root,
+            source_text="Total annual premiums do not exceed 50% of surplus.",
+            block_selection=_mtu_selection(),
+            field_values={"cka_status": "passed", "risk_profile": "Balanced"},
+        )
+    assert excinfo.value.missing_markers == ("[[PA_BLOCK:GENERAL_DISCLOSURES]]",)
+    assert excinfo.value.mode == "missing"
