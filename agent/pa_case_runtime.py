@@ -853,11 +853,18 @@ def render_case_record_prompt(state: Optional[CaseTurnState]) -> str:
                 # said reads as not listening, and usually earns the same
                 # unusable answer a second time.
                 contract = state.value_contracts.get(spec.field_id)
-                permitted = (
-                    contract.describe_values(state.value_tables)
-                    if contract is not None
-                    else ""
-                )
+                permitted = ""
+                if contract is not None:
+                    permitted = contract.describe_values(
+                        state.value_tables,
+                        # A keyed contract's permitted set belongs to the row
+                        # the KEYING answer selects, not to the table.
+                        key_value=(
+                            record.value_of(contract.key_field_id)
+                            if contract.key_field_id
+                            else None
+                        ),
+                    )
                 said = (entry.raw_value or "").strip().replace("\n", " ")
                 clarify = f"{hint or spec.field_id} — the advisor answered"
                 if said:

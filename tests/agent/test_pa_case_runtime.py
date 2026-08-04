@@ -1009,3 +1009,57 @@ async def test_a_keyed_contract_holds_even_when_the_key_arrives_second(db, monke
     assert state.record.value_of("min_investment_period") is None
     assert "min_investment_period" in state.unmappable_field_ids
     assert "min_investment_period" in [s.field_id for s in state.empty_fields]
+
+
+@pytest.mark.skipif(
+    not (MTU_CONFIG / "case-field-sets.yaml").is_file(),
+    reason="deployment config not present in this checkout",
+)
+@pytest.mark.asyncio
+async def test_a_keyed_clarification_lists_the_keys_values_not_the_tables(
+    db, monkeypatch
+):
+    """A wrong list is worse than no list.
+
+    min_investment_period is keyed on the product, so its permitted set is the
+    PRODUCT's row — never the table's product names, which would send the
+    advisor after values that were never periods at all.
+    """
+    context = SimpleNamespace(
+        job_brief=SimpleNamespace(
+            response_policy={
+                "case_record": {
+                    "enabled": True,
+                    "field_sets": "case-field-sets.yaml",
+                    "default_case_type": "investment_linked",
+                    "extraction": {"enabled": True},
+                }
+            }
+        )
+    )
+
+    async def _fake(*, config, prompt):
+        return {
+            "boundary": "new",
+            "case_type": "investment_linked",
+            "fields": {
+                "proposed_plan": "HSBC Life Wealth Abundance",
+                "min_investment_period": "15-year minimum investment period",
+            },
+        }
+
+    monkeypatch.setattr(pcrt, "_run_extraction", _fake)
+    state = await pcrt.update_case_for_turn(
+        session_db=db,
+        pa_context=context,
+        agent_id="a",
+        chat_id="c",
+        session_id="s",
+        message="Abundance 15",
+        message_id="m1",
+        knowledge_root=MTU_CONFIG,
+    )
+    rendered = pcrt.render_case_record_prompt(state)
+    assert "must be one of: 10-year minimum investment period" in rendered
+    # The table's PRODUCT names must not be offered as period answers.
+    assert "must be one of: Wealth Abundance" not in rendered

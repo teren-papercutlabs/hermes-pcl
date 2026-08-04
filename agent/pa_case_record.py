@@ -465,15 +465,39 @@ class ValueContract:
     # ── reporting ──
 
     def describe_values(
-        self, tables: Optional[Mapping[str, ValueTable]] = None
+        self,
+        tables: Optional[Mapping[str, ValueTable]] = None,
+        *,
+        key_value: Any = None,
+        limit: int = 12,
     ) -> str:
-        """The permitted values, for the clarification question intake asks."""
+        """The permitted values, for the clarification question intake asks.
+
+        Returns "" rather than a WRONG list when the permitted set cannot be
+        stated here — a keyed contract whose key is unknown, or a table too
+        long to enumerate in a question.  An empty answer makes the caller ask
+        without listing; a wrong list would send the advisor after values that
+        were never permitted, which is worse than not listing at all.
+        """
         if self.kind == CONTRACT_BOOLEAN:
             return "yes, no"
         if self.kind == CONTRACT_TABLE:
             table = (tables or {}).get(str(self.table_id or ""))
-            return ", ".join(table.values) if table else ""
-        return ", ".join(self.values)
+            if table is None:
+                return ""
+            if self.key_field_id:
+                # The permitted set belongs to the KEY's row, not to the table.
+                if key_value is None:
+                    return ""
+                entry = table.find(str(key_value))
+                values: Sequence[str] = entry.keyed_values if entry else ()
+            else:
+                values = table.values
+        else:
+            values = self.values
+        if not values or len(values) > limit:
+            return ""
+        return ", ".join(values)
 
 
 #: Boolean fields accept the words humans actually write.  A deployment may
