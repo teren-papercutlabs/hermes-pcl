@@ -91,6 +91,11 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Keep the orphan-reaper delay independently patchable.  Patching
+# ``time.sleep`` mutates the process-wide time module and can make unrelated
+# background threads spin while this helper is under test.
+_MCP_ORPHAN_REAPER_SLEEP = time.sleep
+
 
 # ---------------------------------------------------------------------------
 # Stdio subprocess stderr redirection
@@ -3378,7 +3383,6 @@ def _kill_orphaned_mcp_children(include_active: bool = False) -> None:
     sessions can still be in flight.
     """
     import signal as _signal
-    import time as _time
 
     with _lock:
         pids: Dict[int, str] = {}
@@ -3403,7 +3407,7 @@ def _kill_orphaned_mcp_children(include_active: bool = False) -> None:
             pass
 
     # Phase 2: Wait for graceful exit
-    _time.sleep(2)
+    _MCP_ORPHAN_REAPER_SLEEP(2)
 
     # Phase 3: SIGKILL any survivors
     _sigkill = getattr(_signal, "SIGKILL", _signal.SIGTERM)
