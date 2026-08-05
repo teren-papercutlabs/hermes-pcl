@@ -58,6 +58,7 @@ _INFRA_THREAD_NAME_PREFIXES = (
     "honcho-async-writer",
     "mcp-event-loop",
     "tirith-install",
+    "tui-rpc",
 )
 
 # Child discovery through psutil costs ~70 ms per snapshot on macOS.  At two

@@ -248,7 +248,7 @@ class TestWebCrawlTavily:
              patch("tools.web_tools.is_safe_url", return_value=True), \
              patch("tools.interrupt.is_interrupted", return_value=False):
             from tools.web_tools import web_crawl_tool
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 web_crawl_tool("https://example.com", instructions="Find docs", use_llm_processing=False)
             )
             call_kwargs = mock_post.call_args

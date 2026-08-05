@@ -389,7 +389,7 @@ def _run_long_preview_helper(monkeypatch, tmp_path, preview_length=0):
         thread_id=None,
     )
 
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         runner._run_agent(
             message="hello",
             context_prompt="",
