@@ -92,6 +92,7 @@ def stub_cdp_supervisor(monkeypatch):
             release = getattr(self, "_thread_release", None)
             if release is not None:
                 release()
+            self._thread.join(timeout=1)
 
     monkeypatch.setattr(bs, "CDPSupervisor", _StubSupervisor)
     yield created
@@ -100,6 +101,7 @@ def stub_cdp_supervisor(monkeypatch):
         release = getattr(s, "_thread_release", None)
         if release is not None:
             release()
+        s._thread.join(timeout=1)
 
 
 def test_cache_hit_returns_same_instance_when_healthy(
@@ -144,6 +146,7 @@ def test_stopped_loop_triggers_recreate(isolated_registry, stub_cdp_supervisor):
     release = getattr(broken._thread, "_release", None)
     if release is not None:
         release()
+    broken._thread.join(timeout=1)
     assert isolated_registry._by_task["t3"] is fresh
     fresh.stop()
 

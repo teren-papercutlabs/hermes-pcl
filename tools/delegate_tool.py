@@ -1647,9 +1647,10 @@ def _run_single_child(
                 "diagnostic_path": diagnostic_path,
             }
         finally:
-            # Shut down executor without waiting — if the child thread
-            # is stuck on blocking I/O, wait=True would hang forever.
-            _timeout_executor.shutdown(wait=False)
+            # Completed futures can be joined deterministically.  Preserve the
+            # non-blocking timeout path: a genuinely stuck child must not hang
+            # the parent while its executor winds down.
+            _timeout_executor.shutdown(wait=_child_future.done())
 
         # Flush any remaining batched progress to gateway
         if child_progress_cb and hasattr(child_progress_cb, "_flush"):
