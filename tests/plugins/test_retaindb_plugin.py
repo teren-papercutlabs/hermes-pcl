@@ -495,6 +495,7 @@ class TestRetainDBMemoryProvider:
         p.initialize("test-session", hermes_home=str(tmp_path / ".hermes"))
         result = json.loads(p.handle_tool_call("retaindb_upload_file", {}))
         assert "error" in result
+        p.shutdown()
 
     def test_dispatch_file_upload_not_found(self, tmp_path, monkeypatch):
         p = self._make_provider(tmp_path, monkeypatch)

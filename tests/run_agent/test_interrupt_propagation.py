@@ -82,8 +82,9 @@ class TestInterruptPropagationToChild(unittest.TestCase):
 
         # Mock a slow API call
         mock_client = MagicMock()
+        release_api = threading.Event()
         def slow_api_call(**kwargs):
-            time.sleep(5)  # Would take 5s normally
+            release_api.wait(5)
             return MagicMock()
         mock_client.chat.completions.create = slow_api_call
         mock_client.close = MagicMock()
@@ -96,6 +97,7 @@ class TestInterruptPropagationToChild(unittest.TestCase):
         t = threading.Thread(target=set_interrupt_later, daemon=True)
         t.start()
 
+        threads_before = {id(worker) for worker in threading.enumerate()}
         start = time.monotonic()
         try:
             child._interruptible_api_call({"model": "test", "messages": []})
@@ -105,7 +107,11 @@ class TestInterruptPropagationToChild(unittest.TestCase):
             # Should detect within ~0.5s (0.2s delay + 0.3s poll interval)
             assert elapsed < 1.0, f"Took {elapsed:.2f}s to detect interrupt (expected < 1.0s)"
         finally:
+            release_api.set()
             t.join(timeout=2)
+            for worker in threading.enumerate():
+                if id(worker) not in threads_before and worker.name.endswith("(_call)"):
+                    worker.join(timeout=2)
             set_interrupt(False)
 
     def test_concurrent_interrupt_propagation(self):

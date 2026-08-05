@@ -8,6 +8,7 @@ import signal
 import sys
 import time
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -192,15 +193,20 @@ class TestSpawnAsyncDiagnostic:
         assert result is None
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only diagnostic")
-    def test_does_not_block_caller(self, tmp_path):
+    def test_does_not_block_caller(self, tmp_path, monkeypatch):
         """The spawn must return immediately even if ``ps`` takes seconds."""
+        fake_proc = MagicMock(pid=12345)
+        popen = MagicMock(return_value=fake_proc)
+        monkeypatch.setattr(sf.subprocess, "Popen", popen)
         log_path = tmp_path / "diag.log"
         start = time.monotonic()
-        sf.spawn_async_diagnostic(log_path, "SIGTERM", timeout_seconds=10.0)
+        pid = sf.spawn_async_diagnostic(log_path, "SIGTERM", timeout_seconds=10.0)
         elapsed = time.monotonic() - start
         # Spawning bash in detached mode takes a few ms; anything under 1s
         # is plenty of headroom and proves we're not waiting on it.
         assert elapsed < 1.0, f"spawn blocked for {elapsed:.2f}s"
+        assert pid == 12345
+        popen.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

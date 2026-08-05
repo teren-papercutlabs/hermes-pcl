@@ -630,6 +630,7 @@ def ensure_installed(*, log_failures: bool = True):
             target=_background_install,
             kwargs={"log_failures": log_failures},
             daemon=True,
+            name="tirith-install",
         )
         _install_thread.start()
 

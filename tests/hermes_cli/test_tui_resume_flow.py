@@ -23,7 +23,9 @@ def _args(**overrides):
 @pytest.fixture
 def main_mod(monkeypatch):
     import hermes_cli.main as mod
+    import hermes_cli.banner as banner
 
+    monkeypatch.setattr(banner, "prefetch_update_check", lambda: None)
     monkeypatch.setattr(mod, "_has_any_provider_configured", lambda: True)
     return mod
 

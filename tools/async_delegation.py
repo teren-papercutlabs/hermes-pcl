@@ -397,7 +397,9 @@ def _reset_for_tests() -> None:
     global _executor, _executor_max_workers
     with _executor_lock:
         if _executor is not None:
-            _executor.shutdown(wait=False)
+            # Tests must hand the worker process back with no executor threads
+            # still draining their shutdown sentinel into the next test.
+            _executor.shutdown(wait=True, cancel_futures=True)
         _executor = None
         _executor_max_workers = 0
     with _records_lock:

@@ -20,16 +20,315 @@ test runner at ``scripts/run_tests.sh``.
 """
 
 import asyncio
+import faulthandler
 import logging
 import os
 import re
 import signal
+import subprocess
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from _pytest.stash import StashKey
+
+
+# Infrastructure-owned threads may be created lazily by pytest/plugins during a
+# test and intentionally live for the xdist worker's lifetime.  Test-owned
+# threads are deliberately not allowlisted: a new thread must finish or join.
+_INFRA_THREAD_NAME_PREFIXES = (
+    "acp-agent",
+    "agent-evict-",
+    "asyncio_",
+    "auto-title",
+    "bg-review",
+    "browser-cleanup",
+    "curator-review",
+    "pytest-",
+    "pydevd.",
+    "coverage-",
+    "execnet-",
+    "hermes-lsp-loop",
+    "hermes-tui-notification-",
+    "hindsight-loop",
+    "hindsight-writer",
+    "honcho-async-writer",
+    "mcp-event-loop",
+    "tirith-install",
+    "tui-rpc",
+)
+
+# Child discovery through psutil costs ~70 ms per snapshot on macOS.  At two
+# snapshots across ~24k tests that would more than double suite time.  Track the
+# process-creation primitives instead, then poll only processes actually
+# created during a test.  The registry is process-local (one per xdist worker).
+_TEST_CHILD_PROCESSES = {}
+_TEST_CHILD_PROCESSES_LOCK = threading.Lock()
+_PROCESS_STATE_SNAPSHOT = StashKey[dict]()
+_MONKEYPATCHED_ENV = StashKey[set[str]]()
+_TEST_STARTED_THREADS = StashKey[set[int]]()
+
+
+def _register_test_child(pid, process=None, name=None):
+    if not pid or int(pid) <= 0:
+        return
+    with _TEST_CHILD_PROCESSES_LOCK:
+        _TEST_CHILD_PROCESSES[int(pid)] = (process, name or "child")
+
+
+def _tracked_live_children():
+    live = {}
+    stale = []
+    with _TEST_CHILD_PROCESSES_LOCK:
+        records = list(_TEST_CHILD_PROCESSES.items())
+    for pid, (process, name) in records:
+        try:
+            if process is not None:
+                running = process.poll() is None
+            else:
+                import psutil
+
+                proc = psutil.Process(pid)
+                running = proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE
+        except Exception:
+            running = False
+        if running:
+            live[pid] = name
+        else:
+            stale.append(pid)
+    if stale:
+        with _TEST_CHILD_PROCESSES_LOCK:
+            for pid in stale:
+                _TEST_CHILD_PROCESSES.pop(pid, None)
+    return live
+
+
+def _current_loop_state():
+    """Return policy/current-loop identity without creating a loop."""
+    policy = asyncio.get_event_loop_policy()
+    local = getattr(policy, "_local", None)
+    current = getattr(local, "_loop", None) if local is not None else None
+    if current is not None and current.is_closed():
+        current = None
+    running = asyncio._get_running_loop()  # no side effect; unlike get_event_loop()
+    return (
+        policy,
+        current,
+        current.is_closed() if current is not None else None,
+        running,
+    )
+
+
+def _snapshot_call_state():
+    return {
+        "stdout": sys.stdout,
+        "stderr": sys.stderr,
+        "event_loop": _current_loop_state(),
+    }
+
+
+def _snapshot_process_state():
+    return {
+        "threads": {id(thread): thread.name for thread in threading.enumerate()},
+        "environment": dict(os.environ),
+        "stdout": sys.stdout,
+        "stderr": sys.stderr,
+        "event_loop": _current_loop_state(),
+        "children": _tracked_live_children(),
+        "cwd": os.getcwd(),
+    }
+
+
+def _environment_state_leaks(before, after, ignored=frozenset()):
+    leaks = []
+    for name in sorted(set(before) | set(after)):
+        if (
+            name == "PYTEST_CURRENT_TEST"
+            or name in ignored
+        ):
+            continue
+        if name not in before:
+            leaks.append(f"left {name} set")
+        elif name not in after:
+            leaks.append(f"removed {name} from os.environ")
+        elif before[name] != after[name]:
+            leaks.append(f"changed {name} in os.environ")
+    return leaks
+
+
+def _process_state_leaks(
+    before,
+    after,
+    *,
+    check_process_globals=True,
+    check_streams=True,
+    check_event_loops=True,
+    ignored_environment=frozenset(),
+    owned_thread_ids=None,
+):
+    """Return stable, human-readable descriptions of test-owned leftovers."""
+    leaks = []
+
+    if check_process_globals:
+        new_threads = sorted(
+            name
+            for ident, name in after["threads"].items()
+            if ident not in before["threads"]
+            and (owned_thread_ids is None or ident in owned_thread_ids)
+            and not name.startswith(_INFRA_THREAD_NAME_PREFIXES)
+        )
+        leaks.extend(f"left thread {name} running" for name in new_threads)
+
+        leaks.extend(
+            _environment_state_leaks(
+                before["environment"],
+                after["environment"],
+                ignored_environment,
+            )
+        )
+
+    if check_streams:
+        if after["stdout"] is not before["stdout"]:
+            leaks.append("replaced sys.stdout")
+        if after["stderr"] is not before["stderr"]:
+            leaks.append("replaced sys.stderr")
+
+    if check_event_loops:
+        before_policy, before_current, before_closed, before_running = before[
+            "event_loop"
+        ]
+        after_policy, after_current, after_closed, after_running = after["event_loop"]
+        if after_policy is not before_policy:
+            leaks.append("replaced event loop policy")
+        # asyncio.run() deliberately clears pytest's sync-test loop.  That is
+        # not a leftover; fixture teardown restores the sanctioned baseline.
+        if after_current is not before_current and after_current is not None:
+            leaks.append("left a different current event loop")
+        elif after_current is before_current and after_closed != before_closed:
+            state = "closed" if after_closed else "open"
+            leaks.append(f"left current event loop {state}")
+        if after_running is not before_running:
+            leaks.append("left a different running event loop")
+    if check_process_globals:
+        for pid, name in sorted(after["children"].items()):
+            if pid not in before["children"]:
+                leaks.append(f"left child process {name} (pid {pid}) running")
+
+        if after["cwd"] != before["cwd"]:
+            leaks.append(f"changed cwd to {after['cwd']}")
+
+    return leaks
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    """Snapshot before fixture setup so sanctioned finalizers are inside it."""
+    item.stash[_PROCESS_STATE_SNAPSHOT] = _snapshot_process_state()
+    item.stash[_TEST_STARTED_THREADS] = set()
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_call(item):
+    """Catch direct stdio replacement around the call phase.
+
+    Pytest swaps capture streams between phases, so teardown-time identity is
+    not meaningful.  The call boundary is stable for capsys and direct writes.
+    """
+    before = _snapshot_call_state()
+    yield
+    after = _snapshot_call_state()
+    patcher = item.funcargs.get("monkeypatch")
+    if patcher is not None:
+        item.stash[_MONKEYPATCHED_ENV] = {
+            name for target, name, _ in patcher._setitem if target is os.environ
+        }
+    leaks = _process_state_leaks(
+        before,
+        after,
+        check_process_globals=False,
+    )
+    if patcher is not None:
+        patched = list(patcher._setattr)
+        if any(target is sys and name == "stdout" for target, name, _ in patched):
+            leaks = [leak for leak in leaks if leak != "replaced sys.stdout"]
+        if any(target is sys and name == "stderr" for target, name, _ in patched):
+            leaks = [leak for leak in leaks if leak != "replaced sys.stderr"]
+    if leaks:
+        sys.stdout = before["stdout"]
+        sys.stderr = before["stderr"]
+        before_policy, before_current, _, _ = before["event_loop"]
+        asyncio.set_event_loop_policy(before_policy)
+        asyncio.set_event_loop(before_current)
+        pytest.fail("test leaked process state:\n- " + "\n- ".join(leaks))
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_teardown(item, nextitem):
+    """Diff after every fixture finalizer and fail the polluting test."""
+    yield
+    before = item.stash[_PROCESS_STATE_SNAPSHOT]
+    after = _snapshot_process_state()
+    leaks = _process_state_leaks(
+        before,
+        after,
+        check_streams=False,
+        check_event_loops=False,
+        ignored_environment=item.stash.get(_MONKEYPATCHED_ENV, frozenset()),
+        owned_thread_ids=item.stash.get(_TEST_STARTED_THREADS, frozenset()),
+    )
+    if leaks:
+        # Keep the diagnostic from becoming the next test's pollutant.  Threads
+        # and children still require normal teardown in the offending test;
+        # the cheap process-global surfaces can be restored deterministically.
+        sys.stdout = before["stdout"]
+        sys.stderr = before["stderr"]
+        os.chdir(before["cwd"])
+        before_policy, before_current, _, _ = before["event_loop"]
+        asyncio.set_event_loop_policy(before_policy)
+        asyncio.set_event_loop(before_current)
+        pytest.fail("test leaked process state:\n- " + "\n- ".join(leaks))
+
+
+@pytest.fixture(autouse=True)
+def _track_test_child_processes(monkeypatch, request):
+    """Track test-owned threads and children without process-table walks."""
+    real_thread_start = threading.Thread.start
+
+    def _tracking_thread_start(thread, *args, **kwargs):
+        result = real_thread_start(thread, *args, **kwargs)
+        request.node.stash[_TEST_STARTED_THREADS].add(id(thread))
+        return result
+
+    monkeypatch.setattr(threading.Thread, "start", _tracking_thread_start)
+    real_popen_init = subprocess.Popen.__init__
+
+    def _tracking_popen_init(process, *args, **kwargs):
+        real_popen_init(process, *args, **kwargs)
+        command = args[0] if args else kwargs.get("args", "child")
+        if isinstance(command, (list, tuple)) and command:
+            command = command[0]
+        _register_test_child(process.pid, process, Path(str(command)).name)
+
+    monkeypatch.setattr(subprocess.Popen, "__init__", _tracking_popen_init)
+
+    for spawn_name in ("fork", "posix_spawn", "posix_spawnp"):
+        real_spawn = getattr(os, spawn_name, None)
+        if real_spawn is None:
+            continue
+
+        def _tracking_spawn(*args, _real=real_spawn, _name=spawn_name, **kwargs):
+            pid = _real(*args, **kwargs)
+            _register_test_child(pid, name=_name)
+            return pid
+
+        monkeypatch.setattr(os, spawn_name, _tracking_spawn)
+
+    yield
+
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -170,6 +469,7 @@ _HERMES_BEHAVIORAL_VARS = frozenset({
     "HERMES_SESSION_CHAT_ID",
     "HERMES_SESSION_CHAT_NAME",
     "HERMES_SESSION_THREAD_ID",
+    "HERMES_SESSION_ID",
     "HERMES_SESSION_SOURCE",
     "HERMES_SESSION_KEY",
     "HERMES_GATEWAY_SESSION",
@@ -290,13 +590,15 @@ _HERMES_BEHAVIORAL_VARS = frozenset({
 
 
 @pytest.fixture(autouse=True)
-def _hermetic_environment(tmp_path, monkeypatch):
+def _hermetic_environment(tmp_path, monkeypatch, request):
     """Blank out all credential/behavioral env vars so local and CI match.
 
     Also redirects HOME and HERMES_HOME to per-test tempdirs so code that
     reads ``~/.hermes/*`` can't touch the real one, and pins TZ/LANG so
     datetime/locale-sensitive tests are deterministic.
     """
+    initial_environment = dict(os.environ)
+
     # 1. Blank every credential-shaped env var that's currently set.
     for name in list(os.environ.keys()):
         if _looks_like_credential(name):
@@ -352,6 +654,15 @@ def _hermetic_environment(tmp_path, monkeypatch):
     # the generic credential-shaped env-var filter above.
     monkeypatch.delenv("GMI_API_KEY", raising=False)
     monkeypatch.delenv("GMI_BASE_URL", raising=False)
+
+    yield
+
+    # Production config loaders intentionally bridge settings into os.environ.
+    # Tests must not export those runtime settings to the next xdist item.  A
+    # whole-map restore catches new bridge keys without growing another stale
+    # denylist and prevents a failed test from contaminating the next item.
+    os.environ.clear()
+    os.environ.update(initial_environment)
 
 
 # Backward-compat alias — old tests reference this fixture name. Keep it
@@ -501,6 +812,17 @@ def _reset_module_state():
 
     yield
 
+    # Process-lifetime cleanup workers are valid in Hermes, but tests that
+    # start one must stop it before yielding the xdist worker to another test.
+    _term_mod = sys.modules.get("tools.terminal_tool")
+    if _term_mod is not None:
+        _term_mod._stop_cleanup_thread()
+        _term_mod._cleanup_thread = None
+    _browser_mod = sys.modules.get("tools.browser_tool")
+    if _browser_mod is not None:
+        _browser_mod._stop_browser_cleanup_thread()
+        _browser_mod._cleanup_thread = None
+
 
 @pytest.fixture()
 def tmp_dir(tmp_path):
@@ -532,6 +854,16 @@ def mock_config():
 # entire test suite.
 
 def _timeout_handler(signum, frame):
+    try:
+        faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+    except Exception as exc:
+        print(f"failed to dump all thread stacks: {exc}", file=sys.stderr)
+    thread_names = sorted(thread.name for thread in threading.enumerate())
+    print(
+        "live threads at test timeout: " + ", ".join(thread_names),
+        file=sys.stderr,
+        flush=True,
+    )
     raise TimeoutError("Test exceeded 30 second timeout")
 
 @pytest.fixture(autouse=True)
@@ -557,11 +889,11 @@ def _ensure_current_event_loop(request):
     except RuntimeError:
         pass
 
-    if loop is None and sys.version_info < (3, 12):
-        try:
-            loop = asyncio.get_event_loop_policy().get_event_loop()
-        except RuntimeError:
-            loop = None
+    if loop is None:
+        # ``policy.get_event_loop()`` creates a loop as a side effect on
+        # Python 3.11, making a framework-owned loop look test-owned and then
+        # leaving it current forever.  Inspect the policy-local slot instead.
+        _, loop, _, _ = _current_loop_state()
 
     created = loop is None or loop.is_closed()
     if created:

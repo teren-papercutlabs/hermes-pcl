@@ -9,6 +9,34 @@ import pytest
 from tools.environments import docker as docker_env
 
 
+@pytest.fixture(autouse=True)
+def _disable_real_background_cleanup(monkeypatch):
+    """Container finalizers must not launch host processes in unit tests."""
+    real_popen = docker_env.subprocess.Popen
+
+    class _CompletedCleanup:
+        returncode = 0
+        stdout = ()
+        stdin = None
+
+        @staticmethod
+        def poll():
+            return 0
+
+        @staticmethod
+        def wait(**_kwargs):
+            return 0
+
+    def _popen(cmd, *args, **kwargs):
+        if kwargs.get("shell") and isinstance(cmd, str) and (
+            " stop " in cmd or " rm -f " in cmd
+        ):
+            return _CompletedCleanup()
+        return real_popen(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(docker_env.subprocess, "Popen", _popen)
+
+
 def _mock_subprocess_run(monkeypatch):
     """Mock subprocess.run to intercept docker run -d and docker version calls.
 
@@ -205,6 +233,7 @@ def test_auto_mount_replaces_persistent_workspace_bind(monkeypatch, tmp_path):
 def test_non_persistent_cleanup_removes_container(monkeypatch):
     """When persistent=false, cleanup() must schedule docker stop + rm."""
     monkeypatch.setattr(docker_env, "find_docker", lambda: "/usr/bin/docker")
+    monkeypatch.setattr(docker_env.DockerEnvironment, "init_session", lambda self: None)
     calls = _mock_subprocess_run(monkeypatch)
 
     popen_cmds = []

@@ -82,6 +82,7 @@ class TestRealSubagentInterrupt(unittest.TestCase):
         from tools.delegate_tool import _run_single_child
 
         child_started = threading.Event()
+        release_api = threading.Event()
         result_holder = [None]
         error_holder = [None]
 
@@ -90,8 +91,12 @@ class TestRealSubagentInterrupt(unittest.TestCase):
                 # Patch the OpenAI client creation inside AIAgent.__init__
                 with patch('run_agent.OpenAI') as MockOpenAI:
                     mock_client = MagicMock()
-                    # API call takes 5 seconds — should be interrupted before that
-                    mock_client.chat.completions.create = _make_slow_api_response(delay=5.0)
+                    # API call blocks until teardown releases it; interruption must return first.
+                    response = _make_slow_api_response(delay=0.0)
+                    def slow_create(**kwargs):
+                        release_api.wait(5.0)
+                        return response(**kwargs)
+                    mock_client.chat.completions.create = slow_create
                     mock_client.close = MagicMock()
                     MockOpenAI.return_value = mock_client
 
@@ -134,6 +139,7 @@ class TestRealSubagentInterrupt(unittest.TestCase):
                 traceback.print_exc()
                 error_holder[0] = e
 
+        threads_before = {id(worker) for worker in threading.enumerate()}
         agent_thread = threading.Thread(target=run_delegate, daemon=True)
         agent_thread.start()
 
@@ -167,6 +173,10 @@ class TestRealSubagentInterrupt(unittest.TestCase):
         # Wait for delegate to finish (should be fast since interrupted)
         agent_thread.join(timeout=5)
         elapsed = time.monotonic() - start
+        release_api.set()
+        for worker in threading.enumerate():
+            if id(worker) not in threads_before and worker.name.endswith("(_call)"):
+                worker.join(timeout=2)
 
         if error_holder[0]:
             raise error_holder[0]

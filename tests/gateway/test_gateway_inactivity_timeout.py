@@ -12,6 +12,7 @@ Tests cover:
 import concurrent.futures
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -60,6 +61,7 @@ class SlowFakeAgent(FakeAgent):
         self._run_duration = run_duration
         self._idle_after = idle_after
         self._start_time = None
+        self._stop = threading.Event()
 
     def get_activity_summary(self):
         summary = super().get_activity_summary()
@@ -73,9 +75,13 @@ class SlowFakeAgent(FakeAgent):
                 summary["seconds_since_activity"] = 0.0
         return summary
 
+    def interrupt(self, msg):
+        super().interrupt(msg)
+        self._stop.set()
+
     def run_conversation(self, prompt):
         self._start_time = time.time()
-        time.sleep(self._run_duration)
+        self._stop.wait(self._run_duration)
         return {"final_response": "Completed after work", "messages": []}
 
 
@@ -120,7 +126,8 @@ class TestStagedInactivityWarning:
                 _inactivity_timeout = True
                 break
 
-        pool.shutdown(wait=False, cancel_futures=True)
+        agent.interrupt("test teardown")
+        pool.shutdown(wait=True, cancel_futures=True)
 
         assert _warning_fired
         assert _warning_send_count == 1
@@ -159,7 +166,8 @@ class TestStagedInactivityWarning:
             if _idle_secs >= _agent_timeout:
                 break
 
-        pool.shutdown(wait=False, cancel_futures=True)
+        agent.interrupt("test teardown")
+        pool.shutdown(wait=True, cancel_futures=True)
         assert not _warning_fired
 
     def test_warning_fires_only_once(self):
@@ -195,7 +203,8 @@ class TestStagedInactivityWarning:
             if _idle_secs >= _agent_timeout:
                 break
 
-        pool.shutdown(wait=False, cancel_futures=True)
+        agent.interrupt("test teardown")
+        pool.shutdown(wait=True, cancel_futures=True)
         assert _warning_count == 1
 
     def test_full_timeout_still_fires_after_warning(self):
@@ -234,7 +243,8 @@ class TestStagedInactivityWarning:
                 _inactivity_timeout = True
                 break
 
-        pool.shutdown(wait=False, cancel_futures=True)
+        agent.interrupt("test teardown")
+        pool.shutdown(wait=True, cancel_futures=True)
         assert _warning_fired
         assert _inactivity_timeout
 
@@ -266,7 +276,8 @@ class TestStagedInactivityWarning:
         future = pool.submit(agent.run_conversation, "test")
 
         result = future.result(timeout=2.0)
-        pool.shutdown(wait=False)
+        agent.interrupt("test teardown")
+        pool.shutdown(wait=True)
 
         assert result["final_response"] == "Completed after work"
 
@@ -310,6 +321,7 @@ class TestWarningThresholdBelowTimeout:
                 _timeout_fired = True
                 break
 
-        pool.shutdown(wait=False, cancel_futures=True)
+        agent.interrupt("test teardown")
+        pool.shutdown(wait=True, cancel_futures=True)
         assert _warning_fired
         assert _timeout_fired

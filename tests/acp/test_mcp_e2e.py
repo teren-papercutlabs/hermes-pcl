@@ -47,6 +47,11 @@ def acp_agent(mock_manager):
     return HermesACPAgent(session_manager=mock_manager)
 
 
+@pytest.fixture(autouse=True)
+def _disable_background_titles(monkeypatch):
+    monkeypatch.setattr("agent.title_generator.maybe_auto_title", lambda *a, **k: None)
+
+
 # ---------------------------------------------------------------------------
 # E2E: MCP registration → prompt → tool events
 # ---------------------------------------------------------------------------
