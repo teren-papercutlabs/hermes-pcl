@@ -361,6 +361,10 @@ class TestInterrupt:
             return _make_exec_response(result="done", exit_code=0)
 
         sb.process.exec.side_effect = exec_side_effect
+        # Daytona cancellation stops the sandbox.  Model that cancellation by
+        # releasing the blocking SDK call before execute() returns, so both the
+        # process-adapter worker and stdout drain thread finish normally.
+        sb.stop.side_effect = event.set
         env = make_env(sandbox=sb)
 
         # is_interrupted is checked by base.py's _wait_for_process,

@@ -43,6 +43,7 @@ from _pytest.stash import StashKey
 _INFRA_THREAD_NAME_PREFIXES = (
     "acp-agent",
     "agent-evict-",
+    "asyncio_",
     "auto-title",
     "bg-review",
     "browser-cleanup",
