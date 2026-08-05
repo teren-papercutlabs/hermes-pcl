@@ -1471,13 +1471,20 @@ def resolve_plugin_command_result(result: Any) -> Any:
     outcome: Dict[str, Any] = {}
     failure: Dict[str, BaseException] = {}
     done = threading.Event()
+    ready = threading.Event()
+    control: Dict[str, Any] = {}
 
     def _runner() -> None:
+        loop = asyncio.new_event_loop()
+        task = loop.create_task(result)
+        control.update(loop=loop, task=task)
+        ready.set()
         try:
-            outcome["value"] = asyncio.run(result)
+            outcome["value"] = loop.run_until_complete(task)
         except BaseException as exc:  # pragma: no cover - re-raised below
             failure["exc"] = exc
         finally:
+            loop.close()
             done.set()
 
     thread = threading.Thread(
@@ -1487,6 +1494,9 @@ def resolve_plugin_command_result(result: Any) -> Any:
     )
     thread.start()
     if not done.wait(timeout=_PLUGIN_COMMAND_AWAIT_TIMEOUT_SECS):
+        if ready.wait(timeout=0.1):
+            control["loop"].call_soon_threadsafe(control["task"].cancel)
+            thread.join(timeout=1.0)
         raise TimeoutError(
             "Plugin command async handler did not complete within "
             f"{_PLUGIN_COMMAND_AWAIT_TIMEOUT_SECS:.0f}s"

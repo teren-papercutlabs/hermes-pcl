@@ -309,7 +309,9 @@ class TestRunConversationSurrogateSanitization:
         mock_choice.message.tool_calls = None
         mock_choice.message.refusal = None
         mock_choice.finish_reason = "stop"
+        mock_choice.message.reasoning = None
         mock_choice.message.reasoning_content = None
+        mock_choice.message.reasoning_details = None
 
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]

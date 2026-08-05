@@ -360,6 +360,13 @@ class TestBareTextNoLongerApproves:
 class TestBlockingApprovalE2E:
     """Test the full blocking flow: agent thread blocks → user approves → agent resumes."""
 
+    @pytest.fixture(autouse=True)
+    def _disable_tirith_download(self, monkeypatch):
+        monkeypatch.setattr(
+            "tools.tirith_security.check_command_security",
+            lambda command: {"action": "allow", "findings": [], "summary": ""},
+        )
+
     def setup_method(self):
         _clear_approval_state()
         os.environ.pop("HERMES_YOLO_MODE", None)

@@ -305,16 +305,21 @@ def test_attach_failure_returns_tool_error(cdp_server):
 
 def test_timeout_when_server_never_replies(cdp_server):
     # Register a handler that blocks forever
+    release = threading.Event()
+
     def slow(params, sid):
-        time.sleep(10)
+        release.wait(timeout=10)
         return {}
 
     cdp_server.on("Page.slowMethod", slow)
-    result = json.loads(
-        browser_cdp_tool.browser_cdp(
-            method="Page.slowMethod", timeout=0.5
+    try:
+        result = json.loads(
+            browser_cdp_tool.browser_cdp(
+                method="Page.slowMethod", timeout=0.5
+            )
         )
-    )
+    finally:
+        release.set()
     assert "error" in result
     assert "tim" in result["error"].lower()
 

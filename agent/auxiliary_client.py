@@ -885,39 +885,54 @@ class _CodexCompletionsAdapter:
 
                 import queue as _queue
                 q: _queue.Queue = _queue.Queue(maxsize=1)
+                producer_stop = threading.Event()
+
+                def _put_from_producer(item) -> bool:
+                    while not producer_stop.is_set():
+                        try:
+                            q.put(item, timeout=0.05)
+                            return True
+                        except _queue.Full:
+                            continue
+                    return False
 
                 def _produce_events() -> None:
                     try:
                         for event in stream:
-                            q.put((True, event))
-                        q.put((False, StopIteration()))
+                            if not _put_from_producer((True, event)):
+                                return
+                        _put_from_producer((False, StopIteration()))
                     except BaseException as exc:  # includes stream transport errors
-                        q.put((False, exc))
+                        _put_from_producer((False, exc))
 
                 producer = threading.Thread(target=_produce_events, daemon=True)
                 producer.start()
-                while True:
-                    _check_cancelled()
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        _close_client_on_timeout()
-                        raise TimeoutError(_timeout_message())
-                    try:
-                        ok, value = q.get(timeout=min(remaining, 0.005))
-                    except _queue.Empty:
+                try:
+                    while True:
+                        _check_cancelled()
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            _close_client_on_timeout()
+                            raise TimeoutError(_timeout_message())
+                        try:
+                            ok, value = q.get(timeout=min(remaining, 0.005))
+                        except _queue.Empty:
+                            if time.monotonic() >= deadline:
+                                _close_client_on_timeout()
+                                raise TimeoutError(_timeout_message())
+                            continue
                         if time.monotonic() >= deadline:
                             _close_client_on_timeout()
                             raise TimeoutError(_timeout_message())
-                        continue
-                    if time.monotonic() >= deadline:
-                        _close_client_on_timeout()
-                        raise TimeoutError(_timeout_message())
-                    if ok:
-                        yield value
-                        continue
-                    if isinstance(value, StopIteration):
-                        return
-                    raise value
+                        if ok:
+                            yield value
+                            continue
+                        if isinstance(value, StopIteration):
+                            return
+                        raise value
+                finally:
+                    producer_stop.set()
+                    producer.join(timeout=0.5)
 
             _check_cancelled()
             try:

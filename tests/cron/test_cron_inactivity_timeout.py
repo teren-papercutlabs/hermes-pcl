@@ -11,8 +11,8 @@ Tests cover:
 import concurrent.futures
 import os
 import sys
-import time
 import threading
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -62,6 +62,7 @@ class SlowFakeAgent(FakeAgent):
         self._run_duration = run_duration
         self._idle_after = idle_after  # seconds before becoming idle
         self._start_time = None
+        self._stop = threading.Event()
 
     def get_activity_summary(self):
         summary = super().get_activity_summary()
@@ -76,9 +77,13 @@ class SlowFakeAgent(FakeAgent):
                 summary["seconds_since_activity"] = 0.0
         return summary
 
+    def interrupt(self, msg):
+        super().interrupt(msg)
+        self._stop.set()
+
     def run_conversation(self, prompt):
         self._start_time = time.time()
-        time.sleep(self._run_duration)
+        self._stop.wait(self._run_duration)
         return {"final_response": "Completed after work", "messages": []}
 
 
@@ -109,7 +114,9 @@ class TestInactivityTimeout:
                 _inactivity_timeout = True
                 break
 
-        pool.shutdown(wait=False)
+        if not future.done() and hasattr(agent, "interrupt"):
+            agent.interrupt("test teardown")
+        pool.shutdown(wait=True)
         assert result is not None
         assert result["final_response"] == "Done"
         assert not _inactivity_timeout
@@ -151,7 +158,9 @@ class TestInactivityTimeout:
                 _inactivity_timeout = True
                 break
 
-        pool.shutdown(wait=False, cancel_futures=True)
+        if not future.done() and hasattr(agent, "interrupt"):
+            agent.interrupt("test teardown")
+        pool.shutdown(wait=True, cancel_futures=True)
         assert _inactivity_timeout is True
         assert result is None  # Never got a result — interrupted
 
@@ -165,7 +174,9 @@ class TestInactivityTimeout:
 
         # With unlimited, we just await the result directly.
         result = future.result()
-        pool.shutdown(wait=False)
+        if not future.done() and hasattr(agent, "interrupt"):
+            agent.interrupt("test teardown")
+        pool.shutdown(wait=True)
 
         assert result["final_response"] == "Done"
 
@@ -245,7 +256,9 @@ class TestInactivityTimeout:
                 _inactivity_timeout = True
                 break
 
-        pool.shutdown(wait=False, cancel_futures=True)
+        if not future.done() and hasattr(agent, "interrupt"):
+            agent.interrupt("test teardown")
+        pool.shutdown(wait=True, cancel_futures=True)
         assert _inactivity_timeout
 
         # Build the diagnostic message like the scheduler does
@@ -295,7 +308,9 @@ class TestInactivityTimeout:
                 _inactivity_timeout = True
                 break
 
-        pool.shutdown(wait=False)
+        if not future.done() and hasattr(agent, "interrupt"):
+            agent.interrupt("test teardown")
+        pool.shutdown(wait=True)
         # Should NOT have timed out — bare agent has no get_activity_summary
         assert not _inactivity_timeout
         assert result["final_response"] == "no activity tracker"

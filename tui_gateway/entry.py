@@ -185,6 +185,9 @@ def _log_exit(reason: str) -> None:
 
 
 def main():
+    # Reserve real stdout for JSON-RPC only. Keep this at the executable
+    # boundary so importing tui_gateway.server cannot pollute another runtime.
+    sys.stdout = sys.stderr
     _install_sidecar_publisher()
 
     # MCP tool discovery — inline is safe here: TUI entry is a plain

@@ -168,11 +168,10 @@ _pool = concurrent.futures.ThreadPoolExecutor(
 )
 atexit.register(lambda: _pool.shutdown(wait=False, cancel_futures=True))
 
-# Reserve real stdout for JSON-RPC only; redirect Python's stdout to stderr
-# so stray print() from libraries/tools becomes harmless gateway.stderr instead
-# of corrupting the JSON protocol.
+# Capture the JSON-RPC stream at import, but do not mutate process-global stdio
+# merely by importing this module.  The executable entrypoint redirects stdout
+# immediately before it starts serving the protocol.
 _real_stdout = sys.stdout
-sys.stdout = sys.stderr
 
 # Module-level stdio transport — fallback sink when no transport is bound via
 # contextvar or session. Stream resolved through a lambda so runtime monkey-

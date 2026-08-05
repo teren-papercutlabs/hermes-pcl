@@ -77,17 +77,20 @@ class TestPolling:
 class TestCancelFn:
     def test_cancel_fn_called_on_kill(self):
         called = threading.Event()
+        cancelled = threading.Event()
 
         def cancel():
             called.set()
+            cancelled.set()
 
         def exec_fn():
-            time.sleep(10)
+            cancelled.wait(timeout=10)
             return ("", 0)
 
         handle = _ThreadedProcessHandle(exec_fn, cancel_fn=cancel)
         handle.kill()
         assert called.is_set()
+        handle.wait(timeout=1)
 
     def test_cancel_fn_none_is_safe(self):
         def exec_fn():

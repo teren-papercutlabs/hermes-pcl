@@ -601,8 +601,10 @@ class TestTuiGatewayEntrySignalGuards:
         assert 'hasattr(signal, "SIGTERM")' in source
         assert 'hasattr(signal, "SIGINT")' in source
 
-    def test_module_imports_cleanly(self):
+    def test_module_imports_cleanly(self, monkeypatch):
         """Importing the module must not raise — verifies the guards work."""
+        import hermes_cli.banner as banner
+        monkeypatch.setattr(banner, "prefetch_update_check", lambda: None)
         # Drop any cached import so the module re-initialises
         for mod in list(sys.modules):
             if mod.startswith("tui_gateway"):

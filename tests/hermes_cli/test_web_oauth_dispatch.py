@@ -46,6 +46,9 @@ def test_minimax_login_does_not_launch_anthropic_flow():
         "hermes_cli.auth._minimax_request_user_code",
         return_value=fake_user_code_resp,
     ), patch(
+        "hermes_cli.web_server._minimax_poller",
+        return_value=None,
+    ), patch(
         "hermes_cli.auth._minimax_pkce_pair",
         return_value=("verifier-stub", "challenge-stub", "stub-state"),
     ):

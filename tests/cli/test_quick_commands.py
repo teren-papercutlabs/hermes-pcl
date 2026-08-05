@@ -225,7 +225,11 @@ class TestGatewayQuickCommands:
         runner._is_user_authorized = MagicMock(return_value=True)
 
         event = self._make_event("slow")
-        with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
+        async def _timeout(awaitable, timeout):
+            awaitable.close()
+            raise asyncio.TimeoutError
+
+        with patch("asyncio.wait_for", side_effect=_timeout):
             result = await runner._handle_message(event)
         assert result is not None
         assert "timed out" in result.lower()

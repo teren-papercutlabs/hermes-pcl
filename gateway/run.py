@@ -8222,6 +8222,7 @@ class GatewayRunner:
                 if qcmd.get("type") == "exec":
                     exec_cmd = qcmd.get("command", "")
                     if exec_cmd:
+                        proc = None
                         try:
                             # Sanitize env to prevent credential leakage —
                             # quick commands run in the gateway process which
@@ -8233,6 +8234,7 @@ class GatewayRunner:
                                 stdout=asyncio.subprocess.PIPE,
                                 stderr=asyncio.subprocess.PIPE,
                                 env=sanitized_env,
+                                start_new_session=(os.name != "nt"),
                             )
                             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
                             output = (stdout or stderr).decode().strip()
@@ -8242,6 +8244,15 @@ class GatewayRunner:
                                 output = redact_sensitive_text(output)
                             return output if output else "Command returned no output."
                         except asyncio.TimeoutError:
+                            if proc is not None:
+                                try:
+                                    if os.name == "nt":
+                                        proc.kill()
+                                    else:
+                                        os.killpg(proc.pid, signal.SIGKILL)
+                                except ProcessLookupError:
+                                    pass
+                                await proc.communicate()
                             return "Quick command timed out (30s)."
                         except Exception as e:
                             return f"Quick command error: {e}"

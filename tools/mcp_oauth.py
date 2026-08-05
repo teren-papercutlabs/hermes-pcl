@@ -450,6 +450,7 @@ async def _wait_for_callback() -> tuple[str, str | None]:
         )
 
     server_thread = threading.Thread(target=server.handle_request, daemon=True)
+    server.timeout = 0.2
     server_thread.start()
 
     timeout = 300.0
@@ -463,6 +464,7 @@ async def _wait_for_callback() -> tuple[str, str | None]:
             elapsed += poll_interval
     finally:
         server.server_close()
+        server_thread.join(timeout=1.0)
 
     if result["error"]:
         raise RuntimeError(f"OAuth authorization failed: {result['error']}")

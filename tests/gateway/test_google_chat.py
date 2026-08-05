@@ -2576,6 +2576,7 @@ class TestAuthorizationEmailMatch:
         from gateway.run import GatewayRunner
         from gateway.session import SessionSource
 
+        monkeypatch.setattr("tools.tirith_security.ensure_installed", lambda **kwargs: None)
         monkeypatch.setenv("GOOGLE_CHAT_ALLOWED_USERS", "alice@example.com")
         cfg = GatewayConfig()
         runner = GatewayRunner(cfg)

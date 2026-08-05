@@ -443,6 +443,7 @@ def _rpc_server_loop(
     tool_call_counter: list,   # mutable [int] so the thread can increment
     max_tool_calls: int,
     allowed_tools: frozenset,
+    stop_event: threading.Event,
 ):
     """
     Accept one client connection and dispatch tool-call requests until
@@ -452,16 +453,23 @@ def _rpc_server_loop(
 
     conn = None
     try:
-        server_sock.settimeout(5)
-        conn, _ = server_sock.accept()
-        conn.settimeout(300)
+        server_sock.settimeout(0.2)
+        while not stop_event.is_set():
+            try:
+                conn, _ = server_sock.accept()
+                break
+            except socket.timeout:
+                continue
+        if conn is None:
+            return
+        conn.settimeout(0.2)
 
         buf = b""
-        while True:
+        while not stop_event.is_set():
             try:
                 chunk = conn.recv(65536)
             except socket.timeout:
-                break
+                continue
             if not chunk:
                 break
             buf += chunk
@@ -554,6 +562,30 @@ def _rpc_server_loop(
                 conn.close()
             except OSError as e:
                 logger.debug("RPC conn close error: %s", e)
+
+
+def _stop_rpc_server(server_sock, rpc_thread, stop_event):
+    """Wake an idle accept() and wait for the per-execution RPC thread."""
+    if server_sock is None:
+        return
+    stop_event.set()
+    if rpc_thread is not None and rpc_thread.is_alive():
+        wake_sock = None
+        try:
+            wake_sock = socket.socket(server_sock.family, socket.SOCK_STREAM)
+            wake_sock.settimeout(0.2)
+            wake_sock.connect(server_sock.getsockname())
+        except OSError:
+            pass
+        finally:
+            if wake_sock is not None:
+                wake_sock.close()
+    try:
+        server_sock.close()
+    except OSError:
+        pass
+    if rpc_thread is not None:
+        rpc_thread.join(timeout=3)
 
 
 # ---------------------------------------------------------------------------
@@ -1112,6 +1144,8 @@ def execute_code(
     tool_call_counter = [0]  # mutable so the RPC thread can increment
     exec_start = time.monotonic()
     server_sock = None
+    rpc_thread = None
+    rpc_stop_event = threading.Event()
 
     try:
         # Write the auto-generated hermes_tools module.
@@ -1157,6 +1191,7 @@ def execute_code(
             args=(
                 server_sock, task_id, tool_call_log,
                 tool_call_counter, max_tool_calls, sandbox_tools,
+                rpc_stop_event,
             ),
             daemon=True,
         )
@@ -1362,9 +1397,8 @@ def execute_code(
         duration = round(time.monotonic() - exec_start, 2)
 
         # Wait for RPC thread to finish
-        server_sock.close()  # break accept() so thread exits promptly
+        _stop_rpc_server(server_sock, rpc_thread, rpc_stop_event)
         server_sock = None  # prevent double close in finally
-        rpc_thread.join(timeout=3)
 
         # Strip ANSI escape sequences so the model never sees terminal
         # formatting — prevents it from copying escapes into file writes.
@@ -1434,10 +1468,7 @@ def execute_code(
     finally:
         # Cleanup temp dir and socket
         if server_sock is not None:
-            try:
-                server_sock.close()
-            except OSError as e:
-                logger.debug("Server socket close error: %s", e)
+            _stop_rpc_server(server_sock, rpc_thread, rpc_stop_event)
         import shutil
         shutil.rmtree(tmpdir, ignore_errors=True)
         try:
