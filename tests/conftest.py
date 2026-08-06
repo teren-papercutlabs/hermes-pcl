@@ -164,6 +164,23 @@ def _settle_test_threads(item, timeout=0.5):
         thread.join(timeout=remaining)
 
 
+def _settle_test_children(timeout=0.5):
+    """Give child processes that received shutdown time to exit."""
+    with _TEST_CHILD_PROCESSES_LOCK:
+        records = list(_TEST_CHILD_PROCESSES.values())
+    deadline = time.monotonic() + timeout
+    for process, _name in records:
+        if process is None or process.poll() is not None:
+            continue
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            pass
+
+
 def _environment_state_leaks(before, after, ignored=frozenset()):
     leaks = []
     for name in sorted(set(before) | set(after)):
@@ -292,6 +309,7 @@ def pytest_runtest_teardown(item, nextitem):
     """Diff after every fixture finalizer and fail the polluting test."""
     yield
     _settle_test_threads(item)
+    _settle_test_children()
     before = item.stash[_PROCESS_STATE_SNAPSHOT]
     after = _snapshot_process_state()
     leaks = _process_state_leaks(
