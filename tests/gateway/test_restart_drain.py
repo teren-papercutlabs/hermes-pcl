@@ -8,6 +8,7 @@ import pytest
 
 import gateway.run as gateway_run
 from agent.i18n import t
+from gateway.config import Platform
 from gateway.platforms.base import MessageEvent, MessageType
 from gateway.restart import DEFAULT_GATEWAY_RESTART_DRAIN_TIMEOUT
 from gateway.session import SessionEntry, build_session_key
@@ -271,6 +272,25 @@ async def test_shutdown_notification_suppressed_when_flag_disabled():
 
     await runner._notify_active_sessions_of_shutdown()
 
+    assert adapter.sent == []
+
+
+@pytest.mark.asyncio
+async def test_pa_profile_suppresses_shutdown_notification_without_local_flag(monkeypatch):
+    """The engine profile wins even when platform config retains its true default."""
+    runner, adapter = make_restart_runner()
+    runner._restart_requested = True
+    session_key = "agent:main:telegram:dm:999"
+    runner._running_agents[session_key] = MagicMock()
+    monkeypatch.setattr(
+        gateway_run,
+        "_load_gateway_config",
+        lambda: {"agent": {"profile": "pa"}},
+    )
+
+    await runner._notify_active_sessions_of_shutdown()
+
+    assert runner.config.platforms[Platform.TELEGRAM].gateway_restart_notification is True
     assert adapter.sent == []
 
 

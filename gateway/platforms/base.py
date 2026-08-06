@@ -3158,6 +3158,9 @@ class BasePlatformAdapter(ABC):
 
     async def _process_message_background(self, event: MessageEvent, session_key: str) -> None:
         """Background task that actually processes the message."""
+        from gateway.client_surface_policy import is_client_facing_home
+
+        client_facing = is_client_facing_home()
         # Track delivery outcomes for the processing-complete hook
         delivery_attempted = False
         delivery_succeeded = False
@@ -3185,14 +3188,20 @@ class BasePlatformAdapter(ABC):
             _keep_typing_sig = None
         if _keep_typing_sig is None or "stop_event" in _keep_typing_sig.parameters:
             _keep_typing_kwargs["stop_event"] = interrupt_event
-        typing_task = asyncio.create_task(
-            self._keep_typing(
-                event.source.chat_id,
-                **_keep_typing_kwargs,
+        typing_task = (
+            None
+            if client_facing
+            else asyncio.create_task(
+                self._keep_typing(
+                    event.source.chat_id,
+                    **_keep_typing_kwargs,
+                )
             )
         )
 
         async def _stop_typing_task() -> None:
+            if typing_task is None:
+                return
             typing_task.cancel()
             try:
                 await asyncio.wait_for(asyncio.shield(typing_task), timeout=0.5)
@@ -3203,7 +3212,8 @@ class BasePlatformAdapter(ABC):
                 pass
         
         try:
-            await self._run_processing_hook("on_processing_start", event)
+            if not client_facing:
+                await self._run_processing_hook("on_processing_start", event)
 
             # Call the handler (this can take a while with tool calls)
             response = await self._message_handler(event)
@@ -3472,11 +3482,12 @@ class BasePlatformAdapter(ABC):
 
             # Determine overall success for the processing hook
             processing_ok = delivery_succeeded if delivery_attempted else not bool(response)
-            await self._run_processing_hook(
-                "on_processing_complete",
-                event,
-                ProcessingOutcome.SUCCESS if processing_ok else ProcessingOutcome.FAILURE,
-            )
+            if not client_facing:
+                await self._run_processing_hook(
+                    "on_processing_complete",
+                    event,
+                    ProcessingOutcome.SUCCESS if processing_ok else ProcessingOutcome.FAILURE,
+                )
 
             # Check if there's a pending message that was queued during our processing
             if session_key in self._pending_messages:
@@ -3522,23 +3533,36 @@ class BasePlatformAdapter(ABC):
             outcome = ProcessingOutcome.CANCELLED
             if current_task is None or current_task not in self._expected_cancelled_tasks:
                 outcome = ProcessingOutcome.FAILURE
-            await self._run_processing_hook("on_processing_complete", event, outcome)
+            if not client_facing:
+                await self._run_processing_hook("on_processing_complete", event, outcome)
             raise
         except Exception as e:
-            await self._run_processing_hook("on_processing_complete", event, ProcessingOutcome.FAILURE)
+            if not client_facing:
+                await self._run_processing_hook(
+                    "on_processing_complete", event, ProcessingOutcome.FAILURE
+                )
             logger.error("[%s] Error handling message: %s", self.name, e, exc_info=True)
             # Send the error to the user so they aren't left with radio silence
             try:
-                error_type = type(e).__name__
-                error_detail = str(e)[:300] if str(e) else "no details available"
+                from gateway.client_surface_policy import (
+                    client_safe_failure,
+                    is_client_facing_home,
+                )
+
                 _thread_metadata = _thread_metadata_for_source(event.source, _reply_anchor_for_event(event))
-                await self.send(
-                    chat_id=event.source.chat_id,
-                    content=(
+                if is_client_facing_home():
+                    content = client_safe_failure()
+                else:
+                    error_type = type(e).__name__
+                    error_detail = str(e)[:300] if str(e) else "no details available"
+                    content = (
                         f"Sorry, I encountered an error ({error_type}).\n"
                         f"{error_detail}\n"
                         "Try again or use /reset to start a fresh session."
-                    ),
+                    )
+                await self.send(
+                    chat_id=event.source.chat_id,
+                    content=content,
                     metadata=_thread_metadata,
                 )
             except Exception:
