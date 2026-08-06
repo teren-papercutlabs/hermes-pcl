@@ -5579,6 +5579,15 @@ def cmd_config(args):
     config_command(args)
 
 
+def cmd_dials(args):
+    """Mutate bounded, surface-scoped runtime operating dials."""
+    from hermes_cli.dial_plane import dials_command
+
+    result = dials_command(args)
+    if result:
+        raise SystemExit(result)
+
+
 def cmd_backup(args):
     """Back up Hermes home directory to a zip file."""
     if getattr(args, "quick", False):
@@ -9602,7 +9611,7 @@ _BUILTIN_SUBCOMMANDS = frozenset(
     {
         "acp", "auth", "backup", "checkpoints", "claw", "completion",
         "computer-use",
-        "config", "cron", "curator", "dashboard", "debug", "doctor",
+        "config", "cron", "curator", "dashboard", "debug", "dials", "doctor",
         "dump", "fallback", "gateway", "hooks", "import", "insights",
         "kanban", "login", "logout", "logs", "lsp", "mcp", "memory",
         "model", "pa", "pairing", "plugins", "postinstall", "profile", "proxy", "replay", "replay-run", "sessions", "setup",
@@ -10823,6 +10832,32 @@ Examples:
     config_subparsers.add_parser("migrate", help="Update config with new options")
 
     config_parser.set_defaults(func=cmd_config)
+
+    # =========================================================================
+    # dials command — one gated write path for bounded operating settings
+    # =========================================================================
+    dials_parser = subparsers.add_parser(
+        "dials",
+        help="Write bounded runtime operating dials",
+        description="Write a declared operating dial for a declared surface scope",
+    )
+    dials_subparsers = dials_parser.add_subparsers(dest="dials_command", required=True)
+    dials_set = dials_subparsers.add_parser("set", help="Write one scoped dial value")
+    dials_set.add_argument("--key", required=True, help="Declared dial key")
+    dials_set.add_argument("--scope", required=True, help="Declared surface scope")
+    dials_set.add_argument("--value", required=True, help="JSON scalar or string value")
+    dials_set.add_argument("--actor", required=True, help="Identity making the change")
+    dials_set.add_argument(
+        "--definitions",
+        type=Path,
+        help="Dial schema path (defaults to the engine's shipped schema)",
+    )
+    dials_set.add_argument(
+        "--store",
+        type=Path,
+        help="Overlay path (defaults to dial_plane.store_path or profile-local runtime/dials.json)",
+    )
+    dials_parser.set_defaults(func=cmd_dials)
 
     # =========================================================================
     # pairing command
