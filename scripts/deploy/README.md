@@ -1,5 +1,27 @@
 # Release assembly
 
+## Whole-tree bundle (phase-one, non-default)
+
+`build_tree_bundle.py` creates a tar archive from an exact, full commit id with
+`git archive`. It then reopens that archive and generates a deterministic JSON
+receipt containing the complete file inventory, modes, sizes, and SHA-256
+fingerprints. The working tree is never an input.
+
+```bash
+commit="$(git rev-parse HEAD)"
+python3 scripts/deploy/build_tree_bundle.py \
+  --repo . \
+  --commit "$commit" \
+  --archive /path/to/hermes-tree.tar \
+  --receipt /path/to/hermes-tree.receipt.json
+```
+
+This is deliberately beside the existing curated-list PA bundler. It is not
+wired into `deploy_runtime.sh` or any default deploy path; phase one is for
+same-commit parity measurement only.
+
+## Release installation
+
 `assemble_release.py` is the release-assembly boundary for Python services that
 select immutable source releases through a `current` symlink. It never copies or
 symlinks a virtual environment from an earlier release. It is a POSIX deployment
