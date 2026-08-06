@@ -12,7 +12,9 @@ import argparse
 import json
 import os
 import tempfile
+import time
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -211,6 +213,80 @@ def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
         raise
 
 
+def _lock_owner_is_live(path: Path) -> bool:
+    """Return True unless the lock positively belongs to a dead process."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        pid = int(payload["pid"])
+        expected_started = float(payload["process_started"])
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+        # The owner may still be between O_EXCL creation and its metadata
+        # fsync. A malformed fresh lock is not evidence that it is stale, but
+        # one surviving beyond that tiny creation window is orphaned.
+        try:
+            return time.time() - path.stat().st_mtime < 1.0
+        except OSError:
+            return False
+    try:
+        import psutil
+
+        process = psutil.Process(pid)
+        return process.is_running() and abs(process.create_time() - expected_started) < 0.01
+    except (psutil.Error, OSError):
+        return False
+
+
+@contextmanager
+def _store_write_lock(store_path: Path, timeout_seconds: float = 10.0):
+    """Serialize the store's read-modify-write cycle across processes.
+
+    ``os.replace`` makes each file replacement atomic, but it cannot prevent
+    two writers from reading the same predecessor and overwriting each other.
+    The sibling O_EXCL lock closes that gap. Dead-owner recovery is PID-start-
+    time checked so a crashed writer cannot strand the dial plane forever.
+    """
+    import psutil
+
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = store_path.with_name(f".{store_path.name}.lock")
+    deadline = time.monotonic() + timeout_seconds
+    fd: int | None = None
+    owned_inode: int | None = None
+    while fd is None:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            owned_inode = os.fstat(fd).st_ino
+            payload = {
+                "pid": os.getpid(),
+                "process_started": psutil.Process().create_time(),
+                "acquired_at": datetime.now(timezone.utc).isoformat(),
+            }
+            os.write(fd, (json.dumps(payload) + "\n").encode("utf-8"))
+            os.fsync(fd)
+        except FileExistsError:
+            if not _lock_owner_is_live(lock_path):
+                try:
+                    lock_path.unlink()
+                except FileNotFoundError:
+                    pass
+                continue
+            if time.monotonic() >= deadline:
+                raise DialPlaneRefusal(
+                    "STORE_BUSY", f"dial store is locked by another writer: {store_path}"
+                )
+            time.sleep(0.02)
+
+    try:
+        yield
+    finally:
+        os.close(fd)
+        try:
+            if lock_path.stat().st_ino == owned_inode:
+                lock_path.unlink()
+        except FileNotFoundError:
+            pass
+
+
 class DialOverlayStore:
     """Atomic JSON overlay with exact-scope validation and mutation receipts."""
 
@@ -243,25 +319,28 @@ class DialOverlayStore:
             raise DialPlaneRefusal("INVALID_ACTOR", "actor must be a non-empty string")
         value = definition.validate(value)
 
-        state = self._read()
-        values = state["values"]
-        scoped_values = values.setdefault(key, {})
-        if not isinstance(scoped_values, dict):
-            raise DialPlaneRefusal("INVALID_STORE", f"stored dial {key!r} is not scope-mapped")
-        old = scoped_values.get(scope, scoped_values.get(DEFAULT_SCOPE, definition.default))
-        scoped_values[scope] = value
-        receipt = {
-            "id": str(uuid.uuid4()),
-            "changed_at": datetime.now(timezone.utc).isoformat(),
-            "actor": actor.strip(),
-            "key": key,
-            "scope": scope,
-            "old": old,
-            "new": value,
-            "authority_tier": definition.authority_tier,
-        }
-        state["audit"].append(receipt)
-        _atomic_write_json(self.path, state)
+        with _store_write_lock(self.path):
+            state = self._read()
+            values = state["values"]
+            scoped_values = values.setdefault(key, {})
+            if not isinstance(scoped_values, dict):
+                raise DialPlaneRefusal(
+                    "INVALID_STORE", f"stored dial {key!r} is not scope-mapped"
+                )
+            old = scoped_values.get(scope, scoped_values.get(DEFAULT_SCOPE, definition.default))
+            scoped_values[scope] = value
+            receipt = {
+                "id": str(uuid.uuid4()),
+                "changed_at": datetime.now(timezone.utc).isoformat(),
+                "actor": actor.strip(),
+                "key": key,
+                "scope": scope,
+                "old": old,
+                "new": value,
+                "authority_tier": definition.authority_tier,
+            }
+            state["audit"].append(receipt)
+            _atomic_write_json(self.path, state)
         return receipt
 
     def resolve(self, key: str, scope: str = DEFAULT_SCOPE) -> Any:

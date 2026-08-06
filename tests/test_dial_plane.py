@@ -2,7 +2,9 @@ import json
 import os
 import subprocess
 import sys
+import time
 from argparse import Namespace
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -82,6 +84,39 @@ def test_atomic_state_keeps_append_only_change_receipts(store):
     assert audit[1]["actor"] == "second"
     assert audit[1]["old"] == "DEBUG" and audit[1]["new"] == "WARNING"
     assert all(entry["changed_at"].endswith("+00:00") for entry in audit)
+
+
+def test_concurrent_writers_preserve_both_values_and_receipts(store, monkeypatch):
+    from hermes_cli import dial_plane
+
+    real_write = dial_plane._atomic_write_json
+
+    def slow_write(path, payload):
+        time.sleep(0.1)
+        real_write(path, payload)
+
+    monkeypatch.setattr(dial_plane, "_atomic_write_json", slow_write)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(
+            store.set,
+            key="turn_budget",
+            scope="chat:management",
+            value=70,
+            actor="first",
+        )
+        second = executor.submit(
+            store.set,
+            key="turn_budget",
+            scope="chat:operations",
+            value=80,
+            actor="second",
+        )
+        first.result()
+        second.result()
+
+    assert store.resolve("turn_budget", "chat:management") == 70
+    assert store.resolve("turn_budget", "chat:operations") == 80
+    assert {entry["actor"] for entry in store.audit()} == {"first", "second"}
 
 
 def test_gated_write_command_refuses_invalid_value(tmp_path, capsys, monkeypatch):
