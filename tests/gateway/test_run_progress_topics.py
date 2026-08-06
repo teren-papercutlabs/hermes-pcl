@@ -752,6 +752,22 @@ async def test_pa_profile_sanitizes_non_raising_agent_error(monkeypatch, tmp_pat
 
 
 @pytest.mark.asyncio
+async def test_pa_profile_queued_followup_does_not_restart_typing(monkeypatch, tmp_path):
+    QueuedCommentaryAgent.calls = 0
+    adapter, result = await _run_with_agent(
+        monkeypatch,
+        tmp_path,
+        QueuedCommentaryAgent,
+        session_id="sess-pa-queued-followup",
+        pending_text="queued follow-up",
+        config_data={"agent": {"profile": "pa"}},
+    )
+
+    assert result["final_response"] == "final response 2"
+    assert adapter.typing == []
+
+
+@pytest.mark.asyncio
 async def test_run_agent_tool_progress_does_not_control_interim_commentary(monkeypatch, tmp_path):
     """tool_progress=all with interim_assistant_messages=false should not surface commentary."""
     adapter, result = await _run_with_agent(

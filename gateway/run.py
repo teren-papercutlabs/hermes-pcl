@@ -15152,6 +15152,7 @@ class GatewayRunner:
         output_path = _hermes_home / ".update_output.txt"
         exit_code_path = _hermes_home / ".update_exit_code"
         prompt_path = _hermes_home / ".update_prompt.json"
+        client_facing = is_client_facing_config(_load_gateway_config())
 
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout
@@ -15210,7 +15211,7 @@ class GatewayRunner:
             clean = _strip_ansi(buffer).strip()
             buffer = ""
             last_stream_time = loop.time()
-            if not clean:
+            if not clean or client_facing:
                 return
             # Split into chunks if too long
             max_chunk = 3500
@@ -15239,15 +15240,22 @@ class GatewayRunner:
                 try:
                     exit_code_raw = exit_code_path.read_text().strip() or "1"
                     exit_code = int(exit_code_raw)
-                    if exit_code == 0:
+                    if client_facing:
+                        logger.info(
+                            "Update notification suppressed for client-facing session %s (exit=%s)",
+                            session_key,
+                            exit_code,
+                        )
+                    elif exit_code == 0:
                         await adapter.send(chat_id, "✅ Hermes update finished.", metadata=metadata)
+                        logger.info("Update finished (exit=%s), notified %s", exit_code, session_key)
                     else:
                         await adapter.send(
                             chat_id,
                             "❌ Hermes update failed (exit code {}).".format(exit_code),
                             metadata=metadata,
                         )
-                    logger.info("Update finished (exit=%s), notified %s", exit_code, session_key)
+                        logger.info("Update finished (exit=%s), notified %s", exit_code, session_key)
                 except Exception as e:
                     logger.warning("Update final notification failed: %s", e)
 
@@ -15277,7 +15285,7 @@ class GatewayRunner:
             # one that's still awaiting a response.  Without this guard the
             # watcher would re-read the same .update_prompt.json every poll
             # cycle and spam the user with duplicate prompt messages.
-            if (prompt_path.exists() and session_key
+            if (not client_facing and prompt_path.exists() and session_key
                     and not self._update_prompt_pending.get(session_key)):
                 try:
                     prompt_data = json.loads(prompt_path.read_text())
@@ -15329,14 +15337,15 @@ class GatewayRunner:
             logger.warning("Update watcher timed out after %.0fs", timeout)
             exit_code_path.write_text("124")
             await _flush_buffer()
-            try:
-                await adapter.send(
-                    chat_id,
-                    "❌ Hermes update timed out after 30 minutes.",
-                    metadata=metadata,
-                )
-            except Exception:
-                pass
+            if not client_facing:
+                try:
+                    await adapter.send(
+                        chat_id,
+                        "❌ Hermes update timed out after 30 minutes.",
+                        metadata=metadata,
+                    )
+                except Exception:
+                    pass
             for p in (pending_path, claimed_path, output_path,
                       exit_code_path, prompt_path):
                 p.unlink(missing_ok=True)
@@ -15364,6 +15373,18 @@ class GatewayRunner:
         cleanup = True
         active_pending_path = claimed_path
         try:
+            if is_client_facing_config(_load_gateway_config()):
+                if not exit_code_path.exists():
+                    logger.info(
+                        "Post-update notification deferred for client-facing runtime: update still running"
+                    )
+                    cleanup = False
+                    return False
+                logger.info("Post-update notification suppressed for client-facing runtime")
+                for path in (pending_path, claimed_path, output_path, exit_code_path):
+                    path.unlink(missing_ok=True)
+                return True
+
             if pending_path.exists():
                 try:
                     pending_path.replace(claimed_path)
@@ -16707,11 +16728,22 @@ class GatewayRunner:
         agent runs on the host with full access to local files, memory,
         skills, and a unified session store.
         """
+        client_facing = is_client_facing_config(_load_gateway_config())
+
+        def _proxy_failure(operator_message: str) -> str:
+            if client_facing:
+                from gateway.client_surface_policy import client_safe_failure
+
+                return client_safe_failure()
+            return operator_message
+
         try:
             from aiohttp import ClientSession as _AioClientSession, ClientTimeout
         except ImportError:
             return {
-                "final_response": "⚠️ Proxy mode requires aiohttp. Install with: pip install aiohttp",
+                "final_response": _proxy_failure(
+                    "⚠️ Proxy mode requires aiohttp. Install with: pip install aiohttp"
+                ),
                 "messages": [],
                 "api_calls": 0,
                 "tools": [],
@@ -16720,7 +16752,9 @@ class GatewayRunner:
         proxy_url = self._get_proxy_url()
         if not proxy_url:
             return {
-                "final_response": "⚠️ Proxy URL not configured (GATEWAY_PROXY_URL or gateway.proxy_url)",
+                "final_response": _proxy_failure(
+                    "⚠️ Proxy URL not configured (GATEWAY_PROXY_URL or gateway.proxy_url)"
+                ),
                 "messages": [],
                 "api_calls": 0,
                 "tools": [],
@@ -16839,7 +16873,7 @@ class GatewayRunner:
 
         # Send typing indicator
         _adapter = self.adapters.get(source.platform)
-        if _adapter and not suppress_delivery:
+        if _adapter and not suppress_delivery and not client_facing:
             try:
                 await _adapter.send_typing(source.chat_id, metadata=_thread_metadata)
             except Exception:
@@ -16864,7 +16898,9 @@ class GatewayRunner:
                             resp.status, proxy_url, error_text[:500],
                         )
                         return {
-                            "final_response": f"⚠️ Proxy error ({resp.status}): {error_text[:300]}",
+                            "final_response": _proxy_failure(
+                                f"⚠️ Proxy error ({resp.status}): {error_text[:300]}"
+                            ),
                             "messages": [],
                             "api_calls": 0,
                             "tools": [],
@@ -16920,7 +16956,7 @@ class GatewayRunner:
             logger.error("Proxy connection error to %s: %s", proxy_url, e)
             if not full_response:
                 return {
-                    "final_response": f"⚠️ Proxy connection error: {e}",
+                    "final_response": _proxy_failure(f"⚠️ Proxy connection error: {e}"),
                     "messages": [],
                     "api_calls": 0,
                     "tools": [],
@@ -19039,7 +19075,7 @@ class GatewayRunner:
                 # the follow-up turn runs.  The outer _process_message_background
                 # typing task is still alive but may be stale.
                 _followup_adapter = self.adapters.get(source.platform)
-                if _followup_adapter:
+                if _followup_adapter and not client_facing:
                     try:
                         await _followup_adapter.send_typing(
                             source.chat_id,
