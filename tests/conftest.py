@@ -143,6 +143,44 @@ def _snapshot_process_state():
     }
 
 
+def _settle_test_threads(item, timeout=0.5):
+    """Give test-owned threads that received shutdown time to terminate.
+
+    Async bridges such as Starlette's per-request AnyIO portal can finish their
+    request before the worker thread observes its stop signal.  A teardown
+    snapshot taken in that scheduling window reports a leak even though the
+    thread is already shutting down.  Joining is only a grace period: a thread
+    that did not receive a stop signal remains alive and is still reported by
+    the process-state guard below.
+    """
+    started = item.stash.get(_TEST_STARTED_THREADS, frozenset())
+    deadline = time.monotonic() + timeout
+    for thread in threading.enumerate():
+        if id(thread) not in started:
+            continue
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        thread.join(timeout=remaining)
+
+
+def _settle_test_children(timeout=0.5):
+    """Give child processes that received shutdown time to exit."""
+    with _TEST_CHILD_PROCESSES_LOCK:
+        records = list(_TEST_CHILD_PROCESSES.values())
+    deadline = time.monotonic() + timeout
+    for process, _name in records:
+        if process is None or process.poll() is not None:
+            continue
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            pass
+
+
 def _environment_state_leaks(before, after, ignored=frozenset()):
     leaks = []
     for name in sorted(set(before) | set(after)):
@@ -270,6 +308,8 @@ def pytest_runtest_call(item):
 def pytest_runtest_teardown(item, nextitem):
     """Diff after every fixture finalizer and fail the polluting test."""
     yield
+    _settle_test_threads(item)
+    _settle_test_children()
     before = item.stash[_PROCESS_STATE_SNAPSHOT]
     after = _snapshot_process_state()
     leaks = _process_state_leaks(

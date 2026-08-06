@@ -405,6 +405,34 @@ class TestSendUpdateNotification:
         assert pending_path.exists()
 
     @pytest.mark.asyncio
+    async def test_pa_profile_suppresses_legacy_update_notification(self, tmp_path):
+        runner = _make_runner()
+        hermes_home = tmp_path / "hermes"
+        hermes_home.mkdir()
+
+        pending_path = hermes_home / ".update_pending.json"
+        pending_path.write_text(json.dumps({
+            "platform": "telegram", "chat_id": "67890", "user_id": "12345",
+        }))
+        (hermes_home / ".update_output.txt").write_text("raw internal update output")
+        (hermes_home / ".update_exit_code").write_text("1")
+
+        mock_adapter = AsyncMock()
+        runner.adapters = {Platform.TELEGRAM: mock_adapter}
+
+        with patch("gateway.run._hermes_home", hermes_home):
+            with patch(
+                "gateway.run._load_gateway_config",
+                return_value={"agent": {"profile": "pa"}},
+            ):
+                result = await runner._send_update_notification()
+
+        assert result is True
+        mock_adapter.send.assert_not_awaited()
+        assert not pending_path.exists()
+        assert not (hermes_home / ".update_output.txt").exists()
+
+    @pytest.mark.asyncio
     async def test_recovers_from_claimed_pending_file(self, tmp_path):
         """A claimed pending file from a crashed notifier is still deliverable."""
         runner = _make_runner()
