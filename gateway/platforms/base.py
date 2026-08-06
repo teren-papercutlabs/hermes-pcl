@@ -3529,16 +3529,25 @@ class BasePlatformAdapter(ABC):
             logger.error("[%s] Error handling message: %s", self.name, e, exc_info=True)
             # Send the error to the user so they aren't left with radio silence
             try:
-                error_type = type(e).__name__
-                error_detail = str(e)[:300] if str(e) else "no details available"
+                from gateway.client_surface_policy import (
+                    client_safe_failure,
+                    is_client_facing_home,
+                )
+
                 _thread_metadata = _thread_metadata_for_source(event.source, _reply_anchor_for_event(event))
-                await self.send(
-                    chat_id=event.source.chat_id,
-                    content=(
+                if is_client_facing_home():
+                    content = client_safe_failure()
+                else:
+                    error_type = type(e).__name__
+                    error_detail = str(e)[:300] if str(e) else "no details available"
+                    content = (
                         f"Sorry, I encountered an error ({error_type}).\n"
                         f"{error_detail}\n"
                         "Try again or use /reset to start a fresh session."
-                    ),
+                    )
+                await self.send(
+                    chat_id=event.source.chat_id,
+                    content=content,
                     metadata=_thread_metadata,
                 )
             except Exception:

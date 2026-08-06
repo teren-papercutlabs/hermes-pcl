@@ -537,6 +537,30 @@ class BackgroundReviewAgent:
         }
 
 
+class ClientSurfaceProbeAgent:
+    """Capture every gateway-owned sideband callback assigned to a PA turn."""
+
+    callbacks = None
+
+    def __init__(self, **kwargs):
+        self.tools = []
+
+    def run_conversation(self, message, conversation_history=None, task_id=None):
+        type(self).callbacks = {
+            "tool": self.tool_progress_callback,
+            "interim": self.interim_assistant_callback,
+            "status": self.status_callback,
+            "background_review": self.background_review_callback,
+        }
+        for callback in type(self).callbacks.values():
+            if callback:
+                try:
+                    callback("lifecycle", "raw provider failure: sk-client-secret")
+                except TypeError:
+                    callback("raw provider failure: sk-client-secret")
+        return {"final_response": "safe final", "messages": [], "api_calls": 1}
+
+
 class VerboseAgent:
     """Agent that emits a tool call with args whose JSON exceeds 200 chars."""
     LONG_CODE = "x" * 300
@@ -658,6 +682,38 @@ async def test_run_agent_suppresses_interim_commentary_when_disabled(monkeypatch
 
     assert result.get("already_sent") is not True
     assert not any(call["content"] == "I'll inspect the repo first." for call in adapter.sent)
+
+
+@pytest.mark.asyncio
+async def test_pa_profile_cannot_opt_back_into_gateway_sidebands(monkeypatch, tmp_path):
+    """A fresh PA config is fail-closed even when every display knob says on."""
+    ClientSurfaceProbeAgent.callbacks = None
+    adapter, result = await _run_with_agent(
+        monkeypatch,
+        tmp_path,
+        ClientSurfaceProbeAgent,
+        session_id="sess-pa-client-silent",
+        config_data={
+            "agent": {
+                "profile": "pa",
+                "gateway_notify_interval": 0.01,
+                "self_improvement": {"notify": "channel"},
+            },
+            "display": {
+                "tool_progress": "verbose",
+                "interim_assistant_messages": True,
+            },
+        },
+    )
+
+    assert result["final_response"] == "safe final"
+    assert ClientSurfaceProbeAgent.callbacks == {
+        "tool": None,
+        "interim": None,
+        "status": None,
+        "background_review": None,
+    }
+    assert adapter.sent == []
 
 
 @pytest.mark.asyncio

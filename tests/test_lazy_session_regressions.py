@@ -417,6 +417,31 @@ class TestGatewaySurfacesNullResponse:
 
         assert result == "Hello!"
 
+    def test_pa_client_failure_never_contains_raw_error_or_commands(self):
+        """Client-facing failures collapse to one fixed, machinery-free line."""
+        from gateway.client_surface_policy import CLIENT_SAFE_FAILURE
+        from gateway.run import _normalize_empty_agent_response
+
+        agent_result = {
+            "final_response": None,
+            "api_calls": 2,
+            "failed": True,
+            "error": "401 sk-client-secret from terminal at iteration 2/12",
+        }
+
+        result = _normalize_empty_agent_response(
+            agent_result,
+            "",
+            history_len=8,
+            client_facing=True,
+        )
+
+        assert result == CLIENT_SAFE_FAILURE
+        assert "401" not in result
+        assert "secret" not in result
+        assert "terminal" not in result
+        assert "/reset" not in result
+
 
 # ===========================================================================
 # Prune: finalize_orphaned_compression_sessions
