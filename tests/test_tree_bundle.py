@@ -14,7 +14,16 @@ BUNDLER = REPO_ROOT / "scripts" / "deploy" / "build_tree_bundle.py"
 
 def _git(repo: Path, *args: str) -> str:
     return subprocess.run(
-        ["git", "-C", str(repo), *args],
+        [
+            "git",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "commit.gpgsign=false",
+            "-C",
+            str(repo),
+            *args,
+        ],
         check=True,
         capture_output=True,
         text=True,
