@@ -576,6 +576,13 @@ DEFAULT_CONFIG = {
         "knowledge_path": "",
         "business": {},
     },
+    # Bounded runtime operating dials. Surface scope names are declarations:
+    # the gated writer refuses any scope not listed here. An empty store path
+    # resolves to the profile-local HERMES_HOME/runtime/dials.json.
+    "dial_plane": {
+        "scopes": [],
+        "store_path": "",
+    },
     "inter_session": {
         "enabled": False,
         "agent_id": "",

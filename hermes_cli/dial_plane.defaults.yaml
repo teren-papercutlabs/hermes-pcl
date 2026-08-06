@@ -1,0 +1,79 @@
+version: 1
+
+# The engine knows only the default scope. Deployments declare their own
+# surface scopes (for example, chat zones) when constructing the store.
+scopes:
+  - default
+
+authority_tiers:
+  pa_owner:
+    description: Reversible operating adjustment within a declared bound.
+  directional_model_cost:
+    description: Model-cost decreases and increases have different authorities.
+    swap_down: edna
+    swap_up: teren
+    enforcement: TODO(surface authority integration)
+
+# These presets generalize the proven runtime-slot shape: a slot is a named,
+# pre-tested model + effort pair. Cost ranks are relative ordering metadata,
+# not prices. No preset is selected by default.
+slots:
+  economy:
+    model: gpt-5.4-mini
+    reasoning_effort: null
+    cost_tag: economy
+    cost_rank: 1
+  frontier_low:
+    model: gpt-5.6-luna
+    reasoning_effort: low
+    cost_tag: standard
+    cost_rank: 2
+  frontier_default:
+    model: gpt-5.6-luna
+    reasoning_effort: null
+    cost_tag: premium
+    cost_rank: 3
+  balanced_medium:
+    model: gpt-5.6-terra
+    reasoning_effort: medium
+    cost_tag: premium
+    cost_rank: 4
+  frontier_xhigh:
+    model: gpt-5.6-luna
+    reasoning_effort: xhigh
+    cost_tag: highest
+    cost_rank: 5
+
+dials:
+  model_slot:
+    type: enum
+    allowed:
+      - inherit
+      - economy
+      - frontier_low
+      - frontier_default
+      - balanced_medium
+      - frontier_xhigh
+    default: inherit
+    authority_tier: directional_model_cost
+    description: Named pre-tested engine preset; inherit leaves the deployed model unchanged.
+  turn_budget:
+    type: integer
+    minimum: 1
+    maximum: 200
+    default: 90
+    authority_tier: pa_owner
+    description: Maximum tool-calling iterations available to one turn.
+  tool_timeout_seconds:
+    type: integer
+    minimum: 1
+    maximum: 600
+    default: 120
+    authority_tier: pa_owner
+    description: Upper bound for one tool invocation.
+  log_level:
+    type: enum
+    allowed: [DEBUG, INFO, WARNING, ERROR]
+    default: INFO
+    authority_tier: pa_owner
+    description: Runtime log verbosity.
