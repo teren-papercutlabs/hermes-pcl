@@ -56,7 +56,10 @@ def kanban_home(tmp_path, monkeypatch):
 def client(kanban_home):
     app = FastAPI()
     app.include_router(_load_plugin_router(), prefix="/api/plugins/kanban")
-    return TestClient(app)
+    # TestClient owns an AnyIO portal thread.  Use its context manager so the
+    # thread is joined before the process-state leak guard runs at teardown.
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 # ---------------------------------------------------------------------------
@@ -542,10 +545,10 @@ def test_board_auto_initializes_missing_db(tmp_path, monkeypatch):
 
     app = FastAPI()
     app.include_router(_load_plugin_router(), prefix="/api/plugins/kanban")
-    c = TestClient(app)
-    r = c.get("/api/plugins/kanban/board")
-    assert r.status_code == 200
-    assert (home / "kanban.db").exists(), "init_db wasn't invoked by /board"
+    with TestClient(app) as c:
+        r = c.get("/api/plugins/kanban/board")
+        assert r.status_code == 200
+        assert (home / "kanban.db").exists(), "init_db wasn't invoked by /board"
 
 
 # ---------------------------------------------------------------------------
@@ -571,26 +574,25 @@ def test_ws_events_rejects_when_token_required(tmp_path, monkeypatch):
 
     app = FastAPI()
     app.include_router(_load_plugin_router(), prefix="/api/plugins/kanban")
-    c = TestClient(app)
+    with TestClient(app) as c:
+        # No token → policy violation close.
+        from starlette.websockets import WebSocketDisconnect
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with c.websocket_connect("/api/plugins/kanban/events"):
+                pass
+        assert exc.value.code == 1008
 
-    # No token → policy violation close.
-    from starlette.websockets import WebSocketDisconnect
-    with pytest.raises(WebSocketDisconnect) as exc:
-        with c.websocket_connect("/api/plugins/kanban/events"):
-            pass
-    assert exc.value.code == 1008
+        # Wrong token → policy violation close.
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with c.websocket_connect("/api/plugins/kanban/events?token=nope"):
+                pass
+        assert exc.value.code == 1008
 
-    # Wrong token → policy violation close.
-    with pytest.raises(WebSocketDisconnect) as exc:
-        with c.websocket_connect("/api/plugins/kanban/events?token=nope"):
-            pass
-    assert exc.value.code == 1008
-
-    # Correct token → accepted (connect then close cleanly from our side).
-    with c.websocket_connect(
-        "/api/plugins/kanban/events?token=secret-xyz"
-    ) as ws:
-        assert ws is not None  # handshake succeeded
+        # Correct token → accepted (connect then close cleanly from our side).
+        with c.websocket_connect(
+            "/api/plugins/kanban/events?token=secret-xyz"
+        ) as ws:
+            assert ws is not None  # handshake succeeded
 
 
 def test_ws_events_swallows_cancellation_on_shutdown(tmp_path, monkeypatch):
