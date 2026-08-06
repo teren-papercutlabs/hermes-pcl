@@ -3039,9 +3039,24 @@ def deliver_management_replies(
         ):
             summary["duplicate"] += 1
             continue
+        # The bridge renders the visible quote from these fields; a bare
+        # messageId makes it embed a placeholder body with no participant,
+        # which phones display as a phantom "You / [message]" quote and
+        # WhatsApp Web may refuse to render at all (2026-08-06 incident).
+        anchor_body = str(anchor_item.get("body") or "").strip()
+        if not anchor_body:
+            anchor_media = str(anchor_item.get("mediaType") or "").strip()
+            anchor_body = f"[{anchor_media}]" if anchor_media else ""
+        reply_to_payload: dict[str, Any] = {"messageId": anchor}
+        if anchor_item.get("senderId"):
+            reply_to_payload["participant"] = str(anchor_item["senderId"])
+        if anchor_body:
+            reply_to_payload["body"] = anchor_body[:1024]
+        if anchor_item.get("fromMe"):
+            reply_to_payload["fromMe"] = True
         body_payload: dict[str, Any] = {
                 "chatId": chat_id,
-                "replyTo": {"messageId": anchor},
+                "replyTo": reply_to_payload,
         }
         endpoint = "send"
         if send.get("send_kind", "text") == "media":

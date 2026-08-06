@@ -504,6 +504,90 @@ def test_mgmt_delivery_is_at_most_once(
     }
 
 
+def test_reply_quote_payload_carries_anchor_sender_and_body(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bridge renders the quote from replyTo.participant/body; a bare
+    messageId produces a phantom "[message]" quote (2026-08-06 incident)."""
+    sent: list = []
+
+    def fake_urlopen(request, timeout=0):
+        sent.append(json.loads(request.data))
+        return _FakeResponse({"success": True, "messageId": "WAMSG10"})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    record = InboxRecord(
+        seq=1,
+        message_id="MSG1",
+        chat_id=MGMT_CHAT,
+        start_offset=0,
+        end_offset=1,
+        raw={
+            "messageId": "MSG1",
+            "chatId": MGMT_CHAT,
+            "timestamp": FRESH_TS,
+            "senderId": "230407865937940@lid",
+            "body": "idk what to eat for lunch",
+            "fromMe": False,
+        },
+    )
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[_captured(MGMT_CHAT)],
+        batch_records=[record],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1"),
+    )
+    assert summary["delivered"] == 1
+    assert sent[0]["replyTo"] == {
+        "messageId": "MSG1",
+        "participant": "230407865937940@lid",
+        "body": "idk what to eat for lunch",
+    }
+
+
+def test_media_anchor_body_falls_back_to_media_type(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list = []
+
+    def fake_urlopen(request, timeout=0):
+        sent.append(json.loads(request.data))
+        return _FakeResponse({"success": True, "messageId": "WAMSG11"})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    record = InboxRecord(
+        seq=1,
+        message_id="MSG1",
+        chat_id=MGMT_CHAT,
+        start_offset=0,
+        end_offset=1,
+        raw={
+            "messageId": "MSG1",
+            "chatId": MGMT_CHAT,
+            "timestamp": FRESH_TS,
+            "senderId": "230407865937940@lid",
+            "body": "",
+            "mediaType": "image",
+        },
+    )
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[_captured(MGMT_CHAT)],
+        batch_records=[record],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1"),
+    )
+    assert summary["delivered"] == 1
+    assert sent[0]["replyTo"] == {
+        "messageId": "MSG1",
+        "participant": "230407865937940@lid",
+        "body": "[image]",
+    }
+
+
 def test_distinct_renderings_for_same_anchor_still_deliver_only_once(
     inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
