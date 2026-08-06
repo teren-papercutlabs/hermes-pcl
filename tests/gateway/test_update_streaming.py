@@ -287,6 +287,40 @@ class TestWatchUpdateProgress:
         assert "update finished" in all_sent.lower()
 
     @pytest.mark.asyncio
+    async def test_pa_profile_suppresses_update_output_and_completion(self, tmp_path):
+        runner = _make_runner()
+        hermes_home = tmp_path / "hermes"
+        hermes_home.mkdir()
+
+        pending = {
+            "platform": "telegram",
+            "chat_id": "111",
+            "session_key": "agent:main:telegram:dm:111",
+        }
+        (hermes_home / ".update_pending.json").write_text(json.dumps(pending))
+        (hermes_home / ".update_output.txt").write_text(
+            "internal update output with secret detail\n", encoding="utf-8"
+        )
+        (hermes_home / ".update_exit_code").write_text("1")
+
+        mock_adapter = AsyncMock()
+        runner.adapters = {Platform.TELEGRAM: mock_adapter}
+
+        with patch("gateway.run._hermes_home", hermes_home):
+            with patch(
+                "gateway.run._load_gateway_config",
+                return_value={"agent": {"profile": "pa"}},
+            ):
+                await runner._watch_update_progress(
+                    poll_interval=0.01,
+                    stream_interval=0.01,
+                    timeout=1.0,
+                )
+
+        mock_adapter.send.assert_not_awaited()
+        assert not (hermes_home / ".update_pending.json").exists()
+
+    @pytest.mark.asyncio
     async def test_detects_and_forwards_prompt(self, tmp_path):
         """Detects .update_prompt.json and sends it to the user."""
         runner = _make_runner()

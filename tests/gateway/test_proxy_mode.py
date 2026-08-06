@@ -11,6 +11,7 @@ from gateway.config import Platform, StreamingConfig
 from gateway.platforms.base import resolve_proxy_url
 from gateway.run import GatewayRunner
 from gateway.session import SessionSource
+from gateway.client_surface_policy import CLIENT_SAFE_FAILURE
 
 
 def _make_runner(proxy_url=None):
@@ -336,6 +337,65 @@ class TestRunAgentViaProxy:
                     )
 
         assert "Proxy connection error" in result["final_response"]
+
+    @pytest.mark.asyncio
+    async def test_pa_profile_sanitizes_proxy_http_error_and_skips_typing(self, monkeypatch):
+        monkeypatch.setenv("GATEWAY_PROXY_URL", "http://host:8642")
+        monkeypatch.delenv("GATEWAY_PROXY_KEY", raising=False)
+        runner = _make_runner()
+        source = _make_source()
+        adapter = AsyncMock()
+        runner.adapters = {source.platform: adapter}
+
+        resp = _FakeSSEResponse(status=401, error_text="Unauthorized: sk-client-secret")
+        session = _FakeSession(resp)
+
+        with patch("gateway.run._load_gateway_config", return_value={"agent": {"profile": "pa"}}):
+            with _patch_aiohttp(session):
+                with patch("aiohttp.ClientTimeout"):
+                    result = await runner._run_agent_via_proxy(
+                        message="hi",
+                        context_prompt="",
+                        history=[],
+                        source=source,
+                        session_id="test",
+                    )
+
+        assert result["final_response"] == CLIENT_SAFE_FAILURE
+        assert "401" not in result["final_response"]
+        assert "secret" not in result["final_response"]
+        adapter.send_typing.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_pa_profile_sanitizes_proxy_connection_error(self, monkeypatch):
+        monkeypatch.setenv("GATEWAY_PROXY_URL", "http://unreachable:8642")
+        monkeypatch.delenv("GATEWAY_PROXY_KEY", raising=False)
+        runner = _make_runner()
+        source = _make_source()
+
+        class _ErrorSession:
+            def post(self, *args, **kwargs):
+                raise ConnectionError("Connection refused with internal host")
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with patch("gateway.run._load_gateway_config", return_value={"agent": {"profile": "pa"}}):
+            with patch("aiohttp.ClientSession", return_value=_ErrorSession()):
+                with patch("aiohttp.ClientTimeout"):
+                    result = await runner._run_agent_via_proxy(
+                        message="hi",
+                        context_prompt="",
+                        history=[],
+                        source=source,
+                        session_id="test",
+                    )
+
+        assert result["final_response"] == CLIENT_SAFE_FAILURE
+        assert "internal host" not in result["final_response"]
 
     @pytest.mark.asyncio
     async def test_skips_tool_messages_in_history(self, monkeypatch):
