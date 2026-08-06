@@ -8280,7 +8280,7 @@ class GatewayRunner:
                                     if os.name == "nt":
                                         proc.kill()
                                     else:
-                                        os.killpg(proc.pid, signal.SIGKILL)
+                                        os.killpg(proc.pid, signal.SIGKILL)  # windows-footgun: ok -- POSIX-only branch
                                 except ProcessLookupError:
                                     pass
                                 await proc.communicate()
