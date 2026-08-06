@@ -10,9 +10,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
-import threading
 import time
-from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -43,17 +41,6 @@ def _load_plugin_router():
     return mod.router
 
 
-@contextmanager
-def _managed_test_client(app):
-    """Close TestClient and join AnyIO workers created by sync endpoints."""
-    existing_threads = {id(thread) for thread in threading.enumerate()}
-    with TestClient(app) as test_client:
-        yield test_client
-    for thread in threading.enumerate():
-        if id(thread) not in existing_threads and thread.name == "AnyIO worker thread":
-            thread.join(timeout=1)
-
-
 @pytest.fixture
 def kanban_home(tmp_path, monkeypatch):
     """Isolated HERMES_HOME with an empty kanban DB."""
@@ -69,8 +56,7 @@ def kanban_home(tmp_path, monkeypatch):
 def client(kanban_home):
     app = FastAPI()
     app.include_router(_load_plugin_router(), prefix="/api/plugins/kanban")
-    with _managed_test_client(app) as test_client:
-        yield test_client
+    return TestClient(app)
 
 
 # ---------------------------------------------------------------------------
@@ -556,10 +542,10 @@ def test_board_auto_initializes_missing_db(tmp_path, monkeypatch):
 
     app = FastAPI()
     app.include_router(_load_plugin_router(), prefix="/api/plugins/kanban")
-    with _managed_test_client(app) as c:
-        r = c.get("/api/plugins/kanban/board")
-        assert r.status_code == 200
-        assert (home / "kanban.db").exists(), "init_db wasn't invoked by /board"
+    c = TestClient(app)
+    r = c.get("/api/plugins/kanban/board")
+    assert r.status_code == 200
+    assert (home / "kanban.db").exists(), "init_db wasn't invoked by /board"
 
 
 # ---------------------------------------------------------------------------
@@ -585,25 +571,26 @@ def test_ws_events_rejects_when_token_required(tmp_path, monkeypatch):
 
     app = FastAPI()
     app.include_router(_load_plugin_router(), prefix="/api/plugins/kanban")
-    with _managed_test_client(app) as c:
-        # No token → policy violation close.
-        from starlette.websockets import WebSocketDisconnect
-        with pytest.raises(WebSocketDisconnect) as exc:
-            with c.websocket_connect("/api/plugins/kanban/events"):
-                pass
-        assert exc.value.code == 1008
+    c = TestClient(app)
 
-        # Wrong token → policy violation close.
-        with pytest.raises(WebSocketDisconnect) as exc:
-            with c.websocket_connect("/api/plugins/kanban/events?token=nope"):
-                pass
-        assert exc.value.code == 1008
+    # No token → policy violation close.
+    from starlette.websockets import WebSocketDisconnect
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with c.websocket_connect("/api/plugins/kanban/events"):
+            pass
+    assert exc.value.code == 1008
 
-        # Correct token → accepted (connect then close cleanly from our side).
-        with c.websocket_connect(
-            "/api/plugins/kanban/events?token=secret-xyz"
-        ) as ws:
-            assert ws is not None  # handshake succeeded
+    # Wrong token → policy violation close.
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with c.websocket_connect("/api/plugins/kanban/events?token=nope"):
+            pass
+    assert exc.value.code == 1008
+
+    # Correct token → accepted (connect then close cleanly from our side).
+    with c.websocket_connect(
+        "/api/plugins/kanban/events?token=secret-xyz"
+    ) as ws:
+        assert ws is not None  # handshake succeeded
 
 
 def test_ws_events_swallows_cancellation_on_shutdown(tmp_path, monkeypatch):
