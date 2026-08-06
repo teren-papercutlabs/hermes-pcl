@@ -561,6 +561,22 @@ class ClientSurfaceProbeAgent:
         return {"final_response": "safe final", "messages": [], "api_calls": 1}
 
 
+class ClientSurfaceErrorAgent:
+    """Return the normal non-raising AIAgent failure shape with raw detail."""
+
+    def __init__(self, **kwargs):
+        self.tools = []
+
+    def run_conversation(self, message, conversation_history=None, task_id=None):
+        return {
+            "final_response": None,
+            "messages": [],
+            "api_calls": 1,
+            "failed": True,
+            "error": "401 sk-client-secret from terminal",
+        }
+
+
 class VerboseAgent:
     """Agent that emits a tool call with args whose JSON exceeds 200 chars."""
     LONG_CODE = "x" * 300
@@ -713,6 +729,25 @@ async def test_pa_profile_cannot_opt_back_into_gateway_sidebands(monkeypatch, tm
         "status": None,
         "background_review": None,
     }
+    assert adapter.sent == []
+
+
+@pytest.mark.asyncio
+async def test_pa_profile_sanitizes_non_raising_agent_error(monkeypatch, tmp_path):
+    """The _run_agent wrapper cannot turn result['error'] into client text."""
+    from gateway.client_surface_policy import CLIENT_SAFE_FAILURE
+
+    adapter, result = await _run_with_agent(
+        monkeypatch,
+        tmp_path,
+        ClientSurfaceErrorAgent,
+        session_id="sess-pa-client-error",
+        config_data={"agent": {"profile": "pa"}},
+    )
+
+    assert result["final_response"] == CLIENT_SAFE_FAILURE
+    assert "401" not in result["final_response"]
+    assert "secret" not in result["final_response"]
     assert adapter.sent == []
 
 

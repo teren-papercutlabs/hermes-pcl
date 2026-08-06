@@ -23,6 +23,8 @@ class _CaptureAdapter(BasePlatformAdapter):
     def __init__(self):
         super().__init__(PlatformConfig(enabled=True, token="***"), Platform.TELEGRAM)
         self.sent = []
+        self.typing_started = 0
+        self.processing_hooks = []
 
     async def connect(self):
         return True
@@ -36,6 +38,15 @@ class _CaptureAdapter(BasePlatformAdapter):
 
     async def send_typing(self, chat_id, metadata=None):
         return None
+
+    async def _keep_typing(self, chat_id, interval=2.0, metadata=None, stop_event=None):
+        self.typing_started += 1
+
+    async def on_processing_start(self, event):
+        self.processing_hooks.append("start")
+
+    async def on_processing_complete(self, event, outcome):
+        self.processing_hooks.append(("complete", outcome))
 
     async def get_chat_info(self, chat_id):
         return {"id": chat_id}
@@ -93,3 +104,5 @@ async def test_adapter_last_resort_error_never_sends_raw_detail_for_pa_home(
     await adapter._process_message_background(event, build_session_key(source))
 
     assert adapter.sent == [CLIENT_SAFE_FAILURE]
+    assert adapter.typing_started == 0
+    assert adapter.processing_hooks == []

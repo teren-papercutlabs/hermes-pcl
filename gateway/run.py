@@ -18338,7 +18338,12 @@ class GatewayRunner:
             _resolved_provider = getattr(_agent, "provider", None) if _agent else None
 
             if not final_response:
-                error_msg = f"⚠️ {result['error']}" if result.get("error") else ""
+                if client_facing and result.get("error"):
+                    from gateway.client_surface_policy import client_safe_failure
+
+                    error_msg = client_safe_failure()
+                else:
+                    error_msg = f"⚠️ {result['error']}" if result.get("error") else ""
                 return {
                     "final_response": error_msg,
                     "messages": result.get("messages", []),
