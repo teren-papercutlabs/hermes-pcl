@@ -164,6 +164,32 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     constitution_path = release_root / "christopher_tgg_constitution.yaml"
     _validate_runtime_pair(config_path, constitution_path, slot)
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
+    canary = manifest.get("canary")
+    if manifest["audience"] == "production" and canary is not None:
+        raise RuntimeError("production external capability cannot restrict management selectors")
+    if canary is not None:
+        management_chat_ids = canary.get("management_chat_ids") if isinstance(canary, dict) else None
+        if (
+            not isinstance(management_chat_ids, list)
+            or len(management_chat_ids) != 1
+            or not isinstance(management_chat_ids[0], str)
+        ):
+            raise RuntimeError("external capability canary manifest is invalid")
+        management_selectors = [
+            selector
+            for selector in constitution.get("selectors", [])
+            if selector.get("job_type") == "tgg_management"
+        ]
+        expected_selector = {
+            "job_type": "tgg_management",
+            "match": {
+                "source.platform": "whatsapp",
+                "source.chat_id": management_chat_ids[0],
+            },
+        }
+        if management_selectors != [expected_selector]:
+            raise RuntimeError("external capability canary selector set mismatch")
     configured_constitution = Path(config["pa"]["constitution_path"])
     expected_constitution = current / "christopher_tgg_constitution.yaml"
     if configured_constitution != expected_constitution:

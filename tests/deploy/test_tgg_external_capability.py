@@ -28,7 +28,12 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def make_release(tmp_path: Path) -> tuple[Path, Path, Path]:
+def make_release(
+    tmp_path: Path,
+    *,
+    manifest_canary_chat_id: str | None = None,
+    audience: str = "shadow",
+) -> tuple[Path, Path, Path]:
     home = tmp_path / "home"
     runtime = home / "runtime"
     capability = runtime / "capabilities" / "christopher-tgg"
@@ -56,8 +61,13 @@ def make_release(tmp_path: Path) -> tuple[Path, Path, Path]:
     manifest = {
         "schema": "christopher-tgg-capability-release/v1",
         "release_id": release.name,
-        "audience": "shadow",
+        "audience": audience,
         "files": files,
+        "canary": (
+            {"management_chat_ids": [manifest_canary_chat_id]}
+            if manifest_canary_chat_id
+            else None
+        ),
     }
     manifest_path = release / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
@@ -101,6 +111,31 @@ def test_rejects_current_pointer_outside_release_root(tmp_path: Path) -> None:
     current.symlink_to(outside)
 
     with pytest.raises(RuntimeError, match="escapes the releases directory"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+
+def test_rejects_canary_manifest_when_constitution_has_other_management_chats(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    home, runtime, _release = make_release(
+        tmp_path,
+        manifest_canary_chat_id="120363426509183563@g.us",
+    )
+
+    with pytest.raises(RuntimeError, match="canary selector set mismatch"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+
+def test_rejects_canary_restriction_on_production_release(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, _release = make_release(
+        tmp_path,
+        manifest_canary_chat_id="120363426509183563@g.us",
+        audience="production",
+    )
+
+    with pytest.raises(RuntimeError, match="cannot restrict management selectors"):
         module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
