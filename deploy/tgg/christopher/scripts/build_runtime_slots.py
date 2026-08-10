@@ -865,7 +865,9 @@ def _validate(
     assert "operation tgg_case_query" in mgmt_joined
     assert "SELECT-only SQL query" in mgmt_joined
     assert "Never refuse an aggregate ask" in mgmt_joined
-    assert "canonical_state_source_kind" in mgmt_joined
+    assert "match that exact value" in mgmt_joined
+    assert "tgg_case_sources.source_account_id" in mgmt_joined
+    assert "Select source_account_id" in mgmt_joined
     assert "corroborating records, not the reason" in mgmt_joined
     assert "did not ask why" in mgmt_joined
     assert "neither count proves the other" in mgmt_joined
