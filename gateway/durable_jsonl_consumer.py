@@ -2616,6 +2616,10 @@ def _expand_captured_send(send: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "chat_id": str(send.get("chat_id") or ""),
                 "path": match.group("path"),
                 "caption": cleaned if ordinal == 0 and cleaned else None,
+                # Keep the answer on every expanded item so delivery can send
+                # it separately if any attachment fails.  This field is never
+                # forwarded to the media bridge payload.
+                "response_text": cleaned or None,
                 "reply_to": send.get("reply_to"),
                 "ordinal": ordinal,
             }
@@ -2973,6 +2977,23 @@ def deliver_management_replies(
         for message_id in (group.get("message_ids") or [])
         if message_id
     }
+    media_failures: dict[tuple[str, str], dict[str, Any]] = {}
+    media_caption_delivered: set[tuple[str, str]] = set()
+
+    def note_media_failure(
+        send: Mapping[str, Any], chat_id: str, anchor: str, anchor_item: Mapping[str, Any]
+    ) -> None:
+        key = (chat_id, anchor)
+        entry = media_failures.setdefault(
+            key,
+            {
+                "response_text": str(send.get("response_text") or "").strip(),
+                "anchor_item": dict(anchor_item),
+            },
+        )
+        if not entry.get("response_text") and send.get("response_text"):
+            entry["response_text"] = str(send["response_text"]).strip()
+
     for send in sends:
         chat_id = send["chat_id"]
         if chat_id not in management_chats:
@@ -3097,6 +3118,8 @@ def deliver_management_replies(
                     provider_outcome=str(payload.get("outcome") or "delivered"),
                 )
                 summary["delivered"] += 1
+                if send.get("send_kind", "text") == "media" and send.get("caption"):
+                    media_caption_delivered.add((chat_id, str(anchor)))
             else:
                 print(
                     "reply delivery outcome NOT confirmed: "
@@ -3111,6 +3134,11 @@ def deliver_management_replies(
                     error=f"http-{status_code}-unconfirmed: {json.dumps(payload)[:200]}",
                 )
                 summary["undelivered"] += 1
+                if (
+                    send.get("send_kind", "text") == "media"
+                    and status_code >= 400
+                ):
+                    note_media_failure(send, chat_id, str(anchor), anchor_item)
         except HTTPError as exc:
             detail = ""
             try:
@@ -3128,6 +3156,8 @@ def deliver_management_replies(
                 error=f"http-{exc.code}: {detail}",
             )
             summary["undelivered"] += 1
+            if send.get("send_kind", "text") == "media":
+                note_media_failure(send, chat_id, str(anchor), anchor_item)
         except (URLError, TimeoutError, OSError, ValueError) as exc:
             print(
                 f"reply delivery FAILED (transport): chat={chat_id} anchor={anchor} error={exc}",
@@ -3135,6 +3165,77 @@ def deliver_management_replies(
             )
             inbox.record_reply_delivery(
                 delivery_key, status="undelivered", error=str(exc)[:300]
+            )
+            summary["undelivered"] += 1
+
+    # A media response previously carried the prose only as the first image's
+    # caption.  If that image was unreadable or the bridge rejected any image,
+    # the operator could receive no answer at all.  Send one separately claimed
+    # text fallback per response.  The original media claim remains consumed;
+    # neither the attachment nor fallback is retried after an uncertain outcome.
+    for (chat_id, anchor), failure in media_failures.items():
+        fallback_key = f"media-fallback::{chat_id}::{anchor}"
+        if not inbox.claim_reply_delivery(
+            fallback_key, chat_id=chat_id, reply_to_message_id=anchor
+        ):
+            summary["duplicate"] += 1
+            continue
+        answer = str(failure.get("response_text") or "").strip()
+        note = "I couldn't send one or more of the selected images."
+        if (chat_id, anchor) in media_caption_delivered:
+            message = note
+        else:
+            message = f"{answer}\n\n{note}" if answer else note
+        item = failure.get("anchor_item") or {}
+        anchor_body = str(item.get("body") or "").strip()
+        if not anchor_body:
+            anchor_media = str(item.get("mediaType") or "").strip()
+            anchor_body = f"[{anchor_media}]" if anchor_media else ""
+        reply_to_payload: dict[str, Any] = {"messageId": anchor}
+        if item.get("senderId"):
+            reply_to_payload["participant"] = str(item["senderId"])
+        if anchor_body:
+            reply_to_payload["body"] = anchor_body[:1024]
+        if item.get("fromMe"):
+            reply_to_payload["fromMe"] = True
+        request = Request(
+            f"{bridge_url}/send",
+            data=json.dumps({
+                "chatId": chat_id,
+                "replyTo": reply_to_payload,
+                "message": message,
+            }).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=30) as response:
+                status_code = int(getattr(response, "status", 0) or 0)
+                payload = json.loads(response.read() or b"{}")
+            if status_code == 200 and payload.get("success") is True:
+                inbox.record_reply_delivery(
+                    fallback_key,
+                    status="delivered",
+                    bridge_message_id=str(payload.get("messageId") or ""),
+                    provider_outcome=str(payload.get("outcome") or "delivered"),
+                )
+                summary["delivered"] += 1
+            else:
+                inbox.record_reply_delivery(
+                    fallback_key,
+                    status="undelivered",
+                    provider_outcome=str(payload.get("outcome") or "unconfirmed"),
+                    error=f"http-{status_code}-unconfirmed: {json.dumps(payload)[:200]}",
+                )
+                summary["undelivered"] += 1
+        except HTTPError as exc:
+            inbox.record_reply_delivery(
+                fallback_key, status="undelivered", error=f"http-{exc.code}"
+            )
+            summary["undelivered"] += 1
+        except (URLError, TimeoutError, OSError, ValueError) as exc:
+            inbox.record_reply_delivery(
+                fallback_key, status="undelivered", error=str(exc)[:300]
             )
             summary["undelivered"] += 1
     return summary
