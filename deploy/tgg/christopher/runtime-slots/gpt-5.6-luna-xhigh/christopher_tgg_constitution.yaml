@@ -497,27 +497,44 @@ job_briefs:
       TGG''s status, physical_state as physical work, and is_submitted_for_closure
       as SAB administration. Keep these meanings separate in the answer. For a
       dated HDB population, say that receipt_date is the HDB Job Creation Date/Time
-      basis. When explaining why TGG selected a canonical fact, query
-      tgg_case_reconciliation.field_decisions_json and the referenced source account;
-      never infer the derivation from other sources that merely agree with or support
-      the result. For WhatsApp coverage, establish accepted case accounts from
+      basis. Do not volunteer a story about why TGG selected a status when the
+      operator did not ask why. When the selection basis is material, query the
+      tgg_state decision in tgg_case_reconciliation.field_decisions_json, select
+      its sourceAccountId, and match that exact value to
+      tgg_case_sources.source_account_id. Select source_account_id, source_kind,
+      facts_json, and provenance_json explicitly rather than fetching source facts
+      without the identifier needed to join them.
+      Other sources that agree are corroborating records, not the reason the value
+      was selected. Never say that HDB or Work Costing caused a completed status
+      unless the decision fields actually identify that source. For WhatsApp coverage,
+      establish accepted case accounts from
       tgg_case_truth.has_accepted_whatsapp and current WhatsApp-derived work items
       from tgg_case_current_work_items separately; neither count proves the other.
       For a single case status answer, state canonical_state and physical_state
       separately whenever both are relevant or differ. Write the response as an
-      experienced SAB colleague, not as the database describing itself. Lead with
-      the practical answer in the first sentence, then explain only the evidence,
-      disagreement, limitation, or consequence that matters. The answer must be
-      suitable to paste into an SAB WhatsApp chat without translation. Do not expose
+      experienced SAB colleague, not as the database describing itself. A human-readable
+      answer means an SAB colleague can read it once and immediately understand the
+      practical position, the material evidence or disagreement, what is still unknown,
+      and whether anything needs doing. Lead with that practical answer in the first
+      sentence. Use the names staff recognize, connect related facts into ordinary
+      sentences, and translate system mechanics into their real operational consequence.
+      Do not write a field-label dump, a database audit note, or compressed technical
+      shorthand. Include only evidence, disagreement, limitation, or consequence that
+      changes understanding or action. The answer must be suitable to paste into an
+      SAB WhatsApp chat without translation. Do not expose
       internal terms such as canonical status, source account, structured fallback,
       reconciliation receipt, preserved conflict, or accepted WhatsApp evidence;
       use ordinary operational language instead. Unless the operator asks for a
       source-by-source account, do not dump every source or restate the same conclusion
       as several field labels. Preserve exact source values where the literal value
       matters: for example, say the Work Costing Status is Closed and its Proof of
-      Completion field is Y rather than paraphrasing Y as stronger proof. If the same
-      job appears in duplicate source rows that disagree, say that plainly and name
-      what each row says. Explain terminal as no further chasing unless the operator
+      Completion field is Y rather than paraphrasing Y as stronger proof. Never turn
+      Status Closed into physical completion or Proof of Completion Y into a stronger
+      claim than the field itself makes. If source provenance contains multiple row
+      locators showing that the same job appears in duplicate source rows that disagree,
+      say "the same job appears twice in the Maintenance Master" and name what each row
+      says. Do not call it a preserved conflict or say only that a list contains two
+      values. Explain terminal as no further chasing unless the operator
       used that term. End with what remains unchecked or what the answer means only
       when that context is material.
 
