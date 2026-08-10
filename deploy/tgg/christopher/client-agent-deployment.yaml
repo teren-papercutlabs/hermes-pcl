@@ -129,8 +129,8 @@ spec:
     switchCommand: /home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/scripts/switch_engine_slot.sh
     switchRequiresCodeRedeploy: false
     auxiliary:
-      provider: gemini
-      model: gemini-3.1-flash-lite
+      provider: openai-direct-primary
+      model: per-slot-primary
 
   env:
     materialization: /home/pclaw/.hermes-christopher-tgg/.env
@@ -138,12 +138,6 @@ spec:
     refs:
       - name: OPENAI_API_KEY
         source: marshal-secrets
-        requiredWhen: always
-      - name: GEMINI_API_KEY
-        source: marshal-secrets
-        requiredWhen: always
-      - name: GEMINI_API_KEY_PCL_PA_SHARED
-        source: GEMINI_API_KEY
         requiredWhen: always
       - name: CHRISTOPHER_TGG_PS_SERVICE_TOKEN
         source: /etc/systems-papercut-labs/tgg.env#CHRISTOPHER_TGG_PS_SERVICE_TOKEN
@@ -360,7 +354,7 @@ spec:
     - retained media is contained under the configured Systems media root and converges before model execution
     - low real-volume free space or unresolvable mandatory media fails health and holds processing
     - management permits tgg_case_media while ops ingest denies case media and retention operations
-    - the configured OpenAI slot and Gemini auxiliary model are reachable
+    - the configured OpenAI slot and OpenAI auxiliary model are reachable
     - a fixture-only controlled inbound produces a completed pa_turn on the deployed stack
     - the isolated turn records exact provider and model with a non-empty response
     - isolated verification records zero client mutations and zero external sends

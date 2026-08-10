@@ -36,10 +36,6 @@ grep -qE '^OPENAI_API_KEY=' "$HERMES_HOME/.env" || {
   echo "missing OPENAI_API_KEY in Hermes env" >&2
   exit 20
 }
-grep -qE '^GEMINI_API_KEY=' "$HERMES_HOME/.env" || {
-  echo "missing GEMINI_API_KEY in Hermes env" >&2
-  exit 20
-}
 grep -qE '^CHRISTOPHER_TGG_PS_SERVICE_TOKEN=' "$HERMES_HOME/.env" || {
   echo "missing CHRISTOPHER_TGG_PS_SERVICE_TOKEN in Hermes env" >&2
   exit 20

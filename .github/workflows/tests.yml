@@ -46,7 +46,11 @@ jobs:
       - name: Run tests
         run: |
           source .venv/bin/activate
-          python -m pytest tests/ -q --ignore=tests/integration --ignore=tests/e2e --tb=short -n auto
+          # Several test modules intentionally exercise module-level runtime
+          # state. Keep each file on one xdist worker while retaining parallel
+          # execution across the suite, so tests cannot overwrite a sibling
+          # test's supervisor or sandbox state.
+          python -m pytest tests/ -q --ignore=tests/integration --ignore=tests/e2e --tb=short -n auto --dist loadfile
         env:
           # Ensure tests don't accidentally call real APIs
           OPENROUTER_API_KEY: ""

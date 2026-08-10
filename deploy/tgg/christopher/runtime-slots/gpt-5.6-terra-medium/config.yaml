@@ -229,7 +229,9 @@ pa:
             type: http
             tenant: tgg
             method: POST
-            url: https://systems.papercut-labs.com/api/operator/query
+            # Temporary reconciliation exam target. Roll back the immutable
+            # Christopher deployment after the live WhatsApp exam.
+            url: http://127.0.0.1:5197/api/operator/query
             headers:
               X-PS-Tenant: tgg
               User-Agent: curl/8.7.1
@@ -392,8 +394,8 @@ auxiliary:
     model: gpt-5.6-terra
     timeout: 30
   vision:
-    provider: gemini
-    model: gemini-3.1-flash-lite
+    provider: main
+    model: gpt-5.6-terra
     timeout: 120
     download_timeout: 30
     max_concurrency: 8

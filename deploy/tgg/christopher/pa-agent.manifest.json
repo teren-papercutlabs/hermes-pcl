@@ -263,14 +263,6 @@
   ],
   "requiredEnv": [
     {
-      "name": "GEMINI_API_KEY_PCL_PA_SHARED",
-      "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
-    },
-    {
-      "name": "GEMINI_API_KEY",
-      "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
-    },
-    {
       "name": "CHRISTOPHER_TGG_PS_SERVICE_TOKEN",
       "envFile": "/home/pclaw/.hermes-christopher-tgg/.env"
     }
@@ -348,7 +340,7 @@
     },
     {
       "name": "pa-profile-system-prompt",
-      "command": "cd /home/pclaw/apps/hermes-pcl && HERMES_HOME=/home/pclaw/.hermes-christopher-tgg /home/pclaw/apps/hermes-pcl/.venv/bin/python - <<'PY2'\nfrom run_agent import AIAgent\nagent = AIAgent(\n    api_key='test-k...7890',\n    base_url='https://generativelanguage.googleapis.com/v1beta',\n    provider='gemini',\n    model='gemini-3.1-flash-lite',\n    quiet_mode=True,\n    skip_context_files=True,\n    load_soul_identity=True,\n    skip_memory=True,\n)\nagent.valid_tool_names.add('memory')\nprompt = agent._build_system_prompt()\nfor forbidden in (\n    'You are Hermes Agent',\n    'created by Nous Research',\n    'hermes-agent.nousresearch.com',\n    'If the user asks about configuring, setting up, or using Hermes Agent itself',\n    'Save durable facts using the memory tool: user preferences',\n    'use session_search to recall those from past transcripts',\n):\n    assert forbidden not in prompt, forbidden\nassert 'You are Christopher, the operations and management AI assistant for TGG' in prompt\nassert 'Papercut Agents operations assistant' in prompt\nPY2"
+      "command": "cd /home/pclaw/apps/hermes-pcl && HERMES_HOME=/home/pclaw/.hermes-christopher-tgg /home/pclaw/apps/hermes-pcl/.venv/bin/python - <<'PY2'\nfrom run_agent import AIAgent\nagent = AIAgent(\n    api_key='test-k...7890',\n    base_url='https://api.openai.com/v1',\n    provider='openai',\n    model='gpt-5.4-mini',\n    quiet_mode=True,\n    skip_context_files=True,\n    load_soul_identity=True,\n    skip_memory=True,\n)\nagent.valid_tool_names.add('memory')\nprompt = agent._build_system_prompt()\nfor forbidden in (\n    'You are Hermes Agent',\n    'created by Nous Research',\n    'hermes-agent.nousresearch.com',\n    'If the user asks about configuring, setting up, or using Hermes Agent itself',\n    'Save durable facts using the memory tool: user preferences',\n    'use session_search to recall those from past transcripts',\n):\n    assert forbidden not in prompt, forbidden\nassert 'You are Christopher, the operations and management AI assistant for TGG' in prompt\nassert 'Papercut Agents operations assistant' in prompt\nPY2"
     }
   ],
   "runtimeOnlyDriftExclusions": [
