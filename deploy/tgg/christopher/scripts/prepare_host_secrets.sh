@@ -67,7 +67,8 @@ scp -q "$tmp" "$target:/root/.pcl-secret-staging/christopher.env"
 ssh "$target" python3 - \
   /home/pclaw/.hermes-christopher-tgg/.env \
   /root/.pcl-secret-staging/christopher.env \
-  OPENAI_API_KEY < "$SCRIPT_DIR/preserve_env_key.py"
+  OPENAI_API_KEY \
+  --allow-staged-fallback < "$SCRIPT_DIR/preserve_env_key.py"
 ssh "$target" python3 - \
   /home/pclaw/.hermes-christopher-tgg/.env \
   /root/.pcl-secret-staging/christopher.env \
