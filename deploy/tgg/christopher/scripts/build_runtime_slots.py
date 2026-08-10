@@ -57,6 +57,22 @@ TIMEZONE_BLOCK = "timezone: Asia/Singapore\n"
 # reset (teren ruling 2026-07-29; WB a9ab2ff5). Context is managed only by the
 # compression path, proven by tests/gateway/test_mode_none_compaction.py.
 SESSION_RESET_BLOCK = "session_reset:\n  mode: none\n"
+VISION_BLOCK_OLD = (
+    "  vision:\n"
+    "    provider: gemini\n"
+    "    model: gemini-3.1-flash-lite\n"
+    "    timeout: 120\n"
+    "    download_timeout: 30\n"
+    "    max_concurrency: 8\n"
+)
+VISION_BLOCK_OPENAI = (
+    "  vision:\n"
+    "    provider: main\n"
+    f"    model: {BASELINE_MODEL}\n"
+    "    timeout: 120\n"
+    "    download_timeout: 30\n"
+    "    max_concurrency: 8\n"
+)
 PYTHON_SANDBOX_BLOCK = (
     "python_sandbox:\n"
     "  enabled: true\n"
@@ -409,6 +425,12 @@ def _safe_config(source: str, slot: dict) -> str:
         "platforms:\n  whatsapp:\n    enabled: false\n",
         label="platforms.whatsapp.enabled",
     )
+    rendered = _replace_once(
+        rendered,
+        VISION_BLOCK_OLD,
+        VISION_BLOCK_OPENAI,
+        label="Gemini vision provider",
+    )
     operations_snippet = (
         PATCHES_ROOT / "ops-judgment-operations.snippet.yaml"
     ).read_text(encoding="utf-8")
@@ -589,6 +611,9 @@ def _validate(
     assert config["providers"]["openai-direct-primary"]["default_model"] == model
     for task in ("compression", "session_search", "title_generation"):
         assert config["auxiliary"][task]["model"] == model
+    assert config["auxiliary"]["vision"]["provider"] == "main"
+    assert config["auxiliary"]["vision"]["model"] == model
+    assert "gemini" not in config_path.read_text(encoding="utf-8").lower()
     assert config["memory"] == {
         "memory_enabled": True,
         "user_profile_enabled": False,

@@ -125,7 +125,6 @@ for _ in $(seq 1 30); do
 done
 test -s "$RUNTIME_ROOT/capture-consumer-status.json"
 grep -qE '^OPENAI_API_KEY=' "$HERMES_HOME/.env"
-grep -qE '^GEMINI_API_KEY=' "$HERMES_HOME/.env"
 grep -qE '^CHRISTOPHER_TGG_PS_SERVICE_TOKEN=' "$HERMES_HOME/.env"
 test -L "$HERMES_HOME/plugins/report-operations"
 if systemctl is-enabled --quiet christopher-tgg-report-weekly.timer; then
@@ -480,7 +479,7 @@ print(json.dumps({
 }, sort_keys=True))
 PY
 
-# Verify the configured auxiliary model and its provider credential without
+# Verify the sole configured model provider and its credential without
 # producing client-visible output or mutating any client system.
 runuser -u pclaw -- env \
   HERMES_HOME="$HERMES_HOME" \
@@ -490,16 +489,16 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 values = dotenv_values(Path.home() / ".hermes-christopher-tgg/.env")
-key = values.get("GEMINI_API_KEY")
+key = values.get("OPENAI_API_KEY")
 assert key
 request = urllib.request.Request(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite",
-    headers={"x-goog-api-key": key},
+    "https://api.openai.com/v1/models",
+    headers={"Authorization": f"Bearer {key}"},
 )
 with urllib.request.urlopen(request, timeout=30) as response:
     payload = json.load(response)
-assert payload.get("name", "").endswith("gemini-3.1-flash-lite"), payload.get("name")
-print(json.dumps({"auxiliary_provider": "gemini", "auxiliary_model": "gemini-3.1-flash-lite", "reachable": True}))
+assert isinstance(payload.get("data"), list) and payload["data"]
+print(json.dumps({"provider": "openai-direct-primary", "reachable": True}))
 PY
 
 full_report="$TEST_HOME/latest-full-verification.json"

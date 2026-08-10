@@ -20,7 +20,6 @@ set -a
 source "$SECRETS_FILE"
 set +a
 : "${OPENAI_API_KEY:?OPENAI_API_KEY missing from canonical secrets file}"
-: "${GEMINI_API_KEY:?GEMINI_API_KEY missing from canonical secrets file}"
 
 umask 077
 tmp="$(mktemp)"
@@ -33,13 +32,12 @@ trap cleanup EXIT
 python3 - "$tmp" <<'PY'
 import json, os, pathlib, sys
 
-keys = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
+keys = ["OPENAI_API_KEY"]
 lines = []
 for key in keys:
     value = os.environ.get(key)
     if value:
         lines.append(f"{key}={json.dumps(value)}")
-lines.append(f"GEMINI_API_KEY_PCL_PA_SHARED={json.dumps(os.environ['GEMINI_API_KEY'])}")
 # The current deployment boundary is management-only until Teren explicitly
 # releases the site drain.  Keep the containment in the generated env so a
 # routine deploy cannot silently remove it while replacing the secret file.
@@ -63,8 +61,13 @@ scp -q "$tmp" "$target:/root/.pcl-secret-staging/christopher.env"
 # The processing activation transaction owns the first verified migration of
 # the Christopher Systems credential. Routine deploys must not erase that
 # already-migrated credential while refreshing the Studio-owned provider keys.
-# Preserve it entirely on the client host so the value never crosses argv,
-# stdout, the Studio, or the deployment bundle.
+# Preserve the already-authorized live OpenAI key and Systems token entirely
+# on the client host so neither value crosses argv, stdout, the Studio, or the
+# deployment bundle during routine redeploys.
+ssh "$target" python3 - \
+  /home/pclaw/.hermes-christopher-tgg/.env \
+  /root/.pcl-secret-staging/christopher.env \
+  OPENAI_API_KEY < "$SCRIPT_DIR/preserve_env_key.py"
 ssh "$target" python3 - \
   /home/pclaw/.hermes-christopher-tgg/.env \
   /root/.pcl-secret-staging/christopher.env \

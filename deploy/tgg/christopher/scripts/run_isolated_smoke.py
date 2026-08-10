@@ -24,8 +24,6 @@ from dotenv import load_dotenv
 
 ALLOWED_SECRET_KEYS = {
     "OPENAI_API_KEY",
-    "GEMINI_API_KEY",
-    "GEMINI_API_KEY_PCL_PA_SHARED",
 }
 
 

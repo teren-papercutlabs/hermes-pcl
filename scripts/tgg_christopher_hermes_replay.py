@@ -147,9 +147,8 @@ REPLAY_PROFILES: dict[str, ReplayProfile] = {
 # as explicit legacy variants.
 DERIVED_PROFILE_DELTAS: dict[str, dict[str, Any]] = {
     # Default eval profile: the model under evaluation -> gpt-5.4-mini via
-    # OpenAI direct. Vision KEEPS the deployed fanout (provider gemini, model
-    # gemini-3.1-flash-lite -- requires GEMINI_API_KEY_PCL_PA_SHARED from
-    # ~/.marshal/secrets.env). Business URL/token -> eval tenant, applied at
+    # OpenAI direct. Vision keeps the deployed OpenAI-primary fanout.
+    # Business URL/token -> eval tenant, applied at
     # the harness layer exactly as for the legacy profiles.
     "tgg-eval-gpt54-mini": {
         "main_provider": "openai-direct-primary",

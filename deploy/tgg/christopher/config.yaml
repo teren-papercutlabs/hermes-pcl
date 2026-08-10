@@ -393,8 +393,8 @@ auxiliary:
     model: gpt-5.4-mini
     timeout: 30
   vision:
-    provider: gemini
-    model: gemini-3.1-flash-lite
+    provider: main
+    model: gpt-5.4-mini
     timeout: 120
     download_timeout: 30
     max_concurrency: 8

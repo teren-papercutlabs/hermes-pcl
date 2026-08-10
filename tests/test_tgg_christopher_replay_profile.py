@@ -70,8 +70,8 @@ def test_replay_preflight_rejects_sqlite_sidecars(tmp_path):
 
 def test_eval_profile_derives_base_from_deployed_config(tmp_path):
     """tgg-eval-gpt54-mini = deployed config + NAMED deltas only: main model
-    under evaluation -> gpt-5.4-mini via OpenAI direct; vision KEEPS the
-    deployed fanout (gemini / deployed vision model)."""
+    under evaluation -> gpt-5.4-mini via OpenAI direct; vision keeps the
+    deployed OpenAI-primary fanout."""
     import yaml
 
     from scripts.tgg_christopher_hermes_replay import TGG_CONFIG
@@ -85,9 +85,8 @@ def test_eval_profile_derives_base_from_deployed_config(tmp_path):
     assert profile.main_provider == "openai-direct-primary"
     assert profile.transport == "codex_responses"
 
-    # Inherited from the DEPLOYED config: the vision fanout. provider "main"
-    # in the deployed auxiliary section resolves to the deployed main
-    # provider (gemini), and the model comes from auxiliary.vision.model.
+    # Inherited from the DEPLOYED config: provider "main" resolves to the
+    # OpenAI primary and the model comes from auxiliary.vision.model.
     deployed = yaml.safe_load(TGG_CONFIG.read_text(encoding="utf-8"))
     deployed_main_provider = deployed["model"]["provider"]
     deployed_vision = deployed["auxiliary"]["vision"]
@@ -97,8 +96,8 @@ def test_eval_profile_derives_base_from_deployed_config(tmp_path):
         else deployed_vision.get("provider")
     )
     assert profile.vision_enabled is True
-    assert profile.vision_provider == expected_vision_provider == "gemini"
-    assert profile.vision_model == deployed_vision["model"] == "gemini-3.1-flash-lite"
+    assert profile.vision_provider == expected_vision_provider == "openai-direct-primary"
+    assert profile.vision_model == deployed_vision["model"] == "gpt-5.4-mini"
 
     # Harness-level safety values unchanged from the legacy contract.
     assert profile.business_mode == "copied-db-local-operator"
