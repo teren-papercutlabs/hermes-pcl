@@ -820,6 +820,17 @@ def test_pa_business_toolset_is_registered_without_all_tools():
     assert set(resolve_toolset("custom")) == expected
 
 
+def test_tgg_case_query_schema_keeps_derivation_and_whatsapp_counts_distinct():
+    from tools.pa_business_tools import TGG_CASE_QUERY_SCHEMA
+
+    description = TGG_CASE_QUERY_SCHEMA["description"]
+    assert "field_decisions_json is the authoritative derivation receipt" in description
+    assert "do not infer that reason" in description
+    assert "has_accepted_whatsapp" in description
+    assert "work items with tgg_case_current_work_items separately" in description
+    assert "receipt_date is HDB Job Creation Date/Time" in description
+
+
 def _jpeg(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"\xff\xd8\xff\xe0fixture")
