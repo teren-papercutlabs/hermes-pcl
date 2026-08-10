@@ -865,17 +865,22 @@ def _validate(
     assert "operation tgg_case_query" in mgmt_joined
     assert "SELECT-only SQL query" in mgmt_joined
     assert "Never refuse an aggregate ask" in mgmt_joined
-    assert "field_decisions_json" in mgmt_joined
-    assert "never infer the derivation" in mgmt_joined
+    assert "canonical_state_source_kind" in mgmt_joined
+    assert "corroborating records, not the reason" in mgmt_joined
+    assert "did not ask why" in mgmt_joined
     assert "neither count proves the other" in mgmt_joined
     assert "HDB Job Creation Date/Time" in mgmt_joined
     assert "state canonical_state and physical_state separately" in mgmt_joined
     assert "experienced SAB colleague" in mgmt_joined
+    assert "read it once and immediately understand" in mgmt_joined
+    assert "field-label dump" in mgmt_joined
     assert "suitable to paste into an SAB WhatsApp chat without translation" in mgmt_joined
     assert "Do not expose internal terms" in mgmt_joined
     assert "do not dump every source" in mgmt_joined
     assert "Proof of Completion field is Y" in mgmt_joined
+    assert "Never turn Status Closed into physical completion" in mgmt_joined
     assert "duplicate source rows that disagree" in mgmt_joined
+    assert "same job appears twice in the Maintenance Master" in mgmt_joined
     assert "Explain terminal as no further chasing" in mgmt_joined
     assert "Sender identity is context, never case identity" in mgmt_joined
     assert "sender's display name" in mgmt_joined
