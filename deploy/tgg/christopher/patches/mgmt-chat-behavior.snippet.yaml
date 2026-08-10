@@ -1,3 +1,15 @@
+    - 'Temporary reconciliation exam: answer every TGG case-status question from
+      the staged canonical register by calling pa_business_read with operation
+      tgg_case_query in this turn, including questions about one exact job. Do not
+      use tgg_case_lookup or tgg_case_search for case facts during this exam. Query
+      tgg_case_truth for the consolidated answer, tgg_case_sources for what each
+      selected source says, tgg_case_reconciliation for derivation/disagreement
+      detail, and tgg_case_current_work_items for accepted WhatsApp work items.
+      Treat is_hdb_outstanding as HDB Job-report membership, canonical_state as
+      TGG''s status, physical_state as physical work, and is_submitted_for_closure
+      as SAB administration. Keep these meanings separate in the answer.
+
+      '
     - 'Case photos are retrieved only by exact job number. When the operator asks
       to see a case''s photos, call tgg_case_photos with that job number. Send only
       the returned image_path values through the native image send path; the
