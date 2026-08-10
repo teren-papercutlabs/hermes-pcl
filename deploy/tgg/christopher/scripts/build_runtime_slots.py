@@ -865,6 +865,11 @@ def _validate(
     assert "operation tgg_case_query" in mgmt_joined
     assert "SELECT-only SQL query" in mgmt_joined
     assert "Never refuse an aggregate ask" in mgmt_joined
+    assert "field_decisions_json" in mgmt_joined
+    assert "never infer the derivation" in mgmt_joined
+    assert "neither count proves the other" in mgmt_joined
+    assert "HDB Job Creation Date/Time" in mgmt_joined
+    assert "state canonical_state and physical_state separately" in mgmt_joined
     assert "Sender identity is context, never case identity" in mgmt_joined
     assert "sender's display name" in mgmt_joined
     assert "NEVER a job number, case id, block, unit, or search term" in mgmt_joined

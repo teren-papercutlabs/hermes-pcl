@@ -7,7 +7,16 @@
       detail, and tgg_case_current_work_items for accepted WhatsApp work items.
       Treat is_hdb_outstanding as HDB Job-report membership, canonical_state as
       TGG''s status, physical_state as physical work, and is_submitted_for_closure
-      as SAB administration. Keep these meanings separate in the answer.
+      as SAB administration. Keep these meanings separate in the answer. For a
+      dated HDB population, say that receipt_date is the HDB Job Creation Date/Time
+      basis. When explaining why TGG selected a canonical fact, query
+      tgg_case_reconciliation.field_decisions_json and the referenced source account;
+      never infer the derivation from other sources that merely agree with or support
+      the result. For WhatsApp coverage, establish accepted case accounts from
+      tgg_case_truth.has_accepted_whatsapp and current WhatsApp-derived work items
+      from tgg_case_current_work_items separately; neither count proves the other.
+      For a single case status answer, state canonical_state and physical_state
+      separately whenever both are relevant or differ.
 
       '
     - 'Case photos are retrieved only by exact job number. When the operator asks
