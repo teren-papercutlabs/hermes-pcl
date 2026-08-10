@@ -310,16 +310,23 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
 
 
 def _run_preserve_env_key(
-    current: Path, staged: Path
+    current: Path,
+    staged: Path,
+    *,
+    key: str = "CHRISTOPHER_TGG_PS_SERVICE_TOKEN",
+    allow_staged_fallback: bool = False,
 ) -> subprocess.CompletedProcess[str]:
+    args = [
+        sys.executable,
+        str(DEPLOY_ROOT / "scripts" / "preserve_env_key.py"),
+        str(current),
+        str(staged),
+        key,
+    ]
+    if allow_staged_fallback:
+        args.append("--allow-staged-fallback")
     return subprocess.run(
-        [
-            sys.executable,
-            str(DEPLOY_ROOT / "scripts" / "preserve_env_key.py"),
-            str(current),
-            str(staged),
-            "CHRISTOPHER_TGG_PS_SERVICE_TOKEN",
-        ],
+        args,
         text=True,
         capture_output=True,
         check=False,
@@ -343,6 +350,49 @@ def test_secret_refresh_preserves_migrated_christopher_token(tmp_path: Path) -> 
         'OPENAI_API_KEY="fresh"',
         'CHRISTOPHER_TGG_PS_SERVICE_TOKEN="christopher-scoped"',
     ]
+
+
+def test_secret_refresh_prefers_live_openai_key_over_staged_fallback(
+    tmp_path: Path,
+) -> None:
+    current = tmp_path / "current.env"
+    staged = tmp_path / "staged.env"
+    current.write_text('OPENAI_API_KEY="live"\n', encoding="utf-8")
+    staged.write_text(
+        'OPENAI_API_KEY="studio-fallback"\nTGG_DEMO_MANAGEMENT_ONLY=true\n',
+        encoding="utf-8",
+    )
+
+    result = _run_preserve_env_key(
+        current,
+        staged,
+        key="OPENAI_API_KEY",
+        allow_staged_fallback=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert staged.read_text(encoding="utf-8").splitlines() == [
+        'OPENAI_API_KEY="live"',
+        "TGG_DEMO_MANAGEMENT_ONLY=true",
+    ]
+
+
+def test_secret_refresh_keeps_staged_openai_fallback_on_fresh_host(
+    tmp_path: Path,
+) -> None:
+    current = tmp_path / "missing.env"
+    staged = tmp_path / "staged.env"
+    staged.write_text('OPENAI_API_KEY="studio-fallback"\n', encoding="utf-8")
+
+    result = _run_preserve_env_key(
+        current,
+        staged,
+        key="OPENAI_API_KEY",
+        allow_staged_fallback=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert staged.read_text(encoding="utf-8") == 'OPENAI_API_KEY="studio-fallback"\n'
 
 
 @pytest.mark.parametrize(
@@ -402,6 +452,10 @@ def test_secret_refresh_tokenless_state_leaves_staged_byte_identical(
 
 def test_prepare_script_streams_helper_and_cleans_remote_staging() -> None:
     script = (DEPLOY_ROOT / "scripts" / "prepare_host_secrets.sh").read_text()
+    assert (
+        'OPENAI_API_KEY \\\n'
+        '  --allow-staged-fallback < "$SCRIPT_DIR/preserve_env_key.py"'
+    ) in script
     assert 'CHRISTOPHER_TGG_PS_SERVICE_TOKEN < "$SCRIPT_DIR/preserve_env_key.py"' in script
     assert "trap cleanup EXIT" in script
     assert "rm -f /root/.pcl-secret-staging/christopher.env" in script
