@@ -870,6 +870,13 @@ def _validate(
     assert "neither count proves the other" in mgmt_joined
     assert "HDB Job Creation Date/Time" in mgmt_joined
     assert "state canonical_state and physical_state separately" in mgmt_joined
+    assert "experienced SAB colleague" in mgmt_joined
+    assert "suitable to paste into an SAB WhatsApp chat without translation" in mgmt_joined
+    assert "Do not expose internal terms" in mgmt_joined
+    assert "do not dump every source" in mgmt_joined
+    assert "Proof of Completion field is Y" in mgmt_joined
+    assert "duplicate source rows that disagree" in mgmt_joined
+    assert "Explain terminal as no further chasing" in mgmt_joined
     assert "Sender identity is context, never case identity" in mgmt_joined
     assert "sender's display name" in mgmt_joined
     assert "NEVER a job number, case id, block, unit, or search term" in mgmt_joined

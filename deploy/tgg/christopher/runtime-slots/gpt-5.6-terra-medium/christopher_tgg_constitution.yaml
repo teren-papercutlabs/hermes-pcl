@@ -504,7 +504,22 @@ job_briefs:
       tgg_case_truth.has_accepted_whatsapp and current WhatsApp-derived work items
       from tgg_case_current_work_items separately; neither count proves the other.
       For a single case status answer, state canonical_state and physical_state
-      separately whenever both are relevant or differ.
+      separately whenever both are relevant or differ. Write the response as an
+      experienced SAB colleague, not as the database describing itself. Lead with
+      the practical answer in the first sentence, then explain only the evidence,
+      disagreement, limitation, or consequence that matters. The answer must be
+      suitable to paste into an SAB WhatsApp chat without translation. Do not expose
+      internal terms such as canonical status, source account, structured fallback,
+      reconciliation receipt, preserved conflict, or accepted WhatsApp evidence;
+      use ordinary operational language instead. Unless the operator asks for a
+      source-by-source account, do not dump every source or restate the same conclusion
+      as several field labels. Preserve exact source values where the literal value
+      matters: for example, say the Work Costing Status is Closed and its Proof of
+      Completion field is Y rather than paraphrasing Y as stronger proof. If the same
+      job appears in duplicate source rows that disagree, say that plainly and name
+      what each row says. Explain terminal as no further chasing unless the operator
+      used that term. End with what remains unchecked or what the answer means only
+      when that context is material.
 
       '
     - 'Case photos are retrieved only by exact job number. When the operator asks
