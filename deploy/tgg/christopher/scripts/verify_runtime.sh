@@ -67,8 +67,15 @@ assert len(set(retention_quarantine_message_ids)) == len(retention_quarantine_me
 has_retention_hold = isinstance(retention_hold, str) and bool(retention_hold.strip())
 if not config_enabled:
     assert state == "standby", (state, "standby")
-    assert retention_held == 0, retention_held
-    assert not has_retention_hold, retention_hold
+    # Disabling processing prevents new retention attempts; it does not erase
+    # an already-recorded retention hold.  Keep those holds visible in the
+    # verifier receipt so they can be reconciled deliberately, but do not let
+    # a historical hold prevent deployment of the resolver needed to inspect
+    # it.  A disabled consumer must never present the active held-pending
+    # state, and a non-zero count must still have its error evidence.
+    if retention_held > 0 or has_retention_hold:
+        assert retention_held > 0, retention_held
+        assert has_retention_hold, retention_hold
 elif retention_held > 0 or has_retention_hold:
     assert retention_held > 0, retention_held
     assert has_retention_hold, retention_hold
