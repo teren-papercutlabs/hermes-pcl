@@ -81,9 +81,35 @@ class _OperatorStub(BaseHTTPRequestHandler):
                     "preview_rows": [{"zone": zone, "row_count": 10} for zone in tabs],
                 }
             elif endpoint == "preview-reconcile":
-                result = {"run_id": "fixture-run", "delta": {"new_cases": 1, "updates": 2, "closure_events": 1, "per_zone": {zone: 1 for zone in zones}}, "warnings": []}
+                result = {
+                    "run_id": "fixture-run",
+                    "delta": {
+                        "new_cases": 1,
+                        "canonical_updates": 2,
+                        "source_selection_updates": 4,
+                        "work_items_inserted": 0,
+                    },
+                    "structured": {
+                        "casesInBuild": 4,
+                        "casesEvaluated": 4,
+                        "casesCreated": 1,
+                        "casesCanonicalChanged": 2,
+                        "casesSourceSelectionChanged": 4,
+                        "workItemsInserted": 0,
+                    },
+                    "warnings": {"structured_identity": []},
+                }
             elif endpoint == "apply-reconcile":
-                result = {"applied": {"new_cases": 1, "updates": 2}, "backup": {"path": "/fixture/backup", "hash": digest, "verified": True}, "audit_batch_id": "fixture-audit"}
+                result = {
+                    "applied": {
+                        "new_cases": 1,
+                        "canonical_updates": 2,
+                        "source_selection_updates": 4,
+                        "work_items_inserted": 0,
+                    },
+                    "backup": {"path": "/fixture/backup", "hash": digest, "verified": True},
+                    "audit_batch_id": "fixture-audit",
+                }
             elif endpoint == "generate":
                 result = {"run_id": "fixture-run", "verdict": "pass", "checks": {"verifier": "pass"}, "reports": [{"zone": zone, "ref": f"fixture-{zone}", "hash": digest} for zone in zones]}
             elif endpoint == "get-reports":
