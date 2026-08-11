@@ -85,6 +85,89 @@ else:
 PY
 fi
 
+if [[ "$MODE" == "--verify-standby-inbox-contract" ]]; then
+  if [[ "$#" -ne 5 ]]; then
+    echo "usage: $0 --verify-standby-inbox-contract <config> <processing-gate> <consumer-status> <capture-inbox-db>" >&2
+    exit 2
+  fi
+  exec "${VERIFY_PYTHON:-$APP_ROOT/.venv/bin/python}" - "$2" "$3" "$4" "$5" <<'PY'
+import datetime
+import json
+import pathlib
+import sqlite3
+import sys
+
+import yaml
+
+config = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())
+gate = json.loads(pathlib.Path(sys.argv[2]).read_text())
+status = json.loads(pathlib.Path(sys.argv[3]).read_text())
+inbox_path = pathlib.Path(sys.argv[4])
+
+assert config["pa"]["enabled"] is False
+assert gate["enabled"] is False
+assert status["state"] == "standby", status["state"]
+assert status["processing_enabled"] is False
+assert status["config_enabled"] is False
+assert status["gate_enabled"] is False
+assert status["source_opened"] is False
+assert status["cursor_advanced"] is False
+assert status["active_management_chats"] == []
+assert status["active_site_chats"] == []
+boundary = datetime.datetime.fromisoformat(gate["changed_at"])
+assert boundary.tzinfo is not None
+
+constitution_path = pathlib.Path(config["pa"]["constitution_path"])
+constitution = yaml.safe_load(constitution_path.read_text()) or {}
+management = {
+    str((selector.get("match") or {}).get("source.chat_id"))
+    for selector in constitution.get("selectors", [])
+    if selector.get("job_type") == "tgg_management"
+    and (selector.get("match") or {}).get("source.platform") == "whatsapp"
+    and (selector.get("match") or {}).get("source.chat_id")
+}
+assert management, "standby contract requires an explicit management selector"
+
+actual_counts = {name: 0 for name in ("pending", "processing", "completed", "skipped", "failed")}
+if inbox_path.exists():
+    conn = sqlite3.connect(inbox_path)
+    try:
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if "ingress_events" in tables:
+            actual_counts.update(dict(conn.execute("SELECT status, COUNT(*) FROM ingress_events GROUP BY status")))
+            pending_management = conn.execute(
+                f"SELECT COUNT(*) FROM ingress_events WHERE status='pending' AND chat_id IN ({','.join('?' for _ in management)})",
+                tuple(sorted(management)),
+            ).fetchone()[0]
+            processing = conn.execute("SELECT COUNT(*) FROM ingress_events WHERE status='processing'").fetchone()[0]
+            changed_after_boundary = conn.execute(
+                "SELECT COUNT(*) FROM ingress_events WHERE updated_at > ?", (gate["changed_at"],)
+            ).fetchone()[0]
+        else:
+            pending_management = processing = changed_after_boundary = 0
+    finally:
+        conn.close()
+else:
+    pending_management = processing = changed_after_boundary = 0
+
+assert processing == 0, processing
+assert pending_management == 0, (pending_management, sorted(management))
+assert changed_after_boundary == 0, (changed_after_boundary, gate["changed_at"])
+reported_counts = status["inbox"]
+assert set(reported_counts) <= set(actual_counts), reported_counts
+reported_counts = {name: int(reported_counts.get(name, 0)) for name in actual_counts}
+assert reported_counts == actual_counts, (reported_counts, actual_counts)
+assert status["state_total"] == sum(actual_counts.values()), (status["state_total"], actual_counts)
+print(json.dumps({
+    "standby_inbox_contract": "pass",
+    "historical_inbox_rows": sum(actual_counts.values()),
+    "historical_pending_non_management": actual_counts["pending"],
+    "management_selector_chats": sorted(management),
+    "standby_changed_rows": changed_after_boundary,
+}, sort_keys=True))
+PY
+fi
+
 if [[ "$MODE" == "--check-mode" ]]; then
   raw="$(pcl service locate --system christopher --domain pa)"
   target="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["data"]["system"]["liveFacts"]["host"]["sshTargetAlias"])' <<<"$raw")"
@@ -208,6 +291,18 @@ APP_ROOT="$APP_ROOT" VERIFY_PYTHON="$APP_ROOT/.venv/bin/python" \
   "$HERMES_HOME/config.yaml" \
   "$RUNTIME_ROOT/processing-gate.json" \
   "$RUNTIME_ROOT/capture-consumer-status.json"
+if python3 - "$HERMES_HOME/config.yaml" <<'PY'
+import sys, yaml
+raise SystemExit(0 if not yaml.safe_load(open(sys.argv[1]))["pa"]["enabled"] else 1)
+PY
+then
+  APP_ROOT="$APP_ROOT" VERIFY_PYTHON="$APP_ROOT/.venv/bin/python" \
+    "$0" --verify-standby-inbox-contract \
+    "$HERMES_HOME/config.yaml" \
+    "$RUNTIME_ROOT/processing-gate.json" \
+    "$RUNTIME_ROOT/capture-consumer-status.json" \
+    "$RUNTIME_ROOT/capture-inbox.db"
+fi
 if python3 - "$RUNTIME_ROOT/capture-consumer-status.json" <<'PY'
 import json, pathlib, sys
 raise SystemExit(0 if not json.loads(pathlib.Path(sys.argv[1]).read_text()).get("processing_enabled") else 1)
@@ -488,9 +583,6 @@ if inbox_db.exists():
                 assert age <= int(status["claim_stale_seconds"]), (age, status["claim_stale_seconds"])
     finally:
         conn.close()
-if not config_enabled:
-    assert inbox_rows == 0, inbox_rows
-
 config_mode = stat.S_IMODE((home / "config.yaml").stat().st_mode)
 assert config_mode == 0o640, oct(config_mode)
 assert (home / "config.yaml").stat().st_uid == 0
