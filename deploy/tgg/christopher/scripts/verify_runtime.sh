@@ -485,7 +485,12 @@ if capability:
     with urllib.request.urlopen(query, timeout=10) as response:
         payload = json.load(response)
     row = payload["data"]["rows"][0]
-    assert row == {"cases": systems["canonical_cases"], "messages": systems["message_rows"]}, row
+    assert row["cases"] == systems["canonical_cases"], row
+    # The release pins the reconciled corpus baseline. Live, bounded source
+    # projection appends captured WhatsApp rows to message_ledger while the
+    # case population remains authoritative. Refuse loss below the sealed
+    # baseline, but do not treat expected append-only operation as drift.
+    assert row["messages"] >= systems["message_rows"], row
     corpus = manifest["corpus"]
     corpus_root = pathlib.Path(corpus["root"])
     assert corpus_root.resolve(strict=True) == pathlib.Path(
