@@ -315,7 +315,11 @@ if capability:
     assert receipt["capability_manifest_sha256"] == capability["manifest_sha256"]
     systems = manifest["systems"]
     base_url = systems["base_url"].rstrip("/")
-    with urllib.request.urlopen(base_url + "/api/health", timeout=10) as response:
+    health_request = urllib.request.Request(
+        base_url + "/api/health",
+        headers={"User-Agent": "Christopher-TGG/1.0"},
+    )
+    with urllib.request.urlopen(health_request, timeout=10) as response:
         health = json.load(response)
     assert health.get("ok") is True
     env = {}
