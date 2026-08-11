@@ -53,15 +53,31 @@ class _OperatorStub(BaseHTTPRequestHandler):
             endpoint = urlsplit(self.path).path.rsplit("/", 1)[-1]
             if endpoint == "fetch-sources":
                 tabs = list(zones) if self.report_scenario == "clean" else ["AMK"]
+                source_specs = (
+                    (
+                        ("master", "master.xlsx", tabs),
+                        ("closure", "closure.xlsx", ["3 August until 8 August 26"]),
+                    )
+                    if self.report_scenario == "clean"
+                    else (("master", "master.xlsx", tabs),)
+                )
                 result = {
                     "fetch_id": "fixture-fetch",
-                    "sources": [{
-                        "name": "fixture-source",
-                        "hash": digest,
-                        "bytes": len(workbook),
-                        "fetched_at": "2026-08-03T08:00:00+08:00",
-                        "sheet_tabs": tabs,
-                    }],
+                    "sources": [
+                        {
+                            "name": name,
+                            "hash": digest,
+                            "bytes": len(workbook),
+                            "fetched_at": "2026-08-03T08:00:00+08:00",
+                            "sheet_tabs": sheet_tabs,
+                            "ref": (
+                                f"http://127.0.0.1:{self.server.server_port}"
+                                f"/fixture-files/{file_name}"
+                            ),
+                            "file_name": file_name,
+                        }
+                        for name, file_name, sheet_tabs in source_specs
+                    ],
                     "preview_rows": [{"zone": zone, "row_count": 10} for zone in tabs],
                 }
             elif endpoint == "preview-reconcile":
