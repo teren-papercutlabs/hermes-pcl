@@ -331,7 +331,14 @@ if capability:
         base_url + "/api/operator/query?tenant=tgg",
         method="POST",
         data=json.dumps({"sql": "SELECT (SELECT COUNT(*) FROM tgg_case_truth) AS cases, (SELECT COUNT(*) FROM message_ledger) AS messages"}).encode(),
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        # The Systems edge denies urllib's default Python user agent (403/1010),
+        # even when the service token is valid.  Name this internal verifier so
+        # its authenticated read-only health check is stable and auditable.
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "User-Agent": "Christopher-TGG/1.0",
+        },
     )
     with urllib.request.urlopen(query, timeout=10) as response:
         payload = json.load(response)
