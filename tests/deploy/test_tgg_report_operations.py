@@ -214,7 +214,7 @@ def test_runtime_verifier_ignores_non_report_setup_requests():
 
 def test_runtime_verifier_identifies_its_systems_read_check_to_the_edge():
     source = (DEPLOY / "scripts" / "verify_runtime.sh").read_text()
-    assert '"User-Agent": "Christopher-TGG/1.0"' in source
+    assert source.count('"User-Agent": "Christopher-TGG/1.0"') == 2
 
 
 def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path):

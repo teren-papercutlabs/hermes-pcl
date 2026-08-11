@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -239,6 +240,51 @@ def test_fatal_held_producer_shape_reports_fatal_message(tmp_path: Path) -> None
 
     assert result.returncode != 0
     assert "fatal consumer state: held" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("pending_chat", "updated_at", "expected_ok"),
+    [
+        pytest.param("historical-ops@g.us", "2026-08-08T09:14:06+00:00", True, id="historical-non-management-backlog-is-inert"),
+        pytest.param("canary-management@g.us", "2026-08-08T09:14:06+00:00", False, id="pending-canary-work-fails-closed"),
+        pytest.param("historical-ops@g.us", "2026-08-11T03:00:01+00:00", False, id="post-standby-mutation-fails-closed"),
+    ],
+)
+def test_standby_inbox_contract_preserves_only_inert_historical_backlog(
+    tmp_path: Path, pending_chat: str, updated_at: str, expected_ok: bool,
+) -> None:
+    constitution_path = tmp_path / "constitution.yaml"
+    constitution_path.write_text(yaml.safe_dump({"selectors": [{
+        "job_type": "tgg_management",
+        "match": {"source.platform": "whatsapp", "source.chat_id": "canary-management@g.us"},
+    }]}))
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(yaml.safe_dump({"pa": {"enabled": False, "constitution_path": str(constitution_path)}}))
+    gate_path = tmp_path / "processing-gate.json"
+    gate_path.write_text(json.dumps({"enabled": False, "changed_at": "2026-08-11T03:00:00+00:00"}))
+    inbox_path = tmp_path / "capture-inbox.db"
+    conn = sqlite3.connect(inbox_path)
+    try:
+        conn.execute("CREATE TABLE ingress_events (chat_id TEXT, status TEXT, updated_at TEXT)")
+        conn.execute("INSERT INTO ingress_events VALUES (?, 'pending', ?)", (pending_chat, updated_at))
+        conn.commit()
+    finally:
+        conn.close()
+    status_path = tmp_path / "capture-consumer-status.json"
+    status_path.write_text(json.dumps({
+        **_status(state="standby", enabled=False),
+        "source_opened": False,
+        "cursor_advanced": False,
+        "active_management_chats": [],
+        "active_site_chats": [],
+        "state_total": 1,
+        "inbox": {"pending": 1, "processing": 0, "completed": 0, "skipped": 0, "failed": 0},
+    }))
+    result = subprocess.run(
+        [str(VERIFY), "--verify-standby-inbox-contract", str(config_path), str(gate_path), str(status_path), str(inbox_path)],
+        text=True, capture_output=True, check=False, env={**os.environ, "VERIFY_PYTHON": sys.executable},
+    )
+    assert (result.returncode == 0) is expected_ok, result.stderr
 
 
 def test_deploy_selects_canonical_manifest_and_current_units() -> None:
