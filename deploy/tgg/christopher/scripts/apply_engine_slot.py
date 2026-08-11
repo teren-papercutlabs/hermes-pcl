@@ -34,11 +34,19 @@ SLOT_REASONING_EFFORT = {
 ALLOWED_SLOTS = tuple(SLOT_MODELS)
 DEFAULT_SLOT = ALLOWED_SLOTS[0]
 CAPABILITY_ID = "christopher-tgg"
-CAPABILITY_REQUIRED_FILES = {
+CAPABILITY_BASE_FILES = frozenset({
     "christopher-slot-config.yaml",
     "christopher_tgg_constitution.yaml",
     "plugins/tgg-whatsapp-evidence/__init__.py",
     "plugins/tgg-whatsapp-evidence/plugin.yaml",
+})
+CAPABILITY_SPREADSHEET_SKILL_FILES = frozenset({
+    "skills/spreadsheet-work/SKILL.md",
+    "skills/spreadsheet-work/agents/openai.yaml",
+})
+CAPABILITY_ALLOWED_FILE_SETS = {
+    CAPABILITY_BASE_FILES,
+    CAPABILITY_BASE_FILES | CAPABILITY_SPREADSHEET_SKILL_FILES,
 }
 
 
@@ -151,7 +159,7 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     if manifest.get("audience") not in {"shadow", "production"}:
         raise RuntimeError("external capability audience is invalid")
     files = manifest.get("files")
-    if not isinstance(files, dict) or set(files) != CAPABILITY_REQUIRED_FILES:
+    if not isinstance(files, dict) or frozenset(files) not in CAPABILITY_ALLOWED_FILE_SETS:
         raise RuntimeError("external capability file set mismatch")
     sums = _parse_sums(sums_path)
     if sums.get("manifest.json") != _sha256(manifest_path):
@@ -165,6 +173,13 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     _validate_runtime_pair(config_path, constitution_path, slot)
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
+    includes_spreadsheet_skill = CAPABILITY_SPREADSHEET_SKILL_FILES.issubset(files)
+    expected_external_dirs = (
+        [str(current / "skills")] if includes_spreadsheet_skill else []
+    )
+    configured_external_dirs = config.get("skills", {}).get("external_dirs", [])
+    if configured_external_dirs != expected_external_dirs:
+        raise RuntimeError("external capability skills path mismatch")
     canary = manifest.get("canary")
     if manifest["audience"] == "production" and canary is not None:
         raise RuntimeError("production external capability cannot restrict management selectors")

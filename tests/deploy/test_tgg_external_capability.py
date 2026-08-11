@@ -33,6 +33,7 @@ def make_release(
     *,
     manifest_canary_chat_id: str | None = None,
     audience: str = "shadow",
+    include_spreadsheet_skill: bool = False,
 ) -> tuple[Path, Path, Path]:
     home = tmp_path / "home"
     runtime = home / "runtime"
@@ -45,18 +46,36 @@ def make_release(
     config = yaml.safe_load((SLOT / "config.yaml").read_text(encoding="utf-8"))
     config["pa"]["constitution_path"] = str(capability / "current" / constitution.name)
     config.setdefault("plugins", {}).setdefault("enabled", []).append("tgg-whatsapp-evidence")
+    if include_spreadsheet_skill:
+        config["skills"] = {"external_dirs": [str(capability / "current" / "skills")]}
+    else:
+        config.pop("skills", None)
     config_path = release / "christopher-slot-config.yaml"
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
     (plugin / "__init__.py").write_text("def register(ctx):\n    return None\n", encoding="utf-8")
     (plugin / "plugin.yaml").write_text("name: tgg-whatsapp-evidence\n", encoding="utf-8")
+    skill = release / "skills" / "spreadsheet-work"
+    if include_spreadsheet_skill:
+        (skill / "agents").mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\nname: spreadsheet-work\ndescription: Work with spreadsheets.\n---\n",
+            encoding="utf-8",
+        )
+        (skill / "agents" / "openai.yaml").write_text(
+            "interface:\n  display_name: Spreadsheet Work\n",
+            encoding="utf-8",
+        )
+    release_files = [
+        config_path,
+        constitution,
+        plugin / "__init__.py",
+        plugin / "plugin.yaml",
+    ]
+    if include_spreadsheet_skill:
+        release_files.extend([skill / "SKILL.md", skill / "agents" / "openai.yaml"])
     files = {
         str(path.relative_to(release)): digest(path)
-        for path in (
-            config_path,
-            constitution,
-            plugin / "__init__.py",
-            plugin / "plugin.yaml",
-        )
+        for path in release_files
     }
     manifest = {
         "schema": "christopher-tgg-capability-release/v1",
@@ -90,6 +109,41 @@ def test_resolves_verified_external_capability(tmp_path: Path) -> None:
     assert selected["release_id"] == "test-release"
     assert selected["release_root"] == release.resolve()
     assert selected["plugin_source"] == release / "plugins/tgg-whatsapp-evidence"
+
+
+def test_resolves_external_capability_with_spreadsheet_skill(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(tmp_path, include_spreadsheet_skill=True)
+
+    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert selected is not None
+    assert selected["release_root"] == release.resolve()
+
+
+def test_rejects_spreadsheet_skill_without_external_skill_path(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(tmp_path, include_spreadsheet_skill=True)
+    config_path = release / "christopher-slot-config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config.pop("skills")
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    manifest_path = release / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"]["christopher-slot-config.yaml"] = digest(config_path)
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+    sums_path = release / "SHA256SUMS"
+    sums = {
+        **manifest["files"],
+        "manifest.json": digest(manifest_path),
+    }
+    sums_path.write_text(
+        "".join(f"{value}  {name}\n" for name, value in sorted(sums.items())),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="skills path mismatch"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
 def test_rejects_tampered_external_capability(tmp_path: Path) -> None:
