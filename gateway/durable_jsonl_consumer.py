@@ -2847,34 +2847,6 @@ def _fresh_management_chats(
     return frozenset(fresh)
 
 
-def _management_record_addresses_agent(record: InboxRecord) -> bool:
-    """Return whether a management message mentions or quotes this agent.
-
-    The bridge supplies the exact agent identities in ``botIds``.  Keep this
-    decision structural: prose that happens to contain a name is not a
-    trigger, and a reply only counts when its quoted participant is one of
-    those identities.
-    """
-    try:
-        item = _bridge_item(record.raw)
-    except ConsumerError:
-        return False
-    bot_ids = {
-        str(value)
-        for value in (item.get("botIds") or [])
-        if str(value).strip()
-    }
-    if not bot_ids or item.get("fromMe") is True:
-        return False
-    mentioned_ids = {
-        str(value)
-        for value in (item.get("mentionedIds") or [])
-        if str(value).strip()
-    }
-    quoted_participant = str(item.get("quotedParticipant") or "").strip()
-    return bool(bot_ids & mentioned_ids) or quoted_participant in bot_ids
-
-
 def _post_typing_presence(chat_id: str, presence: str) -> bool:
     """Best-effort presence update through the same local bridge."""
     from urllib.error import HTTPError, URLError
@@ -2951,104 +2923,6 @@ async def _management_typing_presence(
         await task
         for chat_id in chats:
             await asyncio.to_thread(_post_typing_presence, chat_id, "paused")
-
-
-def acknowledge_management_work(
-    inbox: DurableInbox,
-    *,
-    records: Sequence[InboxRecord],
-    config_path: Path,
-    gate_changed_at: str,
-    message: str = "Okay, give me a bit — I'll work on this and get back to you.",
-) -> bool:
-    """Send one durable, immediate acknowledgement for an addressed request.
-
-    The model's normal output stays capture-only until the completed turn is
-    ready.  This deliberately small pre-turn send uses the same local bridge,
-    management selector, activation boundary, reply anchor, and at-most-once
-    delivery ledger as the final answer.
-    """
-    from urllib.error import HTTPError, URLError
-    from urllib.request import Request, urlopen
-
-    gate_epoch = _timestamp_epoch_seconds(gate_changed_at)
-    if gate_epoch is None:
-        raise ConsumerError("processing gate changed_at is not a valid timestamp")
-    management_chats = _management_selector_chats(config_path)
-    target: tuple[InboxRecord, dict[str, Any]] | None = None
-    for record in records:
-        if record.chat_id not in management_chats:
-            continue
-        try:
-            item = _bridge_item(record.raw)
-        except ConsumerError:
-            continue
-        timestamp = _timestamp_epoch_seconds(item.get("timestamp"))
-        if (
-            timestamp is not None
-            and timestamp >= gate_epoch
-            and _management_record_addresses_agent(record)
-        ):
-            target = (record, item)
-    if target is None:
-        return False
-
-    record, item = target
-    delivery_key = f"ack::{record.chat_id}::{record.message_id}"
-    if not inbox.claim_reply_delivery(
-        delivery_key,
-        chat_id=record.chat_id,
-        reply_to_message_id=record.message_id,
-    ):
-        return False
-
-    anchor_body = str(item.get("body") or "").strip()
-    if not anchor_body:
-        media_type = str(item.get("mediaType") or "").strip()
-        anchor_body = f"[{media_type}]" if media_type else ""
-    reply_to: dict[str, Any] = {"messageId": record.message_id}
-    if item.get("senderId"):
-        reply_to["participant"] = str(item["senderId"])
-    if anchor_body:
-        reply_to["body"] = anchor_body[:1024]
-    payload = {
-        "chatId": record.chat_id,
-        "message": message,
-        "replyTo": reply_to,
-    }
-    bridge_url = os.environ.get(
-        "TGG_REPLY_BRIDGE_URL", "http://127.0.0.1:3011"
-    ).rstrip("/")
-    request = Request(
-        f"{bridge_url}/send",
-        data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urlopen(request, timeout=30) as response:
-            status_code = int(getattr(response, "status", 0) or 0)
-            result = json.loads(response.read() or b"{}")
-        if status_code == 200 and result.get("success") is True:
-            inbox.record_reply_delivery(
-                delivery_key,
-                status="delivered",
-                bridge_message_id=str(result.get("messageId") or ""),
-                provider_outcome=str(result.get("outcome") or "delivered"),
-            )
-            return True
-        error = f"http-{status_code}-unconfirmed: {json.dumps(result)[:200]}"
-    except HTTPError as exc:
-        error = f"http-{exc.code}"
-    except (URLError, TimeoutError, OSError, ValueError) as exc:
-        error = str(exc)[:300]
-    inbox.record_reply_delivery(delivery_key, status="undelivered", error=error)
-    print(
-        "management acknowledgement NOT confirmed: "
-        f"chat={record.chat_id} anchor={record.message_id} error={error}",
-        file=sys.stderr,
-    )
-    return False
 
 
 def deliver_management_replies(
@@ -3461,13 +3335,6 @@ async def _process_claimed_chat_batch(
             config_path=config_path,
             gate_changed_at=gate_changed_at,
         ):
-            await asyncio.to_thread(
-                acknowledge_management_work,
-                inbox,
-                records=records,
-                config_path=config_path,
-                gate_changed_at=gate_changed_at,
-            )
             result = await process_live_records(
                 records,
                 config_path=config_path,
