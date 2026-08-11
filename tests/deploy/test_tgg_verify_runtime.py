@@ -81,6 +81,18 @@ def _status(
             False, False, _status(state="standby", enabled=False), True, id="standby"
         ),
         pytest.param(
+            False,
+            False,
+            _status(
+                state="standby",
+                enabled=False,
+                retention_held=2,
+                retention_hold="historical media retention holds awaiting reconciliation",
+            ),
+            True,
+            id="standby-preserves-historical-retention-holds",
+        ),
+        pytest.param(
             True,
             True,
             _status(
