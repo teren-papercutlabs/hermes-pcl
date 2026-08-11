@@ -21,6 +21,7 @@ from gateway.durable_jsonl_consumer import (
     _management_typing_presence,
     _management_selector_chats,
     _parse_captured_send,
+    acknowledge_management_work,
     deliver_management_replies,
 )
 
@@ -83,6 +84,30 @@ def _record(
         start_offset=0,
         end_offset=1,
         raw={"messageId": message_id, "chatId": chat_id, "timestamp": timestamp},
+    )
+
+
+def _addressed_record(
+    message_id: str = "MSG1", *, quoted: bool = False
+) -> InboxRecord:
+    raw = {
+        "messageId": message_id,
+        "chatId": MGMT_CHAT,
+        "timestamp": FRESH_TS,
+        "senderId": "230407865937940@lid",
+        "body": "please prepare the report",
+        "fromMe": False,
+        "botIds": ["christopher@lid"],
+        "mentionedIds": [] if quoted else ["christopher@lid"],
+        "quotedParticipant": "christopher@lid" if quoted else None,
+    }
+    return InboxRecord(
+        seq=1,
+        message_id=message_id,
+        chat_id=MGMT_CHAT,
+        start_offset=0,
+        end_offset=1,
+        raw=raw,
     )
 
 
@@ -901,3 +926,74 @@ async def test_typing_reasserts_and_clears_on_failure(
             raise RuntimeError("delivery exploded")
     assert [item["presence"] for item in presence].count("composing") >= 2
     assert presence[-1] == {"chatId": MGMT_CHAT, "presence": "paused"}
+
+
+def test_typing_presence_default_reassert_is_six_seconds() -> None:
+    import inspect
+
+    assert (
+        inspect.signature(_management_typing_presence)
+        .parameters["reassert_seconds"]
+        .default
+        == 6
+    )
+
+
+@pytest.mark.parametrize("quoted", [False, True])
+def test_management_acknowledgement_sends_once_for_mention_or_quoted_reply(
+    inbox: DurableInbox,
+    config_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    quoted: bool,
+) -> None:
+    sent: list[dict] = []
+
+    def fake_urlopen(request, timeout=0):
+        sent.append(json.loads(request.data))
+        return _FakeResponse(
+            {"success": True, "messageId": "ACK-WA-1", "outcome": "delivered"}
+        )
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    record = _addressed_record(quoted=quoted)
+    kwargs = {
+        "records": [record],
+        "config_path": config_path,
+        "gate_changed_at": GATE_CHANGED_AT,
+    }
+
+    assert acknowledge_management_work(inbox, **kwargs) is True
+    assert acknowledge_management_work(inbox, **kwargs) is False
+    assert sent == [
+        {
+            "chatId": MGMT_CHAT,
+            "message": "Okay, give me a bit — I'll work on this and get back to you.",
+            "replyTo": {
+                "messageId": "MSG1",
+                "participant": "230407865937940@lid",
+                "body": "please prepare the report",
+            },
+        }
+    ]
+
+
+def test_management_acknowledgement_ignores_unaddressed_group_message(
+    inbox: DurableInbox,
+    config_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda *args, **kwargs: pytest.fail("unaddressed message sent an acknowledgement"),
+    )
+    record = _addressed_record()
+    item = record.raw
+    item["mentionedIds"] = []
+    item["quotedParticipant"] = None
+
+    assert acknowledge_management_work(
+        inbox,
+        records=[record],
+        config_path=config_path,
+        gate_changed_at=GATE_CHANGED_AT,
+    ) is False
