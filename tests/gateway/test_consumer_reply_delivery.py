@@ -258,6 +258,98 @@ def test_streamed_media_directive_becomes_one_native_media_send(
     ]
 
 
+def test_failed_media_send_delivers_answer_as_separate_text_fallback(
+    inbox: DurableInbox, config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from urllib.error import HTTPError
+
+    media_root = tmp_path / "retained"
+    media_root.mkdir()
+    photo = media_root / "case-photo.jpg"
+    photo.write_bytes(b"\xff\xd8\xffcase-photo")
+    _enable_media_retention(config_path, media_root)
+    sent: list[tuple[str, dict]] = []
+
+    def fake_urlopen(request, timeout=0):
+        payload = json.loads(request.data)
+        sent.append((request.full_url, payload))
+        if request.full_url.endswith("/send-media"):
+            raise HTTPError(request.full_url, 403, "unreadable", {}, None)
+        return _FakeResponse({"success": True, "messageId": "WA-TEXT-FALLBACK"})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    answer = "PG/JOB/2607/0702 — WhatsApp says the basin was replaced."
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[_captured(MGMT_CHAT, f"{answer}\n\nMEDIA:{photo}")],
+        batch_records=[_record(MGMT_CHAT)],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1"),
+    )
+
+    assert summary == {
+        "delivered": 1,
+        "undelivered": 1,
+        "suppressed": 0,
+        "duplicate": 0,
+    }
+    assert [url.rsplit("/", 1)[-1] for url, _ in sent] == ["send-media", "send"]
+    assert sent[1][1]["message"] == (
+        answer + "\n\nI couldn't send one or more of the selected images."
+    )
+    with inbox.connect() as conn:
+        rows = conn.execute(
+            "SELECT delivery_key,status FROM reply_deliveries ORDER BY delivery_key"
+        ).fetchall()
+    assert {(row["delivery_key"].split("::", 1)[0], row["status"]) for row in rows} == {
+        ("media", "undelivered"),
+        ("media-fallback", "delivered"),
+    }
+
+
+def test_later_media_failure_sends_only_attachment_note_when_caption_arrived(
+    inbox: DurableInbox, config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from urllib.error import HTTPError
+
+    media_root = tmp_path / "retained"
+    media_root.mkdir()
+    photos = [media_root / "a.jpg", media_root / "b.jpg"]
+    for path in photos:
+        path.write_bytes(b"\xff\xd8\xffcase-photo" + path.name.encode())
+    _enable_media_retention(config_path, media_root)
+    sent: list[tuple[str, dict]] = []
+
+    def fake_urlopen(request, timeout=0):
+        payload = json.loads(request.data)
+        sent.append((request.full_url, payload))
+        if request.full_url.endswith("/send-media") and len(sent) == 2:
+            raise HTTPError(request.full_url, 403, "unreadable", {}, None)
+        return _FakeResponse({"success": True, "messageId": f"WA-{len(sent)}"})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    answer = "PG/JOB/2607/0702 — these are the useful photos."
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[
+            _captured(
+                MGMT_CHAT,
+                answer + "\n\n" + "\n".join(f"MEDIA:{path}" for path in photos),
+            )
+        ],
+        batch_records=[_record(MGMT_CHAT)],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1"),
+    )
+
+    assert summary["delivered"] == 2
+    assert summary["undelivered"] == 1
+    assert sent[-1][0].endswith("/send")
+    assert sent[-1][1]["message"] == "I couldn't send one or more of the selected images."
+
+
 def test_streamed_case_media_ref_resolves_to_retained_file_and_native_send(
     inbox: DurableInbox, config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

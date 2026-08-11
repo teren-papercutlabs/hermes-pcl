@@ -216,7 +216,7 @@ then
 fi
 
 "$APP_ROOT/.venv/bin/python" - "$APP_ROOT" "$HERMES_HOME" <<'PY'
-import datetime, hashlib, json, os, pathlib, sqlite3, stat, sys, yaml
+import datetime, hashlib, importlib.util, json, os, pathlib, sqlite3, stat, subprocess, sys, urllib.request, yaml
 
 app = pathlib.Path(sys.argv[1])
 home = pathlib.Path(sys.argv[2])
@@ -246,10 +246,25 @@ for line in (deploy / "runtime-slots/SHA256SUMS").read_text().splitlines():
     expected[relative.strip()] = digest
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 
-assert sha(home / "christopher_tgg_constitution.yaml") == expected[f"{slot}/christopher_tgg_constitution.yaml"]
 config = yaml.safe_load((home / "config.yaml").read_text())
-slot_config = yaml.safe_load((deploy / "runtime-slots" / slot / "config.yaml").read_text())
 constitution = yaml.safe_load((home / "christopher_tgg_constitution.yaml").read_text())
+loader_path = deploy / "scripts/apply_engine_slot.py"
+loader_spec = importlib.util.spec_from_file_location("christopher_engine_slot_health", loader_path)
+loader = importlib.util.module_from_spec(loader_spec)
+loader_spec.loader.exec_module(loader)
+capability = loader._external_capability(runtime, home, slot)
+if capability:
+    source_config_path = capability["config_path"]
+    source_constitution_path = capability["constitution_path"]
+    assert sha(home / "christopher_tgg_constitution.yaml") == sha(source_constitution_path)
+    plugin_link = home / "plugins/tgg-whatsapp-evidence"
+    assert plugin_link.is_symlink(), plugin_link
+    assert plugin_link.resolve(strict=True) == capability["plugin_source"].resolve(strict=True)
+else:
+    source_config_path = deploy / "runtime-slots" / slot / "config.yaml"
+    source_constitution_path = deploy / "runtime-slots" / slot / "christopher_tgg_constitution.yaml"
+    assert sha(home / "christopher_tgg_constitution.yaml") == expected[f"{slot}/christopher_tgg_constitution.yaml"]
+slot_config = yaml.safe_load(source_config_path.read_text())
 config_enabled = config["pa"]["enabled"]
 assert isinstance(config_enabled, bool)
 # ExecStartPre preserves the activation-owned live key while every authored
@@ -277,10 +292,68 @@ assert set(report_operations["operations"]) == {
     "fetch-sources", "preview-reconcile", "apply-reconcile",
     "generate", "get-reports", "status",
 }
-assert config["plugins"]["enabled"] == ["report-operations"]
+expected_plugins = ["report-operations", "tgg-whatsapp-evidence"] if capability else ["report-operations"]
+assert config["plugins"]["enabled"] == expected_plugins
 management = constitution["job_briefs"]["tgg_management"]
 assert "report-operations" in management["enabled_toolsets"]
 assert "report-operations" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
+if capability:
+    assert "tgg-whatsapp-evidence" in management["enabled_toolsets"]
+    assert "tgg-whatsapp-evidence" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
+    assert "127.0.0.1:5197" not in source_config_path.read_text()
+    manifest = json.loads((capability["release_root"] / "manifest.json").read_text())
+    receipt = json.loads((runtime / "engine-slot-receipt.json").read_text())
+    assert receipt["configuration_source"] == "external-capability"
+    assert receipt["capability_release_id"] == capability["release_id"]
+    assert receipt["capability_manifest_sha256"] == capability["manifest_sha256"]
+    systems = manifest["systems"]
+    base_url = systems["base_url"].rstrip("/")
+    with urllib.request.urlopen(base_url + "/api/health", timeout=10) as response:
+        health = json.load(response)
+    assert health.get("ok") is True
+    env = {}
+    for raw in (home / ".env").read_text().splitlines():
+        if "=" in raw and not raw.lstrip().startswith("#"):
+            key, value = raw.split("=", 1)
+            env[key.strip()] = value.strip().strip('"').strip("'")
+    token = env.get("CHRISTOPHER_TGG_PS_SERVICE_TOKEN")
+    assert token
+    openai_key = env.get("OPENAI_API_KEY")
+    assert openai_key and openai_key.endswith("XK8A")
+    query = urllib.request.Request(
+        base_url + "/api/operator/query?tenant=tgg",
+        method="POST",
+        data=json.dumps({"sql": "SELECT (SELECT COUNT(*) FROM tgg_case_truth) AS cases, (SELECT COUNT(*) FROM message_ledger) AS messages"}).encode(),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(query, timeout=10) as response:
+        payload = json.load(response)
+    row = payload["data"]["rows"][0]
+    assert row == {"cases": systems["canonical_cases"], "messages": systems["message_rows"]}, row
+    corpus = manifest["corpus"]
+    corpus_root = pathlib.Path(corpus["root"])
+    assert corpus_root.resolve(strict=True) == pathlib.Path(
+        config["pa"]["media_retention"]["corpus_roots"][corpus["id"]]
+    ).resolve(strict=True)
+    assert sha(corpus_root / "corpus-manifest.json") == corpus["manifest_sha256"]
+    assert sha(corpus_root / "media-index.jsonl") == corpus["media_index_sha256"]
+    assert sum(1 for path in (corpus_root / "media").rglob("*") if path.is_file()) == corpus["media_files"]
+    retained_root = pathlib.Path(config["pa"]["media_retention"]["media_root"]).resolve(strict=True)
+    unreadable = subprocess.run(
+        ["runuser", "-u", "tggcapture", "--", "find", str(retained_root), "-type", "f", "!", "-readable", "-print", "-quit"],
+        cwd="/",
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    assert not unreadable.stdout.strip(), unreadable.stdout.strip()
+    acl = subprocess.run(
+        ["getfacl", "-cp", str(retained_root)],
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.splitlines()
+    assert "default:user:tggcapture:r-x" in acl, acl
 
 gate = json.loads((runtime / "processing-gate.json").read_text())
 assert isinstance(gate["enabled"], bool)
@@ -306,6 +379,9 @@ if not config_enabled:
     assert int(cursor["offset"]) == int(cursor["initial_offset"])
 
 status = json.loads((runtime / "capture-consumer-status.json").read_text())
+if capability:
+    process_env = pathlib.Path(f"/proc/{status['pid']}/environ").read_bytes().split(b"\0")
+    assert not any(item.startswith(b"GEMINI_API_KEY") and item.split(b"=", 1)[-1] for item in process_env)
 assert status["gate_generation"] == gate["generation"]
 assert status["scheduler_mode"] == "per-chat-parallel"
 assert status["site_concurrency"] == 4
@@ -420,6 +496,9 @@ print(json.dumps({
     "retention_quarantine_status": status["retention_quarantine_status"],
     "retention_quarantine_message_ids": status["retention_quarantine_message_ids"],
     "retention_hold": status["retention_hold"],
+    "configuration_source": "external-capability" if capability else "repo-engine-slot",
+    "capability_release_id": capability["release_id"] if capability else None,
+    "capability_manifest_sha256": capability["manifest_sha256"] if capability else None,
 }, sort_keys=True))
 PY
 
