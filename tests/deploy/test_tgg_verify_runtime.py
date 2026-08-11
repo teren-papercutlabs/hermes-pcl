@@ -287,6 +287,43 @@ def test_standby_inbox_contract_preserves_only_inert_historical_backlog(
     assert (result.returncode == 0) is expected_ok, result.stderr
 
 
+@pytest.mark.parametrize(
+    ("initial_offset", "offset", "cursor_updated_at", "expected_ok"),
+    [
+        pytest.param(100, 100, "2026-08-11T02:59:59+00:00", True, id="virgin-disabled-cursor"),
+        pytest.param(100, 200, "2026-08-11T02:59:59+00:00", True, id="historically-advanced-before-disabled-boundary"),
+        pytest.param(100, 200, "2026-08-11T03:00:06+00:00", False, id="advanced-after-disabled-boundary"),
+        pytest.param(200, 100, "2026-08-11T02:59:59+00:00", False, id="cursor-cannot-move-backwards"),
+    ],
+)
+def test_disabled_cursor_contract_uses_latest_gate_boundary(
+    tmp_path: Path,
+    initial_offset: int,
+    offset: int,
+    cursor_updated_at: str,
+    expected_ok: bool,
+) -> None:
+    gate_path = tmp_path / "processing-gate.json"
+    gate_path.write_text(json.dumps({
+        "enabled": False,
+        "changed_at": "2026-08-11T03:00:00+00:00",
+    }))
+    cursor_path = tmp_path / "capture-cursor.json"
+    cursor_path.write_text(json.dumps({
+        "initial_offset": initial_offset,
+        "offset": offset,
+        "updated_at": cursor_updated_at,
+    }))
+    result = subprocess.run(
+        [str(VERIFY), "--verify-disabled-cursor-contract", str(gate_path), str(cursor_path)],
+        text=True,
+        capture_output=True,
+        check=False,
+        env={**os.environ, "VERIFY_PYTHON": sys.executable},
+    )
+    assert (result.returncode == 0) is expected_ok, result.stderr
+
+
 def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert not (ROOT / "pa-agent.manifest.json").exists()
 

@@ -168,6 +168,45 @@ print(json.dumps({
 PY
 fi
 
+if [[ "$MODE" == "--verify-disabled-cursor-contract" ]]; then
+  if [[ "$#" -ne 3 ]]; then
+    echo "usage: $0 --verify-disabled-cursor-contract <processing-gate> <capture-cursor>" >&2
+    exit 2
+  fi
+  exec "${VERIFY_PYTHON:-$APP_ROOT/.venv/bin/python}" - "$2" "$3" <<'PY'
+import datetime
+import json
+import pathlib
+import sys
+
+gate = json.loads(pathlib.Path(sys.argv[1]).read_text())
+cursor = json.loads(pathlib.Path(sys.argv[2]).read_text())
+assert gate["enabled"] is False
+initial_offset = int(cursor["initial_offset"])
+offset = int(cursor["offset"])
+assert offset >= initial_offset, (offset, initial_offset)
+
+# A runtime may have advanced while it was previously enabled.  The disabled
+# invariant is that it stopped before the latest gate boundary, not that its
+# cursor has remained at its lifetime initial offset.
+gate_boundary = datetime.datetime.fromisoformat(gate["changed_at"])
+cursor_updated = datetime.datetime.fromisoformat(cursor["updated_at"])
+assert gate_boundary.tzinfo is not None
+assert cursor_updated.tzinfo is not None
+assert cursor_updated <= gate_boundary + datetime.timedelta(seconds=5), (
+    cursor_updated,
+    gate_boundary,
+)
+print(json.dumps({
+    "disabled_cursor_contract": "pass",
+    "initial_offset": initial_offset,
+    "offset": offset,
+    "cursor_updated_at": cursor["updated_at"],
+    "gate_changed_at": gate["changed_at"],
+}, sort_keys=True))
+PY
+fi
+
 if [[ "$MODE" == "--check-mode" ]]; then
   raw="$(pcl service locate --system christopher --domain pa)"
   target="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["data"]["system"]["liveFacts"]["host"]["sshTargetAlias"])' <<<"$raw")"
@@ -296,6 +335,10 @@ import sys, yaml
 raise SystemExit(0 if not yaml.safe_load(open(sys.argv[1]))["pa"]["enabled"] else 1)
 PY
 then
+  APP_ROOT="$APP_ROOT" VERIFY_PYTHON="$APP_ROOT/.venv/bin/python" \
+    "$0" --verify-disabled-cursor-contract \
+    "$RUNTIME_ROOT/processing-gate.json" \
+    "$RUNTIME_ROOT/capture-cursor.json"
   APP_ROOT="$APP_ROOT" VERIFY_PYTHON="$APP_ROOT/.venv/bin/python" \
     "$0" --verify-standby-inbox-contract \
     "$HERMES_HOME/config.yaml" \
@@ -488,8 +531,6 @@ assert boundary <= datetime.datetime.now(datetime.timezone.utc) + datetime.timed
 
 cursor = json.loads((runtime / "capture-cursor.json").read_text())
 assert cursor["source_path"] == "/var/lib/tgg-capture/whatsapp/capture/events.jsonl"
-if not config_enabled:
-    assert int(cursor["offset"]) == int(cursor["initial_offset"])
 
 status = json.loads((runtime / "capture-consumer-status.json").read_text())
 if capability:
@@ -597,7 +638,7 @@ print(json.dumps({
     "processing_enabled": config_enabled,
     "production_turns_after_disabled_boundary": production_turns,
     "production_inbox_rows": inbox_rows,
-    "cursor_unchanged_while_disabled": (not config_enabled),
+    "disabled_cursor_boundary_verified": (not config_enabled),
     "scheduler_mode": status["scheduler_mode"],
     "state": status["state"],
     "state_total": status["state_total"],
