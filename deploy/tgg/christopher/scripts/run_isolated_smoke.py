@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
 import shutil
@@ -12,7 +13,6 @@ import stat
 import threading
 import time
 import uuid
-import zipfile
 from io import BytesIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -20,6 +20,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import yaml
 from dotenv import load_dotenv
+from openpyxl import Workbook
 
 
 ALLOWED_SECRET_KEYS = {
@@ -32,14 +33,25 @@ class _OperatorStub(BaseHTTPRequestHandler):
     mutation_requests = 0
     report_scenario = "none"
     request_paths: list[str] = []
+    workbooks: dict[str, bytes] = {}
 
     @staticmethod
-    def _workbook() -> bytes:
+    def _workbook(tabs: list[str]) -> bytes:
         buffer = BytesIO()
-        with zipfile.ZipFile(buffer, "w") as archive:
-            archive.writestr("[Content_Types].xml", "<Types/>")
-            archive.writestr("xl/workbook.xml", "<workbook/>")
+        workbook = Workbook()
+        workbook.remove(workbook.active)
+        for tab in tabs:
+            sheet = workbook.create_sheet(tab)
+            sheet.append(["Job No.", "Status", "Remarks"])
+            sheet.append(["AM/JOB/2608/0001", "Completed", "Fixture row"])
+        workbook.save(buffer)
         return buffer.getvalue()
+
+    @classmethod
+    def _cached_workbook(cls, file_name: str, tabs: list[str]) -> bytes:
+        if file_name not in cls.workbooks:
+            cls.workbooks[file_name] = cls._workbook(tabs)
+        return cls.workbooks[file_name]
 
     def _reply(self) -> None:
         type(self).requests_total += 1
@@ -47,27 +59,44 @@ class _OperatorStub(BaseHTTPRequestHandler):
         if self.command in {"POST", "PATCH", "PUT", "DELETE"}:
             type(self).mutation_requests += 1
         if self.path.startswith("/api/operator/report-cycle/"):
-            workbook = self._workbook()
-            digest = __import__("hashlib").sha256(workbook).hexdigest()
+            report_workbook = self._cached_workbook("report.xlsx", ["Report"])
+            digest = hashlib.sha256(report_workbook).hexdigest()
             zones = ("AMK", "HG", "PG", "SK")
             endpoint = urlsplit(self.path).path.rsplit("/", 1)[-1]
             if endpoint == "fetch-sources":
-                tabs = list(zones) if self.report_scenario == "clean" else ["AMK"]
+                master_tabs = (
+                    [
+                        "AMK",
+                        "Serangoon",
+                        "Bishan",
+                        "Hougang",
+                        "Sengkang",
+                        "Punggol",
+                        "Bedok",
+                        "List of Rental Flat",
+                        "Summary",
+                        "Sheet4",
+                    ]
+                    if self.report_scenario == "clean"
+                    else ["AMK"]
+                )
                 source_specs = (
                     (
-                        ("master", "master.xlsx", tabs),
+                        ("master", "master.xlsx", master_tabs),
                         ("closure", "closure.xlsx", ["3 August until 8 August 26"]),
                     )
                     if self.report_scenario == "clean"
-                    else (("master", "master.xlsx", tabs),)
+                    else (("master", "master.xlsx", master_tabs),)
                 )
                 result = {
                     "fetch_id": "fixture-fetch",
                     "sources": [
                         {
                             "name": name,
-                            "hash": digest,
-                            "bytes": len(workbook),
+                            "hash": hashlib.sha256(
+                                self._cached_workbook(file_name, sheet_tabs)
+                            ).hexdigest(),
+                            "bytes": len(self._cached_workbook(file_name, sheet_tabs)),
                             "fetched_at": "2026-08-03T08:00:00+08:00",
                             "sheet_tabs": sheet_tabs,
                             "ref": (
@@ -78,7 +107,7 @@ class _OperatorStub(BaseHTTPRequestHandler):
                         }
                         for name, file_name, sheet_tabs in source_specs
                     ],
-                    "preview_rows": [{"zone": zone, "row_count": 10} for zone in tabs],
+                    "preview_rows": [{"zone": zone, "row_count": 10} for zone in zones],
                 }
             elif endpoint == "preview-reconcile":
                 result = {
@@ -111,9 +140,17 @@ class _OperatorStub(BaseHTTPRequestHandler):
                     "audit_batch_id": "fixture-audit",
                 }
             elif endpoint == "generate":
-                result = {"run_id": "fixture-run", "verdict": "pass", "checks": {"verifier": "pass"}, "reports": [{"zone": zone, "ref": f"fixture-{zone}", "hash": digest} for zone in zones]}
+                reports = []
+                for zone in zones:
+                    payload = self._cached_workbook(f"{zone}.xlsx", [zone])
+                    reports.append({"zone": zone, "ref": f"fixture-{zone}", "hash": hashlib.sha256(payload).hexdigest()})
+                result = {"run_id": "fixture-run", "verdict": "pass", "checks": {"verifier": "pass"}, "reports": reports}
             elif endpoint == "get-reports":
-                result = {"files": [{"zone": zone, "ref": f"http://127.0.0.1:{self.server.server_port}/fixture-files/{zone}.xlsx", "hash": digest, "file_name": f"{zone}.xlsx"} for zone in zones], "receipt": {"window": "auto", "verifier": "pass"}}
+                files = []
+                for zone in zones:
+                    payload = self._cached_workbook(f"{zone}.xlsx", [zone])
+                    files.append({"zone": zone, "ref": f"http://127.0.0.1:{self.server.server_port}/fixture-files/{zone}.xlsx", "hash": hashlib.sha256(payload).hexdigest(), "file_name": f"{zone}.xlsx"})
+                result = {"files": files, "receipt": {"window": "auto", "verifier": "pass"}}
             elif endpoint == "status":
                 result = {"stage": "generated", "ok": True, "populations_touched": {"cases": 4}}
             else:
@@ -140,7 +177,11 @@ class _OperatorStub(BaseHTTPRequestHandler):
         if self.path.startswith("/fixture-files/"):
             type(self).requests_total += 1
             type(self).request_paths.append(self.path)
-            body = self._workbook()
+            file_name = Path(urlsplit(self.path).path).name
+            body = type(self).workbooks.get(file_name)
+            if body is None:
+                self.send_error(404)
+                return
             self.send_response(200)
             self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             self.send_header("Content-Length", str(len(body)))
@@ -349,6 +390,7 @@ def main() -> int:
     _OperatorStub.requests_total = 0
     _OperatorStub.mutation_requests = 0
     _OperatorStub.request_paths = []
+    _OperatorStub.workbooks = {}
     _OperatorStub.report_scenario = args.report_ops_scenario
     server = ThreadingHTTPServer(("127.0.0.1", 0), _OperatorStub)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

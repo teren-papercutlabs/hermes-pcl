@@ -5,19 +5,30 @@ import importlib.util
 import json
 import os
 import threading
+from io import BytesIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import yaml
+from openpyxl import load_workbook
 
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPLOY = ROOT / "deploy" / "tgg" / "christopher"
 PLUGIN = DEPLOY / "plugins" / "report-operations" / "__init__.py"
+SMOKE = DEPLOY / "scripts" / "run_isolated_smoke.py"
 
 
 def _load_plugin():
     spec = importlib.util.spec_from_file_location("christopher_report_operations", PLUGIN)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_smoke():
+    spec = importlib.util.spec_from_file_location("christopher_isolated_smoke", SMOKE)
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     spec.loader.exec_module(module)
@@ -263,10 +274,20 @@ def test_runtime_verifier_ignores_non_report_setup_requests():
 
 def test_isolated_smoke_serves_downloadable_master_and_closure_sources():
     source = (DEPLOY / "scripts" / "run_isolated_smoke.py").read_text()
-    assert '("master", "master.xlsx", tabs)' in source
+    assert '("master", "master.xlsx", master_tabs)' in source
     assert '("closure", "closure.xlsx"' in source
     assert '"ref": (' in source
     assert '"file_name": file_name' in source
+
+
+def test_isolated_smoke_workbooks_are_valid_and_inspectable():
+    module = _load_smoke()
+    payload = module._OperatorStub._workbook(["AMK", "Serangoon", "Bishan"])
+
+    workbook = load_workbook(BytesIO(payload), read_only=True, data_only=True)
+
+    assert workbook.sheetnames == ["AMK", "Serangoon", "Bishan"]
+    assert workbook["AMK"]["A2"].value == "AM/JOB/2608/0001"
 
 
 def test_runtime_verifier_identifies_its_systems_read_check_to_the_edge():
