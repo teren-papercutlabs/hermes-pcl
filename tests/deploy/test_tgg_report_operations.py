@@ -235,6 +235,14 @@ def test_runtime_verifier_ignores_non_report_setup_requests():
     assert 'corrupt["report_ops_request_paths"] ==' not in source
 
 
+def test_isolated_smoke_serves_downloadable_master_and_closure_sources():
+    source = (DEPLOY / "scripts" / "run_isolated_smoke.py").read_text()
+    assert '("master", "master.xlsx", tabs)' in source
+    assert '("closure", "closure.xlsx"' in source
+    assert '"ref": (' in source
+    assert '"file_name": file_name' in source
+
+
 def test_runtime_verifier_identifies_its_systems_read_check_to_the_edge():
     source = (DEPLOY / "scripts" / "verify_runtime.sh").read_text()
     assert source.count('"User-Agent": "Christopher-TGG/1.0"') == 2
