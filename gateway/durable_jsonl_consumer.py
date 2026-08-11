@@ -706,6 +706,8 @@ class DurableInbox:
         batch_size: int,
         priority_chats: frozenset[str] | set[str] | None = None,
         exclude_chats: frozenset[str] | set[str] | None = None,
+        priority_quiet_seconds: float = 0.0,
+        now: datetime | None = None,
     ) -> tuple[list[tuple[str, list[InboxRecord]]], list[tuple[str, list[InboxRecord]]]]:
         """Return FIFO batches grouped by chat, split into management/site lanes.
 
@@ -719,7 +721,7 @@ class DurableInbox:
         with self.connect() as conn:
             rows = conn.execute(
                 "SELECT e.seq,e.message_id,e.chat_id,e.start_offset,e.end_offset,"
-                "e.raw_json,e.retention_state,"
+                "e.raw_json,e.retention_state,e.created_at,"
                 "q.ingress_seq IS NOT NULL AS retention_quarantined "
                 "FROM ingress_events e LEFT JOIN media_retention_quarantine q "
                 "ON q.ingress_seq=e.seq AND q.status='quarantined' "
@@ -727,10 +729,15 @@ class DurableInbox:
                 "AND e.retention_state IN ('complete','bypassed') ORDER BY e.seq"
             ).fetchall()
         grouped: dict[str, list[InboxRecord]] = {}
+        latest_created_at: dict[str, datetime] = {}
         for row in rows:
             chat_id = str(row["chat_id"])
             if chat_id in excluded:
                 continue
+            created_at = datetime.fromisoformat(str(row["created_at"]).replace("Z", "+00:00"))
+            latest_created_at[chat_id] = max(
+                latest_created_at.get(chat_id, created_at), created_at
+            )
             batch = grouped.setdefault(chat_id, [])
             if len(batch) >= size:
                 continue
@@ -747,9 +754,26 @@ class DurableInbox:
                 )
             )
         ordered = sorted(grouped.items(), key=lambda item: item[1][0].seq)
-        management = [item for item in ordered if item[0] in priority]
+        quiet_seconds = max(0.0, float(priority_quiet_seconds))
+        current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        management = [
+            item for item in ordered
+            if item[0] in priority and (
+                quiet_seconds <= 0
+                or (current - latest_created_at[item[0]].astimezone(timezone.utc)).total_seconds()
+                >= quiet_seconds
+            )
+        ]
         site = [item for item in ordered if item[0] not in priority]
         return management, site
+
+    def pending_chat_batch(self, chat_id: str, *, batch_size: int) -> list[InboxRecord]:
+        """Return one retained, pending FIFO batch for an already-active chat."""
+        management, _ = self.pending_chat_batches(
+            batch_size=batch_size,
+            priority_chats={chat_id},
+        )
+        return management[0][1] if management else []
 
     def bounded_window(
         self, *, chat_ids: Sequence[str], cutoff: datetime
@@ -2563,6 +2587,66 @@ def _management_selector_chats(config_path: Path) -> frozenset[str]:
     return frozenset(chats)
 
 
+def _management_quiet_seconds(config_path: Path) -> float:
+    """Configured trailing-quiet window before a management turn starts."""
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    pa = data.get("pa") if isinstance(data, dict) else None
+    constitution_raw = str((pa or {}).get("constitution_path") or "")
+    if not constitution_raw:
+        return 0.0
+    constitution_path = Path(constitution_raw)
+    if not constitution_path.is_file():
+        return 0.0
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8")) or {}
+    briefs = constitution.get("job_briefs") if isinstance(constitution, Mapping) else None
+    management = briefs.get("tgg_management") if isinstance(briefs, Mapping) else None
+    raw = management.get("debounce_addressed_ms") if isinstance(management, Mapping) else None
+    try:
+        return max(0.0, float(raw) / 1000.0) if raw is not None else 0.0
+    except (TypeError, ValueError):
+        raise ConsumerError("tgg_management debounce_addressed_ms is invalid") from None
+
+
+def _normalize_whatsapp_id(value: Any) -> str:
+    normalized = str(value or "").strip()
+    if ":" in normalized and "@" in normalized:
+        normalized = normalized.replace(":", "@", 1)
+    return normalized
+
+
+def _management_direct_trigger(record: InboxRecord) -> bool:
+    """True only for an explicit mention/command or a reply quoting Christopher."""
+    item = _bridge_item(record.raw)
+    if bool(item.get("fromMe")):
+        return False
+    body = str(item.get("body") or item.get("text") or "").strip()
+    if body.startswith("/"):
+        return True
+    bot_ids = {
+        normalized
+        for value in (item.get("botIds") or [])
+        if (normalized := _normalize_whatsapp_id(value))
+    }
+    mentioned_ids = {
+        normalized
+        for value in (item.get("mentionedIds") or [])
+        if (normalized := _normalize_whatsapp_id(value))
+    }
+    if bot_ids & mentioned_ids:
+        return True
+    lower_body = body.lower()
+    if any(
+        (bare := bot_id.split("@", 1)[0].lower())
+        and f"@{bare}" in lower_body
+        for bot_id in bot_ids
+    ):
+        return True
+    if item.get("quotedFromBot"):
+        return True
+    quoted_participant = _normalize_whatsapp_id(item.get("quotedParticipant"))
+    return bool(quoted_participant and quoted_participant in bot_ids)
+
+
 def _parse_captured_send(entry: Mapping[str, Any]) -> dict[str, Any] | None:
     """Extract (chat_id, content, reply_to) from a captured adapter send.
 
@@ -3286,6 +3370,10 @@ async def _process_claimed_chat_batch(
     source_before_image_dir: Path,
     gate_changed_at: str,
     runner: Any,
+    direct_trigger_required: bool = False,
+    allow_active_steering: bool = False,
+    steering_poll_seconds: float = 0.5,
+    steering_batch_size: int = 25,
 ) -> None:
     """Claim and process exactly one chat batch through the shared runner."""
     if not records:
@@ -3294,6 +3382,13 @@ async def _process_claimed_chat_batch(
     if len(chat_ids) != 1:
         raise ConsumerError(f"scheduler produced a mixed-chat batch: {sorted(chat_ids)}")
     inbox.claim(records)
+    if direct_trigger_required and not any(
+        _management_direct_trigger(record) for record in records
+    ):
+        # Management chatter is retained and auditable, but it is not an agent
+        # turn unless Christopher was mentioned or one of his messages was quoted.
+        inbox.finish_processed_batch(records, turn_for_message={})
+        return
     try:
         # Capture-lane retention normally terminals while the row is pending.
         # This claimed-chat path remains the idempotent safety net: Hermes sees
@@ -3335,13 +3430,50 @@ async def _process_claimed_chat_batch(
             config_path=config_path,
             gate_changed_at=gate_changed_at,
         ):
-            result = await process_live_records(
-                records,
-                config_path=config_path,
-                state_db=state_db,
-                persistent_session=True,
-                runner=runner,
+            processing = asyncio.create_task(
+                process_live_records(
+                    records,
+                    config_path=config_path,
+                    state_db=state_db,
+                    persistent_session=True,
+                    runner=runner,
+                )
             )
+            if allow_active_steering:
+                while not processing.done():
+                    await asyncio.sleep(max(0.05, steering_poll_seconds))
+                    if processing.done():
+                        break
+                    followups = inbox.pending_chat_batch(
+                        records[0].chat_id,
+                        batch_size=steering_batch_size,
+                    )
+                    if not followups:
+                        continue
+                    # The shared runner is still executing the addressed turn.
+                    # With busy_input_mode=steer this second replay injects the
+                    # follow-up after the active tool boundary; it never cancels
+                    # file generation or another in-flight tool.
+                    try:
+                        await _process_claimed_chat_batch(
+                            inbox,
+                            followups,
+                            config_path=config_path,
+                            state_db=state_db,
+                            case_db=case_db,
+                            source_before_image_dir=source_before_image_dir,
+                            gate_changed_at=gate_changed_at,
+                            runner=runner,
+                            direct_trigger_required=False,
+                            allow_active_steering=False,
+                        )
+                    except Exception as exc:
+                        print(
+                            "active management steer FAILED "
+                            f"chat={records[0].chat_id}: {exc}",
+                            file=sys.stderr,
+                        )
+            result = await processing
         submitted = {str(value) for value in result.get("submitted_message_ids") or []}
         expected = {record.message_id for record in records}
         if submitted != expected:
@@ -3410,6 +3542,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
     site_concurrency = max(1, int(getattr(args, "site_concurrency", 4)))
     chat_batch_size = max(1, int(getattr(args, "chat_batch_size", 25)))
     retention_batch_size = max(1, int(getattr(args, "retention_batch_size", 25)))
+    management_quiet_seconds = _management_quiet_seconds(config_path)
 
     with SingletonLock(Path(args.lock_file).resolve()):
         recovery = inbox.reconcile_orphan_processing(state_db)
@@ -3478,6 +3611,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "claim_stale_seconds": 1800,
                             "site_concurrency": site_concurrency,
                             "chat_batch_size": chat_batch_size,
+                            "management_quiet_seconds": management_quiet_seconds,
                             "retention_batch_size": retention_batch_size,
                             "active_management_chats": [],
                             "active_site_chats": [],
@@ -3537,6 +3671,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "claim_stale_seconds": 1800,
                         "site_concurrency": site_concurrency,
                         "chat_batch_size": chat_batch_size,
+                        "management_quiet_seconds": management_quiet_seconds,
                         "retention_batch_size": retention_batch_size,
                         "source_projection_hold": (
                             next(iter(source_projection_holds.values()), None)
@@ -3597,6 +3732,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                 management_batches, site_batches = inbox.pending_chat_batches(
                     batch_size=chat_batch_size,
                     priority_chats=priority_chats,
+                    priority_quiet_seconds=management_quiet_seconds,
                     # A source-projection failure is an operator-visible hold,
                     # not a 2-second retry loop against the same broken
                     # binding.  Restarting the daemon re-arms pending rows
@@ -3625,6 +3761,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             runner=runner,
                             case_db=case_db,
                             source_before_image_dir=source_before_image_dir,
+                            direct_trigger_required=True,
+                            allow_active_steering=True,
                         )
                     )
                     lanes[chat_id] = "management"

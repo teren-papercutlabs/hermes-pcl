@@ -5,6 +5,7 @@ import json
 import os
 import sqlite3
 import zipfile
+from datetime import datetime
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -1381,7 +1382,11 @@ async def test_demo_pause_retention_hold_preserves_management_lane_and_retries(
         "timestamp": 1784630163.917,
     })
     management = _message("MANAGEMENT-LIVE", "management@g.us")
-    management["timestamp"] = 1784630164.917
+    management.update({
+        "timestamp": 1784630164.917,
+        "botIds": ["6599999999@s.whatsapp.net"],
+        "mentionedIds": ["6599999999@s.whatsapp.net"],
+    })
     _write_jsonl(Path(args.source), [
         {"type": "whatsapp_capture_event", "normalized": missing},
         {"type": "whatsapp_capture_event", "normalized": management},
@@ -2256,6 +2261,61 @@ def test_pending_chat_batches_are_fifo_and_split_management_capacity(tmp_path):
     ]
 
 
+def test_management_chat_waits_for_configured_trailing_quiet(tmp_path):
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    source = tmp_path / "events.jsonl"
+    _write_jsonl(source, [_message("mgmt-quiet", "management@g.us")])
+    cursor = tmp_path / "cursor.json"
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    with inbox.connect() as conn:
+        conn.execute(
+            "UPDATE ingress_events SET created_at=? WHERE message_id=?",
+            ("2026-08-11T10:00:00+00:00", "mgmt-quiet"),
+        )
+
+    management, _ = inbox.pending_chat_batches(
+        batch_size=10,
+        priority_chats={"management@g.us"},
+        priority_quiet_seconds=8,
+        now=datetime.fromisoformat("2026-08-11T10:00:07+00:00"),
+    )
+    assert management == []
+    management, _ = inbox.pending_chat_batches(
+        batch_size=10,
+        priority_chats={"management@g.us"},
+        priority_quiet_seconds=8,
+        now=datetime.fromisoformat("2026-08-11T10:00:08+00:00"),
+    )
+    assert [record.message_id for record in management[0][1]] == ["mgmt-quiet"]
+
+
+def test_management_trigger_requires_mention_or_quoted_christopher_reply():
+    ordinary = consumer.InboxRecord(1, "ordinary", "management@g.us", 0, 1, _message("ordinary"))
+    mention_raw = _message("mention")
+    mention_raw.update({
+        "botIds": ["6599999999@s.whatsapp.net"],
+        "mentionedIds": ["6599999999@s.whatsapp.net"],
+    })
+    reply_raw = _message("reply")
+    reply_raw.update({
+        "botIds": ["6599999999@lid"],
+        "quotedParticipant": "6599999999@lid",
+        "quotedMessageId": "christopher-outbound",
+    })
+    wrong_reply_raw = _message("wrong-reply")
+    wrong_reply_raw.update({
+        "botIds": ["6599999999@lid"],
+        "quotedParticipant": "6511111111@lid",
+        "quotedMessageId": "someone-else",
+    })
+
+    assert consumer._management_direct_trigger(ordinary) is False
+    assert consumer._management_direct_trigger(consumer.InboxRecord(2, "mention", "management@g.us", 1, 2, mention_raw)) is True
+    assert consumer._management_direct_trigger(consumer.InboxRecord(3, "reply", "management@g.us", 2, 3, reply_raw)) is True
+    assert consumer._management_direct_trigger(consumer.InboxRecord(4, "wrong", "management@g.us", 3, 4, wrong_reply_raw)) is False
+
+
 def test_startup_reconciles_successful_turn_refs_and_requeues_only_unmatched(tmp_path):
     inbox = consumer.DurableInbox(tmp_path / "inbox.db")
     source = tmp_path / "events.jsonl"
@@ -2324,6 +2384,10 @@ async def test_seq_3030_management_lane_runs_during_999_site_shape(
     messages.append(_message("management-seq-3030", "management@g.us"))
     for message in messages:
         message["timestamp"] = 1784630163.917
+    messages[-1].update({
+        "botIds": ["6599999999@s.whatsapp.net"],
+        "mentionedIds": ["6599999999@s.whatsapp.net"],
+    })
     args = _enabled_consumer_args(tmp_path, messages)
     seeded = consumer.DurableInbox(Path(args.inbox))
     with seeded.connect() as conn:
@@ -2413,6 +2477,110 @@ async def test_cancelling_active_chat_requeues_without_double_processing(
         await task
     assert inbox.counts() == {"pending": 1}
     assert inbox.pending(limit=1)[0].message_id == "interrupt-me"
+
+
+def test_passive_management_chatter_is_skipped_without_calling_model(
+    tmp_path, monkeypatch
+):
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    source = tmp_path / "events.jsonl"
+    _write_jsonl(source, [_message("passive", "management@g.us")])
+    cursor = tmp_path / "cursor.json"
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    records = inbox.pending(limit=1)
+
+    async def forbidden_model(*_args, **_kwargs):
+        raise AssertionError("passive management chatter reached the model")
+
+    monkeypatch.setattr(consumer, "process_live_records", forbidden_model)
+    config = tmp_path / "config.yaml"
+    config.write_text("pa:\n  enabled: true\n", encoding="utf-8")
+    asyncio.run(consumer._process_claimed_chat_batch(
+        inbox,
+        records,
+        config_path=config,
+        state_db=tmp_path / "state.db",
+        case_db=_write_case_db(tmp_path / "case.db"),
+        source_before_image_dir=tmp_path / "source-before-images",
+        gate_changed_at="2026-08-11T00:00:00+00:00",
+        runner=object(),
+        direct_trigger_required=True,
+    ))
+    assert inbox.counts() == {"skipped": 1}
+
+
+def test_addressed_management_burst_includes_followups_and_steers_while_active(
+    tmp_path, monkeypatch
+):
+    chat_id = "management@g.us"
+    first = _message("mention", chat_id)
+    first.update({
+        "botIds": ["6599999999@s.whatsapp.net"],
+        "mentionedIds": ["6599999999@s.whatsapp.net"],
+    })
+    source = tmp_path / "events.jsonl"
+    _write_jsonl(source, [_message("burst-context", chat_id), first])
+    cursor = tmp_path / "cursor.json"
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    records = inbox.pending(limit=2)
+    config = tmp_path / "config.yaml"
+    config.write_text("pa:\n  enabled: true\n", encoding="utf-8")
+    started = asyncio.Event()
+    steered = asyncio.Event()
+    calls: list[list[str]] = []
+    shared_runner = object()
+
+    async def fake_process(batch, **kwargs):
+        assert kwargs["runner"] is shared_runner
+        ids = [record.message_id for record in batch]
+        calls.append(ids)
+        if ids == ["burst-context", "mention"]:
+            started.set()
+            await asyncio.wait_for(steered.wait(), timeout=2)
+            return {
+                "processed": 2,
+                "submitted_message_ids": ids,
+                "handled": [{"message_ids": ids, "turn_id": "turn-main"}],
+                "captured_outbound": [],
+            }
+        assert ids == ["followup"]
+        steered.set()
+        return {
+            "processed": 1,
+            "submitted_message_ids": ids,
+            "handled": [],
+            "captured_outbound": [],
+        }
+
+    monkeypatch.setattr(consumer, "process_live_records", fake_process)
+    monkeypatch.setattr(consumer, "deliver_management_replies", lambda *_a, **_k: {"delivered": 0, "undelivered": 0})
+    async def exercise():
+        task = asyncio.create_task(consumer._process_claimed_chat_batch(
+            inbox,
+            records,
+            config_path=config,
+            state_db=tmp_path / "state.db",
+            case_db=_write_case_db(tmp_path / "case.db"),
+            source_before_image_dir=tmp_path / "source-before-images",
+            gate_changed_at="2026-08-11T00:00:00+00:00",
+            runner=shared_runner,
+            direct_trigger_required=True,
+            allow_active_steering=True,
+            steering_poll_seconds=0.01,
+        ))
+        await asyncio.wait_for(started.wait(), timeout=2)
+        with source.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(_message("followup", chat_id)) + "\n")
+        inbox.stage_from_source(source, cursor)
+        await asyncio.wait_for(task, timeout=3)
+
+    asyncio.run(exercise())
+
+    assert calls == [["burst-context", "mention"], ["followup"]]
+    assert inbox.counts() == {"completed": 2, "skipped": 1}
 
 
 @pytest.mark.asyncio

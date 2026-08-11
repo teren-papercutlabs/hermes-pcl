@@ -37,7 +37,19 @@ class _API(BaseHTTPRequestHandler):
         digest = hashlib.sha256(self.workbook).hexdigest()
         port = self.server.server_port
         responses = {
-            "/fetch-sources": {"fetch_id": "fetch-1", "sources": [{"name": "Master", "hash": "a", "bytes": 4, "fetched_at": "now", "sheet_tabs": ["AMK", "HG", "PG", "SK"]}], "preview_rows": [{"row": 1}]},
+            "/fetch-sources": {
+                "fetch_id": "fetch-1",
+                "sources": [{
+                    "name": "master",
+                    "hash": digest,
+                    "bytes": len(self.workbook),
+                    "fetched_at": "now",
+                    "sheet_tabs": ["AMK", "HG", "PG", "SK"],
+                    "ref": f"http://127.0.0.1:{port}/files/master.xlsx",
+                    "file_name": "master.xlsx",
+                }],
+                "preview_rows": {"master": [{"row": 1}]},
+            },
             "/preview-reconcile": {"run_id": "run-1", "delta": {"new_cases": 1, "updates": 2, "closure_events": 3, "per_zone": {}}, "warnings": []},
             "/apply-reconcile": {"applied": {"new_cases": 1}, "backup": {"path": "/server/backup", "hash": "b", "verified": True}, "audit_batch_id": "audit-1"},
             "/generate": {"run_id": "run-1", "verdict": "pass", "checks": {"ok": True}, "reports": [{"zone": zone, "ref": f"ref-{zone}", "hash": digest} for zone in ("AMK", "HG", "PG", "SK")]},
@@ -64,6 +76,7 @@ class _API(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         assert self.path.startswith("/files/")
+        assert self.headers["User-Agent"] == "Christopher-TGG/1.0"
         self.send_response(200)
         self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         self.send_header("Content-Length", str(len(self.workbook)))
@@ -99,6 +112,11 @@ def test_six_verbs_round_trip_and_download_four_documents(tmp_path, monkeypatch)
             "operations": operations,
         }
         monkeypatch.setattr(module, "_section", lambda: section)
+        monkeypatch.setattr(module, "read_raw_config", lambda: {
+            "python_sandbox": {
+                "datasets": {"media": {"type": "path", "path": str(tmp_path)}}
+            }
+        })
         monkeypatch.setenv("CHRISTOPHER_TGG_PS_SERVICE_TOKEN", _API.token)
 
         results = [
@@ -110,6 +128,11 @@ def test_six_verbs_round_trip_and_download_four_documents(tmp_path, monkeypatch)
             module._status({"run_id": "run-1"}),
         ]
         assert all("error" not in json.loads(result) for result in results)
+        sources = json.loads(results[0])["sources"]
+        assert len(sources) == 1
+        assert Path(sources[0]["local_path"]).read_bytes() == _API.workbook
+        assert sources[0]["sandbox_path"] == "/inputs/media/fetch-1/master.xlsx"
+        assert sources[0]["verified_hash"] == hashlib.sha256(_API.workbook).hexdigest()
         files = json.loads(results[4])["files"]
         assert len(files) == 4
         assert all(Path(item["local_path"]).read_bytes() == _API.workbook for item in files)

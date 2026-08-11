@@ -141,11 +141,13 @@ def _fetch_sources(args: Mapping[str, Any], **_: Any) -> str:
         _require_keys(data, "fetch_id", "sources", "preview_rows")
         if not isinstance(data["sources"], list):
             raise ValueError("fetch-sources sources must be a list")
-        for source in data["sources"]:
+        downloaded = []
+        for ordinal, source in enumerate(data["sources"], 1):
             if not isinstance(source, Mapping):
                 raise ValueError("fetch-sources returned a malformed source")
-            _require_keys(source, "name", "hash", "bytes", "fetched_at", "sheet_tabs")
-        return _tool_result(data)
+            _require_keys(source, "name", "hash", "bytes", "fetched_at", "sheet_tabs", "ref", "file_name")
+            downloaded.append(_download_ref(source, run_id=str(data["fetch_id"]), ordinal=ordinal))
+        return _tool_result({**data, "sources": downloaded})
     except Exception as exc:
         return _tool_error(exc)
 
@@ -207,6 +209,29 @@ def _safe_filename(raw: Any, ordinal: int) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", name)
 
 
+def _sandbox_path(target: Path) -> str | None:
+    config = read_raw_config()
+    sandbox = config.get("python_sandbox") if isinstance(config, Mapping) else None
+    datasets = sandbox.get("datasets") if isinstance(sandbox, Mapping) else None
+    if not isinstance(datasets, Mapping):
+        return None
+    for raw_name, raw_spec in datasets.items():
+        name = str(raw_name)
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", name) or not isinstance(raw_spec, Mapping):
+            continue
+        if raw_spec.get("type") != "path":
+            continue
+        root_text = str(raw_spec.get("path") or "").strip()
+        if not root_text:
+            continue
+        try:
+            relative = target.relative_to(Path(root_text).expanduser().resolve())
+        except ValueError:
+            continue
+        return f"/inputs/{name}/{relative.as_posix()}"
+    return None
+
+
 def _download_ref(item: Mapping[str, Any], *, run_id: str, ordinal: int) -> dict[str, Any]:
     ref = str(item.get("ref") or item.get("url") or "").strip()
     if ref.startswith("/"):
@@ -232,7 +257,19 @@ def _download_ref(item: Mapping[str, Any], *, run_id: str, ordinal: int) -> dict
     target_dir.mkdir(parents=True, exist_ok=True, mode=0o750)
     filename = _safe_filename(item.get("file_name") or item.get("filename") or item.get("zone"), ordinal)
     target = target_dir / filename
-    request = urllib.request.Request(ref, headers={"Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})
+    configured_headers = section.get("headers")
+    user_agent = (
+        str(configured_headers.get("User-Agent") or "Christopher-TGG/1.0")
+        if isinstance(configured_headers, Mapping)
+        else "Christopher-TGG/1.0"
+    )
+    request = urllib.request.Request(
+        ref,
+        headers={
+            "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "User-Agent": user_agent,
+        },
+    )
     with urllib.request.urlopen(request, timeout=float(section.get("timeout_seconds") or 60)) as response:
         payload = response.read()
     digest = hashlib.sha256(payload).hexdigest()
@@ -244,7 +281,16 @@ def _download_ref(item: Mapping[str, Any], *, run_id: str, ordinal: int) -> dict
     temporary = target.with_suffix(target.suffix + ".tmp")
     temporary.write_bytes(payload)
     temporary.replace(target)
-    return {**dict(item), "verified_hash": digest, "local_path": str(target), "bytes": len(payload)}
+    result = {
+        **dict(item),
+        "verified_hash": digest,
+        "local_path": str(target),
+        "bytes": len(payload),
+    }
+    sandbox_path = _sandbox_path(target)
+    if sandbox_path:
+        result["sandbox_path"] = sandbox_path
+    return result
 
 
 def _get_reports(args: Mapping[str, Any], **_: Any) -> str:
@@ -296,7 +342,7 @@ def register(ctx) -> None:
     run_id = {"type": "string", "description": "Opaque run id returned by this API."}
     fetch_id = {"type": "string", "description": "Opaque fetch id returned by fetch-sources."}
     definitions = (
-        ("report_fetch_sources", "Fetch source snapshots for inspection before any import.", {"cycle": cycle}, ["cycle"], _fetch_sources),
+        ("report_fetch_sources", "Fetch and locally retain the latest raw Maintenance Master and Submitted for Closure workbooks for spreadsheet inspection before any import.", {"cycle": cycle}, ["cycle"], _fetch_sources),
         ("report_preview_reconcile", "Preview a fetched snapshot reconciliation without writing live state.", {"fetch_id": fetch_id}, ["fetch_id"], _preview_reconcile),
         ("report_apply_reconcile", "Apply a reviewed reconcile run through the guarded API.", {"run_id": run_id}, ["run_id"], _apply_reconcile),
         ("report_generate", "Generate four verified workbooks for an automatic window.", {"cycle": cycle, "window": {"type": "string", "enum": ["auto"], "default": "auto"}}, ["cycle"], _generate),
