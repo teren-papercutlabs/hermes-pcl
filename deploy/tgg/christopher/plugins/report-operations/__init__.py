@@ -155,11 +155,34 @@ def _fetch_sources(args: Mapping[str, Any], **_: Any) -> str:
 def _preview_reconcile(args: Mapping[str, Any], **_: Any) -> str:
     try:
         data = _request("preview-reconcile", {"fetch_id": _identifier(args.get("fetch_id"), "fetch_id")})
-        _require_keys(data, "run_id", "delta", "warnings")
+        _require_keys(data, "run_id", "delta", "warnings", "structured")
         delta = data["delta"]
         if not isinstance(delta, Mapping):
             raise ValueError("preview-reconcile delta must be an object")
-        _require_keys(delta, "new_cases", "updates", "closure_events", "per_zone")
+        _require_keys(
+            delta,
+            "new_cases",
+            "canonical_updates",
+            "source_selection_updates",
+            "work_items_inserted",
+        )
+        structured = data["structured"]
+        if not isinstance(structured, Mapping):
+            raise ValueError("preview-reconcile structured counts must be an object")
+        _require_keys(
+            structured,
+            "casesInBuild",
+            "casesEvaluated",
+            "casesCreated",
+            "casesCanonicalChanged",
+            "casesSourceSelectionChanged",
+            "workItemsInserted",
+        )
+        warnings = data["warnings"]
+        if not isinstance(warnings, Mapping) or not isinstance(
+            warnings.get("structured_identity"), list
+        ):
+            raise ValueError("preview-reconcile warnings must contain structured_identity")
         return _tool_result(data)
     except Exception as exc:
         return _tool_error(exc)
