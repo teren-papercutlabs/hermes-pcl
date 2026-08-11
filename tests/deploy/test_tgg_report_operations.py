@@ -212,6 +212,11 @@ def test_runtime_verifier_ignores_non_report_setup_requests():
     assert 'corrupt["report_ops_request_paths"] ==' not in source
 
 
+def test_runtime_verifier_identifies_its_systems_read_check_to_the_edge():
+    source = (DEPLOY / "scripts" / "verify_runtime.sh").read_text()
+    assert '"User-Agent": "Christopher-TGG/1.0"' in source
+
+
 def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path):
     script = DEPLOY / "scripts" / "run_scheduled_report.py"
     source = script.read_text()
