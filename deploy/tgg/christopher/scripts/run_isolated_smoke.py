@@ -67,15 +67,9 @@ class _OperatorStub(BaseHTTPRequestHandler):
                 master_tabs = (
                     [
                         "AMK",
-                        "Serangoon",
-                        "Bishan",
-                        "Hougang",
-                        "Sengkang",
-                        "Punggol",
-                        "Bedok",
-                        "List of Rental Flat",
-                        "Summary",
-                        "Sheet4",
+                        "HG",
+                        "PG",
+                        "SK",
                     ]
                     if self.report_scenario == "clean"
                     else ["AMK"]

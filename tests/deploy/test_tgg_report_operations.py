@@ -273,11 +273,28 @@ def test_runtime_verifier_ignores_non_report_setup_requests():
 
 
 def test_isolated_smoke_serves_downloadable_master_and_closure_sources():
-    source = (DEPLOY / "scripts" / "run_isolated_smoke.py").read_text()
-    assert '("master", "master.xlsx", master_tabs)' in source
-    assert '("closure", "closure.xlsx"' in source
-    assert '"ref": (' in source
-    assert '"file_name": file_name' in source
+    smoke = _load_smoke()
+    smoke._OperatorStub.workbooks = {}
+    smoke._OperatorStub.report_scenario = "clean"
+    server = ThreadingHTTPServer(("127.0.0.1", 0), smoke._OperatorStub)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        import urllib.request
+
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{server.server_port}/api/operator/report-cycle/fetch-sources?tenant=tgg"
+        ) as response:
+            source = json.loads(response.read())
+        master = next(item for item in source["sources"] if item["name"] == "master")
+        assert master["sheet_tabs"] == ["AMK", "HG", "PG", "SK"]
+        with urllib.request.urlopen(master["ref"]) as response:
+            workbook = load_workbook(BytesIO(response.read()), read_only=True, data_only=True)
+        assert workbook.sheetnames == ["AMK", "HG", "PG", "SK"]
+        assert {item["name"] for item in source["sources"]} == {"master", "closure"}
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
 
 
 def test_isolated_smoke_workbooks_are_valid_and_inspectable():
