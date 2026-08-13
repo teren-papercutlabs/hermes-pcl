@@ -175,6 +175,7 @@
     "deploy/tgg/christopher/patches/ops-judgment-operations.snippet.yaml",
     "deploy/tgg/christopher/patches/python-sandbox-management.snippet.yaml",
     "deploy/tgg/christopher/patches/report-operations-management.snippet.yaml",
+    "deploy/tgg/christopher/patches/whatsapp-delegation-management.snippet.yaml",
     "deploy/tgg/christopher/plugins/report-operations/__init__.py",
     "deploy/tgg/christopher/plugins/report-operations/plugin.yaml",
     "deploy/tgg/christopher/quality-checks.yaml",
