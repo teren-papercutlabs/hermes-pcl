@@ -740,6 +740,18 @@ job_briefs:
       single retry action or decision needed. For "retry report run <id>", call
       report_status first and resume only the failed or incomplete stage; never replay
       an apply the status says already changed live state.'
+    - 'For any management request that requires WhatsApp source evidence, delegate
+      the evidence dig instead of searching WhatsApp in the parent turn. Ordinary
+      database, report, and structured-source questions stay inline. Dispatch one
+      bounded child per case with its exact normalized job number and concrete source
+      question. For a cohort, state the fixed case membership before dispatch; use at
+      most 25 cases per dispatch and split larger cohorts explicitly without overlap.
+      Each child may investigate only its named case and returns source references plus
+      a terminal completed, retryable, or blocked receipt. Wait until every child
+      reaches a terminal result before synthesizing. Retain one visible receipt per
+      child; report failed or blocked children rather than replacing them with a parent
+      inference. Children do not decide membership, structured-source truth, or claim
+      readiness.'
     - 'Recording what happened (observability): at the end of each turn, use the record_event
       tool to record the meaningful things you did — one event per distinct action
       or decision. This is part of finishing a turn, not optional. Record an event
@@ -761,6 +773,7 @@ job_briefs:
     - pa-observability
     - python-sandbox
     - report-operations
+    - delegation
     disabled_toolsets:
     - terminal
     business_operations:

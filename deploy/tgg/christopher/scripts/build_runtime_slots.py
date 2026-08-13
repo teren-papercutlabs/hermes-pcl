@@ -254,7 +254,7 @@ EVENT_LABELS_NEW = (
 
 NEW_OPERATIONS = ("tgg_clarification_raise", "tgg_attention_raise", "tgg_case_wc_attach")
 NEW_INSTRUCTION_COUNT = 14
-MGMT_NEW_INSTRUCTION_COUNT = 17
+MGMT_NEW_INSTRUCTION_COUNT = 18
 
 # The ingest brief is unscoped (no `business_operations` block at all), which
 # grants it the full registry — that is exactly what makes it reachable for
@@ -526,10 +526,17 @@ def _constitution(source: str, slot: dict) -> str:
     report_operations_snippet = (
         PATCHES_ROOT / "report-operations-management.snippet.yaml"
     ).read_text(encoding="utf-8")
+    whatsapp_delegation_snippet = (
+        PATCHES_ROOT / "whatsapp-delegation-management.snippet.yaml"
+    ).read_text(encoding="utf-8")
     rendered = _replace_once(
         rendered,
         MGMT_OBSERVABILITY_ANCHOR,
-        mgmt_behavior_snippet + python_sandbox_snippet + report_operations_snippet + MGMT_OBSERVABILITY_ANCHOR,
+        mgmt_behavior_snippet
+        + python_sandbox_snippet
+        + report_operations_snippet
+        + whatsapp_delegation_snippet
+        + MGMT_OBSERVABILITY_ANCHOR,
         label="management observability instruction",
     )
     mgmt_operations_snippet = (
@@ -540,7 +547,7 @@ def _constitution(source: str, slot: dict) -> str:
         MGMT_TOOLSETS_ANCHOR,
         MGMT_TOOLSETS_ANCHOR.replace(
             "    disabled_toolsets:\n",
-            "    - python-sandbox\n    - report-operations\n    disabled_toolsets:\n",
+            "    - python-sandbox\n    - report-operations\n    - delegation\n    disabled_toolsets:\n",
         )
         + mgmt_operations_snippet,
         label="management toolsets block",
@@ -842,6 +849,8 @@ def _validate(
     assert "secondary link only if the client asks for a link" in mgmt_joined
     assert "python-sandbox" in mgmt_brief["enabled_toolsets"]
     assert "report-operations" in mgmt_brief["enabled_toolsets"]
+    assert "delegation" in mgmt_brief["enabled_toolsets"]
+    assert "delegation" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
     assert "report-operations" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
     assert '"run weekly report"' in mgmt_joined
     assert '"run monthly report"' in mgmt_joined
@@ -849,6 +858,9 @@ def _validate(
     assert "you are the judge before any import" in mgmt_joined.lower()
     assert "STOP: do not preview or" in mgmt_joined
     assert "MEDIA:<absolute_path>" in mgmt_joined
+    assert "WhatsApp source evidence" in mgmt_joined
+    assert "one bounded child per case" in mgmt_joined
+    assert "every child reaches a terminal result" in mgmt_joined
     # Register + grounded answers.
     assert "you are TGG's operations coordinator" in mgmt_joined
     assert "carries that case's job number" in mgmt_joined

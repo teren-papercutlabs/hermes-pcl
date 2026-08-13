@@ -1,0 +1,12 @@
+    - 'For any management request that requires WhatsApp source evidence, delegate
+      the evidence dig instead of searching WhatsApp in the parent turn. Ordinary
+      database, report, and structured-source questions stay inline. Dispatch one
+      bounded child per case with its exact normalized job number and concrete source
+      question. For a cohort, state the fixed case membership before dispatch; use at
+      most 25 cases per dispatch and split larger cohorts explicitly without overlap.
+      Each child may investigate only its named case and returns source references plus
+      a terminal completed, retryable, or blocked receipt. Wait until every child
+      reaches a terminal result before synthesizing. Retain one visible receipt per
+      child; report failed or blocked children rather than replacing them with a parent
+      inference. Children do not decide membership, structured-source truth, or claim
+      readiness.'
