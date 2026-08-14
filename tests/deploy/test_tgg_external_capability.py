@@ -34,6 +34,7 @@ def make_release(
     manifest_canary_chat_id: str | None = None,
     audience: str = "shadow",
     include_spreadsheet_skill: bool = False,
+    include_whatsapp_skill: bool = False,
 ) -> tuple[Path, Path, Path]:
     home = tmp_path / "home"
     runtime = home / "runtime"
@@ -46,7 +47,7 @@ def make_release(
     config = yaml.safe_load((SLOT / "config.yaml").read_text(encoding="utf-8"))
     config["pa"]["constitution_path"] = str(capability / "current" / constitution.name)
     config.setdefault("plugins", {}).setdefault("enabled", []).append("tgg-whatsapp-evidence")
-    if include_spreadsheet_skill:
+    if include_spreadsheet_skill or include_whatsapp_skill:
         config["skills"] = {"external_dirs": [str(capability / "current" / "skills")]}
     else:
         config.pop("skills", None)
@@ -65,6 +66,17 @@ def make_release(
             "interface:\n  display_name: Spreadsheet Work\n",
             encoding="utf-8",
         )
+    whatsapp_skill = release / "skills" / "whatsapp-investigation"
+    if include_whatsapp_skill:
+        (whatsapp_skill / "agents").mkdir(parents=True)
+        (whatsapp_skill / "SKILL.md").write_text(
+            "---\nname: whatsapp-investigation\ndescription: Investigate WhatsApp source.\n---\n",
+            encoding="utf-8",
+        )
+        (whatsapp_skill / "agents" / "openai.yaml").write_text(
+            "interface:\n  display_name: WhatsApp Investigation\n",
+            encoding="utf-8",
+        )
     release_files = [
         config_path,
         constitution,
@@ -73,6 +85,11 @@ def make_release(
     ]
     if include_spreadsheet_skill:
         release_files.extend([skill / "SKILL.md", skill / "agents" / "openai.yaml"])
+    if include_whatsapp_skill:
+        release_files.extend([
+            whatsapp_skill / "SKILL.md",
+            whatsapp_skill / "agents" / "openai.yaml",
+        ])
     files = {
         str(path.relative_to(release)): digest(path)
         for path in release_files
@@ -119,6 +136,40 @@ def test_resolves_external_capability_with_spreadsheet_skill(tmp_path: Path) -> 
 
     assert selected is not None
     assert selected["release_root"] == release.resolve()
+
+
+@pytest.mark.parametrize("include_spreadsheet_skill", [False, True])
+def test_resolves_external_capability_with_whatsapp_skill(
+    tmp_path: Path, include_spreadsheet_skill: bool
+) -> None:
+    module = load_module()
+    home, runtime, release = make_release(
+        tmp_path,
+        include_spreadsheet_skill=include_spreadsheet_skill,
+        include_whatsapp_skill=True,
+    )
+
+    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert selected is not None
+    assert selected["release_root"] == release.resolve()
+
+
+def test_rejects_partial_whatsapp_skill_file_set(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(tmp_path, include_whatsapp_skill=True)
+    manifest_path = release / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"].pop("skills/whatsapp-investigation/agents/openai.yaml")
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+    sums = {**manifest["files"], "manifest.json": digest(manifest_path)}
+    (release / "SHA256SUMS").write_text(
+        "".join(f"{value}  {name}\n" for name, value in sorted(sums.items())),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="file set mismatch"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
 def test_rejects_spreadsheet_skill_without_external_skill_path(tmp_path: Path) -> None:

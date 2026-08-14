@@ -44,9 +44,20 @@ CAPABILITY_SPREADSHEET_SKILL_FILES = frozenset({
     "skills/spreadsheet-work/SKILL.md",
     "skills/spreadsheet-work/agents/openai.yaml",
 })
+CAPABILITY_WHATSAPP_SKILL_FILES = frozenset({
+    "skills/whatsapp-investigation/SKILL.md",
+    "skills/whatsapp-investigation/agents/openai.yaml",
+})
+CAPABILITY_OPTIONAL_FILE_SETS = (
+    CAPABILITY_SPREADSHEET_SKILL_FILES,
+    CAPABILITY_WHATSAPP_SKILL_FILES,
+)
 CAPABILITY_ALLOWED_FILE_SETS = {
-    CAPABILITY_BASE_FILES,
-    CAPABILITY_BASE_FILES | CAPABILITY_SPREADSHEET_SKILL_FILES,
+    CAPABILITY_BASE_FILES
+    | frozenset().union(
+        *(files for index, files in enumerate(CAPABILITY_OPTIONAL_FILE_SETS) if mask & (1 << index))
+    )
+    for mask in range(1 << len(CAPABILITY_OPTIONAL_FILE_SETS))
 }
 
 
@@ -173,9 +184,11 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     _validate_runtime_pair(config_path, constitution_path, slot)
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
-    includes_spreadsheet_skill = CAPABILITY_SPREADSHEET_SKILL_FILES.issubset(files)
+    includes_external_skills = any(
+        skill_files.issubset(files) for skill_files in CAPABILITY_OPTIONAL_FILE_SETS
+    )
     expected_external_dirs = (
-        [str(current / "skills")] if includes_spreadsheet_skill else []
+        [str(current / "skills")] if includes_external_skills else []
     )
     configured_external_dirs = config.get("skills", {}).get("external_dirs", [])
     if configured_external_dirs != expected_external_dirs:
