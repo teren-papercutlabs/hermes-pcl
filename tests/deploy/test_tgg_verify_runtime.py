@@ -384,8 +384,8 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert '"retention_quarantined": status["retention_quarantined"]' in verify_script
     assert '"retention_quarantine_status": status["retention_quarantine_status"]' in verify_script
     assert '"retention_hold": status["retention_hold"]' in verify_script
-    assert 'isinstance(row["cases"], int) and row["cases"] > 0' in verify_script
-    assert 'isinstance(row["messages"], int) and row["messages"] > 0' in verify_script
+    assert 'required_message_columns.issubset(rows[0])' in verify_script
+    assert 'manifest["corpus"]' not in verify_script
     assert 'row["cases"] == systems["canonical_cases"]' not in verify_script
     assert 'row["messages"] >= systems["message_rows"]' not in verify_script
 
