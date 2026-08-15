@@ -52,7 +52,8 @@ def test_codex_profile_requires_named_credential(tmp_path, monkeypatch):
 def test_isolated_ready_turn_uses_live_provider_and_auth() -> None:
     source = SMOKE.read_text()
     assert 'config["model"] = selected["model"]' in source
-    assert 'live_constitution,' in source
+    assert 'constitution["runtime"] = selected_constitution["runtime"]' in source
+    assert 'brief["runtime"] = selected_brief["runtime"]' in source
     assert 'shutil.copyfile(live_auth, run_root / "auth.json")' in source
 
 

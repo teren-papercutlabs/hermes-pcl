@@ -280,13 +280,27 @@ def _prepare_home(
     (run_root / "config.yaml").write_text(
         yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
     )
-    # Provider switching materializes both config.yaml and the constitution.
-    # Copy both live files as one runtime snapshot; mixing a live Codex config
-    # with the slot's direct-provider constitution makes a successful Codex
-    # turn look like an engine mismatch.
-    shutil.copyfile(
-        live_constitution,
-        run_root / "christopher_tgg_constitution.yaml",
+    # Retain the deployment-verification selectors from the slot fixture, but
+    # overlay every runtime choice from the materialized live constitution.
+    # Copying the live constitution wholesale omits the synthetic verification
+    # chat; copying the slot unchanged silently switches a Codex probe to the
+    # direct provider.
+    constitution = yaml.safe_load(
+        (slot_root / "christopher_tgg_constitution.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    selected_constitution = yaml.safe_load(
+        live_constitution.read_text(encoding="utf-8")
+    )
+    constitution["runtime"] = selected_constitution["runtime"]
+    selected_briefs = selected_constitution.get("job_briefs", {})
+    for name, brief in constitution.get("job_briefs", {}).items():
+        selected_brief = selected_briefs.get(name, {})
+        if "runtime" in selected_brief:
+            brief["runtime"] = selected_brief["runtime"]
+    (run_root / "christopher_tgg_constitution.yaml").write_text(
+        yaml.safe_dump(constitution, sort_keys=False), encoding="utf-8"
     )
     shutil.copyfile(soul_path, run_root / "SOUL.md")
     if not live_memory.is_file() or not live_memory.read_text(encoding="utf-8").strip():
