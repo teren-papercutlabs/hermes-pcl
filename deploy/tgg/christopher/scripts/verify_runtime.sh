@@ -422,7 +422,18 @@ if capability:
 else:
     source_config_path = deploy / "runtime-slots" / slot / "config.yaml"
     source_constitution_path = deploy / "runtime-slots" / slot / "christopher_tgg_constitution.yaml"
-slot_config = yaml.safe_load(source_config_path.read_text())
+expected_config = yaml.safe_load(source_config_path.read_text())
+if capability:
+    selected_slot_config = yaml.safe_load(
+        (deploy / "runtime-slots" / slot / "config.yaml").read_text()
+    )
+    # Capabilities own tools/instructions. The selected engine slot owns the
+    # model, reasoning effort, and disk-retention contract applied at boot.
+    expected_config["model"] = selected_slot_config["model"]
+    expected_config["pa"]["media_retention"] = selected_slot_config["pa"]["media_retention"]
+    expected_config["agent"].pop("reasoning_effort", None)
+    if "reasoning_effort" in selected_slot_config["agent"]:
+        expected_config["agent"]["reasoning_effort"] = selected_slot_config["agent"]["reasoning_effort"]
 config_enabled = config["pa"]["enabled"]
 assert isinstance(config_enabled, bool)
 # ExecStartPre preserves the activation-owned live key while every authored
@@ -432,7 +443,7 @@ normalized_config = json.loads(json.dumps(config))
 normalized_config["pa"]["enabled"] = False
 normalized_config["model"]["provider"] = "openai-direct-primary"
 normalized_config["model"].pop("credential_label", None)
-assert normalized_config == slot_config
+assert normalized_config == expected_config
 assert config["group_sessions_per_user"] is False
 assert config["timezone"] == "Asia/Singapore"
 assert config["session_reset"] == {"mode": "none"}
