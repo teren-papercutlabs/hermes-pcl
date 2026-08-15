@@ -346,6 +346,12 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     bootstrap = (DEPLOY_ROOT / "scripts" / "bootstrap_runtime.sh").read_text()
     assert 'slot_args=(--slot "$CHRISTOPHER_ENGINE_SLOT")' in bootstrap
     assert '"${slot_args[@]}"' in bootstrap
+    assert "christopher-tgg-retention-cleanup.service" in bootstrap
+    assert "christopher-tgg-retention-cleanup.timer" in bootstrap
+    assert (
+        "systemctl enable --now christopher-tgg-retention-cleanup.timer"
+        in bootstrap
+    )
 
     deploy_script = (DEPLOY_ROOT / "scripts" / "deploy_runtime.sh").read_text()
     assert 'd["spec"]["deploy"]["manifestRef"]' in deploy_script

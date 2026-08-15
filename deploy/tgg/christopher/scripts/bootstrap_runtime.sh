@@ -94,6 +94,8 @@ for unit in \
   christopher-tgg-hermes.service \
   christopher-tgg-hermes-health.service \
   christopher-tgg-hermes-health.timer \
+  christopher-tgg-retention-cleanup.service \
+  christopher-tgg-retention-cleanup.timer \
   christopher-tgg-report-weekly.service \
   christopher-tgg-report-weekly.timer \
   christopher-tgg-report-monthly.service \
@@ -103,6 +105,7 @@ done
 systemctl daemon-reload
 systemctl enable christopher-tgg-hermes.service >/dev/null
 systemctl enable --now christopher-tgg-hermes-health.timer >/dev/null
+systemctl enable --now christopher-tgg-retention-cleanup.timer >/dev/null
 
 schedule_enabled="$($APP_ROOT/.venv/bin/python - "$HERMES_HOME/config.yaml" <<'PY'
 import sys, yaml
