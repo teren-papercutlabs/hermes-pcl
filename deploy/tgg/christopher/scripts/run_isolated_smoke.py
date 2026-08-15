@@ -229,6 +229,7 @@ def _prepare_home(
     *,
     slot_root: Path,
     live_config: Path,
+    live_constitution: Path,
     live_auth: Path,
     live_env: Path,
     live_memory: Path,
@@ -279,8 +280,12 @@ def _prepare_home(
     (run_root / "config.yaml").write_text(
         yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
     )
+    # Provider switching materializes both config.yaml and the constitution.
+    # Copy both live files as one runtime snapshot; mixing a live Codex config
+    # with the slot's direct-provider constitution makes a successful Codex
+    # turn look like an engine mismatch.
     shutil.copyfile(
-        slot_root / "christopher_tgg_constitution.yaml",
+        live_constitution,
         run_root / "christopher_tgg_constitution.yaml",
     )
     shutil.copyfile(soul_path, run_root / "SOUL.md")
@@ -406,6 +411,7 @@ def main() -> int:
             run_root,
             slot_root=slot_root,
             live_config=live_home / "config.yaml",
+            live_constitution=live_home / "christopher_tgg_constitution.yaml",
             live_auth=live_home / "auth.json",
             live_env=live_home / ".env",
             live_memory=live_home / "memories" / "MEMORY.md",
