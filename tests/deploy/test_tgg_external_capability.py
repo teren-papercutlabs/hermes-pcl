@@ -284,6 +284,59 @@ def test_main_materializes_external_capability_and_receipt(
     assert receipt["capability_manifest_sha256"] == digest(release / "manifest.json")
 
 
+def test_engine_slot_overlays_runtime_fields_on_external_capability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_module()
+    home, _runtime, release = make_release(tmp_path)
+    config_path = release / "christopher-slot-config.yaml"
+    stale_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    stale_config["pa"]["media_retention"].pop("min_free_bytes", None)
+    stale_config["pa"]["media_retention"]["min_free_percent"] = 20
+    config_path.write_text(yaml.safe_dump(stale_config, sort_keys=False), encoding="utf-8")
+    manifest_path = release / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"]["christopher-slot-config.yaml"] = digest(config_path)
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+    sums = {**manifest["files"], "manifest.json": digest(manifest_path)}
+    (release / "SHA256SUMS").write_text(
+        "".join(f"{value}  {name}\n" for name, value in sorted(sums.items())),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module.pwd, "getpwnam", lambda _name: SimpleNamespace(pw_uid=501))
+    monkeypatch.setattr(module.grp, "getgrnam", lambda _name: SimpleNamespace(gr_gid=20))
+    monkeypatch.setattr(module.os, "chown", lambda *_args: None)
+    monkeypatch.setattr(module.os, "lchown", lambda *_args: None)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            str(SCRIPT),
+            "--app-root",
+            str(ROOT),
+            "--hermes-home",
+            str(home),
+            "--slot",
+            "gpt-5.6-terra-high",
+            "--provider-profile",
+            "openai-codex",
+            "--credential-label",
+            "teren-temporary",
+        ],
+    )
+
+    assert module.main() == 0
+
+    config = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
+    assert config["model"]["provider"] == "openai-codex"
+    assert config["model"]["credential_label"] == "teren-temporary"
+    assert config["model"]["default"] == "gpt-5.6-terra"
+    assert config["agent"]["reasoning_effort"] == "high"
+    assert config["pa"]["media_retention"]["min_free_bytes"] == 5 * 1024**3
+    assert "min_free_percent" not in config["pa"]["media_retention"]
+    assert (home / "plugins/tgg-whatsapp-evidence").is_symlink()
+
+
 def test_main_refuses_to_replace_unpreserved_plugin_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

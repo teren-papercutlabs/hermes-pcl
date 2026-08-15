@@ -170,6 +170,8 @@ def _apply_provider_profile(
     """Overlay accountable provider/account selection onto copied source files."""
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
+    original_config = json.loads(json.dumps(config))
+    original_constitution = json.loads(json.dumps(constitution))
     config["model"]["provider"] = provider
     if credential_label:
         config["model"]["credential_label"] = credential_label
@@ -179,8 +181,49 @@ def _apply_provider_profile(
     for brief in constitution.get("job_briefs", {}).values():
         if isinstance(brief.get("runtime"), dict):
             brief["runtime"] = {"provider": provider, "model": model}
-    _atomic_write_yaml(config_path, config, mode=0o640, uid=uid, gid=gid)
-    _atomic_write_yaml(constitution_path, constitution, mode=0o644, uid=uid, gid=gid)
+    if config != original_config:
+        _atomic_write_yaml(config_path, config, mode=0o640, uid=uid, gid=gid)
+    if constitution != original_constitution:
+        _atomic_write_yaml(constitution_path, constitution, mode=0o644, uid=uid, gid=gid)
+
+
+def _apply_slot_runtime_contract(
+    config_path: Path,
+    constitution_path: Path,
+    *,
+    slot_root: Path,
+    uid: int,
+    gid: int,
+) -> None:
+    """Overlay runtime-owned fields onto an external capability release.
+
+    A capability owns Christopher's instructions, tools, and selectors.  The
+    selected engine slot owns model, reasoning effort, and the media-retention
+    safety contract.  Keeping those fields out of capability ownership lets a
+    provider/engine or disk-policy change take effect without rebuilding an
+    otherwise identical capability snapshot.
+    """
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
+    original_config = json.loads(json.dumps(config))
+    original_constitution = json.loads(json.dumps(constitution))
+    slot_config = yaml.safe_load((slot_root / "config.yaml").read_text(encoding="utf-8"))
+    slot_constitution = yaml.safe_load(
+        (slot_root / "christopher_tgg_constitution.yaml").read_text(encoding="utf-8")
+    )
+    config["model"] = slot_config["model"]
+    config["pa"]["media_retention"] = slot_config["pa"]["media_retention"]
+    config["agent"].pop("reasoning_effort", None)
+    if "reasoning_effort" in slot_config["agent"]:
+        config["agent"]["reasoning_effort"] = slot_config["agent"]["reasoning_effort"]
+    constitution["runtime"] = slot_constitution["runtime"]
+    for brief in constitution.get("job_briefs", {}).values():
+        if isinstance(brief.get("runtime"), dict):
+            brief["runtime"] = dict(slot_constitution["runtime"])
+    if config != original_config:
+        _atomic_write_yaml(config_path, config, mode=0o640, uid=uid, gid=gid)
+    if constitution != original_constitution:
+        _atomic_write_yaml(constitution_path, constitution, mode=0o644, uid=uid, gid=gid)
 
 
 def _validate_runtime_pair(config_path: Path, constitution_path: Path, slot: str) -> None:
@@ -202,6 +245,21 @@ def _validate_runtime_pair(config_path: Path, constitution_path: Path, slot: str
     assert constitution["runtime"] == {
         "provider": "openai-direct-primary",
         "model": model,
+    }
+
+
+def _validate_capability_runtime_baseline(config_path: Path, constitution_path: Path) -> None:
+    """Validate capability engine metadata without making it authoritative."""
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
+    assert config["pa"]["enabled"] is False
+    assert config["model"]["provider"] == "openai-direct-primary"
+    assert config["model"]["default"] in set(SLOT_MODELS.values())
+    effort = config.get("agent", {}).get("reasoning_effort")
+    assert effort is None or effort in {"low", "medium", "high", "xhigh"}
+    assert constitution["runtime"] == {
+        "provider": "openai-direct-primary",
+        "model": config["model"]["default"],
     }
 
 
@@ -256,7 +314,7 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
             raise RuntimeError(f"external capability checksum mismatch: {relative}")
     config_path = release_root / "christopher-slot-config.yaml"
     constitution_path = release_root / "christopher_tgg_constitution.yaml"
-    _validate_runtime_pair(config_path, constitution_path, slot)
+    _validate_capability_runtime_baseline(config_path, constitution_path)
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
     includes_external_skills = any(
@@ -429,6 +487,14 @@ def main() -> int:
         uid=0,
         gid=group.gr_gid,
     )
+    if capability:
+        _apply_slot_runtime_contract(
+            hermes_home / "config.yaml",
+            hermes_home / "christopher_tgg_constitution.yaml",
+            slot_root=slot_root,
+            uid=0,
+            gid=group.gr_gid,
+        )
     _apply_provider_profile(
         hermes_home / "config.yaml", hermes_home / "christopher_tgg_constitution.yaml",
         provider=provider, credential_label=credential_label, model=SLOT_MODELS[selected],
