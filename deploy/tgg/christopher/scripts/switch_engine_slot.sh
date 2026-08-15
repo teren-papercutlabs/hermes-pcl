@@ -15,18 +15,28 @@ HERMES_HOME="${HERMES_HOME:-/home/pclaw/.hermes-christopher-tgg}"
 DEPLOY_ROOT="$APP_ROOT/deploy/tgg/christopher"
 old_slot="$(<"$HERMES_HOME/runtime/engine-slot")"
 
-"$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" \
-  --app-root "$APP_ROOT" \
-  --hermes-home "$HERMES_HOME" \
-  --slot "$1"
-systemctl restart christopher-tgg-hermes.service
-if ! "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_release_minimal.py" \
-  --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME"; then
+restart_service() {
+  systemctl reset-failed christopher-tgg-hermes.service
+  systemctl restart christopher-tgg-hermes.service
+}
+restore_previous_slot() {
   "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" \
     --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME" --slot "$old_slot"
-  systemctl restart christopher-tgg-hermes.service
+  restart_service
   "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_release_minimal.py" \
     --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME"
   echo "engine switch failed; previous slot restored" >&2
   exit 1
+}
+
+"$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" \
+  --app-root "$APP_ROOT" \
+  --hermes-home "$HERMES_HOME" \
+  --slot "$1"
+if ! restart_service; then
+  restore_previous_slot
+fi
+if ! "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_release_minimal.py" \
+  --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME"; then
+  restore_previous_slot
 fi

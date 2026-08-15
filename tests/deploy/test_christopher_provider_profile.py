@@ -12,6 +12,8 @@ import yaml
 
 SCRIPT = Path(__file__).resolve().parents[2] / "deploy/tgg/christopher/scripts/apply_engine_slot.py"
 SMOKE = Path(__file__).resolve().parents[2] / "deploy/tgg/christopher/scripts/run_isolated_smoke.py"
+PROVIDER_SWITCH = Path(__file__).resolve().parents[2] / "deploy/tgg/christopher/scripts/switch_provider_profile.sh"
+ENGINE_SWITCH = Path(__file__).resolve().parents[2] / "deploy/tgg/christopher/scripts/switch_engine_slot.sh"
 
 def _module():
     spec = importlib.util.spec_from_file_location("provider_profile_test", SCRIPT)
@@ -51,3 +53,13 @@ def test_isolated_ready_turn_uses_live_provider_and_auth() -> None:
     source = SMOKE.read_text()
     assert 'config["model"] = selected["model"]' in source
     assert 'shutil.copyfile(live_auth, run_root / "auth.json")' in source
+
+
+@pytest.mark.parametrize("script", [PROVIDER_SWITCH, ENGINE_SWITCH])
+def test_operator_switch_resets_start_limit_and_handles_restart_failure(script: Path) -> None:
+    source = script.read_text()
+    reset = "systemctl reset-failed christopher-tgg-hermes.service"
+    restart = "systemctl restart christopher-tgg-hermes.service"
+    assert reset in source
+    assert source.index(reset) < source.index(restart)
+    assert "if ! restart_service; then" in source

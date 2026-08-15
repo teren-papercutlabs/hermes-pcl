@@ -24,14 +24,23 @@ apply_profile() {
   [[ "$provider" == "openai-codex" ]] && profile_args+=(--credential-label "$label")
   "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" "${profile_args[@]}"
 }
-apply_profile "$1" "${2:--}"
-systemctl restart christopher-tgg-hermes.service
-if ! "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_release_minimal.py" \
-  --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME"; then
-  apply_profile "$old_provider" "$old_label"
+restart_service() {
+  systemctl reset-failed christopher-tgg-hermes.service
   systemctl restart christopher-tgg-hermes.service
+}
+restore_previous_profile() {
+  apply_profile "$old_provider" "$old_label"
+  restart_service
   "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_release_minimal.py" \
     --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME"
   echo "provider switch failed; previous profile restored" >&2
   exit 1
+}
+apply_profile "$1" "${2:--}"
+if ! restart_service; then
+  restore_previous_profile
+fi
+if ! "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_release_minimal.py" \
+  --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME"; then
+  restore_previous_profile
 fi
