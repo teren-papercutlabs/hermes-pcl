@@ -218,6 +218,7 @@
     "deploy/tgg/christopher/scripts/validate_deployment_spec.py",
     "deploy/tgg/christopher/scripts/verify_capture_freshness.sh",
     "deploy/tgg/christopher/scripts/verify_codex_auth.py",
+    "deploy/tgg/christopher/scripts/verify_release_minimal.py",
     "deploy/tgg/christopher/scripts/verify_runtime.sh",
     "deploy/tgg/christopher/systemd/christopher-tgg-hermes-health.service",
     "deploy/tgg/christopher/systemd/christopher-tgg-hermes-health.timer",

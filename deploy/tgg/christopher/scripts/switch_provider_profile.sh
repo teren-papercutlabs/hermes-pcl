@@ -11,8 +11,27 @@ esac
 APP_ROOT="${APP_ROOT:-/home/pclaw/apps/hermes-pcl}"
 HERMES_HOME="${HERMES_HOME:-/home/pclaw/.hermes-christopher-tgg}"
 DEPLOY_ROOT="$APP_ROOT/deploy/tgg/christopher"
-args=(--app-root "$APP_ROOT" --hermes-home "$HERMES_HOME" --provider-profile "$1")
-[[ "$1" == "openai-codex" ]] && args+=(--credential-label "$2")
-"$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" "${args[@]}"
+read -r old_provider old_label < <("$APP_ROOT/.venv/bin/python" - "$HERMES_HOME/runtime/provider-profile.json" <<'PY'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+profile = json.loads(path.read_text()) if path.exists() else {"provider": "openai-direct-primary", "credential_label": None}
+print(profile["provider"], profile.get("credential_label") or "-")
+PY
+)
+apply_profile() {
+  local provider="$1" label="${2:--}"
+  local profile_args=(--app-root "$APP_ROOT" --hermes-home "$HERMES_HOME" --provider-profile "$provider")
+  [[ "$provider" == "openai-codex" ]] && profile_args+=(--credential-label "$label")
+  "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" "${profile_args[@]}"
+}
+apply_profile "$1" "${2:--}"
 systemctl restart christopher-tgg-hermes.service
-"$DEPLOY_ROOT/scripts/verify_runtime.sh" --full
+if ! "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_release_minimal.py" \
+  --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME"; then
+  apply_profile "$old_provider" "$old_label"
+  systemctl restart christopher-tgg-hermes.service
+  "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_release_minimal.py" \
+    --app-root "$APP_ROOT" --hermes-home "$HERMES_HOME"
+  echo "provider switch failed; previous profile restored" >&2
+  exit 1
+fi
