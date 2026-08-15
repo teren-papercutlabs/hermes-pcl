@@ -974,6 +974,34 @@ class CredentialPool:
         with self._lock:
             return self._select_unlocked()
 
+    def select_label(self, label: str) -> Optional[PooledCredential]:
+        """Select exactly one named credential without pool fallback.
+
+        Runtime profiles sometimes represent an accountable human-owned
+        subscription rather than a fungible pool.  In that mode, selecting a
+        different credential because the named one is unavailable is both
+        surprising and unsafe.  This deliberately does *not* apply the pool
+        strategy or rotate to another entry.
+        """
+        wanted = str(label or "").strip()
+        if not wanted:
+            return None
+        with self._lock:
+            matches = [
+                entry for entry in self._entries
+                if entry.label.strip().lower() == wanted.lower()
+            ]
+            if len(matches) != 1:
+                return None
+            selected = matches[0]
+            available = self._available_entries(clear_expired=True, refresh=True)
+            if not any(entry.id == selected.id for entry in available):
+                return None
+            # ``_available_entries`` may have refreshed the selected entry.
+            selected = next(entry for entry in available if entry.id == selected.id)
+            self._current_id = selected.id
+            return selected
+
     def _available_entries(self, *, clear_expired: bool = False, refresh: bool = False) -> List[PooledCredential]:
         """Return entries not currently in exhaustion cooldown.
 

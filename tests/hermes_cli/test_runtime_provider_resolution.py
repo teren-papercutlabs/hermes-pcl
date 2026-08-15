@@ -27,6 +27,58 @@ def test_resolve_runtime_provider_uses_credential_pool(monkeypatch):
     assert resolved["source"] == "manual"
 
 
+def test_resolve_runtime_provider_pins_named_credential_without_pool_fallback(monkeypatch):
+    class _Entry:
+        access_token = "pinned-token"
+        source = "manual:device_code"
+        base_url = "https://chatgpt.com/backend-api/codex"
+
+    class _Pool:
+        def has_credentials(self):
+            return True
+
+        def select(self):
+            raise AssertionError("a pinned profile must not use pool selection")
+
+        def select_label(self, label):
+            assert label == "teren-temporary"
+            return _Entry()
+
+    monkeypatch.setattr(rp, "resolve_provider", lambda *a, **k: "openai-codex")
+    monkeypatch.setattr(
+        rp,
+        "_get_model_config",
+        lambda: {"provider": "openai-codex", "credential_label": "teren-temporary"},
+    )
+    monkeypatch.setattr(rp, "load_pool", lambda provider: _Pool())
+
+    resolved = rp.resolve_runtime_provider(requested="openai-codex")
+
+    assert resolved["api_key"] == "pinned-token"
+    assert resolved["credential_label"] == "teren-temporary"
+    assert resolved["credential_pool_rotation"] is False
+
+
+def test_resolve_runtime_provider_fails_closed_when_pinned_credential_is_missing(monkeypatch):
+    class _Pool:
+        def has_credentials(self):
+            return True
+
+        def select_label(self, label):
+            return None
+
+    monkeypatch.setattr(rp, "resolve_provider", lambda *a, **k: "openai-codex")
+    monkeypatch.setattr(
+        rp,
+        "_get_model_config",
+        lambda: {"provider": "openai-codex", "credential_label": "tgg-owned"},
+    )
+    monkeypatch.setattr(rp, "load_pool", lambda provider: _Pool())
+
+    with pytest.raises(rp.AuthError, match="will not select a different account"):
+        rp.resolve_runtime_provider(requested="openai-codex")
+
+
 def test_resolve_runtime_provider_anthropic_pool_respects_config_base_url(monkeypatch):
     class _Entry:
         access_token = "pool-token"

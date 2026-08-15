@@ -134,6 +134,12 @@ def _get_model_config() -> Dict[str, Any]:
     return {}
 
 
+def _pinned_credential_label(model_cfg: Dict[str, Any]) -> str:
+    """Return an explicit runtime credential label, if the profile pins one."""
+    value = model_cfg.get("credential_label")
+    return value.strip() if isinstance(value, str) else ""
+
+
 def _truthy_config_value(value: Any) -> bool:
     if isinstance(value, bool):
         return value
@@ -1250,7 +1256,19 @@ def resolve_runtime_provider(
     except Exception:
         pool = None
     if pool and pool.has_credentials():
-        entry = pool.select()
+        pinned_label = _pinned_credential_label(model_cfg)
+        if pinned_label:
+            entry = pool.select_label(pinned_label)
+            if entry is None:
+                raise AuthError(
+                    f"Configured credential label {pinned_label!r} is unavailable for {provider}; "
+                    "the runtime will not select a different account.",
+                    provider=provider,
+                    code="pinned_credential_unavailable",
+                    relogin_required=True,
+                )
+        else:
+            entry = pool.select()
         pool_api_key = ""
         if entry is not None:
             pool_api_key = (
@@ -1273,7 +1291,7 @@ def resolve_runtime_provider(
                 logger.debug("Nous pool entry agent_key expired/missing, falling through to runtime resolution")
                 pool_api_key = ""
         if entry is not None and pool_api_key:
-            return _resolve_runtime_from_pool_entry(
+            resolved = _resolve_runtime_from_pool_entry(
                 provider=provider,
                 entry=entry,
                 requested_provider=requested_provider,
@@ -1281,6 +1299,12 @@ def resolve_runtime_provider(
                 pool=pool,
                 target_model=target_model,
             )
+            if pinned_label:
+                # Consumers can preserve this accountable selection and must
+                # not turn a provider error into a pool rotation.
+                resolved["credential_label"] = pinned_label
+                resolved["credential_pool_rotation"] = False
+            return resolved
 
     if provider == "nous":
         try:
