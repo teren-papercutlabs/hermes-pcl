@@ -2641,8 +2641,8 @@ async def test_live_drain_reuses_one_session_across_site_chat_turns(tmp_path):
         runner=Runner(),
     )
     assert [plan.replay_namespace for plan in plans] == [
-        "agent:live-drain:persistent-chat",
-        "agent:live-drain:persistent-chat",
+        "agent:live-drain:persistent-chat:openai-direct-primary:fixture",
+        "agent:live-drain:persistent-chat:openai-direct-primary:fixture",
     ]
     assert all({message["chatId"] for message in plan.messages} == {chat_id} for plan in plans)
 
@@ -2673,6 +2673,39 @@ async def test_live_drain_reuses_one_session_across_site_chat_turns(tmp_path):
             )
         )
     assert other_chat.session_id != session_ids[-1]
+
+
+@pytest.mark.asyncio
+async def test_live_drain_starts_new_session_namespace_after_provider_switch(tmp_path):
+    args = _enabled_consumer_args(tmp_path, [])
+    plans = []
+
+    class Runner:
+        async def replay(self, plan):
+            plans.append(plan)
+            return SimpleNamespace(processed=1, outbound=[])
+
+    record = consumer.InboxRecord(
+        seq=1, message_id="provider-switch", chat_id="management@g.us",
+        start_offset=0, end_offset=1, raw=_message("provider-switch", "management@g.us"),
+    )
+    await consumer.process_live_records(
+        [record], config_path=Path(args.config), state_db=Path(args.state_db),
+        persistent_session=True, runner=Runner(),
+    )
+    Path(args.config).write_text(yaml.safe_dump({
+        "model": {"provider": "openai-codex", "default": "fixture"},
+        "pa": {"enabled": True},
+    }))
+    await consumer.process_live_records(
+        [record], config_path=Path(args.config), state_db=Path(args.state_db),
+        persistent_session=True, runner=Runner(),
+    )
+    assert plans[0].replay_namespace.endswith(
+        ":openai-direct-primary:fixture"
+    )
+    assert plans[1].replay_namespace.endswith(":openai-codex:fixture")
+    assert plans[0].replay_namespace != plans[1].replay_namespace
 
 
 @pytest.mark.asyncio

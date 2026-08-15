@@ -2516,8 +2516,15 @@ async def process_live_records(
         source_path="durable-jsonl-consumer-live",
         # Ordinary live drain is one ongoing conversation per chat. Bounded
         # backplay is recovery/diagnostic replay and remains isolated.
+        # A persisted conversation cannot safely carry its engine identity
+        # across a provider/model switch. Include that identity in the live
+        # namespace so ordinary restarts retain context, while an intentional
+        # engine change starts a fresh session instead of producing an audit
+        # mismatch and suppressing reply delivery.
         replay_namespace=(
-            "agent:live-drain:persistent-chat" if persistent_session else None
+            f"agent:live-drain:persistent-chat:{provider}:{model}"
+            if persistent_session
+            else None
         ),
     )
     try:
