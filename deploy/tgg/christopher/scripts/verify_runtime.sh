@@ -362,7 +362,7 @@ then
 fi
 
 "$APP_ROOT/.venv/bin/python" - "$APP_ROOT" "$HERMES_HOME" <<'PY'
-import datetime, hashlib, importlib.util, json, os, pathlib, sqlite3, stat, subprocess, sys, urllib.request, yaml
+import datetime, hashlib, importlib.util, json, os, pathlib, sqlite3, stat, subprocess, sys, time, urllib.request, yaml
 
 app = pathlib.Path(sys.argv[1])
 home = pathlib.Path(sys.argv[2])
@@ -646,12 +646,19 @@ if inbox_db.exists():
             }
             if management:
                 placeholders = ",".join("?" for _ in management)
-                pending_management = conn.execute(
-                    f"SELECT COUNT(*) FROM ingress_events WHERE status='pending' AND chat_id IN ({placeholders})",
-                    tuple(sorted(management)),
-                ).fetchone()[0]
-                assert pending_management == 0 or bool(status["active_management_chats"]), (
-                    pending_management, status["active_management_chats"]
+                for _ in range(30):
+                    pending_management = conn.execute(
+                        f"SELECT COUNT(*) FROM ingress_events WHERE status='pending' AND chat_id IN ({placeholders})",
+                        tuple(sorted(management)),
+                    ).fetchone()[0]
+                    current_status = json.loads(
+                        (runtime / "capture-consumer-status.json").read_text()
+                    )
+                    if pending_management == 0 or current_status["active_management_chats"]:
+                        break
+                    time.sleep(1)
+                assert pending_management == 0 or bool(current_status["active_management_chats"]), (
+                    pending_management, current_status["active_management_chats"]
                 )
             oldest = conn.execute(
                 "SELECT MIN(updated_at) FROM ingress_events WHERE status='processing'"

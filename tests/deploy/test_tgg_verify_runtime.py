@@ -371,6 +371,8 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
         'selected_slot_config["pa"]["media_retention"]'
         in verify_script
     )
+    assert "for _ in range(30):" in verify_script
+    assert 'current_status["active_management_chats"]' in verify_script
     assert 'set(datasets) == {"cases", "documents", "media"}' in verify_script
     assert 'for name in ("cases", "documents", "media")' in verify_script
     assert "systemctl is-active --quiet systems-papercut-labs.service" in verify_script
