@@ -25,11 +25,13 @@ SLOT_MODELS = {
     "gpt-5.6-luna-low": "gpt-5.6-luna",
     "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
     "gpt-5.6-terra-medium": "gpt-5.6-terra",
+    "gpt-5.6-terra-high": "gpt-5.6-terra",
 }
 SLOT_REASONING_EFFORT = {
     "gpt-5.6-luna-low": "low",
     "gpt-5.6-luna-xhigh": "xhigh",
     "gpt-5.6-terra-medium": "medium",
+    "gpt-5.6-terra-high": "high",
 }
 ALLOWED_SLOTS = tuple(SLOT_MODELS)
 DEFAULT_SLOT = ALLOWED_SLOTS[0]
@@ -59,6 +61,8 @@ CAPABILITY_ALLOWED_FILE_SETS = {
     )
     for mask in range(1 << len(CAPABILITY_OPTIONAL_FILE_SETS))
 }
+PROVIDER_PROFILES = frozenset({"openai-direct-primary", "openai-codex"})
+DEFAULT_PROVIDER_PROFILE = "openai-direct-primary"
 
 
 def _sha256(path: Path) -> str:
@@ -106,6 +110,77 @@ def _select_slot(slot_file: Path, requested: str | None) -> str:
     if selected not in ALLOWED_SLOTS:
         raise RuntimeError(f"invalid engine slot {selected!r}; allowed={ALLOWED_SLOTS}")
     return selected
+
+
+def _atomic_write_json(path: Path, payload: dict, *, mode: int, uid: int, gid: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", delete=False) as handle:
+        temporary = Path(handle.name)
+        handle.write((json.dumps(payload, sort_keys=True, indent=2) + "\n").encode("utf-8"))
+        handle.flush()
+        os.fsync(handle.fileno())
+    try:
+        os.chmod(temporary, mode)
+        os.chown(temporary, uid, gid)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _atomic_write_yaml(path: Path, payload: dict, *, mode: int, uid: int, gid: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", delete=False) as handle:
+        temporary = Path(handle.name)
+        handle.write(yaml.safe_dump(payload, sort_keys=False).encode("utf-8"))
+        handle.flush()
+        os.fsync(handle.fileno())
+    try:
+        os.chmod(temporary, mode)
+        os.chown(temporary, uid, gid)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _read_provider_profile(profile_file: Path) -> tuple[str, str | None]:
+    if not profile_file.exists():
+        return DEFAULT_PROVIDER_PROFILE, None
+    try:
+        payload = json.loads(profile_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"invalid provider profile state at {profile_file}: {exc}") from exc
+    provider = str(payload.get("provider") or "").strip() if isinstance(payload, dict) else ""
+    label = payload.get("credential_label") if isinstance(payload, dict) else None
+    if provider not in PROVIDER_PROFILES:
+        raise RuntimeError(f"invalid provider profile {provider!r}")
+    if label is not None and not isinstance(label, str):
+        raise RuntimeError("provider credential_label must be a string or null")
+    label = label.strip() if isinstance(label, str) else None
+    if provider == "openai-codex" and not label:
+        raise RuntimeError("openai-codex requires an explicit credential_label")
+    if provider != "openai-codex" and label:
+        raise RuntimeError(f"{provider} does not accept credential_label")
+    return provider, label
+
+
+def _apply_provider_profile(
+    config_path: Path, constitution_path: Path, *, provider: str,
+    credential_label: str | None, model: str, uid: int, gid: int,
+) -> None:
+    """Overlay accountable provider/account selection onto copied source files."""
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
+    config["model"]["provider"] = provider
+    if credential_label:
+        config["model"]["credential_label"] = credential_label
+    else:
+        config["model"].pop("credential_label", None)
+    constitution["runtime"] = {"provider": provider, "model": model}
+    for brief in constitution.get("job_briefs", {}).values():
+        if isinstance(brief.get("runtime"), dict):
+            brief["runtime"] = {"provider": provider, "model": model}
+    _atomic_write_yaml(config_path, config, mode=0o640, uid=uid, gid=gid)
+    _atomic_write_yaml(constitution_path, constitution, mode=0o644, uid=uid, gid=gid)
 
 
 def _validate_runtime_pair(config_path: Path, constitution_path: Path, slot: str) -> None:
@@ -253,6 +328,8 @@ def main() -> int:
     parser.add_argument("--app-root", required=True)
     parser.add_argument("--hermes-home", required=True)
     parser.add_argument("--slot", choices=ALLOWED_SLOTS)
+    parser.add_argument("--provider-profile", choices=sorted(PROVIDER_PROFILES))
+    parser.add_argument("--credential-label")
     args = parser.parse_args()
 
     app_root = Path(args.app_root).resolve()
@@ -260,6 +337,7 @@ def main() -> int:
     slots_root = app_root / "deploy" / "tgg" / "christopher" / "runtime-slots"
     runtime_root = hermes_home / "runtime"
     slot_file = runtime_root / "engine-slot"
+    profile_file = runtime_root / "provider-profile.json"
     selected = _select_slot(slot_file, args.slot)
     slot_root = slots_root / selected
     _validate_slot(slot_root, selected)
@@ -283,6 +361,18 @@ def main() -> int:
 
     user = pwd.getpwnam("pclaw")
     group = grp.getgrnam("pclaw")
+    if args.provider_profile:
+        if args.provider_profile == "openai-codex" and not (args.credential_label or "").strip():
+            raise RuntimeError("--credential-label is required for openai-codex")
+        if args.provider_profile != "openai-codex" and args.credential_label:
+            raise RuntimeError("--credential-label is only valid for openai-codex")
+        _atomic_write_json(
+            profile_file,
+            {"version": 1, "provider": args.provider_profile,
+             "credential_label": (args.credential_label or "").strip() or None},
+            mode=0o640, uid=0, gid=group.gr_gid,
+        )
+    provider, credential_label = _read_provider_profile(profile_file)
     # The LIVE processing key is owned by the activation transaction
     # (processing_activation_transaction.py flips config pa.enabled + the gate
     # file together, both-or-neither), NOT by the slot: every slot file pins
@@ -339,6 +429,11 @@ def main() -> int:
         uid=0,
         gid=group.gr_gid,
     )
+    _apply_provider_profile(
+        hermes_home / "config.yaml", hermes_home / "christopher_tgg_constitution.yaml",
+        provider=provider, credential_label=credential_label, model=SLOT_MODELS[selected],
+        uid=0, gid=group.gr_gid,
+    )
     if capability:
         plugin_link = capability["plugin_link"]
         if plugin_link.exists() and not plugin_link.is_symlink():
@@ -361,10 +456,11 @@ def main() -> int:
     os.chown(hermes_home, user.pw_uid, group.gr_gid)
 
     receipt = {
-        "version": 1,
+        "version": 2,
         "selected_at": datetime.now(timezone.utc).isoformat(),
         "slot": selected,
-        "provider": "openai-direct-primary",
+        "provider": provider,
+        "credential_label": credential_label,
         "model": SLOT_MODELS[selected],
         "reasoning_effort": SLOT_REASONING_EFFORT.get(selected),
         "config_sha256": _sha256(hermes_home / "config.yaml"),

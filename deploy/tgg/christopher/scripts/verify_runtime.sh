@@ -368,6 +368,18 @@ home = pathlib.Path(sys.argv[2])
 deploy = app / "deploy/tgg/christopher"
 runtime = home / "runtime"
 slot = (runtime / "engine-slot").read_text().strip()
+profile_path = runtime / "provider-profile.json"
+profile = json.loads(profile_path.read_text()) if profile_path.exists() else {
+    "version": 1, "provider": "openai-direct-primary", "credential_label": None,
+}
+assert profile.get("version") == 1
+provider = profile.get("provider")
+credential_label = profile.get("credential_label")
+assert provider in {"openai-direct-primary", "openai-codex"}
+if provider == "openai-codex":
+    assert isinstance(credential_label, str) and credential_label.strip()
+else:
+    assert credential_label is None
 # slot id -> model. Suffixed slots pin an explicit reasoning effort.
 SLOT_MODELS = {
     "gpt-5.4-mini": "gpt-5.4-mini",
@@ -375,11 +387,13 @@ SLOT_MODELS = {
     "gpt-5.6-luna-low": "gpt-5.6-luna",
     "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
     "gpt-5.6-terra-medium": "gpt-5.6-terra",
+    "gpt-5.6-terra-high": "gpt-5.6-terra",
 }
 SLOT_REASONING_EFFORT = {
     "gpt-5.6-luna-low": "low",
     "gpt-5.6-luna-xhigh": "xhigh",
     "gpt-5.6-terra-medium": "medium",
+    "gpt-5.6-terra-high": "high",
 }
 assert slot in SLOT_MODELS, slot
 slot_model = SLOT_MODELS[slot]
@@ -401,14 +415,12 @@ capability = loader._external_capability(runtime, home, slot)
 if capability:
     source_config_path = capability["config_path"]
     source_constitution_path = capability["constitution_path"]
-    assert sha(home / "christopher_tgg_constitution.yaml") == sha(source_constitution_path)
     plugin_link = home / "plugins/tgg-whatsapp-evidence"
     assert plugin_link.is_symlink(), plugin_link
     assert plugin_link.resolve(strict=True) == capability["plugin_source"].resolve(strict=True)
 else:
     source_config_path = deploy / "runtime-slots" / slot / "config.yaml"
     source_constitution_path = deploy / "runtime-slots" / slot / "christopher_tgg_constitution.yaml"
-    assert sha(home / "christopher_tgg_constitution.yaml") == expected[f"{slot}/christopher_tgg_constitution.yaml"]
 slot_config = yaml.safe_load(source_config_path.read_text())
 config_enabled = config["pa"]["enabled"]
 assert isinstance(config_enabled, bool)
@@ -417,18 +429,27 @@ assert isinstance(config_enabled, bool)
 # every other config field must remain byte-semantically equal to the slot.
 normalized_config = json.loads(json.dumps(config))
 normalized_config["pa"]["enabled"] = False
+normalized_config["model"]["provider"] = "openai-direct-primary"
+normalized_config["model"].pop("credential_label", None)
 assert normalized_config == slot_config
 assert config["group_sessions_per_user"] is False
 assert config["timezone"] == "Asia/Singapore"
 assert config["session_reset"] == {"mode": "none"}
 assert config["platforms"]["whatsapp"]["enabled"] is False
-assert config["model"]["provider"] == "openai-direct-primary"
+assert config["model"]["provider"] == provider
+if provider == "openai-codex":
+    assert config["model"]["credential_label"] == credential_label
+else:
+    assert "credential_label" not in config["model"]
 assert config["model"]["default"] == slot_model
 if slot_effort is None:
     assert "reasoning_effort" not in config["agent"]
 else:
     assert config["agent"]["reasoning_effort"] == slot_effort
-assert constitution["runtime"] == {"provider": "openai-direct-primary", "model": slot_model}
+assert constitution["runtime"] == {"provider": provider, "model": slot_model}
+for brief in constitution.get("job_briefs", {}).values():
+    if isinstance(brief.get("runtime"), dict):
+        assert brief["runtime"] == {"provider": provider, "model": slot_model}
 report_operations = config["pa"]["report_operations"]
 assert report_operations["enabled"] is True
 assert report_operations["schedule"]["enabled"] is False
@@ -651,6 +672,21 @@ print(json.dumps({
 }, sort_keys=True))
 PY
 
+if [[ -s "$RUNTIME_ROOT/provider-profile.json" ]] && [[ "$("$APP_ROOT/.venv/bin/python" - "$RUNTIME_ROOT/provider-profile.json" <<'PY'
+import json, pathlib, sys
+print(json.loads(pathlib.Path(sys.argv[1]).read_text())["provider"])
+PY
+)" == "openai-codex" ]]; then
+  codex_label="$("$APP_ROOT/.venv/bin/python" - "$RUNTIME_ROOT/provider-profile.json" <<'PY'
+import json, pathlib, sys
+print(json.loads(pathlib.Path(sys.argv[1]).read_text())["credential_label"])
+PY
+)"
+  runuser -u pclaw -- env HERMES_HOME="$HERMES_HOME" \
+    "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_codex_auth.py" \
+      --hermes-home "$HERMES_HOME" --credential-label "$codex_label" --service-user pclaw
+fi
+
 if [[ "$MODE" == "--quick" ]]; then
   exit 0
 fi
@@ -750,11 +786,13 @@ SLOT_MODELS = {
     "gpt-5.6-luna-low": "gpt-5.6-luna",
     "gpt-5.6-luna-xhigh": "gpt-5.6-luna",
     "gpt-5.6-terra-medium": "gpt-5.6-terra",
+    "gpt-5.6-terra-high": "gpt-5.6-terra",
 }
 SLOT_REASONING_EFFORT = {
     "gpt-5.6-luna-low": "low",
     "gpt-5.6-luna-xhigh": "xhigh",
     "gpt-5.6-terra-medium": "medium",
+    "gpt-5.6-terra-high": "high",
 }
 assert slot in SLOT_MODELS, slot
 assert p["ok"] is True
