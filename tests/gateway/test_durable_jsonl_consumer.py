@@ -2018,7 +2018,8 @@ def test_disabled_once_does_not_require_or_open_source(tmp_path):
     assert status["cursor_advanced"] is False
     assert {
         "retention_total", "retention_failures", "media_root_count",
-        "media_root_bytes", "media_volume_free_percent",
+        "media_root_bytes", "media_volume_free_percent", "media_volume_free_bytes",
+        "media_volume_total_bytes",
     } <= set(status)
     assert not Path(args.cursor).exists()
 
@@ -2055,8 +2056,7 @@ def test_disabled_retention_does_not_touch_media_root(tmp_path):
     assert status["media_volume_free_percent"] is None
 
 
-@pytest.mark.asyncio
-async def test_low_media_volume_holds_before_source_open(tmp_path, monkeypatch):
+def test_low_media_volume_holds_before_source_open(tmp_path, monkeypatch):
     args = _enabled_consumer_args(tmp_path, [_message("not-staged")])
     config = Path(args.config)
     data = yaml.safe_load(config.read_text())
@@ -2070,13 +2070,37 @@ async def test_low_media_volume_holds_before_source_open(tmp_path, monkeypatch):
         consumer.shutil, "disk_usage",
         lambda path: consumer.shutil._ntuple_diskusage(total=100, used=90, free=10),
     )
-    with pytest.raises(consumer.MediaRetentionError, match="below configured floor"):
-        await consumer.run_consumer(args)
+    # A low-volume condition is a stable hold.  It must not escape the daemon
+    # and trigger systemd's restart policy.
+    assert asyncio.run(consumer.run_consumer(args)) == 0
     status = json.loads(Path(args.status_file).read_text())
     assert status["state"] == "held"
     assert status["source_opened"] is False
     assert status["media_volume_free_percent"] == 10.0
+    assert status["media_volume_free_bytes"] == 10
     assert consumer.SourceCursor.from_path(Path(args.cursor)).offset == 0
+
+
+def test_absolute_media_reserve_overrides_legacy_percentage_floor(tmp_path, monkeypatch):
+    args = _enabled_consumer_args(tmp_path, [_message("not-staged")])
+    config = Path(args.config)
+    data = yaml.safe_load(config.read_text())
+    data["pa"]["media_retention"] = {
+        "enabled": True, "media_root": str(tmp_path / "retained"),
+        "source_roots": [str(tmp_path)], "operation": "tgg_media_retention",
+        "min_free_bytes": 50,
+        # This deliberately conflicts: the byte reserve is authoritative.
+        "min_free_percent": 99,
+    }
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    monkeypatch.setattr(
+        consumer.shutil, "disk_usage",
+        lambda path: consumer.shutil._ntuple_diskusage(total=1000, used=910, free=90),
+    )
+    metrics = consumer._media_root_metrics(config, inspect=True)
+    consumer._assert_media_headroom(config, metrics)
+    assert metrics["media_volume_free_bytes"] == 90
+    assert metrics["media_volume_total_bytes"] == 1000
 
 
 def test_root_gate_blocks_accidentally_enabled_config_without_opening_source(tmp_path):

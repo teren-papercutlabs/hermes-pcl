@@ -220,6 +220,7 @@ fi
 hostname
 systemctl is-active --quiet christopher-tgg-hermes.service
 systemctl is-active --quiet christopher-tgg-hermes-health.timer
+systemctl is-active --quiet christopher-tgg-retention-cleanup.timer
 systemctl is-active --quiet systems-papercut-labs.service
 test -x "$APP_ROOT/.venv/bin/python"
 test -s "$HERMES_HOME/.env"
@@ -569,14 +570,21 @@ for key in (
 ):
     assert isinstance(status.get(key), int) and status[key] >= 0, (key, status.get(key))
 free_percent = status.get("media_volume_free_percent")
+free_bytes = status.get("media_volume_free_bytes")
 if config_enabled:
     assert isinstance(free_percent, (int, float)), free_percent
-    assert free_percent >= float(config["pa"]["media_retention"]["min_free_percent"]), (
-        free_percent,
-        config["pa"]["media_retention"]["min_free_percent"],
-    )
+    assert isinstance(free_bytes, int) and free_bytes >= 0, free_bytes
+    reserve = config["pa"]["media_retention"].get("min_free_bytes")
+    if reserve is not None:
+        assert free_bytes >= int(reserve), (free_bytes, reserve)
+    else:
+        assert free_percent >= float(config["pa"]["media_retention"]["min_free_percent"]), (
+            free_percent,
+            config["pa"]["media_retention"]["min_free_percent"],
+        )
 else:
     assert free_percent is None or isinstance(free_percent, (int, float)), free_percent
+    assert free_bytes is None or isinstance(free_bytes, int), free_bytes
 if not config_enabled:
     assert status["source_opened"] is False
     assert status["cursor_advanced"] is False

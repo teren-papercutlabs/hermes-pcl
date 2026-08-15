@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Christopher TGG retention cleanup dry-run
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=christopher-tgg-retention-cleanup.service
+
+[Install]
+WantedBy=timers.target

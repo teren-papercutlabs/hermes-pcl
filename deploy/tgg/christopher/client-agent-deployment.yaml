@@ -51,6 +51,8 @@ spec:
         - /etc/systemd/system/christopher-tgg-report-weekly.timer
         - /etc/systemd/system/christopher-tgg-report-monthly.service
         - /etc/systemd/system/christopher-tgg-report-monthly.timer
+        - /etc/systemd/system/christopher-tgg-retention-cleanup.service
+        - /etc/systemd/system/christopher-tgg-retention-cleanup.timer
     capture:
       hostRef: tenant:tgg/host:app-1
       owner: stream-f
@@ -174,7 +176,7 @@ spec:
         maxAttempts: 5
         retryIntervalSeconds: 60
         activationBacklogPreflight: all-image-paths-from-current-cursor-must-resolve
-        minimumRealVolumeFreePercent: 20
+        minimumRealVolumeFreeBytes: 5368709120
         pathContract: opaque-media-refs-resolved-under-configured-root
         delivery:
           route: /send-media
@@ -215,6 +217,8 @@ spec:
           - media_root_count
           - media_root_bytes
           - media_volume_free_percent
+          - media_volume_free_bytes
+          - media_volume_total_bytes
       prohibitedConsumerSurface:
         method: GET
         path: /messages
@@ -319,6 +323,12 @@ spec:
       - name: christopher-tgg-report-monthly.timer
         desiredState: disabled
         source: deploy/tgg/christopher/systemd/christopher-tgg-report-monthly.timer
+      - name: christopher-tgg-retention-cleanup.service
+        desiredState: oneshot-on-timer
+        source: deploy/tgg/christopher/systemd/christopher-tgg-retention-cleanup.service
+      - name: christopher-tgg-retention-cleanup.timer
+        desiredState: active-enabled
+        source: deploy/tgg/christopher/systemd/christopher-tgg-retention-cleanup.timer
     externalDependencies:
       - name: tgg-capture-whatsapp-bridge.service
         owner: stream-f

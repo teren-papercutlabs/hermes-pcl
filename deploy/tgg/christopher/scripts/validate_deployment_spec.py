@@ -160,7 +160,7 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         "maxAttempts": 5,
         "retryIntervalSeconds": 60,
         "activationBacklogPreflight": "all-image-paths-from-current-cursor-must-resolve",
-        "minimumRealVolumeFreePercent": 20,
+        "minimumRealVolumeFreeBytes": 5368709120,
         "pathContract": "opaque-media-refs-resolved-under-configured-root",
         "delivery": {
             "route": "/send-media",
@@ -188,6 +188,8 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         "media_root_count",
         "media_root_bytes",
         "media_volume_free_percent",
+        "media_volume_free_bytes",
+        "media_volume_total_bytes",
     ]
     if (
         spec["channels"]["whatsapp"]["consumer"].get("statusMediaFields")
@@ -264,7 +266,7 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
             "media_ref_prefix": "/media/tgg/hermes",
             "source_roots": ["/var/lib/tgg-capture/whatsapp/media"],
             "operation": "tgg_media_retention",
-            "min_free_percent": 20,
+            "min_free_bytes": 5368709120,
             "max_attempts": 5,
             "retry_interval_seconds": 60,
         }:
@@ -396,6 +398,8 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         "christopher-tgg-report-weekly.timer",
         "christopher-tgg-report-monthly.service",
         "christopher-tgg-report-monthly.timer",
+        "christopher-tgg-retention-cleanup.service",
+        "christopher-tgg-retention-cleanup.timer",
     }
     if set(unit_sources) != expected_units:
         raise RuntimeError("owned Hermes unit set drifted")

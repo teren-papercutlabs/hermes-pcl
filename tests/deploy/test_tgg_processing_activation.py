@@ -228,6 +228,26 @@ def test_media_backlog_preflight_proves_all_pending_images_resolvable(tmp_path: 
     assert result["sourceOffset"] == 0
 
 
+def test_media_backlog_preflight_uses_absolute_reserve_when_configured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    photo = tmp_path / "capture-media" / "one.jpg"
+    config, cursor = _media_preflight_fixture(tmp_path, str(photo))
+    photo.write_bytes(b"\xff\xd8\xff\xe0fixture")
+    config.write_text(
+        config.read_text().replace("min_free_percent: 0", "min_free_bytes: 50"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        module.shutil, "disk_usage",
+        lambda path: module.shutil._ntuple_diskusage(total=1000, used=940, free=60),
+    )
+    result = module.media_backlog_preflight(config, cursor)
+    assert result["mediaVolumeFreeBytes"] == 60
+    assert result["minimumFreeBytes"] == 50
+    assert result["minimumFreePercent"] is None
+
+
 def test_media_backlog_preflight_holds_activation_on_missing_cache_file(tmp_path: Path) -> None:
     missing = tmp_path / "capture-media" / "missing.jpg"
     config, cursor = _media_preflight_fixture(tmp_path, str(missing))

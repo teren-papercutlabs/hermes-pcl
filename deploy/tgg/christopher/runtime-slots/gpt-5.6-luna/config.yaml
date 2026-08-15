@@ -17,7 +17,7 @@ pa:
     source_roots:
     - /var/lib/tgg-capture/whatsapp/media
     operation: tgg_media_retention
-    min_free_percent: 20
+    min_free_bytes: 5368709120
     max_attempts: 5
     retry_interval_seconds: 60
   report_operations:

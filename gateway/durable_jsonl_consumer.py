@@ -1530,7 +1530,16 @@ def _retention_config(config_path: Path) -> dict[str, Any] | None:
         "source_roots": tuple(Path(str(p)).expanduser().resolve() for p in source_roots),
         "operation": operation,
         "ref_prefix": ref_prefix,
-        "min_free_percent": float(raw.get("min_free_percent", 20)),
+        "min_free_bytes": (
+            int(raw["min_free_bytes"])
+            if raw.get("min_free_bytes") is not None
+            else None
+        ),
+        "min_free_percent": (
+            float(raw["min_free_percent"])
+            if "min_free_percent" in raw
+            else None
+        ),
         "max_attempts": max(1, int(raw.get("max_attempts", 5))),
         "retry_interval_seconds": max(
             1.0, float(raw.get("retry_interval_seconds", 60))
@@ -1545,6 +1554,8 @@ def _media_root_metrics(
         "media_root_count": 0,
         "media_root_bytes": 0,
         "media_volume_free_percent": None,
+        "media_volume_free_bytes": None,
+        "media_volume_total_bytes": None,
     }
     config = _retention_config(config_path)
     if config is None or not inspect:
@@ -1559,6 +1570,8 @@ def _media_root_metrics(
         raise MediaRetentionError(f"media volume is not measurable: {exc}") from exc
     free_percent = (usage.free / usage.total * 100) if usage.total else 0.0
     metrics["media_volume_free_percent"] = round(free_percent, 3)
+    metrics["media_volume_free_bytes"] = int(usage.free)
+    metrics["media_volume_total_bytes"] = int(usage.total)
     if root.exists() and count_root:
         if not root.is_dir():
             raise MediaRetentionError("configured media root is not a directory")
@@ -1589,13 +1602,29 @@ def _assert_media_headroom(config_path: Path, status: Mapping[str, Any]) -> None
     config = _retention_config(config_path)
     if config is None:
         return
-    free = status.get("media_volume_free_percent")
-    if free is None:
+    free_bytes = status.get("media_volume_free_bytes")
+    if free_bytes is None:
         raise MediaRetentionError("media volume free space is unknown")
-    if float(free) < float(config["min_free_percent"]):
+    minimum_bytes = config.get("min_free_bytes")
+    if minimum_bytes is not None:
+        if int(minimum_bytes) < 0:
+            raise MediaRetentionError("media retention min_free_bytes must be non-negative")
+        if int(free_bytes) >= int(minimum_bytes):
+            return
         raise MediaRetentionError(
-            "media volume free space below configured floor: "
-            f"{float(free):.3f}% < {config['min_free_percent']:.3f}%"
+            "media volume free space below configured absolute reserve: "
+            f"{int(free_bytes)} B < {int(minimum_bytes)} B"
+        )
+    legacy_minimum = config.get("min_free_percent")
+    if legacy_minimum is None:
+        return
+    free_percent = status.get("media_volume_free_percent")
+    if free_percent is None:
+        raise MediaRetentionError("media volume free percentage is unknown")
+    if float(free_percent) < float(legacy_minimum):
+        raise MediaRetentionError(
+            "media volume free space below configured percentage floor: "
+            f"{float(free_percent):.3f}% < {float(legacy_minimum):.3f}%"
         )
 
 
@@ -3648,7 +3677,10 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "inbox": inbox.counts(),
                         },
                     )
-                    raise
+                    if args.once:
+                        return 0
+                    await asyncio.sleep(args.poll_seconds)
+                    continue
                 _write_status(
                     status_path,
                     {

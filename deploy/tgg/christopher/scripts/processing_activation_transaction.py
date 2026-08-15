@@ -381,13 +381,29 @@ def media_backlog_preflight(
     if not isinstance(source_roots, list) or not source_roots:
         raise RuntimeError("media retention source_roots are missing")
     roots = tuple(Path(str(value)).resolve(strict=True) for value in source_roots)
-    min_free = float(retention.get("min_free_percent", 20))
     usage = shutil.disk_usage(media_root)
     free_percent = usage.free / usage.total * 100 if usage.total else 0.0
-    if free_percent < min_free:
-        raise RuntimeError(
-            f"media retention volume below activation floor: {free_percent:.3f}% < {min_free:.3f}%"
-        )
+    min_free_bytes = retention.get("min_free_bytes")
+    if min_free_bytes is not None:
+        try:
+            required_bytes = int(min_free_bytes)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("media retention min_free_bytes is invalid") from exc
+        if required_bytes < 0:
+            raise RuntimeError("media retention min_free_bytes must be non-negative")
+        if usage.free < required_bytes:
+            raise RuntimeError(
+                "media retention volume below activation absolute reserve: "
+                f"{usage.free} B < {required_bytes} B"
+            )
+    else:
+        # Compatibility for an older, externally supplied slot. Christopher's
+        # own slots use min_free_bytes exclusively.
+        min_free = float(retention.get("min_free_percent", 20))
+        if free_percent < min_free:
+            raise RuntimeError(
+                f"media retention volume below activation floor: {free_percent:.3f}% < {min_free:.3f}%"
+            )
 
     cursor = json.loads(cursor_path.read_text(encoding="utf-8"))
     source_path = Path(str(cursor.get("source_path") or ""))
@@ -469,7 +485,11 @@ def media_backlog_preflight(
         "sourceOffset": offset,
         "sourceSize": source_path.stat().st_size,
         "mediaVolumeFreePercent": round(free_percent, 3),
-        "minimumFreePercent": min_free,
+        "mediaVolumeFreeBytes": int(usage.free),
+        "minimumFreeBytes": int(min_free_bytes) if min_free_bytes is not None else None,
+        "minimumFreePercent": (
+            None if min_free_bytes is not None else float(retention.get("min_free_percent", 20))
+        ),
     }
 
 

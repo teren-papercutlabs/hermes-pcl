@@ -113,6 +113,8 @@ systemctl is-active christopher-tgg-hermes.service
 systemctl is-enabled christopher-tgg-hermes.service
 systemctl is-active christopher-tgg-hermes-health.timer
 systemctl is-enabled christopher-tgg-hermes-health.timer
+systemctl is-active christopher-tgg-retention-cleanup.timer
+systemctl is-enabled christopher-tgg-retention-cleanup.timer
 systemctl show christopher-tgg-hermes.service -p MainPID -p ActiveEnterTimestamp -p FragmentPath --no-pager
 cat /home/pclaw/.hermes-christopher-tgg/runtime/engine-slot-receipt.json
 cat /home/pclaw/.hermes-christopher-tgg/runtime/capture-consumer-status.json' \

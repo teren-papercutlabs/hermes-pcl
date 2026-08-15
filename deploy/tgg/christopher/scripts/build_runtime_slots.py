@@ -143,7 +143,7 @@ MEDIA_RETENTION_BLOCK = (
     "    source_roots:\n"
     "    - /var/lib/tgg-capture/whatsapp/media\n"
     "    operation: tgg_media_retention\n"
-    "    min_free_percent: 20\n"
+    "    min_free_bytes: 5368709120\n"
     "    max_attempts: 5\n"
     "    retry_interval_seconds: 60\n"
 )
@@ -596,7 +596,7 @@ def _validate(
         "media_ref_prefix": "/media/tgg/hermes",
         "source_roots": ["/var/lib/tgg-capture/whatsapp/media"],
         "operation": "tgg_media_retention",
-        "min_free_percent": 20,
+        "min_free_bytes": 5368709120,
         "max_attempts": 5,
         "retry_interval_seconds": 60,
     }
