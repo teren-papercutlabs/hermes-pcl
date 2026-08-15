@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 SCRIPT = Path(__file__).resolve().parents[2] / "deploy/tgg/christopher/scripts/apply_engine_slot.py"
+SMOKE = Path(__file__).resolve().parents[2] / "deploy/tgg/christopher/scripts/run_isolated_smoke.py"
 
 def _module():
     spec = importlib.util.spec_from_file_location("provider_profile_test", SCRIPT)
@@ -44,3 +45,9 @@ def test_codex_profile_survives_every_boot_materialization(tmp_path, monkeypatch
 def test_codex_profile_requires_named_credential(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match="credential-label"):
         _run(_module(), monkeypatch, SCRIPT.parents[4], tmp_path / "home", "--provider-profile", "openai-codex")
+
+
+def test_isolated_ready_turn_uses_live_provider_and_auth() -> None:
+    source = SMOKE.read_text()
+    assert 'config["model"] = selected["model"]' in source
+    assert 'shutil.copyfile(live_auth, run_root / "auth.json")' in source

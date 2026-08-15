@@ -228,6 +228,8 @@ def _prepare_home(
     run_root: Path,
     *,
     slot_root: Path,
+    live_config: Path,
+    live_auth: Path,
     live_env: Path,
     live_memory: Path,
     soul_path: Path,
@@ -235,6 +237,11 @@ def _prepare_home(
 ) -> Path:
     run_root.mkdir(parents=True, mode=0o700)
     config = yaml.safe_load((slot_root / "config.yaml").read_text(encoding="utf-8"))
+    selected = yaml.safe_load(live_config.read_text(encoding="utf-8"))
+    config["model"] = selected["model"]
+    config["agent"].pop("reasoning_effort", None)
+    if "reasoning_effort" in selected.get("agent", {}):
+        config["agent"]["reasoning_effort"] = selected["agent"]["reasoning_effort"]
     config["pa"]["enabled"] = True
     config["pa"]["constitution_path"] = str(
         run_root / "christopher_tgg_constitution.yaml"
@@ -286,6 +293,9 @@ def _prepare_home(
     plugin_source = soul_path.parent / "plugins" / "report-operations"
     shutil.copytree(plugin_source, run_root / "plugins" / "report-operations")
     _copy_test_env(live_env, run_root / ".env")
+    if live_auth.is_file():
+        shutil.copyfile(live_auth, run_root / "auth.json")
+        (run_root / "auth.json").chmod(0o600)
     return run_root / "config.yaml"
 
 
@@ -395,6 +405,8 @@ def main() -> int:
         config_path = _prepare_home(
             run_root,
             slot_root=slot_root,
+            live_config=live_home / "config.yaml",
+            live_auth=live_home / "auth.json",
             live_env=live_home / ".env",
             live_memory=live_home / "memories" / "MEMORY.md",
             soul_path=app_root / "deploy" / "tgg" / "christopher" / "SOUL.md",
