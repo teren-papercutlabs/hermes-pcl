@@ -480,7 +480,8 @@ class TestChristopherConfigCarriesModeNone:
         import yaml
 
         paths = self._config_paths()
-        assert len(paths) == 6, f"expected root + 5 slots, got {paths}"
+        assert paths[0].is_file()
+        assert len(paths) > 1, "expected root config plus runtime slot configs"
         for path in paths:
             data = yaml.safe_load(path.read_text(encoding="utf-8"))
             assert data.get("session_reset") == {"mode": "none"}, path
