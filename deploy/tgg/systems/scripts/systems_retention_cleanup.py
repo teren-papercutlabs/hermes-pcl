@@ -24,7 +24,7 @@ from typing import Any, Iterable
 
 import yaml
 
-TERMINAL_VALUES = {"complete", "completed", "committed", "success", "succeeded", "terminal"}
+TERMINAL_VALUES = {"complete", "completed", "committed", "success", "succeeded", "terminal", "rolled-back"}
 
 
 def _utc_now() -> str:
@@ -152,6 +152,8 @@ def _collect(policy: dict[str, Any], *, now: float | None = None) -> tuple[list[
             raise RuntimeError(f"retention rule {rule_id} has invalid age/keep settings")
         receipt_names = raw_rule.get("terminal_receipt_names") or []
         require_terminal = raw_rule.get("require_terminal_receipt") is True
+        sibling_root = raw_rule.get("terminal_receipt_sibling_root")
+        sibling = _resolve_absolute(sibling_root, f"retention rule {rule_id} terminal_receipt_sibling_root") if sibling_root else None
         candidate_mode = raw_rule.get("candidate_mode", "entry")
         if candidate_mode not in {"entry", "payload"}:
             raise RuntimeError(f"retention rule {rule_id} has invalid candidate_mode")
@@ -162,17 +164,25 @@ def _collect(policy: dict[str, Any], *, now: float | None = None) -> tuple[list[
                     if not child.is_symlink() and any(child.name.startswith(prefix) for prefix in prefixes)
                     and (not suffixes or any(child.name.endswith(suffix) for suffix in suffixes))]
         children.sort(key=lambda item: item.stat().st_mtime, reverse=True)
-        retained = set(children[:keep_newest])
+        # Count only proven terminal producers toward the retained rollback set.
+        # An active/incomplete attempt must never displace a known successful one.
+        terminal_subjects = {
+            child: (sibling / child.name if sibling is not None else child)
+            for child in children
+        }
+        terminal_children = [child for child in children if not require_terminal or
+                             _terminal_receipt(terminal_subjects[child], receipt_names)]
+        retained = set(terminal_children[:keep_newest])
         for child in children:
             resolved = child.resolve()
             if not _inside(resolved, root):
                 skipped.append({"rule": rule_id, "path": str(child), "reason": "escapes-root"})
+            elif require_terminal and not _terminal_receipt(terminal_subjects[child], receipt_names):
+                skipped.append({"rule": rule_id, "path": str(child), "reason": "no-terminal-receipt"})
             elif child in retained:
                 skipped.append({"rule": rule_id, "path": str(child), "reason": "keep-newest"})
             elif current - child.stat().st_mtime < age_seconds:
                 skipped.append({"rule": rule_id, "path": str(child), "reason": "too-recent"})
-            elif require_terminal and not _terminal_receipt(child, receipt_names):
-                skipped.append({"rule": rule_id, "path": str(child), "reason": "no-terminal-receipt"})
             elif resolved in seen:
                 raise RuntimeError(f"retention policy selected duplicate path {child}")
             else:
@@ -224,7 +234,7 @@ def main() -> int:
     args = parser.parse_args()
     policy = _load_policy(args.policy.resolve())
     selected, skipped = _collect(policy)
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     receipt_dir = args.receipt_dir.resolve()
     selection = [{"rule": item.rule, "path": str(item.path), "size_bytes": item.size_bytes,
                   "files": item.files, "mtime": datetime.fromtimestamp(item.mtime, timezone.utc).isoformat()}

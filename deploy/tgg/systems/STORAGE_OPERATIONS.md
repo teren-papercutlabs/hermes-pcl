@@ -9,6 +9,11 @@ runs. The newest five are retained and nothing younger than seven days is
 eligible. Live tenant databases, WhatsApp media/capture/corpus, imports, active
 runtime, and current releases are protected explicitly.
 
+Terminal direct-deploy staging is eligible immediately only after its matching
+transaction receipt is terminal. The newest two terminal runs are retained; for
+older terminal transactions only `preimage.db` is removed, never its receipt,
+manifest, or run directory. Incomplete attempts are not candidates.
+
 Each approved apply first writes a durable `*.intent.json` with exact selected paths,
 counts, and bytes; it then writes a completion (or partial-failure) receipt at
 `/home/pclaw/.systems-pcl/data/retention-receipts/systems-retention-*.json`.

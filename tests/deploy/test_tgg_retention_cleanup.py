@@ -154,6 +154,52 @@ def test_apply_writes_intent_before_partial_failure(tmp_path, cleanup_module, mo
     assert old.exists()
 
 
+def test_direct_deploy_keeps_two_terminal_runs_and_protects_incomplete(tmp_path, cleanup_module):
+    staging = tmp_path / "staging"; transactions = tmp_path / "transactions"
+    staging.mkdir(); transactions.mkdir()
+    names = ["direct-systems-new", "direct-systems-middle", "direct-systems-old"]
+    for index, name in enumerate(names):
+        stage = staging / name; stage.mkdir(); (stage / "candidate.db").write_text(name)
+        transaction = transactions / name; transaction.mkdir()
+        (transaction / "receipt.json").write_text(json.dumps({"status": "committed"}))
+        _age(stage, 10 + index); _age(transaction, 10 + index)
+    incomplete = staging / "direct-systems-incomplete"; incomplete.mkdir()
+    (incomplete / "candidate.db").write_text("active")
+    _age(incomplete, 20)
+    policy_path = tmp_path / "policy.yaml"
+    policy_path.write_text(yaml.safe_dump({
+        "version": 2, "protected_roots": [], "rules": [{
+            "id": "staging", "root": str(staging), "direct_child_prefixes": ["direct-systems-"],
+            "min_age_days": 0, "keep_newest": 2, "require_terminal_receipt": True,
+            "terminal_receipt_sibling_root": str(transactions), "terminal_receipt_names": ["receipt.json"],
+        }],
+    }))
+    selected, skipped = cleanup_module._collect(cleanup_module._load_policy(policy_path))
+    assert [item.path for item in selected] == [staging / "direct-systems-old"]
+    assert any(item["path"] == str(incomplete) and item["reason"] == "no-terminal-receipt" for item in skipped)
+
+
+def test_dry_run_and_apply_have_identical_selection_and_receipts(tmp_path, cleanup_module, monkeypatch):
+    root = tmp_path / "staging"; root.mkdir()
+    old = root / "fixture-old"; old.mkdir(); (old / "receipt.json").write_text(json.dumps({"status": "completed"})); _age(old, 3)
+    newest = root / "fixture-new"; newest.mkdir(); (newest / "receipt.json").write_text(json.dumps({"status": "completed"}))
+    policy_path = tmp_path / "policy.yaml"; _write_policy(policy_path, root)
+    receipt_dir = tmp_path / "receipts"
+    monkeypatch.setattr(sys, "argv", ["retention", "--policy", str(policy_path), "--receipt-dir", str(receipt_dir)])
+    assert cleanup_module.main() == 0
+    dry = next(path for path in receipt_dir.glob("*.json") if not path.name.endswith(".intent.json"))
+    dry_data = json.loads(dry.read_text())
+    assert dry_data["mode"] == "dry-run" and old.exists()
+    monkeypatch.setattr(sys, "argv", ["retention", "--policy", str(policy_path), "--receipt-dir", str(receipt_dir), "--apply"])
+    assert cleanup_module.main() == 0
+    completed = sorted(path for path in receipt_dir.glob("*.json") if not path.name.endswith(".intent.json"))[-1]
+    apply_data = json.loads(completed.read_text())
+    assert apply_data["mode"] == "apply"
+    assert apply_data["selected"] == dry_data["selected"]
+    assert apply_data["deleted"][0]["path"] == str(old)
+    assert not old.exists()
+
+
 def test_apply_main_completes_and_records_deleted_payload(tmp_path, cleanup_module, monkeypatch, capsys):
     root = tmp_path / "staging"; root.mkdir()
     old = root / "fixture-old"; old.mkdir()
