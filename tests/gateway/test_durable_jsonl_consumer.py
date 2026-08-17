@@ -1537,6 +1537,38 @@ def test_retention_operation_resolves_from_real_overlay_registry(tmp_path, monke
     assert "tgg_media_retention" in observed["known"]
 
 
+def test_retention_operation_uses_constitution_for_unselected_site_chat(
+    tmp_path, monkeypatch
+):
+    canonical = Path("deploy/tgg/christopher/config.yaml")
+    data = yaml.safe_load(canonical.read_text())
+    data["pa"]["enabled"] = True
+    data["pa"]["constitution_path"] = str(
+        Path("deploy/tgg/christopher/christopher_tgg_constitution.yaml").resolve()
+    )
+    config = tmp_path / "actual-shape.yaml"
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
+    observed = {}
+
+    def fake_execute(bridge, operation, payload, **kwargs):
+        observed.update(operation=operation, known=set(bridge.operations), payload=payload)
+        return {
+            "ok": True,
+            "data": {"ledgerChanged": False, "observationsChanged": False},
+        }
+
+    monkeypatch.setattr("tools.pa_business_tools.execute_business_operation", fake_execute)
+    result = consumer._converge_retained_media(
+        config,
+        operation="tgg_media_retention",
+        payload={"chat_jid": "unselected-site-chat@g.us", "message_id": "M1"},
+    )
+
+    assert result["ok"] is True
+    assert observed["operation"] == "tgg_media_retention"
+    assert "tgg_media_retention" in observed["known"]
+
+
 @pytest.mark.parametrize(
     "response",
     [

@@ -159,31 +159,17 @@ def resolve_context(
     ``pa_constitution_path``.  Job selection prefers selectors, then explicit
     ``job_type`` in metadata or config.
     """
-    if not isinstance(config, Mapping):
+    constitution_config = _constitution_config(config)
+    if constitution_config is None:
         return None
-    if isinstance(config.get("pa"), Mapping) and not any(
-        key in config
-        for key in (
-            "constitution",
-            "pa_constitution",
-            "constitution_path",
-            "pa_constitution_path",
-        )
-    ):
-        config = config["pa"]
-    enabled = config.get("enabled")
-    if enabled is False or (
-        isinstance(enabled, str)
-        and enabled.strip().lower() in {"false", "0", "no", "off"}
-    ):
-        return None
-
-    constitution = _constitution_from_config(config)
+    constitution = _constitution_from_config(constitution_config)
     if constitution is None:
         return None
 
     metadata_map: Mapping[str, Any] = metadata if isinstance(metadata, Mapping) else {}
-    job_type = _as_optional_str(metadata_map.get("job_type")) or _as_optional_str(config.get("job_type"))
+    job_type = _as_optional_str(metadata_map.get("job_type")) or _as_optional_str(
+        constitution_config.get("job_type")
+    )
     if job_type is None:
         job_type = _select_job_type(constitution, metadata_map)
     if job_type is None:
@@ -202,6 +188,20 @@ def resolve_context(
         job_hash=job_brief.hash,
         behavior_hash=behavior_hash(constitution.hash, job_brief.hash),
     )
+
+
+def configured_constitution(
+    config: Mapping[str, Any] | None,
+) -> PAConstitution | None:
+    """Load the enabled constitution without selecting a model job brief.
+
+    This is for tenant-bound internal infrastructure such as media retention,
+    where a source chat does not need to be eligible for model processing.
+    """
+    constitution_config = _constitution_config(config)
+    if constitution_config is None:
+        return None
+    return _constitution_from_config(constitution_config)
 
 
 def render_identity_prompt(constitution: PAConstitution) -> str:
@@ -397,6 +397,30 @@ def _constitution_from_config(config: Mapping[str, Any]) -> PAConstitution | Non
         constitution = load_constitution(raw)
         return apply_client_overlay(constitution, overlay) if overlay else constitution
     raise ValueError("PA constitution config must be a path, mapping, or PAConstitution")
+
+
+def _constitution_config(
+    config: Mapping[str, Any] | None,
+) -> Mapping[str, Any] | None:
+    if not isinstance(config, Mapping):
+        return None
+    if isinstance(config.get("pa"), Mapping) and not any(
+        key in config
+        for key in (
+            "constitution",
+            "pa_constitution",
+            "constitution_path",
+            "pa_constitution_path",
+        )
+    ):
+        config = config["pa"]
+    enabled = config.get("enabled")
+    if enabled is False or (
+        isinstance(enabled, str)
+        and enabled.strip().lower() in {"false", "0", "no", "off"}
+    ):
+        return None
+    return config
 
 
 def apply_client_overlay(

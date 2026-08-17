@@ -1785,7 +1785,7 @@ def _converge_retained_media(
 ) -> dict[str, Any]:
     from types import SimpleNamespace
 
-    from agent.pa_constitution import resolve_context
+    from agent.pa_constitution import configured_constitution, resolve_context
     from tools.pa_business_tools import execute_business_operation, load_business_bridge_config
 
     config_data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -1798,14 +1798,19 @@ def _converge_retained_media(
             }
         },
     )
-    if resolved is None:
-        raise MediaRetentionError("media retention could not resolve client context")
+    constitution = (
+        resolved.constitution
+        if resolved is not None
+        else configured_constitution(config_data)
+    )
+    if constitution is None:
+        raise MediaRetentionError("media retention could not resolve constitution")
     # Retention is pre-model ingress infrastructure, not a model-callable job
     # operation. Reuse the resolved tenant/auth/operation registry while
     # deliberately avoiding job-brief allow/deny scope (ops correctly denies
     # the model from invoking this internal write itself).
     internal_context = SimpleNamespace(
-        constitution=resolved.constitution,
+        constitution=constitution,
         job_brief=None,
         job_type="media_retention_internal",
     )
