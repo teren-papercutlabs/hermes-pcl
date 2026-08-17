@@ -1620,6 +1620,7 @@ all = [
     { name = "google-auth-httplib2" },
     { name = "google-auth-oauthlib" },
     { name = "mcp" },
+    { name = "openpyxl" },
     { name = "ptyprocess", marker = "sys_platform != 'win32'" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1650,6 +1651,7 @@ daytona = [
 dev = [
     { name = "debugpy" },
     { name = "mcp" },
+    { name = "openpyxl" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-split" },
@@ -1845,6 +1847,7 @@ requires-dist = [
     { name = "numpy", marker = "extra == 'sandbox'", specifier = "==2.4.3" },
     { name = "numpy", marker = "extra == 'voice'", specifier = "==2.4.3" },
     { name = "openai", specifier = "==2.24.0" },
+    { name = "openpyxl", marker = "extra == 'dev'", specifier = "==3.1.5" },
     { name = "openpyxl", marker = "extra == 'sandbox'", specifier = "==3.1.5" },
     { name = "pandas", marker = "extra == 'sandbox'", specifier = "==3.0.5" },
     { name = "parallel-web", marker = "extra == 'parallel-web'", specifier = "==0.4.2" },

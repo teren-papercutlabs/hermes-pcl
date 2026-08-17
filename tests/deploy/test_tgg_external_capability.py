@@ -269,9 +269,15 @@ def test_main_materializes_external_capability_and_receipt(
 
     assert module.main() == 0
 
-    assert (home / "config.yaml").read_bytes() == (
-        release / "christopher-slot-config.yaml"
-    ).read_bytes()
+    live_config = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
+    release_config = yaml.safe_load(
+        (release / "christopher-slot-config.yaml").read_text(encoding="utf-8")
+    )
+    assert live_config["pa"]["constitution_path"] == str(
+        home / "christopher_tgg_constitution.yaml"
+    )
+    live_config["pa"]["constitution_path"] = release_config["pa"]["constitution_path"]
+    assert live_config == release_config
     assert (home / "christopher_tgg_constitution.yaml").read_bytes() == (
         release / "christopher_tgg_constitution.yaml"
     ).read_bytes()

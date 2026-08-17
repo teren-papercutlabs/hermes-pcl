@@ -45,7 +45,7 @@ def main() -> int:
     assert run(["systemctl", "is-active", SERVICE]).stdout.strip() == "active"
     pid = int(run(["systemctl", "show", "-p", "MainPID", "--value", SERVICE]).stdout)
     assert pid > 0
-    status_lines = Path(f"/proc/{pid}/status").read_text().splitlines()
+    status_lines = Path(f"/proc/{pid}/status").read_text(encoding="utf-8").splitlines()
     uid_line = next(line for line in status_lines if line.startswith("Uid:"))
     assert int(uid_line.split()[1]) == pwd.getpwnam("pclaw").pw_uid
 

@@ -292,6 +292,8 @@ def test_timeout_auto_block_maps_to_workflow_exception(
             "_pid_alive",
             lambda _pid: next(alive_checks, False),
         )
+        signals = []
+        monkeypatch.setattr(kb.os, "kill", lambda pid, sig: signals.append((pid, sig)))
 
         result = kb.dispatch_once(
             conn,
@@ -300,6 +302,7 @@ def test_timeout_auto_block_maps_to_workflow_exception(
         )
         assert task_id in result.timed_out
         assert task_id in result.auto_blocked
+        assert signals and signals[0][0] == 779
         row = conn.execute(
             """
             SELECT t.status, i.state
