@@ -366,6 +366,13 @@ def test_nightly_whatsapp_trigger_is_internal_idempotent_and_outbound_disabled(m
 
     timer = (DEPLOY / "systemd" / "christopher-tgg-nightly-whatsapp.timer").read_text()
     assert "00:15:00 Asia/Singapore" in timer
+    service = (DEPLOY / "systemd" / "christopher-tgg-nightly-whatsapp.service").read_text()
+    assert "User=pclaw" in service
+    assert "SupplementaryGroups=tggcapture" in service
+    assert (
+        "ExecStartPre=+/usr/bin/chmod 0660 "
+        "/var/lib/tgg-capture/whatsapp/capture/events.jsonl"
+    ) in service
 
 
 def test_shared_runtime_files_have_no_new_report_domain_adapter():

@@ -7,12 +7,13 @@ Wants=network-online.target
 Type=oneshot
 User=pclaw
 Group=pclaw
+SupplementaryGroups=tggcapture
 WorkingDirectory=/home/pclaw/apps/hermes-pcl
 Environment=HOME=/home/pclaw
 Environment=HERMES_HOME=/home/pclaw/.hermes-christopher-tgg
 EnvironmentFile=/home/pclaw/.hermes-christopher-tgg/.env
+ExecStartPre=+/usr/bin/chmod 0660 /var/lib/tgg-capture/whatsapp/capture/events.jsonl
 ExecStart=/home/pclaw/apps/hermes-pcl/.venv/bin/python /home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/scripts/run_nightly_whatsapp.py
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-
