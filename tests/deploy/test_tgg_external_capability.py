@@ -48,6 +48,8 @@ def make_release(
     config = yaml.safe_load((SLOT / "config.yaml").read_text(encoding="utf-8"))
     config["pa"]["constitution_path"] = str(capability / "current" / constitution.name)
     config.setdefault("plugins", {}).setdefault("enabled", []).append("tgg-whatsapp-evidence")
+    if include_nightly_plugin:
+        config["plugins"]["enabled"].append("tgg-nightly-whatsapp")
     if include_spreadsheet_skill or include_whatsapp_skill:
         config["skills"] = {"external_dirs": [str(capability / "current" / "skills")]}
     else:
@@ -178,6 +180,10 @@ def test_resolves_external_capability_with_nightly_plugin(tmp_path: Path) -> Non
 
     assert selected is not None
     assert selected["release_root"] == release.resolve()
+    assert set(selected["plugin_sources"]) == {
+        "tgg-whatsapp-evidence",
+        "tgg-nightly-whatsapp",
+    }
 
 
 def test_rejects_partial_whatsapp_skill_file_set(tmp_path: Path) -> None:

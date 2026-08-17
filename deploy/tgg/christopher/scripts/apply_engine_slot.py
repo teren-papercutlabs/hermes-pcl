@@ -379,6 +379,17 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     if config.get("plugins", {}).get("enabled", []).count("tgg-whatsapp-evidence") != 1:
         raise RuntimeError("external capability plugin enablement mismatch")
     plugin_source = release_root / "plugins" / "tgg-whatsapp-evidence"
+    includes_nightly_plugin = CAPABILITY_NIGHTLY_PLUGIN_FILES.issubset(files)
+    nightly_enabled = config.get("plugins", {}).get("enabled", []).count(
+        "tgg-nightly-whatsapp"
+    )
+    if nightly_enabled != int(includes_nightly_plugin):
+        raise RuntimeError("external nightly plugin enablement mismatch")
+    plugin_sources = {"tgg-whatsapp-evidence": plugin_source}
+    if includes_nightly_plugin:
+        plugin_sources["tgg-nightly-whatsapp"] = (
+            release_root / "plugins" / "tgg-nightly-whatsapp"
+        )
     return {
         "release_root": release_root,
         "release_id": manifest["release_id"],
@@ -387,6 +398,10 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
         "constitution_path": constitution_path,
         "plugin_source": plugin_source,
         "plugin_link": hermes_home / "plugins" / "tgg-whatsapp-evidence",
+        "plugin_sources": plugin_sources,
+        "plugin_links": {
+            name: hermes_home / "plugins" / name for name in plugin_sources
+        },
     }
 
 
@@ -528,18 +543,18 @@ def main() -> int:
             uid=0,
             gid=group.gr_gid,
         )
-        plugin_link = capability["plugin_link"]
-        if plugin_link.exists() and not plugin_link.is_symlink():
-            raise RuntimeError(
-                "external capability plugin destination exists and is not a symlink; "
-                "the installer must preserve it before activation"
+        for plugin_name, plugin_link in capability["plugin_links"].items():
+            if plugin_link.exists() and not plugin_link.is_symlink():
+                raise RuntimeError(
+                    "external capability plugin destination exists and is not a symlink; "
+                    "the installer must preserve it before activation"
+                )
+            _atomic_symlink(
+                capability["plugin_sources"][plugin_name],
+                plugin_link,
+                uid=user.pw_uid,
+                gid=group.gr_gid,
             )
-        _atomic_symlink(
-            capability["plugin_source"],
-            plugin_link,
-            uid=user.pw_uid,
-            gid=group.gr_gid,
-        )
     runtime_root.mkdir(parents=True, exist_ok=True)
     slot_tmp = runtime_root / f".engine-slot.{os.getpid()}.tmp"
     slot_tmp.write_text(f"{selected}\n", encoding="utf-8")

@@ -420,9 +420,10 @@ capability = loader._external_capability(runtime, home, slot)
 if capability:
     source_config_path = capability["config_path"]
     source_constitution_path = capability["constitution_path"]
-    plugin_link = home / "plugins/tgg-whatsapp-evidence"
-    assert plugin_link.is_symlink(), plugin_link
-    assert plugin_link.resolve(strict=True) == capability["plugin_source"].resolve(strict=True)
+    for plugin_name, plugin_source in capability["plugin_sources"].items():
+        plugin_link = home / "plugins" / plugin_name
+        assert plugin_link.is_symlink(), plugin_link
+        assert plugin_link.resolve(strict=True) == plugin_source.resolve(strict=True)
 else:
     source_config_path = deploy / "runtime-slots" / slot / "config.yaml"
     source_constitution_path = deploy / "runtime-slots" / slot / "christopher_tgg_constitution.yaml"
@@ -435,6 +436,9 @@ if capability:
     # model, reasoning effort, and disk-retention contract applied at boot.
     expected_config["model"] = selected_slot_config["model"]
     expected_config["pa"]["media_retention"] = selected_slot_config["pa"]["media_retention"]
+    expected_config["pa"]["constitution_path"] = str(
+        home / "christopher_tgg_constitution.yaml"
+    )
     expected_config["agent"].pop("reasoning_effort", None)
     if "reasoning_effort" in selected_slot_config["agent"]:
         expected_config["agent"]["reasoning_effort"] = selected_slot_config["agent"]["reasoning_effort"]
@@ -474,7 +478,7 @@ assert set(report_operations["operations"]) == {
     "fetch-sources", "preview-reconcile", "apply-reconcile",
     "generate", "get-reports", "status",
 }
-expected_plugins = ["report-operations", "tgg-whatsapp-evidence"] if capability else ["report-operations"]
+expected_plugins = expected_config["plugins"]["enabled"]
 assert config["plugins"]["enabled"] == expected_plugins
 management = constitution["job_briefs"]["tgg_management"]
 assert "report-operations" in management["enabled_toolsets"]
