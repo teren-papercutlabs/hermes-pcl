@@ -1665,13 +1665,15 @@ def _validated_captured_media_type(path: Path) -> tuple[str, str, str | None]:
         mime, _ = _validated_image_type(path, None)
         return "image", mime, None
     except MediaRetentionError as image_error:
-        if path.suffix.lower() != ".xlsx":
+        if path.suffix.lower() not in {".xlsx", ".zip"}:
             raise image_error
     with path.open("rb") as handle:
         if handle.read(4) != b"PK\x03\x04":
             raise MediaRetentionError(
-                f"retained workbook is not a supported xlsx document: {path.name}"
+                f"retained document is not a supported zip container: {path.name}"
             )
+    if path.suffix.lower() == ".zip":
+        return "document", "application/zip", path.name
     return (
         "document",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2873,21 +2875,28 @@ def _captured_audit_entries(
 
 
 def _parse_captured_media(entry: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Expand captured native image calls into one bounded item per file."""
+    """Expand captured native media calls into one bounded item per file."""
     if not isinstance(entry, Mapping):
         return []
     kind = str(entry.get("kind") or "")
-    if kind not in {"send_image_file", "send_multiple_images"}:
+    if kind not in {"send_image_file", "send_multiple_images", "send_document"}:
         return []
     args = list(entry.get("args") or [])
     kwargs = dict(entry.get("kwargs") or {})
     chat_id = str(kwargs.get("chat_id") or (args[0] if args else "") or "")
     reply_to = kwargs.get("reply_to")
-    if reply_to is None and kind == "send_image_file" and len(args) > 3:
-        reply_to = args[3]
+    if reply_to is None:
+        if kind == "send_image_file" and len(args) > 3:
+            reply_to = args[3]
+        elif kind == "send_document" and len(args) > 4:
+            reply_to = args[4]
     if not chat_id:
         return []
-    if kind == "send_image_file":
+    if kind == "send_document":
+        path = kwargs.get("file_path") or (args[1] if len(args) > 1 else None)
+        caption = kwargs.get("caption") or (args[2] if len(args) > 2 else None)
+        values = [(path, caption)] if path else []
+    elif kind == "send_image_file":
         path = kwargs.get("image_path") or (args[1] if len(args) > 1 else None)
         caption = kwargs.get("caption") or (args[2] if len(args) > 2 else None)
         values: Sequence[Any] = [(path, caption)] if path else []

@@ -115,6 +115,18 @@ def _captured_images(chat_id: str, paths: list[Path], reply_to: str = "MSG1") ->
     }
 
 
+def _captured_document(
+    chat_id: str, path: Path, *, caption: str | None = None, reply_to: str = "MSG1"
+) -> dict:
+    return {
+        "message_id": "replay-document",
+        "kind": "send_document",
+        "args": [chat_id, str(path)],
+        "kwargs": {"caption": caption, "reply_to": reply_to},
+        "delivery_mode": "capture",
+    }
+
+
 def test_selector_chats_are_whatsapp_management_only(config_path: Path) -> None:
     chats = _management_selector_chats(config_path)
     assert chats == frozenset({MGMT_CHAT})
@@ -161,6 +173,57 @@ def test_multi_photo_delivery_uses_send_media_and_distinct_durable_keys(
             "SELECT delivery_key FROM reply_deliveries ORDER BY delivery_key"
         )]
     assert len(keys) == 2 and all(key.startswith(f"media::{MGMT_CHAT}::MSG1::") for key in keys)
+
+
+def test_zip_document_delivery_uses_send_media_with_filename_and_caption(
+    inbox: DurableInbox, config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    media_root = tmp_path / "retained"
+    media_root.mkdir()
+    report = media_root / "weekly-reports.zip"
+    report.write_bytes(b"PK\x03\x04weekly-report")
+    _enable_media_retention(config_path, media_root)
+    sent: list[tuple[str, dict]] = []
+
+    def fake_urlopen(request, timeout=0):
+        sent.append((request.full_url, json.loads(request.data)))
+        return _FakeResponse({"success": True, "messageId": "WA-ZIP"})
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    summary = deliver_management_replies(
+        inbox,
+        config_path=config_path,
+        captured_outbound=[
+            _captured_document(
+                MGMT_CHAT,
+                report,
+                caption="Weekly report for 10–15 August 2026.",
+            )
+        ],
+        batch_records=[_record(MGMT_CHAT)],
+        gate_changed_at=GATE_CHANGED_AT,
+        handled_groups=_handled("MSG1"),
+    )
+
+    assert summary == {
+        "delivered": 1,
+        "undelivered": 0,
+        "suppressed": 0,
+        "duplicate": 0,
+    }
+    assert sent == [
+        (
+            "http://127.0.0.1:3011/send-media",
+            {
+                "chatId": MGMT_CHAT,
+                "replyTo": "MSG1",
+                "filePath": str(report),
+                "mediaType": "document",
+                "fileName": "weekly-reports.zip",
+                "caption": "Weekly report for 10–15 August 2026.",
+            },
+        )
+    ]
 
 
 def test_composite_bundle_anchor_resolves_to_handled_component(
