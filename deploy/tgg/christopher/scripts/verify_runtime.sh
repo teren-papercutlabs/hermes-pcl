@@ -675,7 +675,7 @@ assert (home / "config.yaml").stat().st_uid == 0
 print(json.dumps({
     "quick_verify": "pass",
     "slot": slot,
-    "provider": "openai-direct-primary",
+    "provider": provider,
     "model": slot_model,
     "reasoning_effort": slot_effort,
     "config_sha256": sha(home / "config.yaml"),
@@ -802,10 +802,11 @@ runuser -u pclaw -- env \
   --slot-file "$RUNTIME_ROOT/engine-slot" \
   --report "$full_report"
 
-"$APP_ROOT/.venv/bin/python" - "$full_report" "$RUNTIME_ROOT/engine-slot" <<'PY'
+"$APP_ROOT/.venv/bin/python" - "$full_report" "$RUNTIME_ROOT/engine-slot" "$RUNTIME_ROOT/provider-profile.json" <<'PY'
 import json, pathlib, sys
 p = json.loads(pathlib.Path(sys.argv[1]).read_text())
 slot = pathlib.Path(sys.argv[2]).read_text().strip()
+provider = json.loads(pathlib.Path(sys.argv[3]).read_text())["provider"]
 SLOT_MODELS = {
     "gpt-5.4-mini": "gpt-5.4-mini",
     "gpt-5.6-luna": "gpt-5.6-luna",
@@ -825,7 +826,7 @@ assert p["ok"] is True
 assert p["mode"] == "fixture-only"
 assert p["result"]["processed"] == 1
 assert p["result"]["turn_id"]
-assert p["result"]["provider"] == "openai-direct-primary"
+assert p["result"]["provider"] == provider
 assert p["result"]["model"] == SLOT_MODELS[slot], (p["result"]["model"], slot)
 assert p["client_mutation_requests"] == 0
 assert p["external_outbound_sent"] == 0
