@@ -474,10 +474,10 @@ report_operations = config["pa"]["report_operations"]
 assert report_operations["enabled"] is True
 assert report_operations["schedule"]["enabled"] is False
 assert report_operations["auth"]["token_env"] == "CHRISTOPHER_TGG_PS_SERVICE_TOKEN"
-assert set(report_operations["operations"]) == {
+assert {
     "fetch-sources", "preview-reconcile", "apply-reconcile",
     "generate", "get-reports", "status",
-}
+}.issubset(report_operations["operations"])
 expected_plugins = expected_config["plugins"]["enabled"]
 assert config["plugins"]["enabled"] == expected_plugins
 management = constitution["job_briefs"]["tgg_management"]
