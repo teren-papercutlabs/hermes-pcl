@@ -226,6 +226,19 @@ def _apply_slot_runtime_contract(
         _atomic_write_yaml(constitution_path, constitution, mode=0o644, uid=uid, gid=gid)
 
 
+def _bind_live_constitution_path(
+    config_path: Path,
+    constitution_path: Path,
+    *,
+    uid: int,
+    gid: int,
+) -> None:
+    """Make PA read the engine-overlaid live constitution."""
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["pa"]["constitution_path"] = str(constitution_path)
+    _atomic_write_yaml(config_path, config, mode=0o640, uid=uid, gid=gid)
+
+
 def _validate_runtime_pair(config_path: Path, constitution_path: Path, slot: str) -> None:
     model = SLOT_MODELS[slot]
     effort = SLOT_REASONING_EFFORT.get(slot)
@@ -501,6 +514,12 @@ def main() -> int:
         uid=0, gid=group.gr_gid,
     )
     if capability:
+        _bind_live_constitution_path(
+            hermes_home / "config.yaml",
+            hermes_home / "christopher_tgg_constitution.yaml",
+            uid=0,
+            gid=group.gr_gid,
+        )
         plugin_link = capability["plugin_link"]
         if plugin_link.exists() and not plugin_link.is_symlink():
             raise RuntimeError(
