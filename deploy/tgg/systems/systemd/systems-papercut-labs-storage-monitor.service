@@ -1,0 +1,21 @@
+[Unit]
+Description=Monitor Papercut Systems disk and retention freshness
+After=network-online.target systems-papercut-labs-tgg-retention-cleanup.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/pclaw/apps/hermes-pcl
+EnvironmentFile=-/etc/systems-papercut-labs/alerting.env
+StateDirectory=systems-papercut-labs
+StateDirectoryMode=0750
+# Keep dry-run until the prepared monitor chat id and bot token are explicitly approved.
+ExecStart=/home/pclaw/apps/hermes-pcl/.venv/bin/python /home/pclaw/apps/hermes-pcl/deploy/tgg/systems/scripts/systems_storage_monitor.py --dry-run
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadOnlyPaths=/home/pclaw/.systems-pcl/data/retention-receipts
+StandardOutput=journal
+StandardError=journal

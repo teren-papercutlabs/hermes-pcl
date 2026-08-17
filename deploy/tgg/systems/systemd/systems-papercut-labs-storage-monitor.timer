@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Papercut Systems storage health check
+
+[Timer]
+OnCalendar=*-*-* 03:45:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=systems-papercut-labs-storage-monitor.service
+
+[Install]
+WantedBy=timers.target

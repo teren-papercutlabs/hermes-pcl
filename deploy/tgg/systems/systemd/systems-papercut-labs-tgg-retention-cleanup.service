@@ -1,0 +1,20 @@
+[Unit]
+Description=Papercut Systems TGG bounded storage retention
+After=local-fs.target systems-papercut-labs.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/pclaw/apps/hermes-pcl
+ExecStartPre=/usr/bin/install -d -o root -g pclaw -m 0750 /home/pclaw/.systems-pcl/data/retention-receipts
+# Safe installation default: receipt-only preview. Add --apply only after the
+# first production candidate receipt has been reviewed and deletion approved.
+ExecStart=/home/pclaw/apps/hermes-pcl/.venv/bin/python /home/pclaw/apps/hermes-pcl/deploy/tgg/systems/scripts/systems_retention_cleanup.py --policy /home/pclaw/apps/hermes-pcl/deploy/tgg/systems/retention-policy.tgg-app-1.yaml --receipt-dir /home/pclaw/.systems-pcl/data/retention-receipts
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/tmp /home/pclaw/.systems-pcl
+StandardOutput=journal
+StandardError=journal

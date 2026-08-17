@@ -1,0 +1,51 @@
+# This is a closed, Systems-owned allowlist. Every rule operates only on direct
+# children and keeps its five newest entries; sources/case databases, WhatsApp
+# capture/media/corpus, imports, and active runtime/release paths are absent.
+version: 2
+protected_roots:
+  - /home/pclaw/.systems-pcl/data/tenants
+  - /home/pclaw/.systems-pcl/data/media
+  - /home/pclaw/.systems-pcl/data/imports
+  - /home/pclaw/.systems-pcl/data/import-staging
+  - /home/pclaw/.systems-pcl/data/archive-objects
+  - /var/lib/tgg-capture
+  - /var/lib/tgg-corpus
+  - /home/pclaw/.hermes-christopher-tgg
+  - /home/pclaw/apps/hermes-pcl
+  - /home/pclaw/apps/systems-prod/current
+  - /home/pclaw/apps/systems-prod/releases
+rules:
+  - id: host-test-artifacts
+    root: /tmp
+    direct_child_prefixes: [hermes-test-, tgg-test-, pcl-test-, ps-test-, pcl-review-, tgg-staging-test-]
+    min_age_days: 7
+    keep_newest: 0
+  - id: completed-direct-systems-staging
+    root: /home/pclaw/.systems-pcl/direct-deploy-staging
+    direct_child_prefixes: [direct-systems-]
+    min_age_days: 7
+    keep_newest: 5
+    require_terminal_receipt: true
+    terminal_receipt_names: [retention-terminal.json]
+  - id: completed-direct-systems-transactions
+    root: /home/pclaw/.systems-pcl/direct-deploy-transactions
+    direct_child_prefixes: [direct-systems-]
+    min_age_days: 7
+    keep_newest: 5
+    require_terminal_receipt: true
+    terminal_receipt_names: [receipt.json, rollback-receipt.json]
+  - id: completed-report-cycle-database-payloads
+    root: /home/pclaw/.systems-pcl/data/artifacts/tgg/report-cycle
+    direct_child_prefixes: [reconcile-]
+    min_age_days: 7
+    keep_newest: 5
+    require_terminal_receipt: true
+    terminal_receipt_names: [manifest.json]
+    candidate_mode: payload
+    payload_file_globs: [preview.db, backup-*.db]
+  - id: superseded-pre-import-backups
+    root: /home/pclaw/.systems-pcl/backups
+    direct_child_prefixes: [tgg-before-, spine-before-, tgg-daily-master-sfc-rehearsal-, tgg.db.precutover-]
+    direct_child_suffixes: [.db]
+    min_age_days: 7
+    keep_newest: 5
