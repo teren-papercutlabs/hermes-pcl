@@ -35,6 +35,7 @@ def make_release(
     audience: str = "shadow",
     include_spreadsheet_skill: bool = False,
     include_whatsapp_skill: bool = False,
+    include_nightly_plugin: bool = False,
 ) -> tuple[Path, Path, Path]:
     home = tmp_path / "home"
     runtime = home / "runtime"
@@ -55,6 +56,15 @@ def make_release(
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
     (plugin / "__init__.py").write_text("def register(ctx):\n    return None\n", encoding="utf-8")
     (plugin / "plugin.yaml").write_text("name: tgg-whatsapp-evidence\n", encoding="utf-8")
+    nightly_plugin = release / "plugins" / "tgg-nightly-whatsapp"
+    if include_nightly_plugin:
+        nightly_plugin.mkdir(parents=True)
+        (nightly_plugin / "__init__.py").write_text(
+            "def register(ctx):\n    return None\n", encoding="utf-8"
+        )
+        (nightly_plugin / "plugin.yaml").write_text(
+            "name: tgg-nightly-whatsapp\n", encoding="utf-8"
+        )
     skill = release / "skills" / "spreadsheet-work"
     if include_spreadsheet_skill:
         (skill / "agents").mkdir(parents=True)
@@ -89,6 +99,11 @@ def make_release(
         release_files.extend([
             whatsapp_skill / "SKILL.md",
             whatsapp_skill / "agents" / "openai.yaml",
+        ])
+    if include_nightly_plugin:
+        release_files.extend([
+            nightly_plugin / "__init__.py",
+            nightly_plugin / "plugin.yaml",
         ])
     files = {
         str(path.relative_to(release)): digest(path)
@@ -148,6 +163,16 @@ def test_resolves_external_capability_with_whatsapp_skill(
         include_spreadsheet_skill=include_spreadsheet_skill,
         include_whatsapp_skill=True,
     )
+
+    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert selected is not None
+    assert selected["release_root"] == release.resolve()
+
+
+def test_resolves_external_capability_with_nightly_plugin(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(tmp_path, include_nightly_plugin=True)
 
     selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 

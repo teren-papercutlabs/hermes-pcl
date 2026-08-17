@@ -50,16 +50,24 @@ CAPABILITY_WHATSAPP_SKILL_FILES = frozenset({
     "skills/whatsapp-investigation/SKILL.md",
     "skills/whatsapp-investigation/agents/openai.yaml",
 })
+CAPABILITY_NIGHTLY_PLUGIN_FILES = frozenset({
+    "plugins/tgg-nightly-whatsapp/__init__.py",
+    "plugins/tgg-nightly-whatsapp/plugin.yaml",
+})
 CAPABILITY_OPTIONAL_FILE_SETS = (
     CAPABILITY_SPREADSHEET_SKILL_FILES,
     CAPABILITY_WHATSAPP_SKILL_FILES,
 )
+CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS = (
+    *CAPABILITY_OPTIONAL_FILE_SETS,
+    CAPABILITY_NIGHTLY_PLUGIN_FILES,
+)
 CAPABILITY_ALLOWED_FILE_SETS = {
     CAPABILITY_BASE_FILES
     | frozenset().union(
-        *(files for index, files in enumerate(CAPABILITY_OPTIONAL_FILE_SETS) if mask & (1 << index))
+        *(files for index, files in enumerate(CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS) if mask & (1 << index))
     )
-    for mask in range(1 << len(CAPABILITY_OPTIONAL_FILE_SETS))
+    for mask in range(1 << len(CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS))
 }
 PROVIDER_PROFILES = frozenset({"openai-direct-primary", "openai-codex"})
 DEFAULT_PROVIDER_PROFILE = "openai-direct-primary"
