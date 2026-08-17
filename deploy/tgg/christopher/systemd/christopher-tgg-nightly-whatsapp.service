@@ -1,0 +1,18 @@
+[Unit]
+Description=Christopher TGG nightly WhatsApp shadow batch trigger
+After=network-online.target christopher-tgg-hermes.service systems-papercut-labs.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pclaw
+Group=pclaw
+WorkingDirectory=/home/pclaw/apps/hermes-pcl
+Environment=HOME=/home/pclaw
+Environment=HERMES_HOME=/home/pclaw/.hermes-christopher-tgg
+EnvironmentFile=/home/pclaw/.hermes-christopher-tgg/.env
+ExecStart=/home/pclaw/apps/hermes-pcl/.venv/bin/python /home/pclaw/apps/hermes-pcl/deploy/tgg/christopher/scripts/run_nightly_whatsapp.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+

@@ -51,6 +51,8 @@ spec:
         - /etc/systemd/system/christopher-tgg-report-weekly.timer
         - /etc/systemd/system/christopher-tgg-report-monthly.service
         - /etc/systemd/system/christopher-tgg-report-monthly.timer
+        - /etc/systemd/system/christopher-tgg-nightly-whatsapp.service
+        - /etc/systemd/system/christopher-tgg-nightly-whatsapp.timer
         - /etc/systemd/system/christopher-tgg-retention-cleanup.service
         - /etc/systemd/system/christopher-tgg-retention-cleanup.timer
     capture:
@@ -323,6 +325,12 @@ spec:
       - name: christopher-tgg-report-monthly.timer
         desiredState: disabled
         source: deploy/tgg/christopher/systemd/christopher-tgg-report-monthly.timer
+      - name: christopher-tgg-nightly-whatsapp.service
+        desiredState: oneshot-on-timer
+        source: deploy/tgg/christopher/systemd/christopher-tgg-nightly-whatsapp.service
+      - name: christopher-tgg-nightly-whatsapp.timer
+        desiredState: active-enabled
+        source: deploy/tgg/christopher/systemd/christopher-tgg-nightly-whatsapp.timer
       - name: christopher-tgg-retention-cleanup.service
         desiredState: oneshot-on-timer
         source: deploy/tgg/christopher/systemd/christopher-tgg-retention-cleanup.service

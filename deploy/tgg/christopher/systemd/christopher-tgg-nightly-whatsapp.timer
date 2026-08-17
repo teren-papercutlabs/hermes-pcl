@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule Christopher TGG nightly WhatsApp shadow batch
+
+[Timer]
+OnCalendar=*-*-* 00:15:00 Asia/Singapore
+Persistent=true
+Unit=christopher-tgg-nightly-whatsapp.service
+
+[Install]
+WantedBy=timers.target

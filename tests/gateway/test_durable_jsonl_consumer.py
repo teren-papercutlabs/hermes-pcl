@@ -2317,6 +2317,50 @@ def test_pending_chat_batches_are_fifo_and_split_management_capacity(tmp_path):
     ]
 
 
+def test_priority_selector_includes_internal_nightly_without_widening_management(tmp_path):
+    constitution = tmp_path / "constitution.yaml"
+    constitution.write_text(yaml.safe_dump({
+        "selectors": [
+            {"job_type": "ops_ingest", "match": {"source.platform": "whatsapp", "source.chat_id": "site@g.us"}},
+            {"job_type": "tgg_management", "match": {"source.platform": "whatsapp", "source.chat_id": "management@g.us"}},
+            {"job_type": "tgg_nightly_whatsapp", "match": {"source.platform": "whatsapp", "source.chat_id": "900000000000000001@g.us"}},
+        ],
+    }), encoding="utf-8")
+    config = tmp_path / "config.yaml"
+    config.write_text(yaml.safe_dump({"pa": {"constitution_path": str(constitution)}}), encoding="utf-8")
+
+    assert consumer._management_selector_chats(config) == {"management@g.us"}
+    assert consumer._priority_selector_chats(config) == {
+        "management@g.us", "900000000000000001@g.us",
+    }
+
+
+def test_internal_nightly_trigger_is_exact_and_never_reclassifies_management(tmp_path):
+    constitution = tmp_path / "constitution.yaml"
+    constitution.write_text(yaml.safe_dump({
+        "selectors": [
+            {"job_type": "tgg_management", "match": {"source.platform": "whatsapp", "source.chat_id": "management@g.us"}},
+            {"job_type": "tgg_nightly_whatsapp", "match": {"source.platform": "whatsapp", "source.chat_id": "900000000000000001@g.us"}},
+        ],
+    }), encoding="utf-8")
+    config = tmp_path / "config.yaml"
+    config.write_text(yaml.safe_dump({"pa": {"constitution_path": str(constitution)}}), encoding="utf-8")
+
+    exact = _message("nightly", "900000000000000001@g.us")
+    exact.update({
+        "senderId": "system@internal",
+        "body": "[system] process TGG WhatsApp batch for 2026-08-17",
+    })
+    wrong_chat = dict(exact, chatId="management@g.us")
+    wrong_sender = dict(exact, senderId="operator@internal")
+    wrong_body = dict(exact, body="[system] process TGG WhatsApp batch now")
+
+    assert consumer._priority_direct_trigger(consumer.InboxRecord(1, "nightly", exact["chatId"], 1, 1, exact), config)
+    assert not consumer._priority_direct_trigger(consumer.InboxRecord(2, "wrong-chat", wrong_chat["chatId"], 2, 2, wrong_chat), config)
+    assert not consumer._priority_direct_trigger(consumer.InboxRecord(3, "wrong-sender", wrong_sender["chatId"], 3, 3, wrong_sender), config)
+    assert not consumer._priority_direct_trigger(consumer.InboxRecord(4, "wrong-body", wrong_body["chatId"], 4, 4, wrong_body), config)
+
+
 def test_management_chat_waits_for_configured_trailing_quiet(tmp_path):
     inbox = consumer.DurableInbox(tmp_path / "inbox.db")
     source = tmp_path / "events.jsonl"

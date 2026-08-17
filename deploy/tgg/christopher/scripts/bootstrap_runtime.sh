@@ -99,13 +99,16 @@ for unit in \
   christopher-tgg-report-weekly.service \
   christopher-tgg-report-weekly.timer \
   christopher-tgg-report-monthly.service \
-  christopher-tgg-report-monthly.timer; do
+  christopher-tgg-report-monthly.timer \
+  christopher-tgg-nightly-whatsapp.service \
+  christopher-tgg-nightly-whatsapp.timer; do
   ln -sfn "$DEPLOY_ROOT/systemd/$unit" "/etc/systemd/system/$unit"
 done
 systemctl daemon-reload
 systemctl enable christopher-tgg-hermes.service >/dev/null
 systemctl enable --now christopher-tgg-hermes-health.timer >/dev/null
 systemctl enable --now christopher-tgg-retention-cleanup.timer >/dev/null
+systemctl enable --now christopher-tgg-nightly-whatsapp.timer >/dev/null
 
 schedule_enabled="$($APP_ROOT/.venv/bin/python - "$HERMES_HOME/config.yaml" <<'PY'
 import sys, yaml

@@ -265,6 +265,10 @@ if systemctl is-enabled --quiet christopher-tgg-report-monthly.timer; then
   echo "monthly report timer must ship disabled" >&2
   exit 35
 fi
+if ! systemctl is-enabled --quiet christopher-tgg-nightly-whatsapp.timer; then
+  echo "nightly WhatsApp shadow timer must be enabled" >&2
+  exit 35
+fi
 
 "$APP_ROOT/.venv/bin/python" \
   "$DEPLOY_ROOT/scripts/validate_deployment_spec.py" \

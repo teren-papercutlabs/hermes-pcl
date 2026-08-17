@@ -2630,6 +2630,35 @@ def _management_selector_chats(config_path: Path) -> frozenset[str]:
     return frozenset(chats)
 
 
+def _priority_selector_chats(config_path: Path) -> frozenset[str]:
+    """Internal and management chats that keep reserved consumer capacity.
+
+    Management remains the only reply-delivery class.  The separate nightly
+    selector is included only for scheduling while site ingestion is paused.
+    """
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    pa = data.get("pa") if isinstance(data, dict) else None
+    constitution_raw = str((pa or {}).get("constitution_path") or "")
+    if not constitution_raw:
+        return frozenset()
+    constitution_path = Path(constitution_raw)
+    if not constitution_path.is_file():
+        return frozenset()
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8")) or {}
+    chats: set[str] = set()
+    for selector in constitution.get("selectors") or []:
+        if not isinstance(selector, Mapping):
+            continue
+        match = selector.get("match") or {}
+        if (
+            selector.get("job_type") in {"tgg_management", "tgg_nightly_whatsapp"}
+            and match.get("source.platform") == "whatsapp"
+            and match.get("source.chat_id")
+        ):
+            chats.add(str(match.get("source.chat_id")))
+    return frozenset(chats)
+
+
 def _management_quiet_seconds(config_path: Path) -> float:
     """Configured trailing-quiet window before a management turn starts."""
     data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -2688,6 +2717,19 @@ def _management_direct_trigger(record: InboxRecord) -> bool:
         return True
     quoted_participant = _normalize_whatsapp_id(item.get("quotedParticipant"))
     return bool(quoted_participant and quoted_participant in bot_ids)
+
+
+def _priority_direct_trigger(record: InboxRecord, config_path: Path) -> bool:
+    """Accept normal management triggers or the exact internal nightly trigger."""
+    if _management_direct_trigger(record):
+        return True
+    item = _bridge_item(record.raw)
+    if bool(item.get("fromMe")) or str(item.get("senderId") or "") != "system@internal":
+        return False
+    body = str(item.get("body") or item.get("text") or "").strip()
+    if not re.fullmatch(r"\[system\] process TGG WhatsApp batch for \d{4}-\d{2}-\d{2}", body):
+        return False
+    return record.chat_id in (_priority_selector_chats(config_path) - _management_selector_chats(config_path))
 
 
 def _parse_captured_send(entry: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -3433,7 +3475,7 @@ async def _process_claimed_chat_batch(
         raise ConsumerError(f"scheduler produced a mixed-chat batch: {sorted(chat_ids)}")
     inbox.claim(records)
     if direct_trigger_required and not any(
-        _management_direct_trigger(record) for record in records
+        _priority_direct_trigger(record, config_path) for record in records
     ):
         # Management chatter is retained and auditable, but it is not an agent
         # turn unless Christopher was mentioned or one of his messages was quoted.
@@ -3776,7 +3818,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                 )
 
                 try:
-                    priority_chats = _management_selector_chats(config_path)
+                    priority_chats = _priority_selector_chats(config_path)
                 except Exception:
                     priority_chats = frozenset()
                 demo_management_only = os.environ.get(

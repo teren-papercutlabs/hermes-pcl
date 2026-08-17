@@ -340,6 +340,34 @@ def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path)
     assert runner.main() == 0
 
 
+def test_nightly_whatsapp_trigger_is_internal_idempotent_and_outbound_disabled(monkeypatch, tmp_path):
+    script = DEPLOY / "scripts" / "run_nightly_whatsapp.py"
+    spec = importlib.util.spec_from_file_location("christopher_nightly_whatsapp", script)
+    runner = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(runner)
+
+    record = runner.build_record("2026-08-17", now=123)
+    assert record["chatId"] == "900000000000000001@g.us"
+    assert record["senderId"] == "system@internal"
+    assert record["body"] == "[system] process TGG WhatsApp batch for 2026-08-17"
+    assert record["fromMe"] is False
+
+    source = tmp_path / "events.jsonl"
+    source.write_text("", encoding="utf-8")
+    receipts = tmp_path / "receipts"
+    monkeypatch.setattr(runner, "DEFAULT_SOURCE", str(source.resolve()))
+    assert runner.append_once(source, receipts, record) is True
+    assert runner.append_once(source, receipts, record) is False
+    assert len(source.read_text(encoding="utf-8").splitlines()) == 1
+    receipt = json.loads((receipts / "2026-08-17.json").read_text())
+    assert receipt["external_outbound_sent"] == 0
+    assert receipt["message_id"] == record["messageId"]
+
+    timer = (DEPLOY / "systemd" / "christopher-tgg-nightly-whatsapp.timer").read_text()
+    assert "00:15:00 Asia/Singapore" in timer
+
+
 def test_shared_runtime_files_have_no_new_report_domain_adapter():
     # The adapter and judgment vocabulary stay below the per-client deploy root.
     changed_surface = [PLUGIN, DEPLOY / "patches" / "report-operations-management.snippet.yaml"]
