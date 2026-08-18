@@ -2659,6 +2659,31 @@ def _priority_selector_chats(config_path: Path) -> frozenset[str]:
     return frozenset(chats)
 
 
+def _nightly_selector_chats(config_path: Path) -> frozenset[str]:
+    """Internal WhatsApp chats bound to isolated nightly analyzer sessions."""
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    pa = data.get("pa") if isinstance(data, dict) else None
+    constitution_raw = str((pa or {}).get("constitution_path") or "")
+    if not constitution_raw:
+        return frozenset()
+    constitution_path = Path(constitution_raw)
+    if not constitution_path.is_file():
+        return frozenset()
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8")) or {}
+    chats: set[str] = set()
+    for selector in constitution.get("selectors") or []:
+        if not isinstance(selector, Mapping):
+            continue
+        match = selector.get("match") or {}
+        if (
+            selector.get("job_type") == "tgg_nightly_whatsapp"
+            and match.get("source.platform") == "whatsapp"
+            and match.get("source.chat_id")
+        ):
+            chats.add(str(match.get("source.chat_id")))
+    return frozenset(chats)
+
+
 def _management_quiet_seconds(config_path: Path) -> float:
     """Configured trailing-quiet window before a management turn starts."""
     data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -3501,6 +3526,7 @@ async def _process_claimed_chat_batch(
     allow_active_steering: bool = False,
     steering_poll_seconds: float = 0.5,
     steering_batch_size: int = 25,
+    persistent_session: bool = True,
 ) -> None:
     """Claim and process exactly one chat batch through the shared runner."""
     if not records:
@@ -3562,7 +3588,7 @@ async def _process_claimed_chat_batch(
                     records,
                     config_path=config_path,
                     state_db=state_db,
-                    persistent_session=True,
+                    persistent_session=persistent_session,
                     runner=runner,
                 )
             )
@@ -3593,6 +3619,7 @@ async def _process_claimed_chat_batch(
                             runner=runner,
                             direct_trigger_required=False,
                             allow_active_steering=False,
+                            persistent_session=persistent_session,
                         )
                     except Exception as exc:
                         print(
@@ -3854,8 +3881,10 @@ async def run_consumer(args: argparse.Namespace) -> int:
 
                 try:
                     priority_chats = _priority_selector_chats(config_path)
+                    nightly_chats = _nightly_selector_chats(config_path)
                 except Exception:
                     priority_chats = frozenset()
+                    nightly_chats = frozenset()
                 demo_management_only = os.environ.get(
                     "TGG_DEMO_MANAGEMENT_ONLY", ""
                 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -3893,6 +3922,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             source_before_image_dir=source_before_image_dir,
                             direct_trigger_required=True,
                             allow_active_steering=True,
+                            persistent_session=chat_id not in nightly_chats,
                         )
                     )
                     lanes[chat_id] = "management"

@@ -2333,6 +2333,9 @@ def test_priority_selector_includes_internal_nightly_without_widening_management
     assert consumer._priority_selector_chats(config) == {
         "management@g.us", "900000000000000001@g.us",
     }
+    assert consumer._nightly_selector_chats(config) == {
+        "900000000000000001@g.us",
+    }
 
 
 def test_internal_nightly_trigger_is_exact_and_never_reclassifies_management(tmp_path):
@@ -2404,6 +2407,60 @@ def test_six_session_nightly_trigger_validates_role_assignment_and_body(tmp_path
         assert not consumer._priority_direct_trigger(
             consumer.InboxRecord(2, f"tampered-{key}", tampered["chatId"], 2, 2, tampered), config
         )
+
+
+@pytest.mark.asyncio
+async def test_nightly_selector_runs_in_fresh_session_while_management_stays_persistent(
+    tmp_path, monkeypatch
+):
+    nightly_chat = "900000000000000001@g.us"
+    batch_id = "nightly:2026-08-17:0123456789ab"
+    nightly = _message("nightly-fresh", nightly_chat)
+    nightly.update({
+        "senderId": "system@internal",
+        "body": (
+            f"Nightly WhatsApp analyzer. batch_id={batch_id}. "
+            "authoritative_chat_id=120363421424519051@g.us. "
+            "Read only that frozen chat through the nightly plugin, investigate it, "
+            "and submit its immutable chat receipt."
+        ),
+        "metadata": {
+            "job_type": "tgg_nightly_whatsapp",
+            "nightly_batch_id": batch_id,
+            "nightly_role": "amk",
+            "authoritative_chat_id": "120363421424519051@g.us",
+        },
+    })
+    args = _enabled_consumer_args(tmp_path, [nightly])
+    constitution = Path(yaml.safe_load(Path(args.config).read_text())["pa"]["constitution_path"])
+    constitution.write_text(yaml.safe_dump({
+        "selectors": [
+            {"job_type": "tgg_management", "match": {
+                "source.platform": "whatsapp", "source.chat_id": "management@g.us",
+            }},
+            {"job_type": "tgg_nightly_whatsapp", "match": {
+                "source.platform": "whatsapp", "source.chat_id": nightly_chat,
+            }},
+        ],
+    }), encoding="utf-8")
+    observed: list[bool] = []
+
+    async def fake_process(records, **kwargs):
+        observed.append(kwargs["persistent_session"])
+        return {
+            "processed": len(records),
+            "submitted_message_ids": [record.message_id for record in records],
+            "handled": [{
+                "message_ids": [record.message_id for record in records],
+                "turn_id": "turn-nightly-fresh",
+            }],
+            "captured_outbound": [],
+        }
+
+    monkeypatch.setattr(consumer, "process_live_records", fake_process)
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    assert await consumer.run_consumer(args) == 0
+    assert observed == [False]
 
 
 def test_management_chat_waits_for_configured_trailing_quiet(tmp_path):
