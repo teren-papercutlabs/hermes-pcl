@@ -2361,6 +2361,51 @@ def test_internal_nightly_trigger_is_exact_and_never_reclassifies_management(tmp
     assert not consumer._priority_direct_trigger(consumer.InboxRecord(4, "wrong-body", wrong_body["chatId"], 4, 4, wrong_body), config)
 
 
+def test_six_session_nightly_trigger_validates_role_assignment_and_body(tmp_path):
+    constitution = tmp_path / "constitution.yaml"
+    nightly_ids = [f"90000000000000000{index}@g.us" for index in range(1, 7)]
+    constitution.write_text(yaml.safe_dump({
+        "selectors": [
+            {"job_type": "tgg_nightly_whatsapp", "match": {
+                "source.platform": "whatsapp", "source.chat_id": chat_id,
+            }}
+            for chat_id in nightly_ids
+        ],
+    }), encoding="utf-8")
+    config = tmp_path / "config.yaml"
+    config.write_text(yaml.safe_dump({"pa": {"constitution_path": str(constitution)}}), encoding="utf-8")
+    batch_id = "nightly:2026-08-17:0123456789ab"
+    exact = _message("nightly-six", nightly_ids[0])
+    exact.update({
+        "senderId": "system@internal",
+        "body": (
+            f"Nightly WhatsApp analyzer. batch_id={batch_id}. "
+            "authoritative_chat_id=120363421424519051@g.us. "
+            "Read only that frozen chat through the nightly plugin, investigate it, "
+            "and submit its immutable chat receipt."
+        ),
+        "metadata": {
+            "job_type": "tgg_nightly_whatsapp",
+            "nightly_batch_id": batch_id,
+            "nightly_role": "amk",
+            "authoritative_chat_id": "120363421424519051@g.us",
+        },
+    })
+    assert consumer._priority_direct_trigger(
+        consumer.InboxRecord(1, "nightly-six", exact["chatId"], 1, 1, exact), config
+    )
+    for key, value in (
+        ("nightly_role", "pg"),
+        ("authoritative_chat_id", "120363423568509280@g.us"),
+        ("nightly_batch_id", "nightly:2026-08-17:not-a-digest"),
+    ):
+        tampered = json.loads(json.dumps(exact))
+        tampered["metadata"][key] = value
+        assert not consumer._priority_direct_trigger(
+            consumer.InboxRecord(2, f"tampered-{key}", tampered["chatId"], 2, 2, tampered), config
+        )
+
+
 def test_management_chat_waits_for_configured_trailing_quiet(tmp_path):
     inbox = consumer.DurableInbox(tmp_path / "inbox.db")
     source = tmp_path / "events.jsonl"

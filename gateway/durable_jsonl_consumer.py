@@ -2726,10 +2726,45 @@ def _priority_direct_trigger(record: InboxRecord, config_path: Path) -> bool:
     item = _bridge_item(record.raw)
     if bool(item.get("fromMe")) or str(item.get("senderId") or "") != "system@internal":
         return False
-    body = str(item.get("body") or item.get("text") or "").strip()
-    if not re.fullmatch(r"\[system\] process TGG WhatsApp batch for \d{4}-\d{2}-\d{2}", body):
+    nightly_chats = _priority_selector_chats(config_path) - _management_selector_chats(config_path)
+    if record.chat_id not in nightly_chats:
         return False
-    return record.chat_id in (_priority_selector_chats(config_path) - _management_selector_chats(config_path))
+    body = str(item.get("body") or item.get("text") or "").strip()
+    if re.fullmatch(r"\[system\] process TGG WhatsApp batch for \d{4}-\d{2}-\d{2}", body):
+        return True
+
+    metadata = item.get("metadata")
+    if not isinstance(metadata, Mapping) or metadata.get("job_type") != "tgg_nightly_whatsapp":
+        return False
+    batch_id = str(metadata.get("nightly_batch_id") or "")
+    role = str(metadata.get("nightly_role") or "")
+    authoritative = metadata.get("authoritative_chat_id")
+    assignments: dict[str, tuple[str, str | None]] = {
+        "900000000000000001@g.us": ("amk", "120363421424519051@g.us"),
+        "900000000000000002@g.us": ("hg", "120363422582425366@g.us"),
+        "900000000000000003@g.us": ("pg", "120363423568509280@g.us"),
+        "900000000000000004@g.us": ("sk", "120363403845802098@g.us"),
+        "900000000000000005@g.us": ("rental", "120363421153247095@g.us"),
+        "900000000000000006@g.us": ("consolidator", None),
+    }
+    expected = assignments.get(record.chat_id)
+    if (
+        expected is None
+        or (role, authoritative) != expected
+        or not re.fullmatch(r"nightly:\d{4}-\d{2}-\d{2}:[0-9a-f]{12}", batch_id)
+    ):
+        return False
+    if role == "consolidator":
+        expected_body = (
+            f"Nightly WhatsApp consolidation. batch_id={batch_id}. "
+            "Wait for and read all five verified chat receipts, then submit decisions and finish the batch."
+        )
+    else:
+        expected_body = (
+            f"Nightly WhatsApp analyzer. batch_id={batch_id}. authoritative_chat_id={authoritative}. "
+            "Read only that frozen chat through the nightly plugin, investigate it, and submit its immutable chat receipt."
+        )
+    return body == expected_body
 
 
 def _parse_captured_send(entry: Mapping[str, Any]) -> dict[str, Any] | None:
