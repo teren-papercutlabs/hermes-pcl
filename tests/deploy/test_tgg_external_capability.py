@@ -36,6 +36,7 @@ def make_release(
     include_spreadsheet_skill: bool = False,
     include_whatsapp_skill: bool = False,
     include_nightly_plugin: bool = False,
+    include_nightly_launcher: bool = False,
 ) -> tuple[Path, Path, Path]:
     home = tmp_path / "home"
     runtime = home / "runtime"
@@ -67,6 +68,10 @@ def make_release(
         (nightly_plugin / "plugin.yaml").write_text(
             "name: tgg-nightly-whatsapp\n", encoding="utf-8"
         )
+    nightly_launcher = release / "scripts" / "run-nightly-whatsapp.py"
+    if include_nightly_launcher:
+        nightly_launcher.parent.mkdir(parents=True)
+        nightly_launcher.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
     skill = release / "skills" / "spreadsheet-work"
     if include_spreadsheet_skill:
         (skill / "agents").mkdir(parents=True)
@@ -107,6 +112,8 @@ def make_release(
             nightly_plugin / "__init__.py",
             nightly_plugin / "plugin.yaml",
         ])
+    if include_nightly_launcher:
+        release_files.append(nightly_launcher)
     files = {
         str(path.relative_to(release)): digest(path)
         for path in release_files
@@ -175,6 +182,20 @@ def test_resolves_external_capability_with_whatsapp_skill(
 def test_resolves_external_capability_with_nightly_plugin(tmp_path: Path) -> None:
     module = load_module()
     home, runtime, release = make_release(tmp_path, include_nightly_plugin=True)
+
+    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert selected is not None
+    assert selected["release_root"] == release.resolve()
+
+
+def test_resolves_external_capability_with_nightly_launcher(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(
+        tmp_path,
+        include_nightly_plugin=True,
+        include_nightly_launcher=True,
+    )
 
     selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
