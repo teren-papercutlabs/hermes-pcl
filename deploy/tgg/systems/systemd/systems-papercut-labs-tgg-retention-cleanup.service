@@ -7,9 +7,7 @@ Type=oneshot
 User=root
 WorkingDirectory=/home/pclaw/apps/hermes-pcl
 ExecStartPre=/usr/bin/install -d -o root -g pclaw -m 0750 /home/pclaw/.systems-pcl/data/retention-receipts
-# Safe installation default: receipt-only preview. Add --apply only after the
-# first production candidate receipt has been reviewed and deletion approved.
-ExecStart=/home/pclaw/apps/hermes-pcl/.venv/bin/python /home/pclaw/apps/hermes-pcl/deploy/tgg/systems/scripts/systems_retention_cleanup.py --policy /home/pclaw/apps/hermes-pcl/deploy/tgg/systems/retention-policy.tgg-app-1.yaml --receipt-dir /home/pclaw/.systems-pcl/data/retention-receipts
+ExecStart=/home/pclaw/apps/hermes-pcl/.venv/bin/python /home/pclaw/apps/hermes-pcl/deploy/tgg/systems/scripts/systems_retention_cleanup.py --policy /home/pclaw/apps/hermes-pcl/deploy/tgg/systems/retention-policy.tgg-app-1.yaml --receipt-dir /home/pclaw/.systems-pcl/data/retention-receipts --apply
 UMask=0027
 NoNewPrivileges=true
 PrivateTmp=false
