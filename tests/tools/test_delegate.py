@@ -1391,6 +1391,68 @@ class TestChildCredentialPoolResolution(unittest.TestCase):
 
 
 class TestChildCredentialLeasing(unittest.TestCase):
+    def test_context_submit_helper_carries_gateway_selector(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from gateway.session_context import (
+            clear_session_vars,
+            get_session_env,
+            set_session_vars,
+        )
+        from tools.delegate_tool import _submit_with_context
+
+        tokens = set_session_vars(
+            platform="whatsapp", chat_id="900000000000000001@g.us"
+        )
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                observed = _submit_with_context(
+                    executor,
+                    get_session_env,
+                    "HERMES_SESSION_CHAT_ID",
+                ).result()
+        finally:
+            clear_session_vars(tokens)
+
+        self.assertEqual(observed, "900000000000000001@g.us")
+
+    def test_child_runner_inherits_gateway_session_context(self):
+        from gateway.session_context import (
+            clear_session_vars,
+            get_session_env,
+            set_session_vars,
+        )
+        from tools.delegate_tool import _run_single_child
+
+        observed = {}
+        child = MagicMock()
+
+        def inspect_context(**_kwargs):
+            observed["chat_id"] = get_session_env("HERMES_SESSION_CHAT_ID")
+            return {
+                "final_response": "done",
+                "completed": True,
+                "interrupted": False,
+                "api_calls": 1,
+                "messages": [],
+            }
+
+        child.run_conversation.side_effect = inspect_context
+        tokens = set_session_vars(
+            platform="whatsapp", chat_id="900000000000000001@g.us"
+        )
+        try:
+            result = _run_single_child(
+                task_index=0,
+                goal="Inspect delegated context",
+                child=child,
+                parent_agent=_make_mock_parent(),
+            )
+        finally:
+            clear_session_vars(tokens)
+
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(observed["chat_id"], "900000000000000001@g.us")
+
     def test_run_single_child_acquires_and_releases_lease(self):
         from tools.delegate_tool import _run_single_child
 

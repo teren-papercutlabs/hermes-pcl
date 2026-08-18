@@ -19,6 +19,7 @@ never the child's intermediate tool calls or reasoning.
 import enum
 import json
 import logging
+from contextvars import copy_context
 
 logger = logging.getLogger(__name__)
 import os
@@ -130,6 +131,12 @@ MAX_DEPTH = 1  # flat by default: parent (0) -> child (1); grandchild rejected u
 # stays as the default fallback and is still the symbol tests import.
 _MIN_SPAWN_DEPTH = 1
 _MAX_SPAWN_DEPTH_CAP = 3
+
+
+def _submit_with_context(executor, fn, /, *args, **kwargs):
+    """Submit one callable with the caller's task-local ContextVars."""
+    context = copy_context()
+    return executor.submit(context.run, fn, *args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -1548,7 +1555,12 @@ def _run_single_child(
                 task_id=child_task_id,
             )
 
-        _child_future = _timeout_executor.submit(_run_with_thread_capture)
+        # ThreadPoolExecutor does not propagate ContextVars.  Preserve the
+        # gateway's session-local selector context so delegated tools resolve
+        # the same PA/client/job boundary as their parent.
+        _child_future = _submit_with_context(
+            _timeout_executor, _run_with_thread_capture
+        )
         _touch_parent_delegate_activity()
         try:
             result = _child_future.result(timeout=child_timeout)
@@ -2186,8 +2198,12 @@ def delegate_task(
                 except ValueError:
                     pass
 
+            _async_context = copy_context()
+
             def _async_runner(_child=child, _goal=_t["goal"]):
-                return _run_single_child(0, _goal, _child, parent_agent)
+                return _async_context.run(
+                    _run_single_child, 0, _goal, _child, parent_agent
+                )
 
             def _async_interrupt(_child=child):
                 try:
@@ -2243,12 +2259,13 @@ def delegate_task(
         with ThreadPoolExecutor(max_workers=max_children) as executor:
             futures = {}
             for i, t, child in children:
-                future = executor.submit(
+                future = _submit_with_context(
+                    executor,
                     _run_single_child,
-                    task_index=i,
-                    goal=t["goal"],
-                    child=child,
-                    parent_agent=parent_agent,
+                    i,
+                    t["goal"],
+                    child,
+                    parent_agent,
                 )
                 futures[future] = i
 
