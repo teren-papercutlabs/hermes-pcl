@@ -717,6 +717,7 @@ print(json.loads(pathlib.Path(sys.argv[1]).read_text())["credential_label"])
 PY
 )"
   runuser -u pclaw -- env HERMES_HOME="$HERMES_HOME" \
+    PYTHONPATH="$APP_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_codex_auth.py" \
       --hermes-home "$HERMES_HOME" --credential-label "$codex_label" --service-user pclaw
 fi

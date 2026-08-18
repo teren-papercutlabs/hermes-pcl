@@ -379,6 +379,11 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert "christopher-tgg-systems.service" not in verify_script
     assert "singpass-pair-server.service" not in verify_script
     assert (
+        'PYTHONPATH="$APP_ROOT${PYTHONPATH:+:$PYTHONPATH}" \\\n'
+        '    "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/verify_codex_auth.py"'
+        in verify_script
+    )
+    assert (
         'APP_ROOT="$APP_ROOT" VERIFY_PYTHON="$APP_ROOT/.venv/bin/python" \\\n'
         '  "$0" --verify-status-contract \\\n'
         '  "$HERMES_HOME/config.yaml" \\\n'
