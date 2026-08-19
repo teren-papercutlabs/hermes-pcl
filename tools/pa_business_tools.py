@@ -1792,12 +1792,14 @@ def _download_current_case_photo(
     if bridge.media_root is None:
         raise ValueError("MEDIA_ROOT_NOT_CONFIGURED: case photo root is unavailable")
     cache_root = bridge.media_root.expanduser().resolve(strict=True) / ".case-media-cache"
-    cache_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    cache_root.mkdir(parents=True, exist_ok=True, mode=0o750)
     candidate = cache_root / f"{digest}{_TGG_IMAGE_SUFFIX_BY_MIME[detected]}"
     if not candidate.exists() or candidate.read_bytes() != data:
         temporary = cache_root / f".{digest}.{os.getpid()}.tmp"
         temporary.write_bytes(data)
-        os.chmod(temporary, 0o600)
+        # The capture bridge reads the verified file through a narrowly scoped
+        # host ACL; group-read also keeps that ACL effective after chmod.
+        os.chmod(temporary, 0o640)
         temporary.replace(candidate)
     return ref, str(candidate.resolve())
 
