@@ -8707,10 +8707,10 @@ class GatewayRunner:
                     }:
                         action = (
                             "This spreadsheet passed MIME, extension, and content "
-                            "verification. Use tgg_spreadsheet_job_numbers to read "
-                            "its job-number column, then feed those exact numbers to "
-                            "the existing tgg_case_query cross-check. Do not ask the "
-                            "user to convert it."
+                            "verification and is available to the spreadsheet tools. "
+                            "Use the relevant task-specific or spreadsheet skill for "
+                            "the user's request. Do not assume that the workbook is a "
+                            "job-number list or ask the user to convert it."
                         )
                     else:
                         action = "Ask the user what they'd like you to do with it."

@@ -76,6 +76,10 @@ async def test_document_context_names_original_filename_and_sandbox_path(monkeyp
     assert "Original filename: 'Weekly Report.xlsx'" in result
     assert "Sandbox path: /inputs/documents/Weekly Report.xlsx" in result
     assert "Host path: /var/lib/tgg-capture/whatsapp/media/documents/Weekly Report.xlsx" in result
+    assert "Use the relevant task-specific or spreadsheet skill" in result
+    assert "Do not assume that the workbook is a job-number list" in result
+    assert "tgg_spreadsheet_job_numbers" not in result
+    assert "tgg_case_query" not in result
 
 
 def test_fresh_session_meta_exposes_cached_memory_prompt_for_jsonl_audit():
