@@ -1306,6 +1306,7 @@ def test_tgg_case_photos_downloads_authenticated_current_evidence(
     assert materialized.read_bytes() == image
     assert materialized.name == f"{digest}.jpg"
     assert materialized.parent == (tmp_path / "legacy-media" / ".case-media-cache")
+    assert materialized.stat().st_mode & 0o777 == 0o640
 
 
 def test_tgg_case_photos_refuses_current_evidence_for_another_case(
