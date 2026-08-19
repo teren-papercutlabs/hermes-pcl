@@ -2745,7 +2745,12 @@ def _management_direct_trigger(record: InboxRecord) -> bool:
 
 
 def _priority_direct_trigger(record: InboxRecord, config_path: Path) -> bool:
-    """Accept normal management triggers or the exact internal nightly trigger."""
+    """Accept normal management triggers or a structured internal nightly event.
+
+    The nightly event body is model input, not authentication material.  Its
+    routing identity is the reserved source chat plus the structured
+    job/batch/role assignment emitted by Christopher's launcher.
+    """
     if _management_direct_trigger(record):
         return True
     item = _bridge_item(record.raw)
@@ -2754,10 +2759,6 @@ def _priority_direct_trigger(record: InboxRecord, config_path: Path) -> bool:
     nightly_chats = _priority_selector_chats(config_path) - _management_selector_chats(config_path)
     if record.chat_id not in nightly_chats:
         return False
-    body = str(item.get("body") or item.get("text") or "").strip()
-    if re.fullmatch(r"\[system\] process TGG WhatsApp batch for \d{4}-\d{2}-\d{2}", body):
-        return True
-
     metadata = item.get("metadata")
     if not isinstance(metadata, Mapping) or metadata.get("job_type") != "tgg_nightly_whatsapp":
         return False
@@ -2779,17 +2780,7 @@ def _priority_direct_trigger(record: InboxRecord, config_path: Path) -> bool:
         or not re.fullmatch(r"nightly:\d{4}-\d{2}-\d{2}:[0-9a-f]{12}", batch_id)
     ):
         return False
-    if role == "consolidator":
-        expected_body = (
-            f"Nightly WhatsApp consolidation. batch_id={batch_id}. "
-            "Wait for and read all five verified chat receipts, then submit decisions and finish the batch."
-        )
-    else:
-        expected_body = (
-            f"Nightly WhatsApp analyzer. batch_id={batch_id}. authoritative_chat_id={authoritative}. "
-            "Read only that frozen chat through the nightly plugin, investigate it, and submit its immutable chat receipt."
-        )
-    return body == expected_body
+    return True
 
 
 def _parse_captured_send(entry: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -3538,9 +3529,13 @@ async def _process_claimed_chat_batch(
     if direct_trigger_required and not any(
         _priority_direct_trigger(record, config_path) for record in records
     ):
-        # Management chatter is retained and auditable, but it is not an agent
-        # turn unless Christopher was mentioned or one of his messages was quoted.
-        inbox.finish_processed_batch(records, turn_for_message={})
+        # Retain the reason: a consumed-no-turn row must not look like an
+        # unexplained model failure during nightly recovery.
+        inbox.finish(
+            records,
+            status="skipped",
+            error="PRIORITY_DIRECT_TRIGGER_NOT_RECOGNIZED",
+        )
         return
     try:
         # Capture-lane retention normally terminals while the row is pending.
