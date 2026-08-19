@@ -1133,6 +1133,79 @@ def _source_pa_metadata(
     return metadata
 
 
+# A nightly analyzer may finish its first model turn before it has created the
+# immutable chat receipt.  Keep this narrowly scoped to that synthetic job:
+# ordinary conversations and the nightly consolidator retain their existing
+# one-turn behaviour.
+_TGG_NIGHTLY_ANALYZER_JOB_TYPE = "tgg_nightly_whatsapp"
+_TGG_NIGHTLY_MAX_ANALYZER_TURNS = 8
+
+
+def _tgg_nightly_analyzer_trigger(
+    pa_job_type: str | None,
+    pa_context: Mapping[str, Any] | None,
+) -> tuple[str, str] | None:
+    """Return ``(batch_id, authoritative_chat_id)`` for a nightly analyzer.
+
+    The scheduler supplies these fields as PA metadata.  Requiring both keeps
+    the consolidator (which has no authoritative chat) and all user chats out
+    of this job-specific gate.
+    """
+    if pa_job_type != _TGG_NIGHTLY_ANALYZER_JOB_TYPE or not isinstance(pa_context, Mapping):
+        return None
+    batch_id = pa_context.get("nightly_batch_id")
+    chat_id = pa_context.get("authoritative_chat_id")
+    if not isinstance(batch_id, str) or not batch_id:
+        return None
+    if not isinstance(chat_id, str) or not chat_id:
+        return None
+    return batch_id, chat_id
+
+
+def _tgg_nightly_chat_receipt_status(batch_id: str, authoritative_chat_id: str) -> bool | None:
+    """Return receipt presence, or ``None`` when status cannot be verified."""
+    try:
+        from tools.registry import registry
+
+        entry = registry.get_entry("tgg_nightly_get_batch_status")
+        if entry is None:
+            logger.warning("Nightly same-session gate: status tool is not registered")
+            return None
+        raw_status = entry.handler({"batch_id": batch_id})
+        status = json.loads(raw_status) if isinstance(raw_status, str) else raw_status
+        if not isinstance(status, Mapping) or status.get("ok") is not True:
+            logger.warning("Nightly same-session gate: status check failed for %s", batch_id)
+            return None
+        completed = status.get("completed_chat_ids")
+        if not isinstance(completed, list):
+            logger.warning("Nightly same-session gate: malformed status for %s", batch_id)
+            return None
+        return authoritative_chat_id in completed
+    except Exception:
+        logger.exception("Nightly same-session gate: status check raised for %s", batch_id)
+        return None
+
+
+def _tgg_nightly_result_is_terminal_failure(result: Mapping[str, Any]) -> bool:
+    """Do not continue a genuinely failed or interrupted provider turn."""
+    return bool(
+        result.get("failed")
+        or result.get("interrupted")
+        or result.get("error")
+        or result.get("partial")
+    )
+
+
+def _mark_tgg_nightly_completion_incomplete(result: Mapping[str, Any], reason: str) -> dict[str, Any]:
+    """Make an unmet receipt gate visible instead of returning quiet success."""
+    marked = dict(result)
+    notice = f"⚠️ Nightly analyzer incomplete: {reason}"
+    existing = str(marked.get("final_response") or "").strip()
+    marked["final_response"] = f"{existing}\n\n{notice}".strip()
+    marked["nightly_completion_incomplete"] = True
+    return marked
+
+
 def _resolve_pa_context(
     user_config: Mapping[str, Any] | None,
     platform_extra: Mapping[str, Any] | None,
@@ -18338,7 +18411,61 @@ class GatewayRunner:
                 else:
                     _run_message = message
 
-                result = agent.run_conversation(_run_message, conversation_history=agent_history, task_id=session_id)
+                result = agent.run_conversation(
+                    _run_message,
+                    conversation_history=agent_history,
+                    task_id=session_id,
+                )
+
+                nightly_trigger = _tgg_nightly_analyzer_trigger(pa_job_type, pa_context)
+                if nightly_trigger and isinstance(result, Mapping):
+                    batch_id, authoritative_chat_id = nightly_trigger
+                    analyzer_turns = 1
+                    while True:
+                        receipt_present = _tgg_nightly_chat_receipt_status(
+                            batch_id,
+                            authoritative_chat_id,
+                        )
+                        if receipt_present is True or _tgg_nightly_result_is_terminal_failure(result):
+                            break
+                        if receipt_present is None:
+                            result = _mark_tgg_nightly_completion_incomplete(
+                                result,
+                                "the receipt could not be verified",
+                            )
+                            break
+                        if analyzer_turns >= _TGG_NIGHTLY_MAX_ANALYZER_TURNS:
+                            result = _mark_tgg_nightly_completion_incomplete(
+                                result,
+                                "the receipt was still absent after "
+                                f"{_TGG_NIGHTLY_MAX_ANALYZER_TURNS} same-session turns",
+                            )
+                            break
+
+                        # This is intentionally another call on the same object and
+                        # task/session.  Do not synthesize an inbound event: doing so
+                        # creates a second gateway turn and loses the live tool state.
+                        continuation_history = result.get("messages")
+                        if not isinstance(continuation_history, list):
+                            result = _mark_tgg_nightly_completion_incomplete(
+                                result,
+                                "the previous turn returned no reusable conversation history",
+                            )
+                            break
+                        completion_prompt = (
+                            "The immutable nightly chat receipt is still missing for "
+                            f"authoritative_chat_id={authoritative_chat_id}. Continue this same "
+                            "batch session now: finish the required investigation and submit the "
+                            "receipt. Do not summarize completion until the receipt exists."
+                        )
+                        result = agent.run_conversation(
+                            completion_prompt,
+                            conversation_history=continuation_history,
+                            task_id=session_id,
+                        )
+                        analyzer_turns += 1
+                        if not isinstance(result, Mapping):
+                            break
             finally:
                 unregister_gateway_notify(_approval_session_key)
                 # Cancel any pending clarify entries so blocked agent
