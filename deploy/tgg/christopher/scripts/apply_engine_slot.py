@@ -42,14 +42,6 @@ CAPABILITY_BASE_FILES = frozenset({
     "plugins/tgg-whatsapp-evidence/__init__.py",
     "plugins/tgg-whatsapp-evidence/plugin.yaml",
 })
-CAPABILITY_SPREADSHEET_SKILL_FILES = frozenset({
-    "skills/spreadsheet-work/SKILL.md",
-    "skills/spreadsheet-work/agents/openai.yaml",
-})
-CAPABILITY_WHATSAPP_SKILL_FILES = frozenset({
-    "skills/whatsapp-investigation/SKILL.md",
-    "skills/whatsapp-investigation/agents/openai.yaml",
-})
 CAPABILITY_NIGHTLY_PLUGIN_FILES = frozenset({
     "plugins/tgg-nightly-whatsapp/__init__.py",
     "plugins/tgg-nightly-whatsapp/plugin.yaml",
@@ -57,22 +49,18 @@ CAPABILITY_NIGHTLY_PLUGIN_FILES = frozenset({
 CAPABILITY_NIGHTLY_LAUNCHER_FILES = frozenset({
     "scripts/run-nightly-whatsapp.py",
 })
-CAPABILITY_OPTIONAL_FILE_SETS = (
-    CAPABILITY_SPREADSHEET_SKILL_FILES,
-    CAPABILITY_WHATSAPP_SKILL_FILES,
-)
 CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS = (
-    *CAPABILITY_OPTIONAL_FILE_SETS,
     CAPABILITY_NIGHTLY_PLUGIN_FILES,
     CAPABILITY_NIGHTLY_LAUNCHER_FILES,
 )
-CAPABILITY_ALLOWED_FILE_SETS = {
+CAPABILITY_ALLOWED_NON_SKILL_FILE_SETS = {
     CAPABILITY_BASE_FILES
     | frozenset().union(
         *(files for index, files in enumerate(CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS) if mask & (1 << index))
     )
     for mask in range(1 << len(CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS))
 }
+CAPABILITY_SKILL_SLUG = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?")
 PROVIDER_PROFILES = frozenset({"openai-direct-primary", "openai-codex"})
 DEFAULT_PROVIDER_PROFILE = "openai-direct-primary"
 
@@ -307,6 +295,73 @@ def _parse_sums(path: Path) -> dict[str, str]:
     return values
 
 
+def _capability_skill_files(files: dict[str, str]) -> dict[str, set[str]]:
+    """Validate and group inert, manifest-pinned external skill files."""
+    non_skill_files = frozenset(name for name in files if not name.startswith("skills/"))
+    if non_skill_files not in CAPABILITY_ALLOWED_NON_SKILL_FILE_SETS:
+        raise RuntimeError("external capability file set mismatch")
+
+    grouped: dict[str, set[str]] = {}
+    for relative in files:
+        if not relative.startswith("skills/"):
+            continue
+        parts = relative.split("/")
+        if (
+            len(parts) < 3
+            or any(not part or part in {".", ".."} for part in parts)
+            or not CAPABILITY_SKILL_SLUG.fullmatch(parts[1])
+        ):
+            raise RuntimeError("external capability skill path is invalid")
+        skill_relative = "/".join(parts[2:])
+        if skill_relative not in {"SKILL.md", "agents/openai.yaml"} and not (
+            len(parts) >= 4 and parts[2] == "assets"
+        ):
+            raise RuntimeError(f"external capability skill file is not allowed: {relative}")
+        grouped.setdefault(parts[1], set()).add(skill_relative)
+
+    for slug, skill_files in grouped.items():
+        if "SKILL.md" not in skill_files:
+            raise RuntimeError(f"external capability skill is missing SKILL.md: {slug}")
+    return grouped
+
+
+def _validate_capability_skills(release_root: Path, grouped: dict[str, set[str]]) -> None:
+    for slug, skill_files in grouped.items():
+        skill_path = release_root / "skills" / slug / "SKILL.md"
+        text = skill_path.read_text(encoding="utf-8")
+        if not text.startswith("---\n"):
+            raise RuntimeError(f"external capability skill frontmatter is invalid: {slug}")
+        try:
+            _opening, frontmatter, _body = text.split("---", 2)
+            metadata = yaml.safe_load(frontmatter)
+        except (ValueError, yaml.YAMLError) as exc:
+            raise RuntimeError(
+                f"external capability skill frontmatter is invalid: {slug}"
+            ) from exc
+        if (
+            not isinstance(metadata, dict)
+            or metadata.get("name") != slug
+            or not isinstance(metadata.get("description"), str)
+            or not metadata["description"].strip()
+        ):
+            raise RuntimeError(f"external capability skill metadata is invalid: {slug}")
+        if "agents/openai.yaml" in skill_files:
+            try:
+                agent_metadata = yaml.safe_load(
+                    (release_root / "skills" / slug / "agents" / "openai.yaml").read_text(
+                        encoding="utf-8"
+                    )
+                )
+            except yaml.YAMLError as exc:
+                raise RuntimeError(
+                    f"external capability skill agent metadata is invalid: {slug}"
+                ) from exc
+            if not isinstance(agent_metadata, dict):
+                raise RuntimeError(
+                    f"external capability skill agent metadata is invalid: {slug}"
+                )
+
+
 def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> dict[str, Any] | None:
     capability_root = runtime_root / "capabilities" / CAPABILITY_ID
     current = capability_root / "current"
@@ -328,23 +383,28 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     if manifest.get("audience") not in {"shadow", "production"}:
         raise RuntimeError("external capability audience is invalid")
     files = manifest.get("files")
-    if not isinstance(files, dict) or frozenset(files) not in CAPABILITY_ALLOWED_FILE_SETS:
+    if not isinstance(files, dict):
         raise RuntimeError("external capability file set mismatch")
+    skill_files = _capability_skill_files(files)
     sums = _parse_sums(sums_path)
     if sums.get("manifest.json") != _sha256(manifest_path):
         raise RuntimeError("external capability manifest checksum mismatch")
     for relative, expected in files.items():
         path = release_root / relative
-        if not path.is_file() or _sha256(path) != expected or sums.get(relative) != expected:
+        if (
+            not path.is_file()
+            or not path.resolve().is_relative_to(release_root)
+            or _sha256(path) != expected
+            or sums.get(relative) != expected
+        ):
             raise RuntimeError(f"external capability checksum mismatch: {relative}")
+    _validate_capability_skills(release_root, skill_files)
     config_path = release_root / "christopher-slot-config.yaml"
     constitution_path = release_root / "christopher_tgg_constitution.yaml"
     _validate_capability_runtime_baseline(config_path, constitution_path)
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
-    includes_external_skills = any(
-        skill_files.issubset(files) for skill_files in CAPABILITY_OPTIONAL_FILE_SETS
-    )
+    includes_external_skills = bool(skill_files)
     expected_external_dirs = (
         [str(current / "skills")] if includes_external_skills else []
     )

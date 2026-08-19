@@ -35,6 +35,7 @@ def make_release(
     audience: str = "shadow",
     include_spreadsheet_skill: bool = False,
     include_whatsapp_skill: bool = False,
+    include_hdb_skill: bool = False,
     include_nightly_plugin: bool = False,
     include_nightly_launcher: bool = False,
 ) -> tuple[Path, Path, Path]:
@@ -51,7 +52,7 @@ def make_release(
     config.setdefault("plugins", {}).setdefault("enabled", []).append("tgg-whatsapp-evidence")
     if include_nightly_plugin:
         config["plugins"]["enabled"].append("tgg-nightly-whatsapp")
-    if include_spreadsheet_skill or include_whatsapp_skill:
+    if include_spreadsheet_skill or include_whatsapp_skill or include_hdb_skill:
         config["skills"] = {"external_dirs": [str(capability / "current" / "skills")]}
     else:
         config.pop("skills", None)
@@ -94,6 +95,21 @@ def make_release(
             "interface:\n  display_name: WhatsApp Investigation\n",
             encoding="utf-8",
         )
+    hdb_skill = release / "skills" / "hdb-reconciliation"
+    if include_hdb_skill:
+        (hdb_skill / "agents").mkdir(parents=True)
+        (hdb_skill / "assets").mkdir(parents=True)
+        (hdb_skill / "SKILL.md").write_text(
+            "---\nname: hdb-reconciliation\ndescription: Reconcile HDB workbooks.\n---\n",
+            encoding="utf-8",
+        )
+        (hdb_skill / "agents" / "openai.yaml").write_text(
+            "interface:\n  display_name: HDB Reconciliation\n",
+            encoding="utf-8",
+        )
+        (hdb_skill / "assets" / "source-layouts.md").write_text(
+            "# Source layouts\n", encoding="utf-8"
+        )
     release_files = [
         config_path,
         constitution,
@@ -106,6 +122,12 @@ def make_release(
         release_files.extend([
             whatsapp_skill / "SKILL.md",
             whatsapp_skill / "agents" / "openai.yaml",
+        ])
+    if include_hdb_skill:
+        release_files.extend([
+            hdb_skill / "SKILL.md",
+            hdb_skill / "agents" / "openai.yaml",
+            hdb_skill / "assets" / "source-layouts.md",
         ])
     if include_nightly_plugin:
         release_files.extend([
@@ -162,6 +184,16 @@ def test_resolves_external_capability_with_spreadsheet_skill(tmp_path: Path) -> 
     assert selected["release_root"] == release.resolve()
 
 
+def test_resolves_external_capability_with_new_manifest_pinned_skill(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(tmp_path, include_hdb_skill=True)
+
+    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert selected is not None
+    assert selected["release_root"] == release.resolve()
+
+
 @pytest.mark.parametrize("include_spreadsheet_skill", [False, True])
 def test_resolves_external_capability_with_whatsapp_skill(
     tmp_path: Path, include_spreadsheet_skill: bool
@@ -207,12 +239,12 @@ def test_resolves_external_capability_with_nightly_launcher(tmp_path: Path) -> N
     }
 
 
-def test_rejects_partial_whatsapp_skill_file_set(tmp_path: Path) -> None:
+def test_rejects_skill_without_skill_md(tmp_path: Path) -> None:
     module = load_module()
     home, runtime, release = make_release(tmp_path, include_whatsapp_skill=True)
     manifest_path = release / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["files"].pop("skills/whatsapp-investigation/agents/openai.yaml")
+    manifest["files"].pop("skills/whatsapp-investigation/SKILL.md")
     manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
     sums = {**manifest["files"], "manifest.json": digest(manifest_path)}
     (release / "SHA256SUMS").write_text(
@@ -220,7 +252,27 @@ def test_rejects_partial_whatsapp_skill_file_set(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    with pytest.raises(RuntimeError, match="file set mismatch"):
+    with pytest.raises(RuntimeError, match="missing SKILL.md"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+
+def test_rejects_executable_skill_payload(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(tmp_path, include_hdb_skill=True)
+    executable = release / "skills" / "hdb-reconciliation" / "scripts" / "run.py"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    manifest_path = release / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"][str(executable.relative_to(release))] = digest(executable)
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+    sums = {**manifest["files"], "manifest.json": digest(manifest_path)}
+    (release / "SHA256SUMS").write_text(
+        "".join(f"{value}  {name}\n" for name, value in sorted(sums.items())),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="skill file is not allowed"):
         module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
