@@ -363,6 +363,8 @@ _PARALLEL_SAFE_TOOLS = frozenset({
     "session_search",
     "skill_view",
     "skills_list",
+    "tgg_whatsapp_image_inspect",
+    "tgg_whatsapp_message_media",
     "vision_analyze",
     "web_extract",
     "web_search",
