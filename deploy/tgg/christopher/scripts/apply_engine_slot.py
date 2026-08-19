@@ -434,8 +434,12 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
                 "source.chat_id": management_chat_ids[0],
             },
         }
-        if management_selectors != [expected_selector]:
-            raise RuntimeError("external capability canary selector set mismatch")
+        # Christopher uses one shared runtime for the real and test management
+        # chats.  The canary field identifies the chat where the new behaviour
+        # is exercised; it is not an instruction to remove the production
+        # selector from that shared runtime.
+        if expected_selector not in management_selectors:
+            raise RuntimeError("external capability canary selector missing")
     configured_constitution = Path(config["pa"]["constitution_path"])
     expected_constitution = current / "christopher_tgg_constitution.yaml"
     if configured_constitution != expected_constitution:
