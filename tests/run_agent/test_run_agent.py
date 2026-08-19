@@ -1961,6 +1961,69 @@ class TestConcurrentToolExecution:
                 mock_con.assert_called_once()
                 mock_seq.assert_not_called()
 
+    def test_tgg_media_retrieval_batch_uses_concurrent_path(self, agent):
+        """Independent WhatsApp attachments should materialize concurrently."""
+        tc1 = _mock_tool_call(
+            name="tgg_whatsapp_message_media",
+            arguments='{"message_id":"image-1","attachment_index":0}',
+            call_id="c1",
+        )
+        tc2 = _mock_tool_call(
+            name="tgg_whatsapp_message_media",
+            arguments='{"message_id":"image-2","attachment_index":0}',
+            call_id="c2",
+        )
+        mock_msg = _mock_assistant_msg(content="", tool_calls=[tc1, tc2])
+        with patch.object(agent, "_execute_tool_calls_sequential") as mock_seq:
+            with patch.object(agent, "_execute_tool_calls_concurrent") as mock_con:
+                agent._execute_tool_calls(mock_msg, [], "task-1")
+                mock_con.assert_called_once()
+                mock_seq.assert_not_called()
+
+    def test_tgg_image_inspection_batch_uses_concurrent_path(self, agent):
+        """Independent vision inspections should run concurrently."""
+        tc1 = _mock_tool_call(
+            name="tgg_whatsapp_image_inspect",
+            arguments='{"image_path":"/retained/image-1.jpg","question":"Describe it"}',
+            call_id="c1",
+        )
+        tc2 = _mock_tool_call(
+            name="tgg_whatsapp_image_inspect",
+            arguments='{"image_path":"/retained/image-2.jpg","question":"Describe it"}',
+            call_id="c2",
+        )
+        mock_msg = _mock_assistant_msg(content="", tool_calls=[tc1, tc2])
+        with patch.object(agent, "_execute_tool_calls_sequential") as mock_seq:
+            with patch.object(agent, "_execute_tool_calls_concurrent") as mock_con:
+                agent._execute_tool_calls(mock_msg, [], "task-1")
+                mock_con.assert_called_once()
+                mock_seq.assert_not_called()
+
+    def test_tgg_image_inspections_execute_at_the_same_time(self, agent):
+        """The image allowlist must produce real overlap, not only choose a named path."""
+        import threading
+
+        calls = [
+            _mock_tool_call(
+                name="tgg_whatsapp_image_inspect",
+                arguments=f'{{"image_path":"/retained/image-{index}.jpg","question":"Describe it"}}',
+                call_id=f"c{index}",
+            )
+            for index in (1, 2)
+        ]
+        mock_msg = _mock_assistant_msg(content="", tool_calls=calls)
+        rendezvous = threading.Barrier(2)
+
+        def fake_handle(_name, args, _task_id, **_kwargs):
+            rendezvous.wait(timeout=1)
+            return json.dumps({"image_path": args["image_path"]})
+
+        messages = []
+        with patch("run_agent.handle_function_call", side_effect=fake_handle):
+            agent._execute_tool_calls(mock_msg, messages, "task-1")
+
+        assert [message["tool_call_id"] for message in messages] == ["c1", "c2"]
+
     def test_terminal_batch_forces_sequential(self, agent):
         """Stateful tools should not share the concurrent execution path."""
         tc1 = _mock_tool_call(name="web_search", arguments='{}', call_id="c1")
