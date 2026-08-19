@@ -108,7 +108,6 @@ systemctl daemon-reload
 systemctl enable christopher-tgg-hermes.service >/dev/null
 systemctl enable --now christopher-tgg-hermes-health.timer >/dev/null
 systemctl enable --now christopher-tgg-retention-cleanup.timer >/dev/null
-systemctl enable --now christopher-tgg-nightly-whatsapp.timer >/dev/null
 
 schedule_enabled="$($APP_ROOT/.venv/bin/python - "$HERMES_HOME/config.yaml" <<'PY'
 import sys, yaml
