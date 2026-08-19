@@ -323,16 +323,31 @@ def test_rejects_current_pointer_outside_release_root(tmp_path: Path) -> None:
         module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
-def test_rejects_canary_manifest_when_constitution_has_other_management_chats(
+def test_accepts_canary_manifest_when_constitution_keeps_other_management_chats(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    home, runtime, release = make_release(
+        tmp_path,
+        manifest_canary_chat_id="120363426509183563@g.us",
+    )
+
+    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert selected is not None
+    assert selected["release_root"] == release.resolve()
+
+
+def test_rejects_canary_manifest_when_named_selector_is_missing(
     tmp_path: Path,
 ) -> None:
     module = load_module()
     home, runtime, _release = make_release(
         tmp_path,
-        manifest_canary_chat_id="120363426509183563@g.us",
+        manifest_canary_chat_id="120363499999999999@g.us",
     )
 
-    with pytest.raises(RuntimeError, match="canary selector set mismatch"):
+    with pytest.raises(RuntimeError, match="canary selector missing"):
         module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
