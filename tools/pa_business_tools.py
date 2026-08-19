@@ -7,6 +7,7 @@ results to the caller.
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import os
 import re
@@ -1125,6 +1126,13 @@ _TGG_IMAGE_SIGNATURES = (
     ("image/gif", b"GIF8", 0),
     ("image/webp", b"WEBP", 8),
 )
+_TGG_CASE_MEDIA_DOWNLOAD_MAX_BYTES = 25 * 1024 * 1024
+_TGG_IMAGE_SUFFIX_BY_MIME = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
 
 _TGG_SPREADSHEET_EXTENSIONS = frozenset({".xlsx", ".csv"})
 _TGG_SPREADSHEET_MIMES = {
@@ -1705,6 +1713,91 @@ def _resolve_case_photo(
     return path, str(candidate)
 
 
+def _detected_tgg_image_mime(data: bytes) -> str | None:
+    prefix = data[:16]
+    return next(
+        (
+            detected_mime
+            for detected_mime, signature, offset in _TGG_IMAGE_SIGNATURES
+            if prefix[offset : offset + len(signature)] == signature
+        ),
+        None,
+    )
+
+
+def _download_current_case_photo(
+    item: Mapping[str, Any],
+    *,
+    bridge: PABusinessBridgeConfig,
+    job_no: str,
+) -> tuple[str, str] | None:
+    """Materialize one authenticated Systems current-evidence image.
+
+    Systems deliberately returns an opaque, authenticated route instead of a
+    host filesystem path.  Accept only the route for this exact case and the
+    same origin as the configured case-media operation, then verify its bytes
+    and advertised digest before making it available to the messaging gateway.
+    """
+    raw_ref = item.get("ref") or item.get("url") or item.get("mediaRef")
+    ref = str(raw_ref or "").strip()
+    parsed = urllib.parse.urlsplit(ref)
+    if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment:
+        raise ValueError("INVALID_MEDIA_REF: current case media ref must be opaque")
+    parts = parsed.path.split("/")
+    if (
+        len(parts) != 8
+        or parts[:4] != ["", "api", "operator", "cases"]
+        or parts[5:7] != ["media", "current"]
+        or urllib.parse.unquote(parts[4]).upper() != job_no
+        or not parts[7]
+        or "/" in urllib.parse.unquote(parts[7])
+    ):
+        raise ValueError("INVALID_MEDIA_REF: current case media ref does not match the case")
+
+    operation = bridge.operations.get("tgg_case_media")
+    if operation is None or operation.kind != "http" or not operation.url:
+        raise ValueError("MEDIA_SERVICE_NOT_CONFIGURED: case media service is unavailable")
+    base = urllib.parse.urlsplit(operation.url)
+    if base.scheme not in {"http", "https"} or not base.netloc:
+        raise ValueError("MEDIA_SERVICE_NOT_CONFIGURED: case media service is unavailable")
+    url = urllib.parse.urlunsplit((base.scheme, base.netloc, parsed.path, "", ""))
+    headers = {"Accept": "image/*", **dict(operation.headers or {})}
+    headers.update(_auth_headers(operation.auth or bridge.auth or {}))
+    request = urllib.request.Request(url, headers=headers, method="GET")
+    with urllib.request.urlopen(request, timeout=operation.timeout) as response:
+        data = response.read(_TGG_CASE_MEDIA_DOWNLOAD_MAX_BYTES + 1)
+        response_mime = str(response.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+    if len(data) > _TGG_CASE_MEDIA_DOWNLOAD_MAX_BYTES:
+        raise ValueError("INVALID_MEDIA_REF: current case image exceeds the size limit")
+    detected = _detected_tgg_image_mime(data)
+    if detected is None:
+        return None
+    advertised_mime = str(
+        item.get("mime") or item.get("mimeType") or item.get("contentType") or ""
+    ).split(";", 1)[0].strip().lower()
+    for claimed in (advertised_mime, response_mime):
+        if claimed and not (
+            claimed == detected or (claimed == "image/jpg" and detected == "image/jpeg")
+        ):
+            raise ValueError("PROVENANCE_DIVERGENCE: case media MIME does not match bytes")
+    digest = hashlib.sha256(data).hexdigest()
+    advertised_digest = str(item.get("digest") or "").strip().lower()
+    if advertised_digest:
+        if not re.fullmatch(r"[a-f0-9]{64}", advertised_digest) or advertised_digest != digest:
+            raise ValueError("PROVENANCE_DIVERGENCE: case media digest does not match bytes")
+
+    hermes_home = Path(os.getenv("HERMES_HOME") or "~/.hermes").expanduser()
+    cache_root = hermes_home / "cache" / "tgg-case-media"
+    cache_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    candidate = cache_root / f"{digest}{_TGG_IMAGE_SUFFIX_BY_MIME[detected]}"
+    if not candidate.exists() or candidate.read_bytes() != data:
+        temporary = cache_root / f".{digest}.{os.getpid()}.tmp"
+        temporary.write_bytes(data)
+        os.chmod(temporary, 0o600)
+        temporary.replace(candidate)
+    return ref, str(candidate.resolve())
+
+
 def _handle_tgg_case_photos(args: Mapping[str, Any], **_kwargs: Any) -> str:
     job_no = str(args.get("job_no") or "").strip().upper()
     if not job_no or not re.fullmatch(JOB_NO_RE, job_no):
@@ -1726,9 +1819,19 @@ def _handle_tgg_case_photos(args: Mapping[str, Any], **_kwargs: Any) -> str:
         photos: list[dict[str, str]] = []
         seen: set[str] = set()
         for item in _case_media_items(result):
-            resolved = _resolve_case_photo(
-                item, bridge.media_root, bridge.media_ref_prefix
-            )
+            raw_ref = str(
+                (item.get("ref") or item.get("url") or item.get("mediaRef"))
+                if isinstance(item, Mapping)
+                else item
+            ).strip()
+            if raw_ref.startswith("/api/operator/cases/"):
+                if not isinstance(item, Mapping):
+                    raise ValueError("INVALID_MEDIA_REF: current case media metadata is missing")
+                resolved = _download_current_case_photo(item, bridge=bridge, job_no=job_no)
+            else:
+                resolved = _resolve_case_photo(
+                    item, bridge.media_root, bridge.media_ref_prefix
+                )
             if resolved is None:
                 continue
             ref, local_path = resolved
