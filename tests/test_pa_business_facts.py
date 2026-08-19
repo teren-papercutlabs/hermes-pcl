@@ -1266,7 +1266,6 @@ def test_tgg_case_photos_downloads_authenticated_current_evidence(
         media_root=tmp_path / "legacy-media",
     )
     (tmp_path / "legacy-media").mkdir()
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
     monkeypatch.setattr(pbt, "_load_runtime_bridge_config", lambda: bridge)
     ref = "/api/operator/cases/SK%2FJOB%2F2512%2F2868/media/current/evidence%3A1"
     monkeypatch.setattr(
@@ -1306,6 +1305,7 @@ def test_tgg_case_photos_downloads_authenticated_current_evidence(
     materialized = Path(result["photos"][0]["image_path"])
     assert materialized.read_bytes() == image
     assert materialized.name == f"{digest}.jpg"
+    assert materialized.parent == (tmp_path / "legacy-media" / ".case-media-cache")
 
 
 def test_tgg_case_photos_refuses_current_evidence_for_another_case(

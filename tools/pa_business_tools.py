@@ -1786,8 +1786,12 @@ def _download_current_case_photo(
         if not re.fullmatch(r"[a-f0-9]{64}", advertised_digest) or advertised_digest != digest:
             raise ValueError("PROVENANCE_DIVERGENCE: case media digest does not match bytes")
 
-    hermes_home = Path(os.getenv("HERMES_HOME") or "~/.hermes").expanduser()
-    cache_root = hermes_home / "cache" / "tgg-case-media"
+    # The durable WhatsApp sender permits attachments only from the configured
+    # retained-media root.  Keep downloaded current-evidence bytes inside that
+    # same boundary so a path returned by this tool is actually deliverable.
+    if bridge.media_root is None:
+        raise ValueError("MEDIA_ROOT_NOT_CONFIGURED: case photo root is unavailable")
+    cache_root = bridge.media_root.expanduser().resolve(strict=True) / ".case-media-cache"
     cache_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     candidate = cache_root / f"{digest}{_TGG_IMAGE_SUFFIX_BY_MIME[detected]}"
     if not candidate.exists() or candidate.read_bytes() != data:
