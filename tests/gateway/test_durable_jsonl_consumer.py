@@ -2414,6 +2414,60 @@ def test_six_session_nightly_trigger_validates_structured_role_assignment_not_bo
         )
 
 
+def test_verified_nightly_replay_carries_completion_gate_context(tmp_path):
+    nightly_chat = "900000000000000001@g.us"
+    authoritative_chat = "120363421424519051@g.us"
+    batch_id = "nightly:2026-08-17:0123456789ab"
+    constitution = tmp_path / "constitution.yaml"
+    constitution.write_text(yaml.safe_dump({
+        "selectors": [{
+            "job_type": "tgg_nightly_whatsapp",
+            "match": {
+                "source.platform": "whatsapp",
+                "source.chat_id": nightly_chat,
+            },
+        }],
+    }), encoding="utf-8")
+    config = tmp_path / "config.yaml"
+    config.write_text(yaml.safe_dump({
+        "pa": {"constitution_path": str(constitution)},
+    }), encoding="utf-8")
+    raw = _message("nightly-context", nightly_chat)
+    raw.update({
+        "senderId": "system@internal",
+        "metadata": {
+            "job_type": "tgg_nightly_whatsapp",
+            "nightly_batch_id": batch_id,
+            "nightly_role": "amk",
+            "authoritative_chat_id": authoritative_chat,
+        },
+    })
+    record = consumer.InboxRecord(
+        1, "nightly-context", nightly_chat, 1, 1, raw,
+    )
+
+    replay = consumer._replay_messages_with_retained_documents(
+        [record], config_path=config,
+    )[0]
+
+    assert replay["_hermes_pa_job_type"] == "tgg_nightly_whatsapp"
+    assert replay["_hermes_pa_context"] == {
+        "job_type": "tgg_nightly_whatsapp",
+        "nightly_batch_id": batch_id,
+        "nightly_role": "amk",
+        "authoritative_chat_id": authoritative_chat,
+    }
+
+    untrusted = json.loads(json.dumps(raw))
+    untrusted["senderId"] = "fixture-user"
+    untrusted_replay = consumer._replay_messages_with_retained_documents(
+        [consumer.InboxRecord(2, "untrusted", nightly_chat, 2, 2, untrusted)],
+        config_path=config,
+    )[0]
+    assert "_hermes_pa_job_type" not in untrusted_replay
+    assert "_hermes_pa_context" not in untrusted_replay
+
+
 @pytest.mark.asyncio
 async def test_nightly_selector_runs_in_fresh_session_while_management_stays_persistent(
     tmp_path, monkeypatch

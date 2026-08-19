@@ -2425,6 +2425,27 @@ def _replay_messages_with_retained_documents(
         message = copy.deepcopy(record.raw)
         messages.append(message)
         item = _mutable_bridge_item(message)
+        # The durable consumer enters Hermes through the replay adapter.  That
+        # adapter only exposes PA turn metadata from these private bridge
+        # fields; retaining ``metadata`` on the raw capture record is not
+        # enough.  Copy the structured nightly assignment only after the
+        # consumer's reserved-chat/sender/role validation has accepted it.
+        # This lets the same-session completion gate identify the batch/chat
+        # without trusting trigger prose or allowing ordinary WhatsApp rows to
+        # inject PA context.
+        metadata = item.get("metadata")
+        if (
+            isinstance(metadata, Mapping)
+            and metadata.get("job_type") == "tgg_nightly_whatsapp"
+            and _priority_direct_trigger(record, config_path)
+        ):
+            item["_hermes_pa_job_type"] = "tgg_nightly_whatsapp"
+            item["_hermes_pa_context"] = {
+                "job_type": "tgg_nightly_whatsapp",
+                "nightly_batch_id": metadata.get("nightly_batch_id"),
+                "nightly_role": metadata.get("nightly_role"),
+                "authoritative_chat_id": metadata.get("authoritative_chat_id"),
+            }
         if record.retention_quarantined:
             warning = (
                 "[Attachment unavailable: retention quarantine for message "
