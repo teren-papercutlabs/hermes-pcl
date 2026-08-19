@@ -1245,6 +1245,111 @@ def test_tgg_case_photos_maps_configured_prefix_directly_to_media_root(
     ]
 
 
+def test_tgg_case_photos_downloads_authenticated_current_evidence(
+    monkeypatch, tmp_path
+):
+    import hashlib
+    import tools.pa_business_tools as pbt
+
+    image = b"\xff\xd8\xffcurrent-evidence"
+    digest = hashlib.sha256(image).hexdigest()
+    operation = pbt.PABusinessOperation(
+        name="tgg_case_media",
+        kind="http",
+        method="GET",
+        url="https://systems.example/api/operator/cases/{jobNo}/media",
+        headers={"X-PS-Tenant": "tgg"},
+        auth={"type": "bearer", "token": "test-token"},
+    )
+    bridge = PABusinessBridgeConfig(
+        operations={"tgg_case_media": operation},
+        media_root=tmp_path / "legacy-media",
+    )
+    (tmp_path / "legacy-media").mkdir()
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
+    monkeypatch.setattr(pbt, "_load_runtime_bridge_config", lambda: bridge)
+    ref = "/api/operator/cases/SK%2FJOB%2F2512%2F2868/media/current/evidence%3A1"
+    monkeypatch.setattr(
+        pbt,
+        "execute_business_operation",
+        lambda *_a, **_kw: {
+            "ok": True,
+            "data": {"files": [{"ref": ref, "mime": "image/jpeg", "digest": digest}]},
+        },
+    )
+
+    class Response:
+        headers = {"Content-Type": "image/jpeg"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return image
+
+    def fake_urlopen(request, timeout):
+        assert request.full_url == f"https://systems.example{ref}"
+        assert request.headers["Authorization"] == "Bearer test-token"
+        assert timeout == operation.timeout
+        return Response()
+
+    monkeypatch.setattr(pbt.urllib.request, "urlopen", fake_urlopen)
+
+    result = json.loads(pbt._handle_tgg_case_photos({"job_no": "SK/JOB/2512/2868"}))
+
+    assert result["ok"] is True
+    assert result["count"] == 1
+    assert result["photos"][0]["media_ref"] == ref
+    materialized = Path(result["photos"][0]["image_path"])
+    assert materialized.read_bytes() == image
+    assert materialized.name == f"{digest}.jpg"
+
+
+def test_tgg_case_photos_refuses_current_evidence_for_another_case(
+    monkeypatch, tmp_path
+):
+    import tools.pa_business_tools as pbt
+
+    operation = pbt.PABusinessOperation(
+        name="tgg_case_media",
+        kind="http",
+        method="GET",
+        url="https://systems.example/api/operator/cases/{jobNo}/media",
+    )
+    root = tmp_path / "legacy-media"
+    root.mkdir()
+    bridge = PABusinessBridgeConfig(
+        operations={"tgg_case_media": operation},
+        media_root=root,
+    )
+    monkeypatch.setattr(pbt, "_load_runtime_bridge_config", lambda: bridge)
+    monkeypatch.setattr(
+        pbt,
+        "execute_business_operation",
+        lambda *_a, **_kw: {
+            "ok": True,
+            "data": {
+                "files": [{
+                    "ref": "/api/operator/cases/AM%2FJOB%2F2512%2F0001/media/current/evidence%3A1",
+                    "mime": "image/jpeg",
+                }]
+            },
+        },
+    )
+    monkeypatch.setattr(
+        pbt.urllib.request,
+        "urlopen",
+        lambda *_a, **_kw: pytest.fail("cross-case media must not be fetched"),
+    )
+
+    result = json.loads(pbt._handle_tgg_case_photos({"job_no": "SK/JOB/2512/2868"}))
+
+    assert "INVALID_MEDIA_REF" in result["error"]
+
+
 def test_tgg_case_photos_refuses_ref_outside_configured_prefix(monkeypatch, tmp_path):
     import tools.pa_business_tools as pbt
 
