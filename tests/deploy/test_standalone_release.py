@@ -132,4 +132,6 @@ def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Pat
     assert release.pointer_target(root / "runtime/current") == str(old_runtime)
     assert release.pointer_target(home / "plugins/tgg") == str(old_cap / "plugins/tgg")
     assert unit_path.read_text() == "[Service]\n# old\n"
-    assert observed == {"runtime": str(root / "runtime/releases/abcdef0"), "plugin": str(root / "capability/releases/newcap/plugins/tgg"), "unit": "[Service]\n# abcdef0\n"}
+    approved = home / "runtime/capabilities/christopher-tgg/releases/newcap"
+    assert observed == {"runtime": str(root / "runtime/releases/abcdef0"), "plugin": str(approved / "plugins/tgg"), "unit": "[Service]\n# abcdef0\n"}
+    assert str(approved).startswith(str(home / "runtime/capabilities/christopher-tgg/releases"))

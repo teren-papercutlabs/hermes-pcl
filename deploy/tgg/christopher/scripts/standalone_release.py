@@ -364,7 +364,10 @@ def apply(args: argparse.Namespace) -> int:
             if file_inventory(stage / "capability") != release["capability_files"]:
                 raise ReleaseError("capability fileset mismatch")
             runtime_dest = root / "runtime/releases" / release["runtime_commit"]
-            capability_dest = root / "capability/releases" / release["capability_release_id"]
+            # apply_engine_slot deliberately trusts only this existing Hermes
+            # release tree. Keep one immutable copy there; the transaction
+            # identity pointer under /opt targets it rather than duplicating it.
+            capability_dest = home / "runtime/capabilities/christopher-tgg/releases" / release["capability_release_id"]
             runtime_dest.parent.mkdir(parents=True, exist_ok=True); capability_dest.parent.mkdir(parents=True, exist_ok=True)
             for staged, destination, expected_files in ((stage / "runtime", runtime_dest, release["runtime_files"]), (stage / "capability", capability_dest, release["capability_files"])):
                 if destination.exists():

@@ -58,7 +58,9 @@ python3 /usr/local/lib/tgg-christopher/standalone_release.py rollback \
 2. Copy the exact current runtime to
    `/opt/tgg-christopher/runtime/releases/<current-commit>` and write its
    `.git-revision`; copy the current capability release to
-   `/opt/tgg-christopher/capability/releases/<release-id>`.
+   `$HERMES_HOME/runtime/capabilities/christopher-tgg/releases/<release-id>`;
+   `/opt/tgg-christopher/capability/current` points to that same approved
+   directory and does not duplicate the capability bytes.
 3. Create the three pointers: `runtime/current`, `capability/current`, and
    `$HERMES_HOME/runtime/capabilities/christopher-tgg/current` (the latter
    targets `capability/current`).
