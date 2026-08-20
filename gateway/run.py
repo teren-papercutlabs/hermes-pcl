@@ -18458,7 +18458,8 @@ class GatewayRunner:
                         continuation_history = []
                         completion_prompt = (
                             "The immutable nightly chat receipt is still missing for "
-                            f"authoritative_chat_id={authoritative_chat_id}. Previous pages, image "
+                            f"batch_id={batch_id} and authoritative_chat_id={authoritative_chat_id}. "
+                            "Previous pages, image "
                             "inspections and findings are durably saved. Continue this same batch "
                             "session now: first read the chat ledger, then process the next "
                             "unclassified page and ultimately submit the receipt. Do not summarize "
