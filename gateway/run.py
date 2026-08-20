@@ -1138,10 +1138,11 @@ def _source_pa_metadata(
 # ordinary conversations and the nightly consolidator retain their existing
 # one-turn behaviour.
 _TGG_NIGHTLY_ANALYZER_JOB_TYPE = "tgg_nightly_whatsapp"
-# The largest authoritative chat currently occupies eight 25-row pages. Two
-# extra turns let the same agent correct an ordinary final-page validation
-# error without spawning a recovery session or weakening the receipt gate.
-_TGG_NIGHTLY_MAX_ANALYZER_TURNS = 10
+# Bound an unattended analyzer by elapsed work time, not model-turn count.
+# A turn may classify a full page or merely correct one rejected field, so a
+# fixed turn allowance can stop a healthy large-chat run.  Two hours remains
+# a hard operational ceiling for a genuinely stuck analyzer.
+_TGG_NIGHTLY_MAX_ANALYZER_SECONDS = 2 * 60 * 60
 
 
 def _tgg_nightly_analyzer_trigger(
@@ -18414,6 +18415,7 @@ class GatewayRunner:
                 else:
                     _run_message = message
 
+                agent_run_started_at = time.monotonic()
                 result = agent.run_conversation(
                     _run_message,
                     conversation_history=agent_history,
@@ -18423,7 +18425,6 @@ class GatewayRunner:
                 nightly_trigger = _tgg_nightly_analyzer_trigger(pa_job_type, pa_context)
                 if nightly_trigger and isinstance(result, Mapping):
                     batch_id, authoritative_chat_id = nightly_trigger
-                    analyzer_turns = 1
                     while True:
                         receipt_present = _tgg_nightly_chat_receipt_status(
                             batch_id,
@@ -18437,11 +18438,14 @@ class GatewayRunner:
                                 "the receipt could not be verified",
                             )
                             break
-                        if analyzer_turns >= _TGG_NIGHTLY_MAX_ANALYZER_TURNS:
+                        if (
+                            time.monotonic() - agent_run_started_at
+                            >= _TGG_NIGHTLY_MAX_ANALYZER_SECONDS
+                        ):
                             result = _mark_tgg_nightly_completion_incomplete(
                                 result,
-                                "the receipt was still absent after "
-                                f"{_TGG_NIGHTLY_MAX_ANALYZER_TURNS} same-session turns",
+                                "the receipt was still absent after the two-hour "
+                                "same-session deadline",
                             )
                             break
 
@@ -18461,16 +18465,17 @@ class GatewayRunner:
                             f"batch_id={batch_id} and authoritative_chat_id={authoritative_chat_id}. "
                             "Previous pages, image "
                             "inspections and findings are durably saved. Continue this same batch "
-                            "session now: first read the chat ledger, then process the next "
-                            "unclassified page and ultimately submit the receipt. Do not summarize "
-                            "completion until the receipt exists."
+                            "session now: first read the chat ledger, then process every remaining "
+                            "unclassified page in cursor order. After committing one page, "
+                            "immediately fetch and process the next. Do not end the turn or "
+                            "summarize completion until the immutable chat receipt exists, unless "
+                            "a genuine terminal tool failure prevents further progress."
                         )
                         result = agent.run_conversation(
                             completion_prompt,
                             conversation_history=continuation_history,
                             task_id=session_id,
                         )
-                        analyzer_turns += 1
                         if not isinstance(result, Mapping):
                             break
             finally:

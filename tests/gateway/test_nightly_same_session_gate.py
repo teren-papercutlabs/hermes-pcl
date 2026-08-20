@@ -127,6 +127,8 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
         for call in calls[1:]
     )
     assert "first read the chat ledger" in calls[1]["message"]
+    assert "process every remaining unclassified page in cursor order" in calls[1]["message"]
+    assert "immediately fetch and process the next" in calls[1]["message"]
     assert len(status_calls) == 3
     assert status_calls == [{"batch_id": "nightly:2026-08-17:test"}] * 3
     assert runner._queued_events == {}
@@ -166,3 +168,42 @@ async def test_nightly_analyzer_skips_continuation_when_receipt_already_exists(m
 
     assert len(_FakeAgent.instances) == 1
     assert len(_FakeAgent.instances[0].calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_nightly_analyzer_uses_elapsed_deadline_not_turn_count(monkeypatch, tmp_path):
+    _FakeAgent.instances = []
+    fake_run_agent = types.ModuleType("run_agent")
+    fake_run_agent.AIAgent = _FakeAgent
+    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_load_gateway_config", lambda: {})
+    monkeypatch.setattr(gateway_run, "_resolve_gateway_model", lambda config=None: "gpt-5.6")
+    monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"})
+    monkeypatch.setattr(gateway_run, "_TGG_NIGHTLY_MAX_ANALYZER_SECONDS", 0)
+
+    import hermes_cli.tools_config as tools_config
+    monkeypatch.setattr(tools_config, "_get_platform_tools", lambda *_args: {"core"})
+    import tools.registry as tool_registry
+    monkeypatch.setattr(
+        tool_registry.registry,
+        "get_entry",
+        lambda name: SimpleNamespace(
+            handler=lambda _args: {"ok": True, "completed_chat_ids": []}
+        ) if name == "tgg_nightly_get_batch_status" else None,
+    )
+
+    result = await _runner()._run_agent(
+        message="nightly analyzer",
+        context_prompt="",
+        history=[],
+        source=SessionSource(platform=Platform.WHATSAPP, chat_id="synthetic@g.us", chat_type="group"),
+        session_id="nightly-session",
+        session_key="nightly-session-key",
+        pa_job_type="tgg_nightly_whatsapp",
+        pa_context={"nightly_batch_id": "nightly:2026-08-17:test", "authoritative_chat_id": "amk@g.us"},
+        suppress_delivery=True,
+    )
+
+    assert len(_FakeAgent.instances[0].calls) == 1
+    assert "two-hour same-session deadline" in result["final_response"]
