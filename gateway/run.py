@@ -18448,18 +18448,21 @@ class GatewayRunner:
                         # This is intentionally another call on the same object and
                         # task/session.  Do not synthesize an inbound event: doing so
                         # creates a second gateway turn and loses the live tool state.
-                        continuation_history = result.get("messages")
-                        if not isinstance(continuation_history, list):
-                            result = _mark_tgg_nightly_completion_incomplete(
-                                result,
-                                "the previous turn returned no reusable conversation history",
-                            )
-                            break
+                        # Page rows, media bytes and vision results are already
+                        # durably represented by the nightly page receipts,
+                        # inspection receipts and finding ledger. Replaying the
+                        # raw tool transcript makes later AMK pages exceed model
+                        # context. Keep the same live agent/task, but begin each
+                        # bounded continuation with a clean model context and let
+                        # it reload its compact ledger through the nightly tool.
+                        continuation_history = []
                         completion_prompt = (
                             "The immutable nightly chat receipt is still missing for "
-                            f"authoritative_chat_id={authoritative_chat_id}. Continue this same "
-                            "batch session now: finish the required investigation and submit the "
-                            "receipt. Do not summarize completion until the receipt exists."
+                            f"authoritative_chat_id={authoritative_chat_id}. Previous pages, image "
+                            "inspections and findings are durably saved. Continue this same batch "
+                            "session now: first read the chat ledger, then process the next "
+                            "unclassified page and ultimately submit the receipt. Do not summarize "
+                            "completion until the receipt exists."
                         )
                         result = agent.run_conversation(
                             completion_prompt,
