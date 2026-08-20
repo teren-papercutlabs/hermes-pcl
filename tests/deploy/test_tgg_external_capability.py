@@ -32,12 +32,14 @@ def make_release(
     tmp_path: Path,
     *,
     manifest_canary_chat_id: str | None = None,
-    audience: str = "shadow",
+    audience: str = "production",
     include_spreadsheet_skill: bool = False,
     include_whatsapp_skill: bool = False,
     include_hdb_skill: bool = False,
     include_nightly_plugin: bool = False,
     include_nightly_launcher: bool = False,
+    include_per_case_plugin: bool = False,
+    include_per_case_helpers: bool = False,
 ) -> tuple[Path, Path, Path]:
     home = tmp_path / "home"
     runtime = home / "runtime"
@@ -52,6 +54,8 @@ def make_release(
     config.setdefault("plugins", {}).setdefault("enabled", []).append("tgg-whatsapp-evidence")
     if include_nightly_plugin:
         config["plugins"]["enabled"].append("tgg-nightly-whatsapp")
+    if include_per_case_plugin:
+        config["plugins"]["enabled"].append("tgg-per-case-whatsapp")
     if include_spreadsheet_skill or include_whatsapp_skill or include_hdb_skill:
         config["skills"] = {"external_dirs": [str(capability / "current" / "skills")]}
     else:
@@ -73,6 +77,23 @@ def make_release(
     if include_nightly_launcher:
         nightly_launcher.parent.mkdir(parents=True)
         nightly_launcher.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    per_case_plugin = release / "plugins" / "tgg-per-case-whatsapp"
+    if include_per_case_plugin:
+        per_case_plugin.mkdir(parents=True)
+        (per_case_plugin / "__init__.py").write_text(
+            "def register(ctx):\n    return None\n", encoding="utf-8"
+        )
+        (per_case_plugin / "plugin.yaml").write_text(
+            "name: tgg-per-case-whatsapp\n", encoding="utf-8"
+        )
+    per_case_engine = release / "scripts" / "per-case-whatsapp-engine.mjs"
+    per_case_compiler = (
+        release / "scripts" / "tgg-whatsapp-compile-semantic-decisions.mjs"
+    )
+    if include_per_case_helpers:
+        per_case_engine.parent.mkdir(parents=True, exist_ok=True)
+        per_case_engine.write_text("export {}\n", encoding="utf-8")
+        per_case_compiler.write_text("export {}\n", encoding="utf-8")
     skill = release / "skills" / "spreadsheet-work"
     if include_spreadsheet_skill:
         (skill / "agents").mkdir(parents=True)
@@ -136,6 +157,13 @@ def make_release(
         ])
     if include_nightly_launcher:
         release_files.append(nightly_launcher)
+    if include_per_case_plugin:
+        release_files.extend([
+            per_case_plugin / "__init__.py",
+            per_case_plugin / "plugin.yaml",
+        ])
+    if include_per_case_helpers:
+        release_files.extend([per_case_engine, per_case_compiler])
     files = {
         str(path.relative_to(release)): digest(path)
         for path in release_files
@@ -239,6 +267,44 @@ def test_resolves_external_capability_with_nightly_launcher(tmp_path: Path) -> N
     }
 
 
+def test_resolves_external_capability_with_per_case_component(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(
+        tmp_path,
+        include_per_case_plugin=True,
+        include_per_case_helpers=True,
+    )
+
+    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert selected is not None
+    assert selected["release_root"] == release.resolve()
+    assert set(selected["plugin_sources"]) == {
+        "tgg-whatsapp-evidence",
+        "tgg-per-case-whatsapp",
+    }
+
+
+@pytest.mark.parametrize(
+    ("include_per_case_plugin", "include_per_case_helpers"),
+    [(True, False), (False, True)],
+)
+def test_rejects_incomplete_per_case_component(
+    tmp_path: Path,
+    include_per_case_plugin: bool,
+    include_per_case_helpers: bool,
+) -> None:
+    module = load_module()
+    home, runtime, _release = make_release(
+        tmp_path,
+        include_per_case_plugin=include_per_case_plugin,
+        include_per_case_helpers=include_per_case_helpers,
+    )
+
+    with pytest.raises(RuntimeError, match="per-case component is incomplete"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+
 def test_rejects_skill_without_skill_md(tmp_path: Path) -> None:
     module = load_module()
     home, runtime, release = make_release(tmp_path, include_whatsapp_skill=True)
@@ -323,31 +389,61 @@ def test_rejects_current_pointer_outside_release_root(tmp_path: Path) -> None:
         module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
-def test_accepts_canary_manifest_when_constitution_keeps_other_management_chats(
-    tmp_path: Path,
-) -> None:
-    module = load_module()
-    home, runtime, release = make_release(
-        tmp_path,
-        manifest_canary_chat_id="120363426509183563@g.us",
-    )
-
-    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
-
-    assert selected is not None
-    assert selected["release_root"] == release.resolve()
-
-
-def test_rejects_canary_manifest_when_named_selector_is_missing(
+def test_rejects_canary_manifest_even_when_both_management_chats_remain(
     tmp_path: Path,
 ) -> None:
     module = load_module()
     home, runtime, _release = make_release(
         tmp_path,
-        manifest_canary_chat_id="120363499999999999@g.us",
+        manifest_canary_chat_id="120363426509183563@g.us",
     )
 
-    with pytest.raises(RuntimeError, match="canary selector missing"):
+    with pytest.raises(RuntimeError, match="cannot restrict management selectors"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+
+def test_rejects_release_that_removes_real_management_chat(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(tmp_path)
+    constitution_path = release / "christopher_tgg_constitution.yaml"
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
+    constitution["selectors"] = [
+        selector
+        for selector in constitution["selectors"]
+        if selector.get("match", {}).get("source.chat_id")
+        != "120363407903158826@g.us"
+    ]
+    constitution_path.write_text(
+        yaml.safe_dump(constitution, sort_keys=False), encoding="utf-8"
+    )
+    manifest_path = release / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"]["christopher_tgg_constitution.yaml"] = digest(
+        constitution_path
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    sums = {**manifest["files"], "manifest.json": digest(manifest_path)}
+    (release / "SHA256SUMS").write_text(
+        "".join(f"{value}  {name}\n" for name, value in sorted(sums.items())),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="shared management selector missing"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+
+def test_rejects_shadow_release(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    home, runtime, _release = make_release(
+        tmp_path,
+        audience="shadow",
+    )
+
+    with pytest.raises(RuntimeError, match="must be a production release"):
         module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
@@ -367,7 +463,11 @@ def test_main_materializes_external_capability_and_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     module = load_module()
-    home, _runtime, release = make_release(tmp_path)
+    home, _runtime, release = make_release(
+        tmp_path,
+        include_per_case_plugin=True,
+        include_per_case_helpers=True,
+    )
     monkeypatch.setattr(module.pwd, "getpwnam", lambda _name: SimpleNamespace(pw_uid=501))
     monkeypatch.setattr(module.grp, "getgrnam", lambda _name: SimpleNamespace(gr_gid=20))
     monkeypatch.setattr(module.os, "chown", lambda *_args: None)
@@ -403,6 +503,11 @@ def test_main_materializes_external_capability_and_receipt(
     plugin = home / "plugins/tgg-whatsapp-evidence"
     assert plugin.is_symlink()
     assert plugin.resolve() == (release / "plugins/tgg-whatsapp-evidence").resolve()
+    per_case_plugin = home / "plugins/tgg-per-case-whatsapp"
+    assert per_case_plugin.is_symlink()
+    assert per_case_plugin.resolve() == (
+        release / "plugins/tgg-per-case-whatsapp"
+    ).resolve()
     receipt = json.loads((home / "runtime/engine-slot-receipt.json").read_text())
     assert receipt["configuration_source"] == "external-capability"
     assert receipt["capability_release_id"] == "test-release"

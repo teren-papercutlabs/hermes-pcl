@@ -126,7 +126,11 @@ management = {
     and (selector.get("match") or {}).get("source.platform") == "whatsapp"
     and (selector.get("match") or {}).get("source.chat_id")
 }
-assert management, "standby contract requires an explicit management selector"
+expected_management = {
+    "120363426509183563@g.us",
+    "120363407903158826@g.us",
+}
+assert management == expected_management, (management, expected_management)
 
 actual_counts = {name: 0 for name in ("pending", "processing", "completed", "skipped", "failed")}
 if inbox_path.exists():
@@ -407,6 +411,16 @@ def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 
 config = yaml.safe_load((home / "config.yaml").read_text())
 constitution = yaml.safe_load((home / "christopher_tgg_constitution.yaml").read_text())
+management_selector_ids = [
+    str((selector.get("match") or {}).get("source.chat_id"))
+    for selector in constitution.get("selectors", [])
+    if selector.get("job_type") == "tgg_management"
+    and (selector.get("match") or {}).get("source.platform") == "whatsapp"
+]
+assert management_selector_ids == [
+    "120363426509183563@g.us",
+    "120363407903158826@g.us",
+], management_selector_ids
 loader_path = deploy / "scripts/apply_engine_slot.py"
 loader_spec = importlib.util.spec_from_file_location("christopher_engine_slot_health", loader_path)
 loader = importlib.util.module_from_spec(loader_spec)

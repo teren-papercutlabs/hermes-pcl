@@ -49,9 +49,23 @@ CAPABILITY_NIGHTLY_PLUGIN_FILES = frozenset({
 CAPABILITY_NIGHTLY_LAUNCHER_FILES = frozenset({
     "scripts/run-nightly-whatsapp.py",
 })
+CAPABILITY_PER_CASE_PLUGIN_FILES = frozenset({
+    "plugins/tgg-per-case-whatsapp/__init__.py",
+    "plugins/tgg-per-case-whatsapp/plugin.yaml",
+})
+CAPABILITY_PER_CASE_HELPER_FILES = frozenset({
+    "scripts/per-case-whatsapp-engine.mjs",
+    "scripts/tgg-whatsapp-compile-semantic-decisions.mjs",
+})
+SHARED_MANAGEMENT_CHAT_IDS = frozenset({
+    "120363426509183563@g.us",
+    "120363407903158826@g.us",
+})
 CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS = (
     CAPABILITY_NIGHTLY_PLUGIN_FILES,
     CAPABILITY_NIGHTLY_LAUNCHER_FILES,
+    CAPABILITY_PER_CASE_PLUGIN_FILES,
+    CAPABILITY_PER_CASE_HELPER_FILES,
 )
 CAPABILITY_ALLOWED_NON_SKILL_FILE_SETS = {
     CAPABILITY_BASE_FILES
@@ -380,8 +394,10 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
         raise RuntimeError("external capability manifest schema mismatch")
     if manifest.get("release_id") != release_root.name:
         raise RuntimeError("external capability release id/path mismatch")
-    if manifest.get("audience") not in {"shadow", "production"}:
-        raise RuntimeError("external capability audience is invalid")
+    if manifest.get("audience") != "production":
+        raise RuntimeError("external capability must be a production release")
+    if manifest.get("canary") is not None:
+        raise RuntimeError("external capability cannot restrict management selectors")
     files = manifest.get("files")
     if not isinstance(files, dict):
         raise RuntimeError("external capability file set mismatch")
@@ -411,35 +427,17 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     configured_external_dirs = config.get("skills", {}).get("external_dirs", [])
     if configured_external_dirs != expected_external_dirs:
         raise RuntimeError("external capability skills path mismatch")
-    canary = manifest.get("canary")
-    if manifest["audience"] == "production" and canary is not None:
-        raise RuntimeError("production external capability cannot restrict management selectors")
-    if canary is not None:
-        management_chat_ids = canary.get("management_chat_ids") if isinstance(canary, dict) else None
-        if (
-            not isinstance(management_chat_ids, list)
-            or len(management_chat_ids) != 1
-            or not isinstance(management_chat_ids[0], str)
-        ):
-            raise RuntimeError("external capability canary manifest is invalid")
-        management_selectors = [
-            selector
-            for selector in constitution.get("selectors", [])
-            if selector.get("job_type") == "tgg_management"
-        ]
-        expected_selector = {
-            "job_type": "tgg_management",
-            "match": {
-                "source.platform": "whatsapp",
-                "source.chat_id": management_chat_ids[0],
-            },
-        }
-        # Christopher uses one shared runtime for the real and test management
-        # chats.  The canary field identifies the chat where the new behaviour
-        # is exercised; it is not an instruction to remove the production
-        # selector from that shared runtime.
-        if expected_selector not in management_selectors:
-            raise RuntimeError("external capability canary selector missing")
+    # Christopher has one production runtime. Both the real and test
+    # management chats are permanent selectors; testing is traffic sent to
+    # the test chat, never a restricted shadow/canary release.
+    management_chat_ids = {
+        selector.get("match", {}).get("source.chat_id")
+        for selector in constitution.get("selectors", [])
+        if selector.get("job_type") == "tgg_management"
+        and selector.get("match", {}).get("source.platform") == "whatsapp"
+    }
+    if not SHARED_MANAGEMENT_CHAT_IDS.issubset(management_chat_ids):
+        raise RuntimeError("external capability shared management selector missing")
     configured_constitution = Path(config["pa"]["constitution_path"])
     expected_constitution = current / "christopher_tgg_constitution.yaml"
     if configured_constitution != expected_constitution:
@@ -453,10 +451,23 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     )
     if nightly_enabled != int(includes_nightly_plugin):
         raise RuntimeError("external nightly plugin enablement mismatch")
+    includes_per_case_plugin = CAPABILITY_PER_CASE_PLUGIN_FILES.issubset(files)
+    includes_per_case_helpers = CAPABILITY_PER_CASE_HELPER_FILES.issubset(files)
+    if includes_per_case_plugin != includes_per_case_helpers:
+        raise RuntimeError("external per-case component is incomplete")
+    per_case_enabled = config.get("plugins", {}).get("enabled", []).count(
+        "tgg-per-case-whatsapp"
+    )
+    if per_case_enabled != int(includes_per_case_plugin):
+        raise RuntimeError("external per-case plugin enablement mismatch")
     plugin_sources = {"tgg-whatsapp-evidence": plugin_source}
     if includes_nightly_plugin:
         plugin_sources["tgg-nightly-whatsapp"] = (
             release_root / "plugins" / "tgg-nightly-whatsapp"
+        )
+    if includes_per_case_plugin:
+        plugin_sources["tgg-per-case-whatsapp"] = (
+            release_root / "plugins" / "tgg-per-case-whatsapp"
         )
     return {
         "release_root": release_root,
