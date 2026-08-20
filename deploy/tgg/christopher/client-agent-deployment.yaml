@@ -345,16 +345,24 @@ spec:
         restartAllowed: false
 
   deploy:
-    controller: pcl pa-agent
+    # Christopher no longer has a Marshal/pa-agent deploy entry point. The
+    # fixed host-owned standalone executor is the only activation authority.
+    controller: tgg-christopher-standalone-release
     manifestRef: deploy/tgg/christopher/pa-agent.hermes.manifest.json
     runtimeFileSetBuilder: deploy/tgg/christopher/scripts/build_pa_agent_manifest.py
-    transport: ssh-rsync
+    transport: standalone-bundle
     immutableBundles: true
     remoteBoxEditingAllowed: false
-    deployCommand: deploy/tgg/christopher/scripts/deploy_runtime.sh
-    verifyCommand: deploy/tgg/christopher/scripts/verify_runtime.sh --check-mode
+    canonicalDeployCommand: /usr/local/lib/tgg-christopher/standalone_release.py apply
+    legacyMarshalDeployment:
+      status: retired
+      formerDeployCommand: deploy/tgg/christopher/scripts/deploy_runtime.sh
+      refusal: >-
+        The legacy command exits before any subprocess, systemctl, SSH, or
+        network action and points to the fixed standalone executor.
+    verifyCommand: /usr/local/lib/tgg-christopher/standalone_release.py apply
     rollback:
-      controllerCommand: pcl pa-agent rollback
+      controllerCommand: /usr/local/lib/tgg-christopher/standalone_release.py rollback
       retainedDeploys: 5
       scope: hermes-only
       firstDeployFallback:
