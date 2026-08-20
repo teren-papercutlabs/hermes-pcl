@@ -246,7 +246,7 @@ def test_fatal_held_producer_shape_reports_fatal_message(tmp_path: Path) -> None
     ("pending_chat", "updated_at", "expected_ok"),
     [
         pytest.param("historical-ops@g.us", "2026-08-08T09:14:06+00:00", True, id="historical-non-management-backlog-is-inert"),
-        pytest.param("canary-management@g.us", "2026-08-08T09:14:06+00:00", False, id="pending-canary-work-fails-closed"),
+        pytest.param("120363426509183563@g.us", "2026-08-08T09:14:06+00:00", False, id="pending-management-work-fails-closed"),
         pytest.param("historical-ops@g.us", "2026-08-11T03:00:01+00:00", False, id="post-standby-mutation-fails-closed"),
     ],
 )
@@ -254,10 +254,22 @@ def test_standby_inbox_contract_preserves_only_inert_historical_backlog(
     tmp_path: Path, pending_chat: str, updated_at: str, expected_ok: bool,
 ) -> None:
     constitution_path = tmp_path / "constitution.yaml"
-    constitution_path.write_text(yaml.safe_dump({"selectors": [{
-        "job_type": "tgg_management",
-        "match": {"source.platform": "whatsapp", "source.chat_id": "canary-management@g.us"},
-    }]}))
+    constitution_path.write_text(yaml.safe_dump({"selectors": [
+            {
+                "job_type": "tgg_management",
+                "match": {
+                    "source.platform": "whatsapp",
+                    "source.chat_id": "120363426509183563@g.us",
+                },
+            },
+            {
+                "job_type": "tgg_management",
+                "match": {
+                    "source.platform": "whatsapp",
+                    "source.chat_id": "120363407903158826@g.us",
+                },
+            },
+        ]}))
     config_path = tmp_path / "config.yaml"
     config_path.write_text(yaml.safe_dump({"pa": {"enabled": False, "constitution_path": str(constitution_path)}}))
     gate_path = tmp_path / "processing-gate.json"
