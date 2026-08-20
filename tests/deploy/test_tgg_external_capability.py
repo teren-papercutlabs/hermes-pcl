@@ -28,6 +28,30 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def test_capability_baseline_provider_is_consistency_metadata_not_runtime_authority(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    config = tmp_path / "config.yaml"
+    constitution = tmp_path / "constitution.yaml"
+    config.write_text(yaml.safe_dump({
+        "pa": {"enabled": False},
+        "model": {"provider": "openai-codex", "default": "gpt-5.6-terra"},
+        "agent": {"reasoning_effort": "medium"},
+    }), encoding="utf-8")
+    constitution.write_text(yaml.safe_dump({
+        "runtime": {"provider": "openai-codex", "model": "gpt-5.6-terra"},
+    }), encoding="utf-8")
+
+    module._validate_capability_runtime_baseline(config, constitution)
+
+    constitution.write_text(yaml.safe_dump({
+        "runtime": {"provider": "openai-direct-primary", "model": "gpt-5.6-terra"},
+    }), encoding="utf-8")
+    with pytest.raises(AssertionError):
+        module._validate_capability_runtime_baseline(config, constitution)
+
+
 def make_release(
     tmp_path: Path,
     *,

@@ -280,12 +280,13 @@ def _validate_capability_runtime_baseline(config_path: Path, constitution_path: 
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
     assert config["pa"]["enabled"] is False
-    assert config["model"]["provider"] == "openai-direct-primary"
+    provider = config["model"].get("provider")
+    assert isinstance(provider, str) and provider
     assert config["model"]["default"] in set(SLOT_MODELS.values())
     effort = config.get("agent", {}).get("reasoning_effort")
     assert effort is None or effort in {"low", "medium", "high", "xhigh"}
     assert constitution["runtime"] == {
-        "provider": "openai-direct-primary",
+        "provider": provider,
         "model": config["model"]["default"],
     }
 
