@@ -254,6 +254,35 @@ class SingletonLock:
         self._handle = None
 
 
+class SharedActivityLock:
+    """Shared release barrier held while Christopher owns an inbox claim.
+
+    The consumer takes a shared advisory lock before it changes a row to
+    ``processing`` and retains it until the row is terminal again.  The small
+    Christopher release executor takes the same file exclusively and refuses
+    rather than restarting a live investigation.  This is deliberately only a
+    barrier, not another queue or deployment state machine.
+    """
+
+    def __init__(self, path: Path | None):
+        self.path = path
+        self._handle: Any = None
+
+    def __enter__(self) -> "SharedActivityLock":
+        if self.path is None:
+            return self
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._handle = self.path.open("a+", encoding="utf-8")
+        fcntl.flock(self._handle.fileno(), fcntl.LOCK_SH)
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if self._handle is not None:
+            fcntl.flock(self._handle.fileno(), fcntl.LOCK_UN)
+            self._handle.close()
+            self._handle = None
+
+
 def _bridge_item_ref(value: Any) -> Mapping[str, Any]:
     """Resolve the durable bridge item or a shallow append-envelope wrapper."""
     if not isinstance(value, Mapping):
@@ -3524,7 +3553,7 @@ def _new_gateway_runner(config_path: Path | None = None) -> Any:
         return GatewayRunner(load_gateway_config())
 
 
-async def _process_claimed_chat_batch(
+async def _process_claimed_chat_batch_unlocked(
     inbox: DurableInbox,
     records: Sequence[InboxRecord],
     *,
@@ -3624,7 +3653,7 @@ async def _process_claimed_chat_batch(
                     # follow-up after the active tool boundary; it never cancels
                     # file generation or another in-flight tool.
                     try:
-                        await _process_claimed_chat_batch(
+                        await _process_claimed_chat_batch_unlocked(
                             inbox,
                             followups,
                             config_path=config_path,
@@ -3699,6 +3728,22 @@ async def _process_claimed_chat_batch(
         )
 
 
+async def _process_claimed_chat_batch(
+    inbox: DurableInbox,
+    records: Sequence[InboxRecord],
+    *,
+    activity_lock_file: Path | None = None,
+    **kwargs: Any,
+) -> None:
+    """Process one batch while making a release/claim race impossible.
+
+    The lock starts before ``inbox.claim``; taking it only after the claim
+    leaves the exact check-then-restart race this seam exists to prevent.
+    """
+    with SharedActivityLock(activity_lock_file):
+        await _process_claimed_chat_batch_unlocked(inbox, records, **kwargs)
+
+
 async def run_consumer(args: argparse.Namespace) -> int:
     config_path = Path(args.config).resolve()
     source = Path(args.source).resolve()
@@ -3708,6 +3753,11 @@ async def run_consumer(args: argparse.Namespace) -> int:
     gate_path = Path(args.processing_gate).resolve()
     state_db = Path(args.state_db).resolve()
     case_db = Path(args.case_db).resolve()
+    activity_lock_file = (
+        Path(args.activity_lock_file).resolve()
+        if getattr(args, "activity_lock_file", None)
+        else None
+    )
     source_before_image_dir = Path(args.source_before_image_dir).resolve()
     site_concurrency = max(1, int(getattr(args, "site_concurrency", 4)))
     chat_batch_size = max(1, int(getattr(args, "chat_batch_size", 25)))
@@ -3930,6 +3980,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         _process_claimed_chat_batch(
                             inbox,
                             records,
+                            activity_lock_file=activity_lock_file,
                             config_path=config_path,
                             state_db=state_db,
                             gate_changed_at=gate_changed_at,
@@ -3949,6 +4000,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             _process_claimed_chat_batch(
                                 inbox,
                                 records,
+                                activity_lock_file=activity_lock_file,
                                 config_path=config_path,
                                 state_db=state_db,
                                 gate_changed_at=gate_changed_at,
@@ -4967,6 +5019,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--source-before-image-dir", required=True)
     run.add_argument("--processing-gate", required=True)
     run.add_argument("--lock-file", required=True)
+    run.add_argument(
+        "--activity-lock-file",
+        help="shared with standalone release executor; held before an inbox claim",
+    )
     run.add_argument("--status-file", required=True)
     run.add_argument("--poll-seconds", type=float, default=2.0)
     run.add_argument("--max-records", type=int, default=100)
