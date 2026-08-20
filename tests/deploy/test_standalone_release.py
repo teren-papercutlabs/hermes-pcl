@@ -96,6 +96,13 @@ def test_systemctl_status_accepts_inactive_exit_three(monkeypatch: pytest.Monkey
     assert release.systemctl_status("nightly.timer", "is-active") == {"state": "inactive", "returncode": 3}
 
 
+def test_restart_clears_start_limit_before_restart(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(release, "command", lambda argv: calls.append(argv) or "")
+    release.restart_service()
+    assert calls == [["systemctl", "reset-failed", release.SERVICE], ["systemctl", "restart", release.SERVICE]]
+
+
 def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, home = tmp_path / "root", tmp_path / "home"
     old_runtime, old_cap = root / "runtime/releases/old", root / "capability/releases/old"

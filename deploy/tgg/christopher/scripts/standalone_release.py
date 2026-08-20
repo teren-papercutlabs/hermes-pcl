@@ -247,6 +247,17 @@ def command(argv: list[str]) -> str:
     return subprocess.run(argv, check=True, capture_output=True, text=True).stdout.strip()
 
 
+def restart_service() -> None:
+    """Clear systemd's inherited start-limit before our single owned restart."""
+    command(["systemctl", "reset-failed", SERVICE])
+    command(["systemctl", "restart", SERVICE])
+
+
+def recover_service() -> None:
+    subprocess.run(["systemctl", "reset-failed", SERVICE], check=False)
+    subprocess.run(["systemctl", "restart", SERVICE], check=False)
+
+
 def systemctl_status(unit: str, verb: str) -> dict[str, Any]:
     """Read systemd status without mistaking inactive/disabled for an error."""
     result = subprocess.run(["systemctl", verb, unit], check=False, capture_output=True, text=True)
@@ -387,7 +398,7 @@ def apply(args: argparse.Namespace) -> int:
                 replace_pointer(home / "plugins" / name, capability_dest / "plugins" / name)
             after_unit_hash = install_unit(runtime_dest / UNIT_REL, unit_path)
             command(["systemctl", "daemon-reload"])
-            command(["systemctl", "restart", SERVICE])
+            restart_service()
             verified = focused_verify(root, home, expected, before_controls)
             outcome = {"schema": SCHEMA, "status": "committed", "before": old, "after": {**verified, "unit_sha256": after_unit_hash}}
         except Exception as exc:
@@ -399,7 +410,7 @@ def apply(args: argparse.Namespace) -> int:
                 replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(old["capability"]))
             for name, target in (old.get("plugins") or {}).items():
                 replace_pointer(home / "plugins" / name, Path(target))
-            subprocess.run(["systemctl", "restart", SERVICE], check=False)
+            recover_service()
             outcome = {"schema": SCHEMA, "status": "rolled_back", "before": old, "error": str(exc)}
             atomic_json(receipt, outcome)
             raise
@@ -428,7 +439,7 @@ def rollback(args: argparse.Namespace) -> int:
         prior_runtime_unit = Path(before["runtime"]) / UNIT_REL
         install_unit(prior_runtime_unit, unit_path)
         command(["systemctl", "daemon-reload"])
-        command(["systemctl", "restart", SERVICE])
+        restart_service()
     print(json.dumps({"schema": SCHEMA, "status": "rolled_back", "receipt": args.receipt}, sort_keys=True))
     return 0
 
