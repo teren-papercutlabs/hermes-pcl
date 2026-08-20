@@ -121,6 +121,11 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
     assert calls[0]["conversation_history"] == []
     assert calls[1]["conversation_history"] == []
     assert calls[2]["conversation_history"] == []
+    assert all(
+        "batch_id=nightly:2026-08-17:test" in call["message"]
+        and "authoritative_chat_id=amk@g.us" in call["message"]
+        for call in calls[1:]
+    )
     assert "first read the chat ledger" in calls[1]["message"]
     assert len(status_calls) == 3
     assert status_calls == [{"batch_id": "nightly:2026-08-17:test"}] * 3
