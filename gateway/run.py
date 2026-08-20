@@ -1138,7 +1138,10 @@ def _source_pa_metadata(
 # ordinary conversations and the nightly consolidator retain their existing
 # one-turn behaviour.
 _TGG_NIGHTLY_ANALYZER_JOB_TYPE = "tgg_nightly_whatsapp"
-_TGG_NIGHTLY_MAX_ANALYZER_TURNS = 8
+# The largest authoritative chat currently occupies eight 25-row pages. Two
+# extra turns let the same agent correct an ordinary final-page validation
+# error without spawning a recovery session or weakening the receipt gate.
+_TGG_NIGHTLY_MAX_ANALYZER_TURNS = 10
 
 
 def _tgg_nightly_analyzer_trigger(
