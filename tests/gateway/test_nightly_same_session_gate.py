@@ -119,8 +119,9 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
     assert len(calls) == 3
     assert [call["task_id"] for call in calls] == ["nightly-session"] * 3
     assert calls[0]["conversation_history"] == []
-    assert calls[1]["conversation_history"] == [{"role": "assistant", "content": "first turn"}]
-    assert calls[2]["conversation_history"] == [{"role": "assistant", "content": "second turn"}]
+    assert calls[1]["conversation_history"] == []
+    assert calls[2]["conversation_history"] == []
+    assert "first read the chat ledger" in calls[1]["message"]
     assert len(status_calls) == 3
     assert status_calls == [{"batch_id": "nightly:2026-08-17:test"}] * 3
     assert runner._queued_events == {}
