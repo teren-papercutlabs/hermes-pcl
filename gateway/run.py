@@ -1166,8 +1166,11 @@ def _tgg_nightly_analyzer_trigger(
     return batch_id, chat_id
 
 
-def _tgg_nightly_chat_receipt_status(batch_id: str, authoritative_chat_id: str) -> bool | None:
-    """Return receipt presence, or ``None`` when status cannot be verified."""
+def _tgg_nightly_chat_receipt_snapshot(
+    batch_id: str,
+    authoritative_chat_id: str,
+) -> tuple[bool, str | None] | None:
+    """Return receipt presence and the chat's mechanical progress fingerprint."""
     try:
         from tools.registry import registry
 
@@ -1184,10 +1187,24 @@ def _tgg_nightly_chat_receipt_status(batch_id: str, authoritative_chat_id: str) 
         if not isinstance(completed, list):
             logger.warning("Nightly same-session gate: malformed status for %s", batch_id)
             return None
-        return authoritative_chat_id in completed
+        chat_progress = status.get("chat_progress")
+        progress_sha256 = None
+        if isinstance(chat_progress, Mapping):
+            progress = chat_progress.get(authoritative_chat_id)
+            if isinstance(progress, Mapping):
+                candidate = progress.get("sha256")
+                if isinstance(candidate, str) and candidate:
+                    progress_sha256 = candidate
+        return authoritative_chat_id in completed, progress_sha256
     except Exception:
         logger.exception("Nightly same-session gate: status check raised for %s", batch_id)
         return None
+
+
+def _tgg_nightly_chat_receipt_status(batch_id: str, authoritative_chat_id: str) -> bool | None:
+    """Compatibility wrapper for callers that need only receipt presence."""
+    snapshot = _tgg_nightly_chat_receipt_snapshot(batch_id, authoritative_chat_id)
+    return None if snapshot is None else snapshot[0]
 
 
 def _tgg_nightly_result_is_terminal_failure(result: Mapping[str, Any]) -> bool:
@@ -18425,11 +18442,14 @@ class GatewayRunner:
                 nightly_trigger = _tgg_nightly_analyzer_trigger(pa_job_type, pa_context)
                 if nightly_trigger and isinstance(result, Mapping):
                     batch_id, authoritative_chat_id = nightly_trigger
+                    last_progress_sha256: str | None = None
                     while True:
-                        receipt_present = _tgg_nightly_chat_receipt_status(
+                        receipt_snapshot = _tgg_nightly_chat_receipt_snapshot(
                             batch_id,
                             authoritative_chat_id,
                         )
+                        receipt_present = None if receipt_snapshot is None else receipt_snapshot[0]
+                        progress_sha256 = None if receipt_snapshot is None else receipt_snapshot[1]
                         if receipt_present is True or _tgg_nightly_result_is_terminal_failure(result):
                             break
                         if receipt_present is None:
@@ -18438,6 +18458,17 @@ class GatewayRunner:
                                 "the receipt could not be verified",
                             )
                             break
+                        if (
+                            progress_sha256 is not None
+                            and last_progress_sha256 == progress_sha256
+                        ):
+                            result = _mark_tgg_nightly_completion_incomplete(
+                                result,
+                                "the preceding continuation made no durable analyzer progress",
+                            )
+                            break
+                        if progress_sha256 is not None:
+                            last_progress_sha256 = progress_sha256
                         if (
                             time.monotonic() - agent_run_started_at
                             >= _TGG_NIGHTLY_MAX_ANALYZER_SECONDS
