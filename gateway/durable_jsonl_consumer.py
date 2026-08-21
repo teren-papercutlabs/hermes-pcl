@@ -1739,8 +1739,16 @@ def _source_projection_config(config_path: Path) -> dict[str, Any] | None:
     operation = str(raw.get("operation") or "tgg_whatsapp_source_ingest").strip()
     if operation != "tgg_whatsapp_source_ingest":
         raise ConsumerError("source projection operation must be tgg_whatsapp_source_ingest")
+    chat_ids = raw.get("chat_ids")
+    if (
+        not isinstance(chat_ids, list) or not chat_ids
+        or any(not isinstance(value, str) or not value.strip() for value in chat_ids)
+        or len(chat_ids) != len(set(chat_ids))
+    ):
+        raise ConsumerError("source projection chat_ids must be a non-empty unique list")
     return {
         "operation": operation,
+        "chat_ids": frozenset(chat_ids),
         "max_attempts": max(1, int(raw.get("max_attempts", 5))),
         "retry_interval_seconds": max(
             1.0, float(raw.get("retry_interval_seconds", 15))
@@ -1799,8 +1807,8 @@ def project_pending_source_events(
     """Drain a bounded independent projection outbox without touching model work."""
     config = _source_projection_config(config_path)
     if config is None:
-        return {"attempted": 0, "complete": 0, "held": 0, "disabled": 1}
-    summary = {"attempted": 0, "complete": 0, "held": 0, "disabled": 0}
+        return {"attempted": 0, "complete": 0, "held": 0, "skipped": 0, "disabled": 1}
+    summary = {"attempted": 0, "complete": 0, "held": 0, "skipped": 0, "disabled": 0}
     records = inbox.source_projection_candidates(
         limit=limit,
         retry_interval_seconds=config["retry_interval_seconds"],
@@ -1809,6 +1817,10 @@ def project_pending_source_events(
     for record in records:
         summary["attempted"] += 1
         try:
+            if record.chat_id not in config["chat_ids"]:
+                inbox.record_source_projection(record, retry_cap=config["max_attempts"])
+                summary["skipped"] += 1
+                continue
             envelope = record.source_envelope
             if not isinstance(envelope, Mapping):
                 raise ConsumerError("source projection record lacks stored source envelope")
@@ -4071,7 +4083,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                 # from the business/model gate.  A paused Christopher must not
                 # make the authoritative ledger fall behind raw capture.
                 staged_total = 0
-                projection_cycle = {"attempted": 0, "complete": 0, "held": 0, "disabled": 1}
+                projection_cycle = {"attempted": 0, "complete": 0, "held": 0, "skipped": 0, "disabled": 1}
                 if projection_enabled:
                     before_stage = inbox.total()
                     staged = inbox.stage_from_source(

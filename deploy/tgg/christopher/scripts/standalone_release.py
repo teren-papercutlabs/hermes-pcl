@@ -70,9 +70,18 @@ def file_inventory(source: Path) -> dict[str, str]:
     }
 
 
+def make_immutable_tree(root: Path) -> None:
+    """Remove write bits after a release's exact fileset has been verified."""
+    for path in sorted(root.rglob("*"), reverse=True):
+        if path.is_symlink():
+            raise ReleaseError(f"immutable release contains symlink: {path}")
+        path.chmod(path.stat().st_mode & ~0o222)
+    root.chmod(root.stat().st_mode & ~0o222)
+
+
 def stage_runtime(source: Path, manifest_path: Path, destination: Path, commit: str) -> dict[str, str]:
     """Make a payload from the declared runtime include list, never a worktree."""
-    raw = json.loads(manifest_path.read_text())
+    raw = json.loads(manifest_path.read_text(encoding="utf-8"))
     include = raw.get("include")
     if not isinstance(include, list) or not include or not all(isinstance(x, str) for x in include):
         raise ReleaseError("runtime manifest must contain a non-empty include list")
@@ -213,6 +222,17 @@ def pointer_target(pointer: Path) -> str | None:
     return str(pointer.resolve()) if pointer.is_symlink() else None
 
 
+def restore_pointer(pointer: Path, target: str | None) -> None:
+    """Restore an old pointer, or remove a plugin introduced by this release."""
+    if target is not None:
+        replace_pointer(pointer, Path(target))
+        return
+    if pointer.is_symlink():
+        pointer.unlink()
+    elif pointer.exists():
+        raise ReleaseError(f"refusing to remove non-pointer path: {pointer}")
+
+
 def processing_rows(inbox: Path) -> int:
     if not inbox.exists():
         return 0
@@ -285,6 +305,12 @@ def control_state(home: Path) -> dict[str, Any]:
     return controls
 
 
+def operational_controls_unchanged(before: dict[str, Any], after: dict[str, Any]) -> bool:
+    """Capability config may change; gate and schedule must not change implicitly."""
+    keys = ("gate_sha256", "gate_enabled", "timer_active", "timer_enabled")
+    return all(before.get(key) == after.get(key) for key in keys)
+
+
 def focused_verify(root: Path, home: Path, expected: dict[str, Any], before_controls: dict[str, Any]) -> dict[str, Any]:
     runtime = root / "runtime/current"
     capability = root / "capability/current"
@@ -297,14 +323,16 @@ def focused_verify(root: Path, home: Path, expected: dict[str, Any], before_cont
         raise ReleaseError("Christopher service is not active")
     import yaml
     config = home / "config.yaml"
-    enabled = bool((yaml.safe_load(config.read_text()) or {}).get("pa", {}).get("enabled"))
+    enabled = bool((yaml.safe_load(config.read_text(encoding="utf-8")) or {}).get("pa", {}).get("enabled"))
     controls = control_state(home)
     if controls["gate_enabled"] != enabled:
         raise ReleaseError("processing gate disagrees with configuration")
-    if controls != before_controls:
-        raise ReleaseError("release changed config, processing gate, or timer state")
-    engine = json.loads((home / "runtime/engine-slot-receipt.json").read_text())
-    profile = json.loads((home / "runtime/provider-profile.json").read_text())
+    if not operational_controls_unchanged(before_controls, controls):
+        raise ReleaseError("release changed processing gate or timer state")
+    engine = json.loads((home / "runtime/engine-slot-receipt.json").read_text(encoding="utf-8"))
+    profile = json.loads((home / "runtime/provider-profile.json").read_text(encoding="utf-8"))
+    if engine.get("config_sha256") != controls["config_sha256"]:
+        raise ReleaseError("effective configuration is not bound to engine receipt")
     if (engine.get("provider"), engine.get("model"), engine.get("reasoning_effort")) != (
         expected["provider"], expected["model"], expected["reasoning_effort"]):
         raise ReleaseError("effective engine identity mismatch")
@@ -363,6 +391,7 @@ def apply(args: argparse.Namespace) -> int:
         before_unit = unit_path.read_bytes() if unit_path.exists() else None
         old["unit_sha256"] = sha256(unit_path) if before_unit is not None else None
         stage = root / ".stage" / str(os.getpid())
+        activation_started = False
         try:
             extract_verified(bundle / "runtime.tgz", release["runtime_sha256"], stage / "runtime")
             extract_verified(bundle / "capability.tgz", release["capability_sha256"], stage / "capability")
@@ -386,10 +415,10 @@ def apply(args: argparse.Namespace) -> int:
                         raise ReleaseError("release id exists with different immutable payload")
                 else:
                     os.replace(staged, destination)
+                make_immutable_tree(destination)
             plugins = capability_plugins(capability_dest)
             old["plugins"] = {name: pointer_target(home / "plugins" / name) for name in plugins}
-            if any(target is None for target in old["plugins"].values()):
-                raise ReleaseError("prior capability plugin pointer missing")
+            activation_started = True
             replace_pointer(root / "runtime/current", runtime_dest)
             replace_pointer(root / "capability/current", capability_dest)
             # Home-level links preserve existing runtime selectors without copying capability files.
@@ -402,15 +431,16 @@ def apply(args: argparse.Namespace) -> int:
             verified = focused_verify(root, home, expected, before_controls)
             outcome = {"schema": SCHEMA, "status": "committed", "before": old, "after": {**verified, "unit_sha256": after_unit_hash}}
         except Exception as exc:
-            restore_unit(before_unit, unit_path)
-            subprocess.run(["systemctl", "daemon-reload"], check=False)
-            if old["runtime"]: replace_pointer(root / "runtime/current", Path(old["runtime"]))
-            if old["capability"]:
-                replace_pointer(root / "capability/current", Path(old["capability"]))
-                replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(old["capability"]))
-            for name, target in (old.get("plugins") or {}).items():
-                replace_pointer(home / "plugins" / name, Path(target))
-            recover_service()
+            if activation_started:
+                restore_unit(before_unit, unit_path)
+                subprocess.run(["systemctl", "daemon-reload"], check=False)
+                if old["runtime"]: replace_pointer(root / "runtime/current", Path(old["runtime"]))
+                if old["capability"]:
+                    replace_pointer(root / "capability/current", Path(old["capability"]))
+                    replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(old["capability"]))
+                for name, target in (old.get("plugins") or {}).items():
+                    restore_pointer(home / "plugins" / name, target)
+                recover_service()
             outcome = {"schema": SCHEMA, "status": "rolled_back", "before": old, "error": str(exc)}
             atomic_json(receipt, outcome)
             raise
@@ -422,9 +452,9 @@ def apply(args: argparse.Namespace) -> int:
 
 
 def rollback(args: argparse.Namespace) -> int:
-    receipt = json.loads(Path(args.receipt).read_text())
+    receipt = json.loads(Path(args.receipt).read_text(encoding="utf-8"))
     before = receipt.get("before") or {}
-    if not before.get("runtime") or not before.get("capability") or not before.get("plugins"):
+    if not before.get("runtime") or not before.get("capability") or not isinstance(before.get("plugins"), dict):
         raise ReleaseError("receipt has no rollback targets")
     root, home = Path(args.root), Path(args.hermes_home)
     unit_path = Path(getattr(args, "systemd_unit", DEFAULT_UNIT))
@@ -435,7 +465,7 @@ def rollback(args: argparse.Namespace) -> int:
         replace_pointer(root / "capability/current", Path(before["capability"]))
         replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(before["capability"]))
         for name, target in before["plugins"].items():
-            replace_pointer(home / "plugins" / name, Path(target))
+            restore_pointer(home / "plugins" / name, target)
         prior_runtime_unit = Path(before["runtime"]) / UNIT_REL
         install_unit(prior_runtime_unit, unit_path)
         command(["systemctl", "daemon-reload"])

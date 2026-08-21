@@ -103,6 +103,35 @@ def test_restart_clears_start_limit_before_restart(monkeypatch: pytest.MonkeyPat
     assert calls == [["systemctl", "reset-failed", release.SERVICE], ["systemctl", "restart", release.SERVICE]]
 
 
+def test_capability_config_may_change_while_gate_and_timer_remain_fixed() -> None:
+    before = {
+        "config_sha256": "old", "gate_sha256": "gate", "gate_enabled": True,
+        "timer_active": {"state": "inactive", "returncode": 3},
+        "timer_enabled": {"state": "linked", "returncode": 0},
+    }
+    after = {**before, "config_sha256": "new"}
+    assert release.operational_controls_unchanged(before, after)
+    after["gate_enabled"] = False
+    assert not release.operational_controls_unchanged(before, after)
+
+
+def test_release_tree_is_made_read_only_without_losing_execute_bits(tmp_path: Path) -> None:
+    root = tmp_path / "release"
+    script = root / "bin" / "run"
+    script.parent.mkdir(parents=True)
+    script.write_text("#!/bin/sh\n")
+    script.chmod(0o755)
+    data = root / "config.json"
+    data.write_text("{}\n")
+    data.chmod(0o644)
+
+    release.make_immutable_tree(root)
+
+    assert script.stat().st_mode & 0o777 == 0o555
+    assert data.stat().st_mode & 0o777 == 0o444
+    assert root.stat().st_mode & 0o777 == 0o555
+
+
 def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, home = tmp_path / "root", tmp_path / "home"
     old_runtime, old_cap = root / "runtime/releases/old", root / "capability/releases/old"
@@ -117,9 +146,11 @@ def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Pat
     (home / "runtime/processing-gate.json").write_text('{"enabled": false}')
     rt, cap, bundle = tmp_path / "rt", tmp_path / "cap", tmp_path / "bundle"
     runtime(rt, "abcdef0"); capability(cap, "newcap"); (cap / "plugins/tgg").mkdir(parents=True)
+    (cap / "plugins/new-plugin").mkdir(parents=True)
     # Plugin content must be represented in the release manifest.
     (cap / "plugins/tgg/plugin.py").write_text("x=2\n")
-    manifest = json.loads((cap / "manifest.json").read_text()); manifest["runtime"]["hermes_commit"] = "abcdef0"; manifest["files"]["plugins/tgg/plugin.py"] = release.sha256(cap / "plugins/tgg/plugin.py"); (cap / "manifest.json").write_text(json.dumps(manifest))
+    (cap / "plugins/new-plugin/plugin.py").write_text("x=3\n")
+    manifest = json.loads((cap / "manifest.json").read_text()); manifest["runtime"]["hermes_commit"] = "abcdef0"; manifest["files"]["plugins/tgg/plugin.py"] = release.sha256(cap / "plugins/tgg/plugin.py"); manifest["files"]["plugins/new-plugin/plugin.py"] = release.sha256(cap / "plugins/new-plugin/plugin.py"); (cap / "manifest.json").write_text(json.dumps(manifest))
     assert release.main(["prepare", "--runtime", str(rt), "--runtime-manifest", str(runtime_manifest(rt)), "--capability", str(cap), "--out", str(bundle), "--provider", "p", "--model", "m", "--reasoning-effort", "r"]) == 0
     monkeypatch.setattr(release, "command", lambda argv: "inactive" if "is-active" in argv else "disabled")
     class Result:
@@ -138,6 +169,7 @@ def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Pat
         release.apply(args)
     assert release.pointer_target(root / "runtime/current") == str(old_runtime)
     assert release.pointer_target(home / "plugins/tgg") == str(old_cap / "plugins/tgg")
+    assert not (home / "plugins/new-plugin").exists()
     assert unit_path.read_text() == "[Service]\n# old\n"
     approved = home / "runtime/capabilities/christopher-tgg/releases/newcap"
     assert observed == {"runtime": str(root / "runtime/releases/abcdef0"), "plugin": str(approved / "plugins/tgg"), "unit": "[Service]\n# abcdef0\n"}

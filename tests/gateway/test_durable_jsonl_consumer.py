@@ -142,7 +142,7 @@ def test_source_projection_uses_exact_stored_capture_envelope_and_is_independent
     summary = consumer.project_pending_source_events(
         inbox, config_path=_source_projection_config(tmp_path), limit=10
     )
-    assert summary == {"attempted": 1, "complete": 1, "held": 0, "disabled": 0}
+    assert summary == {"attempted": 1, "complete": 1, "held": 0, "skipped": 0, "disabled": 0}
     assert received == [envelope]
     assert inbox.counts() == {"pending": 1}
     assert inbox.source_projection_counts() == {
@@ -174,7 +174,7 @@ def test_source_projection_failure_holds_only_that_event_and_later_events_contin
     summary = consumer.project_pending_source_events(
         inbox, config_path=_source_projection_config(tmp_path), limit=10
     )
-    assert summary == {"attempted": 2, "complete": 1, "held": 1, "disabled": 0}
+    assert summary == {"attempted": 2, "complete": 1, "held": 1, "skipped": 0, "disabled": 0}
     assert calls == ["projection-fails", "projection-next"]
     assert inbox.counts() == {"pending": 2}
     assert inbox.source_projection_counts() == {
@@ -186,7 +186,29 @@ def test_source_projection_failure_holds_only_that_event_and_later_events_contin
     # remain untouched either way.
     assert consumer.project_pending_source_events(
         inbox, config_path=_source_projection_config(tmp_path), limit=10
-    ) == {"attempted": 0, "complete": 0, "held": 0, "disabled": 0}
+    ) == {"attempted": 0, "complete": 0, "held": 0, "skipped": 0, "disabled": 0}
+
+
+def test_source_projection_marks_non_authoritative_chats_complete_without_calling_systems(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "capture.jsonl"
+    _write_jsonl(source, [_message("management-message", "management@g.us")])
+    cursor = tmp_path / "cursor.json"
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    inbox.stage_from_source(source, cursor)
+    monkeypatch.setattr(
+        consumer, "_project_source_envelope",
+        lambda *_args, **_kwargs: pytest.fail("non-authoritative chat reached Systems"),
+    )
+
+    summary = consumer.project_pending_source_events(
+        inbox, config_path=_source_projection_config(tmp_path), limit=10,
+    )
+
+    assert summary == {"attempted": 1, "complete": 0, "held": 0, "skipped": 1, "disabled": 0}
+    assert inbox.source_projection_counts()["source_projection_complete"] == 1
 
 
 def test_source_projection_crash_after_systems_commit_replays_idempotently(
@@ -286,6 +308,7 @@ def _source_projection_config(tmp_path: Path, *, enabled: bool = True) -> Path:
             "source_projection": {
                 "enabled": enabled,
                 "operation": "tgg_whatsapp_source_ingest",
+                "chat_ids": ["test-group@g.us"],
                 "max_attempts": 2,
                 "retry_interval_seconds": 1,
             },

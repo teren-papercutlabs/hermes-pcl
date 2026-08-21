@@ -55,25 +55,11 @@ CAPABILITY_PER_CASE_PLUGIN_FILES = frozenset({
 })
 CAPABILITY_PER_CASE_HELPER_FILES = frozenset({
     "scripts/per-case-whatsapp-engine.mjs",
-    "scripts/tgg-whatsapp-compile-semantic-decisions.mjs",
 })
 SHARED_MANAGEMENT_CHAT_IDS = frozenset({
     "120363426509183563@g.us",
     "120363407903158826@g.us",
 })
-CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS = (
-    CAPABILITY_NIGHTLY_PLUGIN_FILES,
-    CAPABILITY_NIGHTLY_LAUNCHER_FILES,
-    CAPABILITY_PER_CASE_PLUGIN_FILES,
-    CAPABILITY_PER_CASE_HELPER_FILES,
-)
-CAPABILITY_ALLOWED_NON_SKILL_FILE_SETS = {
-    CAPABILITY_BASE_FILES
-    | frozenset().union(
-        *(files for index, files in enumerate(CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS) if mask & (1 << index))
-    )
-    for mask in range(1 << len(CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS))
-}
 CAPABILITY_SKILL_SLUG = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?")
 PROVIDER_PROFILES = frozenset({"openai-direct-primary", "openai-codex"})
 DEFAULT_PROVIDER_PROFILE = "openai-direct-primary"
@@ -311,10 +297,18 @@ def _parse_sums(path: Path) -> dict[str, str]:
 
 
 def _capability_skill_files(files: dict[str, str]) -> dict[str, set[str]]:
-    """Validate and group inert, manifest-pinned external skill files."""
-    non_skill_files = frozenset(name for name in files if not name.startswith("skills/"))
-    if non_skill_files not in CAPABILITY_ALLOWED_NON_SKILL_FILE_SETS:
-        raise RuntimeError("external capability file set mismatch")
+    """Validate manifest-pinned capability paths without hardcoding components."""
+    for relative in (name for name in files if not name.startswith("skills/")):
+        parts = relative.split("/")
+        valid = relative in CAPABILITY_BASE_FILES
+        if len(parts) == 3 and parts[0] == "plugins":
+            valid = bool(CAPABILITY_SKILL_SLUG.fullmatch(parts[1])) and parts[2] in {
+                "__init__.py", "plugin.yaml",
+            }
+        elif len(parts) == 2 and parts[0] == "scripts":
+            valid = bool(re.fullmatch(r"[a-z0-9][a-z0-9._-]*\.(?:py|mjs)", parts[1]))
+        if not valid:
+            raise RuntimeError(f"external capability file path is not allowed: {relative}")
 
     grouped: dict[str, set[str]] = {}
     for relative in files:
@@ -329,7 +323,7 @@ def _capability_skill_files(files: dict[str, str]) -> dict[str, set[str]]:
             raise RuntimeError("external capability skill path is invalid")
         skill_relative = "/".join(parts[2:])
         if skill_relative not in {"SKILL.md", "agents/openai.yaml"} and not (
-            len(parts) >= 4 and parts[2] == "assets"
+            len(parts) >= 4 and parts[2] in {"assets", "references"}
         ):
             raise RuntimeError(f"external capability skill file is not allowed: {relative}")
         grouped.setdefault(parts[1], set()).add(skill_relative)
@@ -443,33 +437,28 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     expected_constitution = current / "christopher_tgg_constitution.yaml"
     if configured_constitution != expected_constitution:
         raise RuntimeError("external capability constitution path mismatch")
-    if config.get("plugins", {}).get("enabled", []).count("tgg-whatsapp-evidence") != 1:
-        raise RuntimeError("external capability plugin enablement mismatch")
-    plugin_source = release_root / "plugins" / "tgg-whatsapp-evidence"
-    includes_nightly_plugin = CAPABILITY_NIGHTLY_PLUGIN_FILES.issubset(files)
-    nightly_enabled = config.get("plugins", {}).get("enabled", []).count(
-        "tgg-nightly-whatsapp"
-    )
-    if nightly_enabled != int(includes_nightly_plugin):
-        raise RuntimeError("external nightly plugin enablement mismatch")
-    includes_per_case_plugin = CAPABILITY_PER_CASE_PLUGIN_FILES.issubset(files)
+    plugin_names = sorted({
+        relative.split("/")[1]
+        for relative in files
+        if relative.startswith("plugins/") and len(relative.split("/")) == 3
+    })
+    enabled_plugins = config.get("plugins", {}).get("enabled", [])
+    if "tgg-whatsapp-evidence" not in plugin_names:
+        raise RuntimeError("external WhatsApp evidence plugin missing")
+    for name in plugin_names:
+        expected_files = {
+            f"plugins/{name}/__init__.py", f"plugins/{name}/plugin.yaml",
+        }
+        if not expected_files <= set(files) or enabled_plugins.count(name) != 1:
+            raise RuntimeError(f"external capability plugin incomplete or disabled: {name}")
+    includes_per_case_plugin = "tgg-per-case-whatsapp" in plugin_names
     includes_per_case_helpers = CAPABILITY_PER_CASE_HELPER_FILES.issubset(files)
     if includes_per_case_plugin != includes_per_case_helpers:
         raise RuntimeError("external per-case component is incomplete")
-    per_case_enabled = config.get("plugins", {}).get("enabled", []).count(
-        "tgg-per-case-whatsapp"
-    )
-    if per_case_enabled != int(includes_per_case_plugin):
-        raise RuntimeError("external per-case plugin enablement mismatch")
-    plugin_sources = {"tgg-whatsapp-evidence": plugin_source}
-    if includes_nightly_plugin:
-        plugin_sources["tgg-nightly-whatsapp"] = (
-            release_root / "plugins" / "tgg-nightly-whatsapp"
-        )
-    if includes_per_case_plugin:
-        plugin_sources["tgg-per-case-whatsapp"] = (
-            release_root / "plugins" / "tgg-per-case-whatsapp"
-        )
+    plugin_sources = {
+        name: release_root / "plugins" / name for name in plugin_names
+    }
+    plugin_source = plugin_sources["tgg-whatsapp-evidence"]
     return {
         "release_root": release_root,
         "release_id": manifest["release_id"],
