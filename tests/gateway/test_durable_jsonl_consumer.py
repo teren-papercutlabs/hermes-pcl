@@ -116,6 +116,151 @@ def _docx(path: Path, *, macro_enabled: bool = False) -> None:
             archive.writestr("word/vbaProject.bin", b"macro")
 
 
+def test_source_projection_uses_exact_stored_capture_envelope_and_is_independent(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "capture.jsonl"
+    envelope = {"normalized": _message("projection-1"), "capture": {"trace": "exact"}}
+    _write_jsonl(source, [envelope])
+    cursor = tmp_path / "cursor.json"
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    assert inbox.stage_from_source(source, cursor) == 1
+    assert inbox.source_projection_counts() == {
+        "source_projection_pending": 1,
+        "source_projection_complete": 0,
+        "source_projection_held": 0,
+    }
+    received: list[dict] = []
+
+    def fake_project(_config, *, operation, source_envelope):
+        assert operation == "tgg_whatsapp_source_ingest"
+        received.append(dict(source_envelope))
+        return {"ok": True, "data": {"idempotent": True}}
+
+    monkeypatch.setattr(consumer, "_project_source_envelope", fake_project)
+    summary = consumer.project_pending_source_events(
+        inbox, config_path=_source_projection_config(tmp_path), limit=10
+    )
+    assert summary == {"attempted": 1, "complete": 1, "held": 0, "disabled": 0}
+    assert received == [envelope]
+    assert inbox.counts() == {"pending": 1}
+    assert inbox.source_projection_counts() == {
+        "source_projection_pending": 0,
+        "source_projection_complete": 1,
+        "source_projection_held": 0,
+    }
+
+
+def test_source_projection_failure_holds_only_that_event_and_later_events_continue(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "capture.jsonl"
+    _write_jsonl(source, [_message("projection-fails"), _message("projection-next")])
+    cursor = tmp_path / "cursor.json"
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    inbox.stage_from_source(source, cursor)
+    calls: list[str] = []
+
+    def fake_project(_config, *, operation, source_envelope):
+        message_id = source_envelope.get("messageId")
+        calls.append(str(message_id))
+        if message_id == "projection-fails":
+            raise consumer.ConsumerError("Systems temporarily unavailable")
+        return {"ok": True}
+
+    monkeypatch.setattr(consumer, "_project_source_envelope", fake_project)
+    summary = consumer.project_pending_source_events(
+        inbox, config_path=_source_projection_config(tmp_path), limit=10
+    )
+    assert summary == {"attempted": 2, "complete": 1, "held": 1, "disabled": 0}
+    assert calls == ["projection-fails", "projection-next"]
+    assert inbox.counts() == {"pending": 2}
+    assert inbox.source_projection_counts() == {
+        "source_projection_pending": 0,
+        "source_projection_complete": 1,
+        "source_projection_held": 1,
+    }
+    # A retry within the backoff does not spin; the independent business rows
+    # remain untouched either way.
+    assert consumer.project_pending_source_events(
+        inbox, config_path=_source_projection_config(tmp_path), limit=10
+    ) == {"attempted": 0, "complete": 0, "held": 0, "disabled": 0}
+
+
+def test_source_projection_crash_after_systems_commit_replays_idempotently(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "capture.jsonl"
+    envelope = {"normalized": _message("projection-crash"), "capture": {"trace": "same"}}
+    _write_jsonl(source, [envelope])
+    cursor = tmp_path / "cursor.json"
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    inbox.stage_from_source(source, cursor)
+    # Model the only ambiguous window: Systems accepted the idempotent source
+    # ref, then the consumer exited before its local complete state committed.
+    record = inbox.source_projection_candidates(limit=1)[0]
+    systems_commits: list[str] = []
+
+    def fake_project(_config, *, operation, source_envelope):
+        systems_commits.append(str(source_envelope["normalized"]["messageId"]))
+        return {"ok": True, "data": {"idempotent": True}}
+
+    monkeypatch.setattr(consumer, "_project_source_envelope", fake_project)
+    consumer._project_source_envelope(
+        _source_projection_config(tmp_path),
+        operation="tgg_whatsapp_source_ingest",
+        source_envelope=record.source_envelope,
+    )
+    assert inbox.source_projection_counts()["source_projection_pending"] == 1
+    assert consumer.project_pending_source_events(
+        inbox, config_path=_source_projection_config(tmp_path), limit=1
+    )["complete"] == 1
+    assert systems_commits == ["projection-crash", "projection-crash"]
+    assert inbox.source_projection_counts()["source_projection_complete"] == 1
+
+
+@pytest.mark.asyncio
+async def test_standby_consumer_stages_and_projects_while_business_gate_is_off(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "capture.jsonl"
+    envelope = {"normalized": _message("standby-project"), "capture": {"sequence": 1}}
+    _write_jsonl(source, [envelope])
+    cursor = tmp_path / "cursor.json"
+    consumer.initialize_cursor(source, cursor, position="start")
+    gate = tmp_path / "gate.json"
+    gate.write_text(json.dumps({"version": 1, "enabled": False, "generation": 7}), encoding="utf-8")
+    received: list[dict] = []
+
+    def fake_project(_config, *, operation, source_envelope):
+        received.append(dict(source_envelope))
+        return {"ok": True}
+
+    monkeypatch.setattr(consumer, "_project_source_envelope", fake_project)
+    args = SimpleNamespace(
+        config=str(_source_projection_config(tmp_path)),
+        source=str(source), cursor=str(cursor), inbox=str(tmp_path / "inbox.db"),
+        status_file=str(tmp_path / "status.json"), processing_gate=str(gate),
+        state_db=str(tmp_path / "state.db"), case_db=str(tmp_path / "case.db"),
+        source_before_image_dir=str(tmp_path / "before"), lock_file=str(tmp_path / "lock"),
+        activity_lock_file=None, site_concurrency=1, chat_batch_size=2,
+        retention_batch_size=2, source_projection_batch_size=10,
+        poll_seconds=0.01, max_records=10, once=True,
+    )
+    assert await consumer.run_consumer(args) == 0
+    assert received == [envelope]
+    inbox = consumer.DurableInbox(tmp_path / "inbox.db")
+    assert inbox.counts() == {"pending": 1}
+    assert inbox.source_projection_counts()["source_projection_complete"] == 1
+    status = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
+    assert status["state"] == "standby"
+    assert status["source_opened"] is True
+    assert status["cursor_advanced"] is True
+
+
 def _retention_config(tmp_path: Path, source_root: Path, media_root: Path) -> Path:
     path = tmp_path / "retention-config.yaml"
     path.write_text(yaml.safe_dump({
@@ -127,6 +272,22 @@ def _retention_config(tmp_path: Path, source_root: Path, media_root: Path) -> Pa
                 "media_ref_prefix": "/media/tgg/hermes",
                 "source_roots": [str(source_root)],
                 "operation": "tgg_media_retention",
+            },
+        },
+    }), encoding="utf-8")
+    return path
+
+
+def _source_projection_config(tmp_path: Path, *, enabled: bool = True) -> Path:
+    path = tmp_path / "source-projection-config.yaml"
+    path.write_text(yaml.safe_dump({
+        "pa": {
+            "enabled": False,
+            "source_projection": {
+                "enabled": enabled,
+                "operation": "tgg_whatsapp_source_ingest",
+                "max_attempts": 2,
+                "retry_interval_seconds": 1,
             },
         },
     }), encoding="utf-8")
@@ -1973,11 +2134,12 @@ def test_inbox_v1_migration_classifies_existing_retention_queue(tmp_path):
         ).fetchone()[0]
     assert {
         "retention_attempts", "retention_state", "retention_last_error",
-        "retention_updated_at", "source_envelope_json",
+        "retention_updated_at", "source_envelope_json", "projection_state",
+        "projection_attempts", "projection_last_error", "projection_updated_at",
     } <= columns
     assert states == {"OLD-IMAGE": "pending", "OLD-TEXT": "bypassed"}
     assert all(raw_json == source_envelope_json for raw_json, source_envelope_json in envelope_backfill.values())
-    assert schema_version == "4"
+    assert schema_version == "5"
 
 
 def test_partial_line_never_advances_cursor(tmp_path):
