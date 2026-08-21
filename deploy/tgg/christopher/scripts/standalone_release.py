@@ -14,6 +14,7 @@ import json
 import os
 import shutil
 import sqlite3
+import stat
 import subprocess
 import sys
 import tarfile
@@ -228,6 +229,79 @@ def verify_plugin_pointer_directory(home: Path) -> dict[str, Any]:
             "mode": oct(state.st_mode & 0o777)}
 
 
+def _vision_receipt_root(home: Path) -> Path | None:
+    """Resolve the configured optional receipt root without inventing a default."""
+    import yaml
+
+    config = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8")) or {}
+    section = (config.get("pa") or {}).get("vision_inspection_receipts") or {}
+    if section.get("enabled") is not True:
+        return None
+    raw = section.get("receipt_root")
+    root = Path(str(raw or ""))
+    if not root.is_absolute() or root == Path("/"):
+        raise ReleaseError("vision inspection receipt root must be a narrow absolute path")
+    if root.exists() and root.is_symlink():
+        raise ReleaseError("vision inspection receipt root must not be a symlink")
+    return root
+
+
+def ensure_vision_receipt_tree(home: Path) -> dict[str, Any]:
+    """Make the mechanical receipt sink writable by the Christopher service.
+
+    Deploys run as root while Christopher runs as the owner of ``home``.  A
+    root-created digest directory previously let vision succeed but made its
+    audit receipt unwritable, trapping nightly analyzers in a retry loop.
+    """
+    root = _vision_receipt_root(home)
+    if root is None:
+        return {"enabled": False}
+    root.mkdir(parents=True, exist_ok=True, mode=0o750)
+    owner = home.stat()
+    directories = 0
+    files = 0
+    for path in [root, *sorted(root.rglob("*"))]:
+        state = path.lstat()
+        if stat.S_ISLNK(state.st_mode) or not (stat.S_ISDIR(state.st_mode) or stat.S_ISREG(state.st_mode)):
+            raise ReleaseError(f"vision inspection receipt tree has unsafe entry: {path}")
+        os.chown(path, owner.st_uid, owner.st_gid)
+        if stat.S_ISDIR(state.st_mode):
+            path.chmod(0o750)
+            directories += 1
+        else:
+            path.chmod(0o640)
+            files += 1
+    return verify_vision_receipt_tree(home, expected_counts=(directories, files))
+
+
+def verify_vision_receipt_tree(home: Path, *, expected_counts: tuple[int, int] | None = None) -> dict[str, Any]:
+    root = _vision_receipt_root(home)
+    if root is None:
+        return {"enabled": False}
+    if root.is_symlink() or not root.is_dir():
+        raise ReleaseError("vision inspection receipt root is invalid")
+    owner = home.stat()
+    directories = 0
+    files = 0
+    for path in [root, *sorted(root.rglob("*"))]:
+        state = path.lstat()
+        if stat.S_ISLNK(state.st_mode) or not (stat.S_ISDIR(state.st_mode) or stat.S_ISREG(state.st_mode)):
+            raise ReleaseError(f"vision inspection receipt tree has unsafe entry: {path}")
+        mode = state.st_mode & 0o777
+        expected_mode = 0o750 if stat.S_ISDIR(state.st_mode) else 0o640
+        if (state.st_uid, state.st_gid, mode) != (owner.st_uid, owner.st_gid, expected_mode):
+            raise ReleaseError(f"vision inspection receipt entry is not service-owned: {path}")
+        if stat.S_ISDIR(state.st_mode):
+            directories += 1
+        else:
+            files += 1
+    if expected_counts is not None and (directories, files) != expected_counts:
+        raise ReleaseError("vision inspection receipt tree changed during normalization")
+    return {"enabled": True, "path": str(root), "uid": owner.st_uid, "gid": owner.st_gid,
+            "directory_mode": "0o750", "file_mode": "0o640",
+            "directories": directories, "files": files}
+
+
 def install_unit(source: Path, destination: Path) -> str:
     """Atomically install the runtime-owned systemd unit and return its hash."""
     if not source.is_file():
@@ -374,9 +448,10 @@ def focused_verify(root: Path, home: Path, expected: dict[str, Any], before_cont
     if rows:
         raise ReleaseError("processing rows appeared during release")
     plugin_directory = verify_plugin_pointer_directory(home)
+    vision_receipts = verify_vision_receipt_tree(home)
     return {"service": "active", "processing_enabled": enabled, "controls": controls,
             "runtime_commit": expected["runtime_commit"], "capability_release_id": manifest["release_id"],
-            "plugin_pointer_directory": plugin_directory}
+            "plugin_pointer_directory": plugin_directory, "vision_inspection_receipts": vision_receipts}
 
 
 def prepare(args: argparse.Namespace) -> int:
@@ -422,6 +497,7 @@ def apply(args: argparse.Namespace) -> int:
         if not old["runtime"] or not old["capability"] or not old["home_capability"]:
             raise ReleaseError("first activation must be seeded with valid runtime and capability pointers")
         ensure_plugin_pointer_directory(home)
+        ensure_vision_receipt_tree(home)
         before_controls = control_state(home)
         before_unit = unit_path.read_bytes() if unit_path.exists() else None
         old["unit_sha256"] = sha256(unit_path) if before_unit is not None else None
@@ -497,6 +573,7 @@ def rollback(args: argparse.Namespace) -> int:
         if processing_rows(home / "runtime/capture-inbox.db"):
             raise ReleaseError("Christopher is processing; rollback refused")
         ensure_plugin_pointer_directory(home)
+        ensure_vision_receipt_tree(home)
         replace_pointer(root / "runtime/current", Path(before["runtime"]))
         replace_pointer(root / "capability/current", Path(before["capability"]))
         replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(before["capability"]))

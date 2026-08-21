@@ -149,6 +149,53 @@ def test_plugin_pointer_directory_repairs_root_only_mode(tmp_path: Path) -> None
     assert release.verify_plugin_pointer_directory(home) == repaired
 
 
+def test_vision_receipt_tree_repairs_root_only_entries(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    receipts = tmp_path / "systems/vision-receipts"
+    digest = receipts / ("a" * 64)
+    digest.mkdir(parents=True, mode=0o700)
+    receipt = digest / "receipt.json"
+    receipt.write_text("{}\n")
+    receipts.chmod(0o700)
+    receipt.chmod(0o600)
+    (home / "config.yaml").write_text(
+        "pa:\n  vision_inspection_receipts:\n    enabled: true\n"
+        f"    receipt_root: {receipts}\n"
+    )
+
+    repaired = release.ensure_vision_receipt_tree(home)
+
+    assert repaired == {
+        "enabled": True,
+        "path": str(receipts),
+        "uid": home.stat().st_uid,
+        "gid": home.stat().st_gid,
+        "directory_mode": "0o750",
+        "file_mode": "0o640",
+        "directories": 2,
+        "files": 1,
+    }
+    assert release.verify_vision_receipt_tree(home) == repaired
+    assert digest.stat().st_mode & 0o777 == 0o750
+    assert receipt.stat().st_mode & 0o777 == 0o640
+
+
+def test_vision_receipt_tree_rejects_symlink_entries(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    receipts = tmp_path / "receipts"
+    receipts.mkdir()
+    (receipts / "escape").symlink_to(tmp_path)
+    (home / "config.yaml").write_text(
+        "pa:\n  vision_inspection_receipts:\n    enabled: true\n"
+        f"    receipt_root: {receipts}\n"
+    )
+
+    with pytest.raises(release.ReleaseError, match="unsafe entry"):
+        release.ensure_vision_receipt_tree(home)
+
+
 def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, home = tmp_path / "root", tmp_path / "home"
     old_runtime, old_cap = root / "runtime/releases/old", root / "capability/releases/old"
