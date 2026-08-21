@@ -196,6 +196,38 @@ def replace_pointer(pointer: Path, target: Path) -> None:
     os.replace(temporary, pointer)
 
 
+def ensure_plugin_pointer_directory(home: Path) -> dict[str, Any]:
+    """Keep the service-owned plugin pointer directory traversable.
+
+    A prior installer created this directory as root with mode 0600. Root could
+    still flip symlinks, so deployment appeared healthy, while the pclaw
+    service silently loaded no capability tools after restart.
+    """
+    directory = home / "plugins"
+    if directory.is_symlink():
+        raise ReleaseError("plugin pointer directory must not be a symlink")
+    directory.mkdir(parents=True, exist_ok=True)
+    if not directory.is_dir():
+        raise ReleaseError("plugin pointer path is not a directory")
+    owner = home.stat()
+    os.chown(directory, owner.st_uid, owner.st_gid)
+    directory.chmod(0o750)
+    state = directory.stat()
+    return {"path": str(directory), "uid": state.st_uid, "gid": state.st_gid,
+            "mode": oct(state.st_mode & 0o777)}
+
+
+def verify_plugin_pointer_directory(home: Path) -> dict[str, Any]:
+    directory = home / "plugins"
+    if directory.is_symlink() or not directory.is_dir():
+        raise ReleaseError("plugin pointer directory is invalid")
+    owner, state = home.stat(), directory.stat()
+    if (state.st_uid, state.st_gid, state.st_mode & 0o777) != (owner.st_uid, owner.st_gid, 0o750):
+        raise ReleaseError("plugin pointer directory is not service-traversable")
+    return {"path": str(directory), "uid": state.st_uid, "gid": state.st_gid,
+            "mode": oct(state.st_mode & 0o777)}
+
+
 def install_unit(source: Path, destination: Path) -> str:
     """Atomically install the runtime-owned systemd unit and return its hash."""
     if not source.is_file():
@@ -341,8 +373,10 @@ def focused_verify(root: Path, home: Path, expected: dict[str, Any], before_cont
     rows = processing_rows(home / "runtime/capture-inbox.db")
     if rows:
         raise ReleaseError("processing rows appeared during release")
+    plugin_directory = verify_plugin_pointer_directory(home)
     return {"service": "active", "processing_enabled": enabled, "controls": controls,
-            "runtime_commit": expected["runtime_commit"], "capability_release_id": manifest["release_id"]}
+            "runtime_commit": expected["runtime_commit"], "capability_release_id": manifest["release_id"],
+            "plugin_pointer_directory": plugin_directory}
 
 
 def prepare(args: argparse.Namespace) -> int:
@@ -387,6 +421,7 @@ def apply(args: argparse.Namespace) -> int:
         old["home_capability"] = pointer_target(home / "runtime/capabilities/christopher-tgg/current")
         if not old["runtime"] or not old["capability"] or not old["home_capability"]:
             raise ReleaseError("first activation must be seeded with valid runtime and capability pointers")
+        ensure_plugin_pointer_directory(home)
         before_controls = control_state(home)
         before_unit = unit_path.read_bytes() if unit_path.exists() else None
         old["unit_sha256"] = sha256(unit_path) if before_unit is not None else None
@@ -461,6 +496,7 @@ def rollback(args: argparse.Namespace) -> int:
     with ExclusiveActivityLock(root / "release-activity.lock"):
         if processing_rows(home / "runtime/capture-inbox.db"):
             raise ReleaseError("Christopher is processing; rollback refused")
+        ensure_plugin_pointer_directory(home)
         replace_pointer(root / "runtime/current", Path(before["runtime"]))
         replace_pointer(root / "capability/current", Path(before["capability"]))
         replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(before["capability"]))

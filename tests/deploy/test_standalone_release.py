@@ -132,6 +132,23 @@ def test_release_tree_is_made_read_only_without_losing_execute_bits(tmp_path: Pa
     assert root.stat().st_mode & 0o777 == 0o555
 
 
+def test_plugin_pointer_directory_repairs_root_only_mode(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    plugins = home / "plugins"
+    plugins.mkdir(mode=0o600)
+
+    repaired = release.ensure_plugin_pointer_directory(home)
+
+    assert repaired == {
+        "path": str(plugins),
+        "uid": home.stat().st_uid,
+        "gid": home.stat().st_gid,
+        "mode": "0o750",
+    }
+    assert release.verify_plugin_pointer_directory(home) == repaired
+
+
 def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, home = tmp_path / "root", tmp_path / "home"
     old_runtime, old_cap = root / "runtime/releases/old", root / "capability/releases/old"
