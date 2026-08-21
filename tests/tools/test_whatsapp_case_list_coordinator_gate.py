@@ -147,3 +147,55 @@ def test_non_coordinator_leaf_is_unaffected_and_never_queries_list_status():
     assert result["status"] == "completed"
     assert len(child.calls) == 1
     assert child.status_calls == []
+
+
+def test_named_investigator_profile_adds_capability_owned_instruction(monkeypatch):
+    monkeypatch.setattr(
+        delegate_tool,
+        "_load_config",
+        lambda: {
+            "profile_instructions": {
+                "whatsapp_case_investigator": (
+                    "Finish by calling tgg_whatsapp_case_record_result exactly once."
+                )
+            }
+        },
+    )
+
+    class Parent:
+        enabled_toolsets = []
+        valid_tool_names = []
+        model = "test"
+        provider = "test"
+        base_url = "http://test"
+        api_key = "test"
+        api_mode = None
+        platform = "whatsapp"
+        _delegate_depth = 0
+        _fallback_chain = None
+        _active_children = []
+        _active_children_lock = None
+
+    captured = {}
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            self.valid_tool_names = []
+
+    monkeypatch.setattr("run_agent.AIAgent", FakeAgent)
+    child = delegate_tool._build_child_agent(
+        task_index=0,
+        goal="Investigate one case",
+        context="Run id case-1",
+        toolsets=[],
+        model="test",
+        max_iterations=5,
+        task_count=1,
+        parent_agent=Parent(),
+        profile="whatsapp_case_investigator",
+    )
+
+    assert child is not None
+    assert "CAPABILITY PROFILE (authoritative)" in captured["ephemeral_system_prompt"]
+    assert "tgg_whatsapp_case_record_result exactly once" in captured["ephemeral_system_prompt"]

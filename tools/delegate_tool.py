@@ -738,6 +738,7 @@ def _build_child_system_prompt(
     goal: str,
     context: Optional[str] = None,
     *,
+    profile_instruction: Optional[str] = None,
     workspace_path: Optional[str] = None,
     role: str = "leaf",
     max_spawn_depth: int = 2,
@@ -758,6 +759,8 @@ def _build_child_system_prompt(
     ]
     if context and context.strip():
         parts.append(f"\nCONTEXT:\n{context}")
+    if profile_instruction and profile_instruction.strip():
+        parts.append(f"\nCAPABILITY PROFILE (authoritative):\n{profile_instruction.strip()}")
     if workspace_path and str(workspace_path).strip():
         parts.append(
             "\nWORKSPACE PATH:\n"
@@ -1056,6 +1059,7 @@ def _build_child_agent(
     # 'leaf' (default) cannot; 'orchestrator' retains the delegation
     # toolset subject to depth/kill-switch bounds applied below.
     role: str = "leaf",
+    profile: Optional[str] = None,
 ):
     """
     Build a child AIAgent on the main thread (thread-safe construction).
@@ -1136,9 +1140,17 @@ def _build_child_agent(
         child_toolsets.append("delegation")
 
     workspace_hint = _resolve_workspace_hint(parent_agent)
+    profile_instruction = None
+    if isinstance(profile, str) and profile.strip():
+        configured_profiles = delegation_cfg.get("profile_instructions")
+        if isinstance(configured_profiles, dict):
+            configured_instruction = configured_profiles.get(profile.strip())
+            if isinstance(configured_instruction, str) and configured_instruction.strip():
+                profile_instruction = configured_instruction
     child_prompt = _build_child_system_prompt(
         goal,
         context,
+        profile_instruction=profile_instruction,
         workspace_path=workspace_hint,
         role=effective_role,
         max_spawn_depth=max_spawn,
@@ -2381,6 +2393,7 @@ def delegate_task(
                     else (acp_args if acp_args is not None else creds.get("args"))
                 ),
                 role=effective_role,
+                profile=t.get("profile") or t.get("name"),
             )
             # Domain profile is intentionally distinct from the delegation
             # topology role (leaf/orchestrator).  Preserve the original task
