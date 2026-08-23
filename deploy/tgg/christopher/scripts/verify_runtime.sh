@@ -224,7 +224,6 @@ fi
 hostname
 systemctl is-active --quiet christopher-tgg-hermes.service
 systemctl is-active --quiet christopher-tgg-hermes-health.timer
-systemctl is-active --quiet christopher-tgg-retention-cleanup.timer
 systemctl is-active --quiet systems-papercut-labs.service
 test -x "$APP_ROOT/.venv/bin/python"
 test -s "$HERMES_HOME/.env"
