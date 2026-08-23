@@ -335,6 +335,8 @@ def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path)
     assert record["senderId"] == "system@internal"
     assert record["body"] == "[system] scheduled weekly report run"
     assert record["chatId"] == runner.MANAGEMENT_CHAT
+    assert record["mentionedIds"] == [runner.INTERNAL_TRIGGER_ID]
+    assert record["botIds"] == [runner.INTERNAL_TRIGGER_ID]
     monkeypatch.setattr(runner, "append_record", lambda *_args: (_ for _ in ()).throw(AssertionError("dry-run appended")))
     monkeypatch.setattr("sys.argv", [str(script), "--cycle", "weekly", "--dry-run", "--timestamp", "123"])
     assert runner.main() == 0
