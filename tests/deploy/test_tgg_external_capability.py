@@ -63,6 +63,7 @@ def make_release(
     include_nightly_plugin: bool = False,
     include_nightly_launcher: bool = False,
     include_per_case_plugin: bool = False,
+    include_per_case_coordinator: bool = False,
     include_per_case_helpers: bool = False,
 ) -> tuple[Path, Path, Path]:
     home = tmp_path / "home"
@@ -80,6 +81,8 @@ def make_release(
         config["plugins"]["enabled"].append("tgg-nightly-whatsapp")
     if include_per_case_plugin:
         config["plugins"]["enabled"].append("tgg-per-case-whatsapp")
+    if include_per_case_coordinator:
+        config["plugins"]["enabled"].append("tgg-per-case-whatsapp-coordinator")
     if include_spreadsheet_skill or include_whatsapp_skill or include_hdb_skill:
         config["skills"] = {"external_dirs": [str(capability / "current" / "skills")]}
     else:
@@ -109,6 +112,15 @@ def make_release(
         )
         (per_case_plugin / "plugin.yaml").write_text(
             "name: tgg-per-case-whatsapp\n", encoding="utf-8"
+        )
+    coordinator_plugin = release / "plugins" / "tgg-per-case-whatsapp-coordinator"
+    if include_per_case_coordinator:
+        coordinator_plugin.mkdir(parents=True)
+        (coordinator_plugin / "__init__.py").write_text(
+            "def register(ctx):\n    return None\n", encoding="utf-8"
+        )
+        (coordinator_plugin / "plugin.yaml").write_text(
+            "name: tgg-per-case-whatsapp-coordinator\n", encoding="utf-8"
         )
     per_case_engine = release / "scripts" / "per-case-whatsapp-engine.mjs"
     per_case_compiler = (
@@ -185,6 +197,11 @@ def make_release(
         release_files.extend([
             per_case_plugin / "__init__.py",
             per_case_plugin / "plugin.yaml",
+        ])
+    if include_per_case_coordinator:
+        release_files.extend([
+            coordinator_plugin / "__init__.py",
+            coordinator_plugin / "plugin.yaml",
         ])
     if include_per_case_helpers:
         release_files.extend([per_case_engine, per_case_compiler])
@@ -306,6 +323,26 @@ def test_resolves_external_capability_with_per_case_component(tmp_path: Path) ->
     assert set(selected["plugin_sources"]) == {
         "tgg-whatsapp-evidence",
         "tgg-per-case-whatsapp",
+    }
+
+
+def test_resolves_external_capability_with_per_case_coordinator(tmp_path: Path) -> None:
+    module = load_module()
+    home, runtime, release = make_release(
+        tmp_path,
+        include_per_case_plugin=True,
+        include_per_case_coordinator=True,
+        include_per_case_helpers=True,
+    )
+
+    selected = module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert selected is not None
+    assert selected["release_root"] == release.resolve()
+    assert set(selected["plugin_sources"]) == {
+        "tgg-whatsapp-evidence",
+        "tgg-per-case-whatsapp",
+        "tgg-per-case-whatsapp-coordinator",
     }
 
 

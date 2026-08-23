@@ -53,6 +53,10 @@ CAPABILITY_PER_CASE_PLUGIN_FILES = frozenset({
     "plugins/tgg-per-case-whatsapp/__init__.py",
     "plugins/tgg-per-case-whatsapp/plugin.yaml",
 })
+CAPABILITY_PER_CASE_COORDINATOR_FILES = frozenset({
+    "plugins/tgg-per-case-whatsapp-coordinator/__init__.py",
+    "plugins/tgg-per-case-whatsapp-coordinator/plugin.yaml",
+})
 CAPABILITY_PER_CASE_HELPER_FILES = frozenset({
     "scripts/per-case-whatsapp-engine.mjs",
     "scripts/tgg-whatsapp-compile-semantic-decisions.mjs",
@@ -65,6 +69,7 @@ CAPABILITY_OPTIONAL_COMPONENT_FILE_SETS = (
     CAPABILITY_NIGHTLY_PLUGIN_FILES,
     CAPABILITY_NIGHTLY_LAUNCHER_FILES,
     CAPABILITY_PER_CASE_PLUGIN_FILES,
+    CAPABILITY_PER_CASE_COORDINATOR_FILES,
     CAPABILITY_PER_CASE_HELPER_FILES,
 )
 CAPABILITY_ALLOWED_NON_SKILL_FILE_SETS = {
@@ -453,14 +458,22 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     if nightly_enabled != int(includes_nightly_plugin):
         raise RuntimeError("external nightly plugin enablement mismatch")
     includes_per_case_plugin = CAPABILITY_PER_CASE_PLUGIN_FILES.issubset(files)
+    includes_per_case_coordinator = CAPABILITY_PER_CASE_COORDINATOR_FILES.issubset(files)
     includes_per_case_helpers = CAPABILITY_PER_CASE_HELPER_FILES.issubset(files)
     if includes_per_case_plugin != includes_per_case_helpers:
         raise RuntimeError("external per-case component is incomplete")
+    if includes_per_case_coordinator and not includes_per_case_plugin:
+        raise RuntimeError("external per-case coordinator is missing its per-case component")
     per_case_enabled = config.get("plugins", {}).get("enabled", []).count(
         "tgg-per-case-whatsapp"
     )
     if per_case_enabled != int(includes_per_case_plugin):
         raise RuntimeError("external per-case plugin enablement mismatch")
+    coordinator_enabled = config.get("plugins", {}).get("enabled", []).count(
+        "tgg-per-case-whatsapp-coordinator"
+    )
+    if coordinator_enabled != int(includes_per_case_coordinator):
+        raise RuntimeError("external per-case coordinator enablement mismatch")
     plugin_sources = {"tgg-whatsapp-evidence": plugin_source}
     if includes_nightly_plugin:
         plugin_sources["tgg-nightly-whatsapp"] = (
@@ -469,6 +482,10 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     if includes_per_case_plugin:
         plugin_sources["tgg-per-case-whatsapp"] = (
             release_root / "plugins" / "tgg-per-case-whatsapp"
+        )
+    if includes_per_case_coordinator:
+        plugin_sources["tgg-per-case-whatsapp-coordinator"] = (
+            release_root / "plugins" / "tgg-per-case-whatsapp-coordinator"
         )
     return {
         "release_root": release_root,
