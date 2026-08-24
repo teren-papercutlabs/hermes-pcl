@@ -576,6 +576,69 @@ def _send_media_via_adapter(
             logger.warning("Job '%s': failed to send media %s: %s", job.get("id", "?"), media_path, e)
 
 
+def _deliver_whatsapp_via_tgg_reply_bridge(
+    job: dict,
+    chat_id: str,
+    text: str,
+    media_files: list,
+) -> Optional[str]:
+    """Deliver Christopher cron output through the durable consumer bridge.
+
+    Christopher deliberately has Hermes's ordinary WhatsApp adapter disabled:
+    inbound capture and outbound policy live in the separate guarded bridge.
+    Cron jobs created in that management lane must use the same bridge instead
+    of treating the disabled generic adapter as an invitation to enable a
+    second WhatsApp gateway.
+    """
+    from urllib.error import HTTPError, URLError
+    from urllib.request import Request, urlopen
+    from pathlib import Path
+
+    bridge_url = os.environ.get("TGG_REPLY_BRIDGE_URL", "").strip().rstrip("/")
+    if not bridge_url:
+        return "Christopher WhatsApp bridge is not configured"
+
+    def post(endpoint: str, payload: dict) -> Optional[str]:
+        try:
+            request = Request(
+                f"{bridge_url}/{endpoint}",
+                data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request, timeout=30) as response:
+                status = int(getattr(response, "status", 0) or 0)
+                body = json.loads(response.read() or b"{}")
+            if status == 200 and body.get("success") is True:
+                return None
+            return f"bridge {endpoint} outcome unconfirmed (http {status})"
+        except HTTPError as exc:
+            return f"bridge {endpoint} refused (http {exc.code})"
+        except (URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            return f"bridge {endpoint} failed: {exc}"
+
+    if text.strip():
+        error = post("send", {"chatId": chat_id, "message": text})
+        if error:
+            return error
+    for media_path, _is_voice in media_files:
+        suffix = Path(media_path).suffix.lower()
+        media_type = (
+            "image" if suffix in _IMAGE_EXTS else "video" if suffix in _VIDEO_EXTS
+            else "audio" if suffix in {".aac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"}
+            else "document"
+        )
+        error = post("send-media", {
+            "chatId": chat_id,
+            "filePath": str(media_path),
+            "mediaType": media_type,
+            "fileName": Path(media_path).name,
+        })
+        if error:
+            return error
+    return None
+
+
 def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Optional[str]:
     """
     Deliver job output to the configured target(s) (origin chat, specific platform, etc.).
@@ -666,6 +729,19 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
 
         pconfig = config.platforms.get(platform)
         if not pconfig or not pconfig.enabled:
+            if platform == Platform.WHATSAPP and os.environ.get("TGG_REPLY_BRIDGE_URL", "").strip():
+                error = _deliver_whatsapp_via_tgg_reply_bridge(
+                    job, chat_id, cleaned_delivery_content, media_files,
+                )
+                if error:
+                    logger.error("Job '%s': %s", job["id"], error)
+                    delivery_errors.append(error)
+                else:
+                    logger.info(
+                        "Job '%s': delivered to whatsapp:%s via Christopher reply bridge",
+                        job["id"], chat_id,
+                    )
+                continue
             msg = f"platform '{platform_name}' not configured/enabled"
             logger.warning("Job '%s': %s", job["id"], msg)
             delivery_errors.append(msg)

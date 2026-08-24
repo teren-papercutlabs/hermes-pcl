@@ -796,6 +796,69 @@ class TestDeliverResultErrorReturns:
         assert result is not None
         assert "not configured" in result
 
+    def test_christopher_cron_delivers_text_and_media_via_reply_bridge_when_whatsapp_disabled(self, monkeypatch):
+        """Christopher does not start Hermes's WhatsApp adapter for cron output."""
+        from gateway.config import Platform
+
+        pconfig = MagicMock()
+        pconfig.enabled = False
+        config = MagicMock()
+        config.platforms = {Platform.WHATSAPP: pconfig}
+        requests = []
+
+        class Response:
+            status = 200
+            def read(self):
+                return b'{"success": true, "messageId": "bridge-id"}'
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+
+        def urlopen(request, timeout):
+            requests.append((request.full_url, json.loads(request.data), timeout))
+            return Response()
+
+        monkeypatch.setenv("TGG_REPLY_BRIDGE_URL", "http://bridge.test")
+        with patch("gateway.config.load_gateway_config", return_value=config), \
+             patch("cron.scheduler.load_config", return_value={"cron": {"wrap_response": False}}), \
+             patch("urllib.request.urlopen", side_effect=urlopen):
+            result = _deliver_result(
+                {"id": "tgg-cron", "deliver": "origin", "origin": {"platform": "whatsapp", "chat_id": "mgmt@g.us"}},
+                "report ready\nMEDIA:/tmp/outstanding.xlsx",
+            )
+
+        assert result is None
+        assert requests == [
+            ("http://bridge.test/send", {"chatId": "mgmt@g.us", "message": "report ready"}, 30),
+            ("http://bridge.test/send-media", {
+                "chatId": "mgmt@g.us", "filePath": "/tmp/outstanding.xlsx",
+                "mediaType": "document", "fileName": "outstanding.xlsx",
+            }, 30),
+        ]
+
+    def test_christopher_cron_returns_bridge_failure_for_visible_job_failure(self, monkeypatch):
+        from gateway.config import Platform
+
+        pconfig = MagicMock()
+        pconfig.enabled = False
+        config = MagicMock()
+        config.platforms = {Platform.WHATSAPP: pconfig}
+
+        class Response:
+            status = 500
+            def read(self): return b'{"success": false}'
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+
+        monkeypatch.setenv("TGG_REPLY_BRIDGE_URL", "http://bridge.test")
+        with patch("gateway.config.load_gateway_config", return_value=config), \
+             patch("urllib.request.urlopen", return_value=Response()):
+            result = _deliver_result(
+                {"id": "tgg-cron-failure", "deliver": "origin", "origin": {"platform": "whatsapp", "chat_id": "mgmt@g.us"}},
+                "scheduled report failed",
+            )
+
+        assert result == "bridge send outcome unconfirmed (http 500)"
+
     def test_returns_error_for_unresolved_target(self, monkeypatch):
         """Non-local delivery with no resolvable target should return an error."""
         monkeypatch.delenv("TELEGRAM_HOME_CHANNEL", raising=False)
