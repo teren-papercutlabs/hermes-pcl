@@ -6,6 +6,8 @@ import yaml
 
 from cron.jobs import create_job, get_job
 from cron.scheduler import run_job
+from gateway.session_context import clear_session_vars, set_session_vars
+from tools.cronjob_tools import cronjob
 
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "pa" / "bobby_tgg_constitution.yaml"
@@ -43,6 +45,40 @@ def test_create_job_stores_pa_job_type(tmp_cron_dir):
 
     assert job["pa_job_type"] == "tgg_management"
     assert get_job(job["id"])["pa_job_type"] == "tgg_management"
+
+
+def test_cron_tool_inherits_active_pa_job_type_without_exposing_it(tmp_cron_dir):
+    tokens = set_session_vars(pa_job_type="tgg_management")
+    try:
+        response = yaml.safe_load(
+            cronjob(
+                action="create",
+                prompt="send the current report",
+                schedule="every 1h",
+                name="management report",
+            )
+        )
+    finally:
+        clear_session_vars(tokens)
+
+    assert response["success"] is True
+    # The operational boundary is persisted, but it is not a model-facing
+    # field in cronjob's response schema.
+    assert "pa_job_type" not in response["job"]
+    assert get_job(response["job_id"])["pa_job_type"] == "tgg_management"
+
+
+def test_cron_tool_non_pa_creator_remains_unbound(tmp_cron_dir):
+    response = yaml.safe_load(
+        cronjob(
+            action="create",
+            prompt="send the current report",
+            schedule="every 1h",
+        )
+    )
+
+    assert response["success"] is True
+    assert get_job(response["job_id"])["pa_job_type"] is None
 
 
 def test_run_job_selects_pa_brief_and_restricts_toolsets(tmp_path):

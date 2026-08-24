@@ -26,6 +26,7 @@ import re
 import shutil
 import sqlite3
 import sys
+import threading
 import time
 import uuid
 from collections import Counter
@@ -40,6 +41,46 @@ import yaml
 
 CURSOR_VERSION = 1
 INBOX_SCHEMA_VERSION = 5
+
+
+def _cron_ticker(stop_event: threading.Event, *, interval_seconds: float = 60.0) -> None:
+    """Run Hermes's existing cron tick without blocking capture processing.
+
+    The consumer is Christopher's durable process.  Keeping this tiny loop
+    here gives it the normal scheduler behaviour without another daemon; the
+    scheduler's own file lock remains the cross-process duplicate guard.
+    """
+    from cron.scheduler import tick
+
+    while not stop_event.is_set():
+        try:
+            tick(verbose=False)
+        except Exception:
+            # A failed scheduled job/tick must not stop capture.  Scheduler
+            # state and job output retain the actual failure for delivery.
+            import logging
+            logging.getLogger(__name__).exception("Christopher cron ticker failed")
+        stop_event.wait(interval_seconds)
+
+
+def _start_cron_ticker(*, interval_seconds: float = 60.0) -> tuple[threading.Event, threading.Thread]:
+    """Start the bounded background tick owned by one consumer lifetime."""
+    stop_event = threading.Event()
+    thread = threading.Thread(
+        target=_cron_ticker,
+        args=(stop_event,),
+        kwargs={"interval_seconds": interval_seconds},
+        name="christopher-cron-ticker",
+        daemon=True,
+    )
+    thread.start()
+    return stop_event, thread
+
+
+def _stop_cron_ticker(stop_event: threading.Event, thread: threading.Thread) -> None:
+    """Stop and join the consumer-owned ticker during every exit path."""
+    stop_event.set()
+    thread.join(timeout=5)
 
 
 def _parse_ingress_timestamp(value: Any) -> datetime:
@@ -4049,6 +4090,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
         tasks: dict[str, asyncio.Task[None]] = {}
         lanes: dict[str, str] = {}
         source_projection_holds: dict[str, str] = {}
+        cron_stop, cron_thread = _start_cron_ticker()
         try:
             while True:
                 done_chats = [chat_id for chat_id, task in tasks.items() if task.done()]
@@ -4478,6 +4520,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
                     "inbox conservation failed during graceful cancellation"
                 )
             raise
+        finally:
+            _stop_cron_ticker(cron_stop, cron_thread)
 
 
 async def run_fixture(args: argparse.Namespace) -> int:

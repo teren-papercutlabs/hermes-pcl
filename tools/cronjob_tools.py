@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from hermes_constants import display_hermes_home
+from gateway.session_context import get_session_env
 
 logger = logging.getLogger(__name__)
 
@@ -370,6 +371,11 @@ def cronjob(
                 enabled_toolsets=enabled_toolsets or None,
                 workdir=_normalize_optional_job_value(workdir),
                 no_agent=_no_agent,
+                # A PA-created commitment must execute under the same
+                # constitution brief.  This remains hidden from the tool
+                # schema, so the model cannot forge or choose a different PA
+                # job type.
+                pa_job_type=get_session_env("HERMES_SESSION_PA_JOB_TYPE") or None,
             )
             return json.dumps(
                 {

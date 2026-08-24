@@ -1,10 +1,12 @@
 import asyncio
 import os
+from types import SimpleNamespace
 
 import pytest
 
 from gateway.config import Platform
 from gateway.run import GatewayRunner
+from gateway.run import _bind_resolved_pa_job_type
 from gateway.session import SessionContext, SessionSource
 from gateway.session_context import (
     get_session_env,
@@ -13,6 +15,8 @@ from gateway.session_context import (
     _VAR_MAP,
     _UNSET,
 )
+from cron.jobs import get_job
+from tools.cronjob_tools import cronjob
 
 
 @pytest.fixture(autouse=True)
@@ -67,6 +71,66 @@ def test_set_session_env_sets_contextvars(monkeypatch):
 
     # Clean up
     runner._clear_session_env(tokens)
+
+
+def test_gateway_pa_job_type_is_task_local_and_cleared(monkeypatch):
+    """Concurrent management turns cannot bind each other's cron jobs."""
+    runner = object.__new__(GatewayRunner)
+    context = SessionContext(
+        source=SessionSource(
+            platform=Platform.TELEGRAM,
+            chat_id="-1001",
+            chat_name="Group",
+            chat_type="group",
+        ),
+        connected_platforms=[],
+        home_channels={},
+    )
+    monkeypatch.delenv("HERMES_SESSION_PA_JOB_TYPE", raising=False)
+
+    async def read_bound_type(value: str) -> str:
+        tokens = runner._set_session_env(
+            context, event=SimpleNamespace(pa_job_type=value)
+        )
+        try:
+            await asyncio.sleep(0)
+            return get_session_env("HERMES_SESSION_PA_JOB_TYPE")
+        finally:
+            runner._clear_session_env(tokens)
+
+    async def concurrent_reads():
+        return await asyncio.gather(
+            read_bound_type("tgg_management"), read_bound_type("tgg_nightly_whatsapp")
+        )
+
+    assert asyncio.run(concurrent_reads()) == ["tgg_management", "tgg_nightly_whatsapp"]
+    assert get_session_env("HERMES_SESSION_PA_JOB_TYPE") == ""
+
+
+def test_selector_resolved_management_brief_binds_cron_creation(tmp_path, monkeypatch):
+    """Untyped WhatsApp events inherit the brief selected after ingress."""
+    import json
+    import cron.jobs as jobs
+
+    monkeypatch.setattr(jobs, "CRON_DIR", tmp_path / "cron")
+    monkeypatch.setattr(jobs, "JOBS_FILE", tmp_path / "cron" / "jobs.json")
+    monkeypatch.setattr(jobs, "OUTPUT_DIR", tmp_path / "cron" / "output")
+    tokens = set_session_vars()  # ordinary events have no inbound PA type
+    try:
+        _bind_resolved_pa_job_type(SimpleNamespace(job_type="tgg_management"))
+        created = json.loads(
+            cronjob(
+                action="create",
+                prompt="send the current outstanding report",
+                schedule="every 1h",
+            )
+        )
+    finally:
+        clear_session_vars(tokens)
+
+    assert created["success"] is True
+    assert get_job(created["job_id"])["pa_job_type"] == "tgg_management"
+    assert get_session_env("HERMES_SESSION_PA_JOB_TYPE") == ""
 
 
 def test_clear_session_env_restores_previous_state(monkeypatch):

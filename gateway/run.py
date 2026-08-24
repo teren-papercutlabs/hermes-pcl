@@ -1245,6 +1245,18 @@ def _resolve_pa_context(
         raise
 
 
+def _bind_resolved_pa_job_type(pa_context: Any) -> None:
+    """Carry the constitution-selected brief into cron creation for this turn.
+
+    Ordinary WhatsApp events do not carry a ``pa_job_type`` field; their job
+    type is selected here from the constitution.  Keep this task-local so
+    concurrent chats cannot bind each other's delayed work.
+    """
+    from gateway.session_context import set_session_pa_job_type
+
+    set_session_pa_job_type(getattr(pa_context, "job_type", None))
+
+
 def _make_whatsapp_pa_brief_resolver():
     """Return a ``(chat_id) -> dict | None`` resolver for WhatsApp brief settings.
 
@@ -15722,6 +15734,7 @@ class GatewayRunner:
             session_key=context.session_key,
             session_id=context.session_id,
             source_message_refs=json.dumps(source_message_refs),
+            pa_job_type=str(getattr(event, "pa_job_type", "") or ""),
         )
 
     def _clear_session_env(self, tokens: list) -> None:
@@ -17179,6 +17192,7 @@ class GatewayRunner:
             _pa_platform_extra(getattr(self, "config", None), source.platform),
             pa_metadata,
         )
+        _bind_resolved_pa_job_type(pa_resolved_context)
         enabled_toolsets, disabled_toolsets = _merge_pa_toolsets(
             enabled_toolsets,
             disabled_toolsets,
