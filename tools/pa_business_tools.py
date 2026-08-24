@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import logging
 import os
 import re
 import subprocess
@@ -24,6 +25,8 @@ from xml.etree import ElementTree
 from zoneinfo import ZoneInfo
 
 from tools.registry import registry, tool_error, tool_result
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -1097,6 +1100,36 @@ def _handle_tgg_read(operation: str, payload: Mapping[str, Any]) -> str:
     except Exception as exc:
         return tool_error(exc)
     _harvest_case_states(result)
+    if operation == "tgg_case_query":
+        try:
+            from gateway.session_context import get_session_env
+            from hermes_constants import get_hermes_home
+            from tools.python_sandbox_tool import _workspace_key
+
+            session_id = get_session_env("HERMES_SESSION_ID", "").strip()
+            if session_id:
+                encoded = json.dumps(result, ensure_ascii=False, sort_keys=True)
+                if len(encoded) > 16_000:
+                    digest = hashlib.sha256(encoded.encode()).hexdigest()[:16]
+                    workspace = (
+                        get_hermes_home() / "sandbox_workspaces" /
+                        _workspace_key(session_id) / "work"
+                    )
+                    workspace.mkdir(parents=True, exist_ok=True, mode=0o700)
+                    path = workspace / f"pa-query-{digest}.json"
+                    if not path.exists():
+                        tmp = path.with_suffix(".tmp")
+                        tmp.write_text(encoded, encoding="utf-8")
+                        os.replace(tmp, path)
+                    # Put the handle first so inline-preview fallback still
+                    # tells the model where the complete immutable result is.
+                    result = {
+                        "sandbox_artifact": f"/work/{path.name}",
+                        "sandbox_artifact_sha256": hashlib.sha256(encoded.encode()).hexdigest(),
+                        **dict(result),
+                    }
+        except Exception:
+            logger.debug("Could not materialize large PA query for sandbox", exc_info=True)
     return tool_result(result)
 
 

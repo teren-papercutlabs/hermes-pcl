@@ -123,6 +123,31 @@ def test_cron_pa_job_type_resolves_management_business_registry(monkeypatch):
     assert executed[0][2] == {"sql": "SELECT 1"}
 
 
+def test_large_cron_case_query_becomes_session_sandbox_artifact(tmp_path, monkeypatch):
+    import json
+    import tools.pa_business_tools as business_tools
+    import hermes_constants
+    from gateway.session_context import clear_session_vars, set_session_vars
+    from tools.python_sandbox_tool import _workspace_key
+
+    monkeypatch.setattr(hermes_constants, "get_hermes_home", lambda: tmp_path)
+    monkeypatch.setattr(business_tools, "_load_runtime_bridge_config", lambda: object())
+    rows = [[index, "x" * 120] for index in range(200)]
+    monkeypatch.setattr(
+        business_tools, "execute_business_operation",
+        lambda *_args, **_kwargs: {"ok": True, "columns": ["n", "value"], "rows": rows},
+    )
+    tokens = set_session_vars(session_id="cron-report-session")
+    try:
+        response = json.loads(business_tools._handle_tgg_case_query({"sql": "SELECT * FROM t"}))
+    finally:
+        clear_session_vars(tokens)
+
+    assert response["sandbox_artifact"].startswith("/work/pa-query-")
+    path = tmp_path / "sandbox_workspaces" / _workspace_key("cron-report-session") / "work" / response["sandbox_artifact"].split("/")[-1]
+    assert json.loads(path.read_text()) ["rows"] == rows
+
+
 # ── loader validation ────────────────────────────────────────────────────────
 
 
