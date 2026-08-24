@@ -414,6 +414,8 @@ def validate(app_root: Path, spec_path: Path) -> dict[str, Any]:
         raise RuntimeError("consumer unit does not declare the durable capture source")
     if spec["processing"]["gatePath"] not in consumer_unit:
         raise RuntimeError("consumer unit does not enforce the root processing gate")
+    if "Environment=TGG_REPLY_BRIDGE_URL=http://127.0.0.1:3011" not in consumer_unit:
+        raise RuntimeError("consumer unit does not bind the guarded reply bridge for cron delivery")
     consumer_spec = whatsapp["consumer"]
     if (
         f"--case-db {consumer_spec['caseDbPath']}" not in consumer_unit
