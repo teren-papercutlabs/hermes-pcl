@@ -136,7 +136,7 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
     assert "Start at exact cursor=100" in calls[1]["message"]
     assert "Start at exact cursor=125" in calls[2]["message"]
     assert "Do not load the full chat ledger" in calls[1]["message"]
-    assert "Process exactly that one page" in calls[1]["message"]
+    assert "process exactly that one page" in calls[1]["message"].lower()
     assert len(status_calls) == 4
     assert status_calls == [{"batch_id": "nightly:2026-08-17:test"}] * 4
     assert runner._queued_events == {}
@@ -176,6 +176,52 @@ async def test_nightly_analyzer_skips_continuation_when_receipt_already_exists(m
 
     assert len(_FakeAgent.instances) == 1
     assert len(_FakeAgent.instances[0].calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_nightly_analyzer_seals_directly_when_coverage_cursor_reaches_chat_total(monkeypatch, tmp_path):
+    _FakeAgent.instances = []
+    fake_run_agent = types.ModuleType("run_agent")
+    fake_run_agent.AIAgent = _FakeAgent
+    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_load_gateway_config", lambda: {})
+    monkeypatch.setattr(gateway_run, "_resolve_gateway_model", lambda config=None: "gpt-5.6")
+    monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"})
+    import hermes_cli.tools_config as tools_config
+    monkeypatch.setattr(tools_config, "_get_platform_tools", lambda *_args: {"core"})
+    calls = []
+    import tools.registry as tool_registry
+
+    def status(_args):
+        calls.append(1)
+        return {
+            "ok": True,
+            "completed_chat_ids": ["amk@g.us"] if len(calls) == 3 else [],
+            "chat_progress": {
+                "amk@g.us": {
+                    "sha256": "before" if len(calls) == 1 else "all-covered",
+                    "first_incomplete_cursor": 175,
+                    "all_items_covered": True,
+                }
+            },
+        }
+
+    monkeypatch.setattr(
+        tool_registry.registry, "get_entry",
+        lambda name: SimpleNamespace(handler=status) if name == "tgg_nightly_get_batch_status" else None,
+    )
+    await _runner()._run_agent(
+        message="nightly analyzer", context_prompt="", history=[],
+        source=SessionSource(platform=Platform.WHATSAPP, chat_id="synthetic@g.us", chat_type="group"),
+        session_id="nightly-session", session_key="nightly-session-key",
+        pa_job_type="tgg_nightly_whatsapp",
+        pa_context={"nightly_batch_id": "nightly:2026-08-17:test", "authoritative_chat_id": "amk@g.us"},
+        suppress_delivery=True,
+    )
+
+    assert len(_FakeAgent.instances[0].calls) == 2
+    assert "Do not fetch another page; seal the chat receipt now" in _FakeAgent.instances[0].calls[1]["message"]
 
 
 @pytest.mark.asyncio

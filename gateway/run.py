@@ -1169,7 +1169,7 @@ def _tgg_nightly_analyzer_trigger(
 def _tgg_nightly_chat_receipt_snapshot(
     batch_id: str,
     authoritative_chat_id: str,
-) -> tuple[bool, str | None, int | None] | None:
+) -> tuple[bool, str | None, int | None, bool] | None:
     """Return receipt presence, progress fingerprint and next page cursor.
 
     ``page_classifications`` is an ordered, one-per-page mechanical receipt.
@@ -1195,16 +1195,32 @@ def _tgg_nightly_chat_receipt_snapshot(
         chat_progress = status.get("chat_progress")
         progress_sha256 = None
         next_cursor = None
+        all_frozen_items_covered = False
         if isinstance(chat_progress, Mapping):
             progress = chat_progress.get(authoritative_chat_id)
             if isinstance(progress, Mapping):
                 candidate = progress.get("sha256")
                 if isinstance(candidate, str) and candidate:
                     progress_sha256 = candidate
-                page_count = progress.get("page_classifications")
-                if isinstance(page_count, int) and page_count >= 0:
-                    next_cursor = page_count * 25
-        return authoritative_chat_id in completed, progress_sha256, next_cursor
+                # New singular-ledger status exposes seal-equivalent coverage:
+                # the first page containing any item absent from the working
+                # ledger, plus an explicit all-covered marker.
+                first_incomplete = progress.get("first_incomplete_cursor")
+                covered = progress.get("all_items_covered")
+                if isinstance(first_incomplete, int) and first_incomplete >= 0:
+                    next_cursor = first_incomplete
+                    all_frozen_items_covered = covered is True
+                else:
+                    # Compatibility for older page-classification lanes.
+                    page_count = progress.get("page_classifications")
+                    if isinstance(page_count, int) and page_count >= 0:
+                        next_cursor = page_count * 25
+        return (
+            authoritative_chat_id in completed,
+            progress_sha256,
+            next_cursor,
+            all_frozen_items_covered,
+        )
     except Exception:
         logger.exception("Nightly same-session gate: status check raised for %s", batch_id)
         return None
@@ -18500,6 +18516,9 @@ class GatewayRunner:
                         receipt_present = None if receipt_snapshot is None else receipt_snapshot[0]
                         progress_sha256 = None if receipt_snapshot is None else receipt_snapshot[1]
                         resume_cursor = None if receipt_snapshot is None else receipt_snapshot[2]
+                        all_frozen_items_covered = (
+                            False if receipt_snapshot is None else receipt_snapshot[3]
+                        )
                         if receipt_present is True:
                             result = _mark_tgg_nightly_durable_receipt_completed(result)
                             break
@@ -18551,24 +18570,32 @@ class GatewayRunner:
                         # bounded continuation with a clean model context and let
                         # it reload its compact ledger through the nightly tool.
                         continuation_history = []
-                        page_instruction = (
-                            "The compact durable page inventory is unavailable; first use the "
-                            "chat-page tool to identify the first unfinished page."
-                            if resume_cursor is None
-                            else (
+                        if all_frozen_items_covered:
+                            page_instruction = (
+                                "The seal-equivalent coverage inventory says every frozen item is "
+                                "already represented in the working ledger. Do not fetch another "
+                                "page; seal the chat receipt now."
+                            )
+                        elif resume_cursor is None:
+                            page_instruction = (
+                                "The compact durable page inventory is unavailable; first use the "
+                                "chat-page tool to identify the first unfinished page."
+                            )
+                        else:
+                            page_instruction = (
                                 "The compact durable page inventory records all earlier pages as "
                                 f"classified. Start at exact cursor={resume_cursor}."
                             )
-                        )
                         completion_prompt = (
                             "The immutable nightly chat receipt is still missing for "
                             f"batch_id={batch_id} and authoritative_chat_id={authoritative_chat_id}. "
                             "Previous pages, image inspections and findings are durably saved. "
                             f"{page_instruction} Do not load the full chat ledger and do not revisit "
                             "earlier pages: their output can exhaust this continuation's context. "
-                            "Process exactly that one page in cursor order, including every required "
-                            "image inspection, then commit its ledger decisions and groups. If it is "
-                            "the final page, seal the chat receipt after that commit; otherwise end "
+                            "Unless the inventory says every item is already covered, process exactly "
+                            "that one page in cursor order, including every required image inspection, "
+                            "then commit its ledger decisions and groups. If it is the final page, seal "
+                            "the chat receipt after that commit; otherwise end "
                             "the turn immediately. The runner will verify durable progress and start "
                             "the next compact continuation. Do not summarize completion until the "
                             "immutable chat receipt exists, unless a genuine terminal tool failure "
