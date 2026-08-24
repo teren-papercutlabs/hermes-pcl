@@ -1601,9 +1601,17 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             )
 
         pa_resolved_context = _resolve_cron_pa_context(job, _cfg)
+        # Dedicated PA business tools resolve their bridge from task-local
+        # runtime context.  Bind the already-authorized cron brief here; this
+        # does not make cron look like an inbound WhatsApp message.
+        from gateway.session_context import set_session_pa_job_type
+        set_session_pa_job_type(getattr(pa_resolved_context, "job_type", None))
         cron_enabled_toolsets, cron_disabled_toolsets = _merge_cron_pa_toolsets(
             _resolve_cron_enabled_toolsets(job, _cfg),
-            ["cronjob", "messaging", "clarify"],
+            # A scheduled PA turn is the already-confirmed unit of work.  A
+            # child would lose the resolved management business surface and
+            # turn a simple report into an unbound second workflow.
+            ["cronjob", "messaging", "clarify", "delegation"],
             pa_resolved_context,
         )
         _record_cron_pa_behavior_event(

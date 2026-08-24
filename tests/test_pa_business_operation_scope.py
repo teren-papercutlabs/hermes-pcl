@@ -88,6 +88,41 @@ def _unscoped_bridge():
     )
 
 
+def test_cron_pa_job_type_resolves_management_business_registry(monkeypatch):
+    """A scheduled management job gets the same dedicated read surface."""
+    import tools.pa_business_tools as business_tools
+    from gateway.session_context import clear_session_vars, set_session_vars
+    from tools.registry import registry
+
+    config = _config()
+    config["pa"] = dict(config["pa"])
+    config["pa"]["enabled"] = True
+    config["pa"].pop("constitution_path", None)
+    config["pa"]["constitution"] = load_constitution_data(
+        yaml.safe_load(TGG_CONSTITUTION.read_text(encoding="utf-8")),
+        source=str(TGG_CONSTITUTION),
+    )
+    monkeypatch.setattr("hermes_cli.config.read_raw_config", lambda: config)
+    executed = []
+    monkeypatch.setattr(
+        business_tools,
+        "execute_business_operation",
+        lambda bridge, operation, payload: executed.append((bridge, operation, payload)) or {"ok": True},
+    )
+    tokens = set_session_vars(platform="", chat_id="", pa_job_type="tgg_management")
+    try:
+        entry = registry.get_entry("tgg_case_query")
+        assert entry is not None
+        assert entry.check_fn() is True
+        response = entry.handler({"sql": "SELECT 1"})
+    finally:
+        clear_session_vars(tokens)
+
+    assert '"ok": true' in response
+    assert executed[0][1] == "tgg_case_query"
+    assert executed[0][2] == {"sql": "SELECT 1"}
+
+
 # ── loader validation ────────────────────────────────────────────────────────
 
 

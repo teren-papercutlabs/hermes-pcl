@@ -391,6 +391,10 @@ def _runtime_pa_context(config: Mapping[str, Any] | None) -> Any | None:
                 "user_name": get_session_env("HERMES_SESSION_USER_NAME", ""),
             },
             "session_key": get_session_env("HERMES_SESSION_KEY", ""),
+            # Cron has no inbound chat selector.  A PA-bound scheduled job
+            # supplies its already-selected brief task-locally so dedicated
+            # business tools resolve the same scoped registry as management.
+            "job_type": get_session_env("HERMES_SESSION_PA_JOB_TYPE", ""),
         }
         return resolve_context(pa_config, metadata)
     except Exception:
