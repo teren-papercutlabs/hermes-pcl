@@ -1236,6 +1236,21 @@ def _mark_tgg_nightly_completion_incomplete(result: Mapping[str, Any], reason: s
     return marked
 
 
+def _mark_tgg_nightly_durable_receipt_completed(result: Mapping[str, Any]) -> dict[str, Any]:
+    """Let the immutable receipt, not trailing model prose, settle a run.
+
+    A model can return an incomplete marker after its last successful tool call
+    (for example while composing a summary).  Once the sealed receipt exists,
+    there is no incomplete analyzer state left to recover: the receipt is the
+    durable authority and the ingress row must not be failed for stale prose.
+    """
+    settled = dict(result)
+    settled["completed"] = True
+    for key in ("failed", "interrupted", "partial", "error"):
+        settled.pop(key, None)
+    return settled
+
+
 def _resolve_pa_context(
     user_config: Mapping[str, Any] | None,
     platform_extra: Mapping[str, Any] | None,
@@ -18456,16 +18471,27 @@ class GatewayRunner:
                     _run_message = message
 
                 agent_run_started_at = time.monotonic()
+                nightly_trigger = _tgg_nightly_analyzer_trigger(pa_job_type, pa_context)
+                # Capture the durable baseline before the model can commit a
+                # page.  This distinguishes an incomplete response *after* a
+                # real ledger update from an incomplete response that did no
+                # work at all.
+                baseline_snapshot = (
+                    _tgg_nightly_chat_receipt_snapshot(*nightly_trigger)
+                    if nightly_trigger
+                    else None
+                )
+                last_progress_sha256 = (
+                    baseline_snapshot[1] if baseline_snapshot is not None else None
+                )
                 result = agent.run_conversation(
                     _run_message,
                     conversation_history=agent_history,
                     task_id=session_id,
                 )
 
-                nightly_trigger = _tgg_nightly_analyzer_trigger(pa_job_type, pa_context)
                 if nightly_trigger and isinstance(result, Mapping):
                     batch_id, authoritative_chat_id = nightly_trigger
-                    last_progress_sha256: str | None = None
                     while True:
                         receipt_snapshot = _tgg_nightly_chat_receipt_snapshot(
                             batch_id,
@@ -18474,13 +18500,23 @@ class GatewayRunner:
                         receipt_present = None if receipt_snapshot is None else receipt_snapshot[0]
                         progress_sha256 = None if receipt_snapshot is None else receipt_snapshot[1]
                         resume_cursor = None if receipt_snapshot is None else receipt_snapshot[2]
-                        if receipt_present is True or _tgg_nightly_result_is_terminal_failure(result):
+                        if receipt_present is True:
+                            result = _mark_tgg_nightly_durable_receipt_completed(result)
                             break
                         if receipt_present is None:
                             result = _mark_tgg_nightly_completion_incomplete(
                                 result,
                                 "the receipt could not be verified",
                             )
+                            break
+                        progress_changed = (
+                            progress_sha256 is not None
+                            and progress_sha256 != last_progress_sha256
+                        )
+                        # A durable ledger advance survives an incomplete
+                        # model ending.  Resume from that durable state; only
+                        # an incomplete/no-progress turn is terminal.
+                        if _tgg_nightly_result_is_terminal_failure(result) and not progress_changed:
                             break
                         if (
                             progress_sha256 is not None
@@ -18491,7 +18527,7 @@ class GatewayRunner:
                                 "the preceding continuation made no durable analyzer progress",
                             )
                             break
-                        if progress_sha256 is not None:
+                        if progress_changed:
                             last_progress_sha256 = progress_sha256
                         if (
                             time.monotonic() - agent_run_started_at
