@@ -91,6 +91,12 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
         return {
             "ok": True,
             "completed_chat_ids": [] if len(status_calls) < 3 else ["amk@g.us"],
+            "chat_progress": {
+                "amk@g.us": {
+                    "sha256": f"progress-{len(status_calls)}",
+                    "page_classifications": len(status_calls) + 3,
+                }
+            },
         }
 
     import tools.registry as tool_registry
@@ -126,9 +132,10 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
         and "authoritative_chat_id=amk@g.us" in call["message"]
         for call in calls[1:]
     )
-    assert "first read the chat ledger" in calls[1]["message"]
-    assert "process every remaining unclassified page in cursor order" in calls[1]["message"]
-    assert "immediately fetch and process the next" in calls[1]["message"]
+    assert "Start at exact cursor=100" in calls[1]["message"]
+    assert "Start at exact cursor=125" in calls[2]["message"]
+    assert "Do not load the full chat ledger" in calls[1]["message"]
+    assert "Process exactly that one page" in calls[1]["message"]
     assert len(status_calls) == 3
     assert status_calls == [{"batch_id": "nightly:2026-08-17:test"}] * 3
     assert runner._queued_events == {}

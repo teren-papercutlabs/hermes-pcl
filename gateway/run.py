@@ -1169,8 +1169,13 @@ def _tgg_nightly_analyzer_trigger(
 def _tgg_nightly_chat_receipt_snapshot(
     batch_id: str,
     authoritative_chat_id: str,
-) -> tuple[bool, str | None] | None:
-    """Return receipt presence and the chat's mechanical progress fingerprint."""
+) -> tuple[bool, str | None, int | None] | None:
+    """Return receipt presence, progress fingerprint and next page cursor.
+
+    ``page_classifications`` is an ordered, one-per-page mechanical receipt.
+    Its count therefore supplies a compact resume cursor without giving the
+    analyzer the entire (potentially very large) singular ledger again.
+    """
     try:
         from tools.registry import registry
 
@@ -1189,13 +1194,17 @@ def _tgg_nightly_chat_receipt_snapshot(
             return None
         chat_progress = status.get("chat_progress")
         progress_sha256 = None
+        next_cursor = None
         if isinstance(chat_progress, Mapping):
             progress = chat_progress.get(authoritative_chat_id)
             if isinstance(progress, Mapping):
                 candidate = progress.get("sha256")
                 if isinstance(candidate, str) and candidate:
                     progress_sha256 = candidate
-        return authoritative_chat_id in completed, progress_sha256
+                page_count = progress.get("page_classifications")
+                if isinstance(page_count, int) and page_count >= 0:
+                    next_cursor = page_count * 25
+        return authoritative_chat_id in completed, progress_sha256, next_cursor
     except Exception:
         logger.exception("Nightly same-session gate: status check raised for %s", batch_id)
         return None
@@ -18464,6 +18473,7 @@ class GatewayRunner:
                         )
                         receipt_present = None if receipt_snapshot is None else receipt_snapshot[0]
                         progress_sha256 = None if receipt_snapshot is None else receipt_snapshot[1]
+                        resume_cursor = None if receipt_snapshot is None else receipt_snapshot[2]
                         if receipt_present is True or _tgg_nightly_result_is_terminal_failure(result):
                             break
                         if receipt_present is None:
@@ -18505,16 +18515,28 @@ class GatewayRunner:
                         # bounded continuation with a clean model context and let
                         # it reload its compact ledger through the nightly tool.
                         continuation_history = []
+                        page_instruction = (
+                            "The compact durable page inventory is unavailable; first use the "
+                            "chat-page tool to identify the first unfinished page."
+                            if resume_cursor is None
+                            else (
+                                "The compact durable page inventory records all earlier pages as "
+                                f"classified. Start at exact cursor={resume_cursor}."
+                            )
+                        )
                         completion_prompt = (
                             "The immutable nightly chat receipt is still missing for "
                             f"batch_id={batch_id} and authoritative_chat_id={authoritative_chat_id}. "
-                            "Previous pages, image "
-                            "inspections and findings are durably saved. Continue this same batch "
-                            "session now: first read the chat ledger, then process every remaining "
-                            "unclassified page in cursor order. After committing one page, "
-                            "immediately fetch and process the next. Do not end the turn or "
-                            "summarize completion until the immutable chat receipt exists, unless "
-                            "a genuine terminal tool failure prevents further progress."
+                            "Previous pages, image inspections and findings are durably saved. "
+                            f"{page_instruction} Do not load the full chat ledger and do not revisit "
+                            "earlier pages: their output can exhaust this continuation's context. "
+                            "Process exactly that one page in cursor order, including every required "
+                            "image inspection, then commit its ledger decisions and groups. If it is "
+                            "the final page, seal the chat receipt after that commit; otherwise end "
+                            "the turn immediately. The runner will verify durable progress and start "
+                            "the next compact continuation. Do not summarize completion until the "
+                            "immutable chat receipt exists, unless a genuine terminal tool failure "
+                            "prevents further progress."
                         )
                         result = agent.run_conversation(
                             completion_prompt,
