@@ -598,6 +598,29 @@ def _deliver_whatsapp_via_tgg_reply_bridge(
     if not bridge_url:
         return "Christopher WhatsApp bridge is not configured"
 
+    def resolve_media_path(value: str) -> Path:
+        text = str(value or "")
+        candidate = Path(text)
+        # Promoted refs are absolute-looking `/media/...` handles; every
+        # other absolute local path retains the established cron behaviour.
+        if candidate.is_absolute() and not text.startswith("/media/"):
+            return candidate.resolve(strict=True)
+        config = load_config() or {}
+        pa = config.get("pa") if isinstance(config, dict) else None
+        retention = pa.get("media_retention") if isinstance(pa, dict) else None
+        root = Path(str((retention or {}).get("media_root") or "")).expanduser()
+        prefix = str((retention or {}).get("media_ref_prefix") or "").rstrip("/")
+        expected = f"{prefix}/"
+        if not root.is_absolute() or not prefix or not text.startswith(expected):
+            raise ValueError("untrusted promoted media reference")
+        name = text[len(expected):]
+        if not name or "/" in name or "\\" in name or name in {".", ".."}:
+            raise ValueError("promoted media reference escapes configured root")
+        resolved = (root / name).resolve(strict=True)
+        if not resolved.is_file() or not resolved.is_relative_to(root.resolve()):
+            raise ValueError("promoted media reference is unavailable")
+        return resolved
+
     def post(endpoint: str, payload: dict) -> Optional[str]:
         try:
             request = Request(
@@ -622,7 +645,11 @@ def _deliver_whatsapp_via_tgg_reply_bridge(
         if error:
             return error
     for media_path, _is_voice in media_files:
-        suffix = Path(media_path).suffix.lower()
+        try:
+            resolved_media = resolve_media_path(str(media_path))
+        except (OSError, ValueError) as exc:
+            return f"bridge media refused: {exc}"
+        suffix = resolved_media.suffix.lower()
         media_type = (
             "image" if suffix in _IMAGE_EXTS else "video" if suffix in _VIDEO_EXTS
             else "audio" if suffix in {".aac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"}
@@ -630,9 +657,9 @@ def _deliver_whatsapp_via_tgg_reply_bridge(
         )
         error = post("send-media", {
             "chatId": chat_id,
-            "filePath": str(media_path),
+            "filePath": str(resolved_media),
             "mediaType": media_type,
-            "fileName": Path(media_path).name,
+            "fileName": resolved_media.name,
         })
         if error:
             return error

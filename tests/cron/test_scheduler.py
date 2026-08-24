@@ -796,7 +796,7 @@ class TestDeliverResultErrorReturns:
         assert result is not None
         assert "not configured" in result
 
-    def test_christopher_cron_delivers_text_and_media_via_reply_bridge_when_whatsapp_disabled(self, monkeypatch):
+    def test_christopher_cron_delivers_text_and_media_via_reply_bridge_when_whatsapp_disabled(self, tmp_path, monkeypatch):
         """Christopher does not start Hermes's WhatsApp adapter for cron output."""
         from gateway.config import Platform
 
@@ -818,19 +818,21 @@ class TestDeliverResultErrorReturns:
             return Response()
 
         monkeypatch.setenv("TGG_REPLY_BRIDGE_URL", "http://bridge.test")
+        report = tmp_path / "outstanding.xlsx"
+        report.write_bytes(b"xlsx")
         with patch("gateway.config.load_gateway_config", return_value=config), \
              patch("cron.scheduler.load_config", return_value={"cron": {"wrap_response": False}}), \
              patch("urllib.request.urlopen", side_effect=urlopen):
             result = _deliver_result(
                 {"id": "tgg-cron", "deliver": "origin", "origin": {"platform": "whatsapp", "chat_id": "mgmt@g.us"}},
-                "report ready\nMEDIA:/tmp/outstanding.xlsx",
+                f"report ready\nMEDIA:{report}",
             )
 
         assert result is None
         assert requests == [
             ("http://bridge.test/send", {"chatId": "mgmt@g.us", "message": "report ready"}, 30),
             ("http://bridge.test/send-media", {
-                "chatId": "mgmt@g.us", "filePath": "/tmp/outstanding.xlsx",
+                "chatId": "mgmt@g.us", "filePath": str(report),
                 "mediaType": "document", "fileName": "outstanding.xlsx",
             }, 30),
         ]
@@ -858,6 +860,25 @@ class TestDeliverResultErrorReturns:
             )
 
         assert result == "bridge send outcome unconfirmed (http 500)"
+
+    def test_christopher_cron_resolves_promoted_media_ref_before_bridge_send(self, tmp_path, monkeypatch):
+        from cron.scheduler import _deliver_whatsapp_via_tgg_reply_bridge
+        root = tmp_path / "media"
+        root.mkdir()
+        report = root / "report.xlsx"
+        report.write_bytes(b"xlsx")
+        seen = []
+        class Response:
+            status = 200
+            def read(self): return b'{"success":true}'
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+        monkeypatch.setenv("TGG_REPLY_BRIDGE_URL", "http://bridge.test")
+        with patch("cron.scheduler.load_config", return_value={"pa": {"media_retention": {"media_root": str(root), "media_ref_prefix": "/media/tgg/hermes"}}}), \
+             patch("urllib.request.urlopen", side_effect=lambda req, timeout: seen.append(json.loads(req.data)) or Response()):
+            assert _deliver_whatsapp_via_tgg_reply_bridge({}, "chat@g.us", "", [("/media/tgg/hermes/report.xlsx", False)]) is None
+            assert _deliver_whatsapp_via_tgg_reply_bridge({}, "chat@g.us", "", [("/media/tgg/hermes/../secret.xlsx", False)]) is not None
+        assert seen == [{"chatId": "chat@g.us", "filePath": str(report), "mediaType": "document", "fileName": "report.xlsx"}]
 
     def test_returns_error_for_unresolved_target(self, monkeypatch):
         """Non-local delivery with no resolvable target should return an error."""
