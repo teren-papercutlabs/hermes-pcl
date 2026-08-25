@@ -173,7 +173,7 @@ class _OperatorStub(BaseHTTPRequestHandler):
                         }
                         for name, file_name, sheet_tabs in source_specs
                     ],
-                    "preview_rows": [{"zone": zone, "row_count": 10} for zone in zones],
+                    "preview_rows": [{"zone": zone, "row_count": 1} for zone in zones],
                 }
             elif endpoint == "preview-reconcile":
                 result = {

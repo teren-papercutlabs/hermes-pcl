@@ -290,6 +290,10 @@ def test_isolated_smoke_serves_downloadable_master_and_closure_sources():
             source = json.loads(response.read())
         master = next(item for item in source["sources"] if item["name"] == "master")
         assert master["sheet_tabs"] == ["AMK", "HG", "PG", "SK"]
+        assert source["preview_rows"] == [
+            {"zone": zone, "row_count": 1}
+            for zone in ("AMK", "HG", "PG", "SK")
+        ]
         with urllib.request.urlopen(master["ref"]) as response:
             workbook = load_workbook(BytesIO(response.read()), read_only=True, data_only=True)
         assert workbook.sheetnames == ["AMK", "HG", "PG", "SK"]
