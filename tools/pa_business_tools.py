@@ -1133,6 +1133,12 @@ def _materialize_large_tgg_query_result(
         return {
             "sandbox_artifact": f"/work/{path.name}",
             "sandbox_artifact_sha256": full_digest,
+            "sandbox_artifact_usage": (
+                "The complete query result is already in this session workspace. "
+                "For workbook, table, or code work, call python_sandbox directly "
+                "with datasets omitted and read sandbox_artifact. Do not request "
+                "the cases dataset and do not delegate: this artifact is session-local."
+            ),
             **dict(result),
         }
     except Exception:
@@ -2549,7 +2555,11 @@ PA_BUSINESS_READ_SCHEMA = {
     "description": (
         "Run an opt-in configured PA business read operation. The tool calls "
         "an external HTTP endpoint or local command and returns JSON; it does "
-        "not persist business facts in Hermes state."
+        "not persist business facts in Hermes state. For tgg_case_query, a "
+        "large result may start with sandbox_artifact and "
+        "sandbox_artifact_usage. Follow that handoff for workbook/code work: "
+        "use python_sandbox directly with datasets omitted, never reload the "
+        "full cases dataset, and do not delegate a session-local artifact."
     ),
     "parameters": {
         "type": "object",
@@ -2633,6 +2643,10 @@ TGG_CASE_QUERY_SCHEMA = {
         "enforces read-only: single SELECT statement (WITH ... SELECT is "
         "fine), no writes/PRAGMA/ATTACH/semicolon chains, ~200-row cap with "
         "a truncated flag, results as {columns, rows, rowCount, truncated}. "
+        "A large result may start with sandbox_artifact and "
+        "sandbox_artifact_usage. Follow that handoff for workbook/code work: "
+        "use python_sandbox directly with datasets omitted, never reload the "
+        "full cases dataset, and do not delegate a session-local artifact. "
         "During a reconciliation exam the job brief may direct single-case "
         "questions here too. Canonical reconciliation views: "
         "tgg_case_truth(case_id, job_no, zone, address, receipt_at, "

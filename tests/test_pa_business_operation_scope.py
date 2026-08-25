@@ -162,6 +162,8 @@ def test_large_case_query_becomes_session_sandbox_artifact(
         clear_session_vars(tokens)
 
     assert response["sandbox_artifact"].startswith("/work/pa-query-")
+    assert "datasets omitted" in response["sandbox_artifact_usage"]
+    assert "do not delegate" in response["sandbox_artifact_usage"]
     path = tmp_path / "sandbox_workspaces" / _workspace_key("cron-report-session") / "work" / response["sandbox_artifact"].split("/")[-1]
     artifact_bytes = path.read_bytes()
     assert hashlib.sha256(artifact_bytes).hexdigest() == response["sandbox_artifact_sha256"]
