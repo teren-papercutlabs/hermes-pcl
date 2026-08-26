@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import getpass
 import hashlib
 import json
 import os
@@ -19,6 +20,7 @@ import subprocess
 import sys
 import tarfile
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -28,10 +30,130 @@ DEFAULT_ROOT = Path("/opt/tgg-christopher")
 DEFAULT_HOME = Path("/home/pclaw/.hermes-christopher-tgg")
 DEFAULT_UNIT = Path("/etc/systemd/system/christopher-tgg-hermes.service")
 UNIT_REL = Path("deploy/tgg/christopher/systemd/christopher-tgg-hermes.service")
+CANONICAL_REPOSITORY_URL = "https://github.com/teren-papercutlabs/hermes-pcl.git"
+PROTECTED_MAIN_REF = "refs/heads/main"
 
 
 class ReleaseError(RuntimeError):
     pass
+
+
+def _checked_output(argv: list[str], *, cwd: Path | None = None) -> str:
+    try:
+        result = subprocess.run(
+            argv,
+            cwd=str(cwd) if cwd else None,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        detail = getattr(exc, "stderr", "") or str(exc)
+        raise ReleaseError(f"repository verification failed: {detail.strip()}") from exc
+    return result.stdout.strip()
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def verify_prepare_repository(runtime: Path) -> dict[str, str]:
+    """Require a clean checkout at the freshly fetched protected-main head."""
+    inside = _checked_output(["git", "rev-parse", "--is-inside-work-tree"], cwd=runtime)
+    if inside != "true":
+        raise ReleaseError("runtime is not a Git worktree")
+    status = _checked_output(
+        ["git", "status", "--porcelain=v1", "--untracked-files=normal"],
+        cwd=runtime,
+    )
+    if status:
+        raise ReleaseError("runtime checkout is not clean")
+    runtime_commit = _checked_output(["git", "rev-parse", "HEAD"], cwd=runtime)
+    # Fetch the pinned repository directly. Bundle-controlled remotes and local
+    # tracking refs are not release authority.
+    _checked_output(
+        [
+            "git", "fetch", "--quiet", "--no-tags",
+            CANONICAL_REPOSITORY_URL, PROTECTED_MAIN_REF,
+        ],
+        cwd=runtime,
+    )
+    verified_main_head = _checked_output(["git", "rev-parse", "FETCH_HEAD"], cwd=runtime)
+    if runtime_commit != verified_main_head:
+        raise ReleaseError(
+            "runtime commit is not the freshly verified protected main head: "
+            f"runtime={runtime_commit} main={verified_main_head}"
+        )
+    return {
+        "canonical_repository_url": CANONICAL_REPOSITORY_URL,
+        "protected_ref": PROTECTED_MAIN_REF,
+        "verified_main_head": verified_main_head,
+        "runtime_commit": runtime_commit,
+        "verified_at": _utc_now(),
+    }
+
+
+def resolve_protected_main_head() -> str:
+    """Resolve protected main independently on the fixed apply host."""
+    output = _checked_output(
+        ["git", "ls-remote", CANONICAL_REPOSITORY_URL, PROTECTED_MAIN_REF]
+    )
+    rows = [line.split() for line in output.splitlines() if line.strip()]
+    if len(rows) != 1 or len(rows[0]) != 2 or rows[0][1] != PROTECTED_MAIN_REF:
+        raise ReleaseError("protected main lookup returned an invalid result")
+    head = rows[0][0]
+    if len(head) != 40 or any(char not in "0123456789abcdef" for char in head.lower()):
+        raise ReleaseError("protected main lookup returned an invalid commit")
+    return head
+
+
+def verify_apply_repository(
+    release: dict[str, Any], *, break_glass: bool, reason: str | None
+) -> dict[str, Any]:
+    """Verify main again at apply, or record an explicit root/operator bypass."""
+    observed_at = _utc_now()
+    observed_main_head = resolve_protected_main_head()
+    runtime_commit = str(release.get("runtime_commit") or "")
+    guard = release.get("repository_guard")
+    if break_glass:
+        clean_reason = str(reason or "").strip()
+        if not clean_reason:
+            raise ReleaseError("--break-glass requires a non-empty --reason")
+        return {
+            "break_glass": True,
+            "reason": clean_reason,
+            "actor": os.environ.get("SUDO_USER") or getpass.getuser(),
+            "runtime_commit": runtime_commit,
+            "observed_protected_main_head": observed_main_head,
+            "observed_at": observed_at,
+            "repository_reconciliation_required": True,
+        }
+    if reason:
+        raise ReleaseError("--reason is valid only with --break-glass")
+    if not isinstance(guard, dict):
+        raise ReleaseError("bundle has no protected-main preparation evidence")
+    if guard.get("canonical_repository_url") != CANONICAL_REPOSITORY_URL:
+        raise ReleaseError("bundle canonical repository does not match the host-pinned repository")
+    if guard.get("protected_ref") != PROTECTED_MAIN_REF:
+        raise ReleaseError("bundle protected ref is invalid")
+    verified_main_head = str(guard.get("verified_main_head") or "")
+    if guard.get("runtime_commit") != runtime_commit:
+        raise ReleaseError("bundle repository evidence does not match its runtime commit")
+    if observed_main_head != verified_main_head or observed_main_head != runtime_commit:
+        raise ReleaseError(
+            "protected main changed or does not match the runtime: "
+            f"observed={observed_main_head} prepared={verified_main_head} "
+            f"runtime={runtime_commit}"
+        )
+    return {
+        "break_glass": False,
+        "canonical_repository_url": CANONICAL_REPOSITORY_URL,
+        "protected_ref": PROTECTED_MAIN_REF,
+        "prepared_main_head": verified_main_head,
+        "runtime_commit": runtime_commit,
+        "observed_protected_main_head": observed_main_head,
+        "observed_at": observed_at,
+    }
 
 
 def sha256(path: Path) -> str:
@@ -456,6 +578,7 @@ def focused_verify(root: Path, home: Path, expected: dict[str, Any], before_cont
 
 def prepare(args: argparse.Namespace) -> int:
     runtime, capability, out = Path(args.runtime).resolve(), Path(args.capability).resolve(), Path(args.out).resolve()
+    repository_guard = verify_prepare_repository(runtime)
     manifest = read_manifest(capability)
     required_capability_files(capability, manifest)
     commit = runtime_identity(runtime)
@@ -473,7 +596,8 @@ def prepare(args: argparse.Namespace) -> int:
                "capability_sha256": archive_tree(capability, capability_archive),
                "provider": args.provider, "model": args.model,
                "reasoning_effort": args.reasoning_effort,
-               "capability_declared_runtime_commit": declared_compatibility}
+               "capability_declared_runtime_commit": declared_compatibility,
+               "repository_guard": repository_guard}
     shutil.rmtree(staged_runtime)
     atomic_json(out / "release.json", release)
     print(json.dumps(release, sort_keys=True))
@@ -486,6 +610,11 @@ def apply(args: argparse.Namespace) -> int:
     release = json.loads((bundle / "release.json").read_text())
     if release.get("schema") != SCHEMA:
         raise ReleaseError("unsupported release schema")
+    repository_verification = verify_apply_repository(
+        release,
+        break_glass=bool(getattr(args, "break_glass", False)),
+        reason=getattr(args, "reason", None),
+    )
     expected = {key: release[key] for key in ("runtime_commit", "capability_release_id", "provider", "model", "reasoning_effort")}
     inbox = home / "runtime/capture-inbox.db"
     receipt = root / "transactions" / f"{int(time.time())}-{release['runtime_commit'][:12]}" / "receipt.json"
@@ -540,7 +669,7 @@ def apply(args: argparse.Namespace) -> int:
             command(["systemctl", "daemon-reload"])
             restart_service()
             verified = focused_verify(root, home, expected, before_controls)
-            outcome = {"schema": SCHEMA, "status": "committed", "before": old, "after": {**verified, "unit_sha256": after_unit_hash}}
+            outcome = {"schema": SCHEMA, "status": "committed", "repository_verification": repository_verification, "before": old, "after": {**verified, "unit_sha256": after_unit_hash}}
         except Exception as exc:
             if activation_started:
                 restore_unit(before_unit, unit_path)
@@ -552,7 +681,7 @@ def apply(args: argparse.Namespace) -> int:
                 for name, target in (old.get("plugins") or {}).items():
                     restore_pointer(home / "plugins" / name, target)
                 recover_service()
-            outcome = {"schema": SCHEMA, "status": "rolled_back", "before": old, "error": str(exc)}
+            outcome = {"schema": SCHEMA, "status": "rolled_back", "repository_verification": repository_verification, "before": old, "error": str(exc)}
             atomic_json(receipt, outcome)
             raise
         finally:
@@ -596,6 +725,8 @@ def main(argv: list[str] | None = None) -> int:
         item = sub.add_parser(name); item.add_argument("--root", default=str(DEFAULT_ROOT)); item.add_argument("--hermes-home", default=str(DEFAULT_HOME))
         item.add_argument("--systemd-unit", default=str(DEFAULT_UNIT))
     sub.choices["apply"].add_argument("--bundle", required=True)
+    sub.choices["apply"].add_argument("--break-glass", action="store_true")
+    sub.choices["apply"].add_argument("--reason")
     sub.choices["rollback"].add_argument("--receipt", required=True)
     args = parser.parse_args(argv)
     try:
