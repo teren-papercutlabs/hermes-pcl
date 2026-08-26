@@ -36,13 +36,32 @@ python3 /usr/local/lib/tgg-christopher/standalone_release.py apply \
 requires the capability manifest to enumerate its own files and hashes; it does
 not archive a worktree, `.git`, or dependency cache. It also requires the
 capability's declared `runtime.hermes_commit` to match the staged runtime (a
-Git prefix is accepted). Provider/model/reasoning are runtime-release inputs,
+Git prefix is accepted). Before creating the bundle it requires a clean Git
+worktree, fetches the pinned canonical repository's protected `main`, and
+requires the runtime commit to equal that fresh head. The bundle records the
+repository URL, protected ref, head and verification time. Provider/model/reasoning are runtime-release inputs,
 not capability authority. The executor verifies both payload hashes before it changes a pointer, switches
 the `runtime/current` and `capability/current` symlinks, atomically installs
 the runtime-owned `christopher-tgg-hermes.service`, reloads systemd, restarts Christopher
 once, runs focused identity/service/config/gate/timer/inbox checks, and writes a
 compact receipt below `/opt/tgg-christopher/transactions/`. A failure restores
 the prior pointers and restarts once.
+
+At apply time the fixed executor independently resolves protected `main` from
+the host-pinned repository URL. It refuses if `main` advanced or if the bundle,
+prepared head and runtime commit do not all match. An already prepared emergency
+bundle can bypass this apply-side equality check only through an explicit,
+audited root/operator invocation:
+
+```sh
+python3 /usr/local/lib/tgg-christopher/standalone_release.py apply \
+  --break-glass --reason "plain operational reason" \
+  --bundle /secure/release-bundles/emergency
+```
+
+The receipt records the actor, reason, runtime commit, observed protected-main
+head and a repository-reconciliation obligation. Bundle content cannot select
+the canonical repository or enable break glass.
 
 Rollback is explicit and also refuses while work is processing:
 
