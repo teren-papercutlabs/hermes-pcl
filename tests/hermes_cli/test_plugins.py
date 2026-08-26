@@ -1374,6 +1374,51 @@ class TestPluginDebugLogging:
             plugins_mod.logger.setLevel(original_level)
             plugins_mod.logger.handlers = original_handlers
 
+
+class TestPostCompactionContextHook:
+    def test_valid_block_is_collected(self):
+        mgr = PluginManager()
+        manifest = PluginManifest(name="continuation", source="user")
+        ctx = PluginContext(manifest, mgr)
+        ctx.register_hook(
+            "post_compaction_context",
+            lambda **kw: {
+                "context": "[continuation] exact frozen source IDs",
+                "metadata": {"chat_jid": "amk@g.us", "old": kw["old_session_id"]},
+            },
+        )
+
+        blocks = mgr.invoke_post_compaction_context(
+            old_session_id="old", new_session_id="new", boundary_reason="compression"
+        )
+
+        assert blocks == [{
+            "context": "[continuation] exact frozen source IDs",
+            "metadata": {"chat_jid": "amk@g.us", "old": "old"},
+        }]
+
+    def test_no_operation_and_optional_failure_do_not_change_compaction(self):
+        mgr = PluginManager()
+        manifest = PluginManifest(name="optional", source="user")
+        ctx = PluginContext(manifest, mgr)
+        ctx.register_hook("post_compaction_context", lambda **kw: None)
+        ctx.register_hook("post_compaction_context", lambda **kw: 1 / 0)
+
+        assert mgr.invoke_post_compaction_context(
+            old_session_id="old", new_session_id="new", boundary_reason="compression"
+        ) == []
+
+    def test_required_provider_failure_refuses_continuation(self):
+        mgr = PluginManager()
+        manifest = PluginManifest(name="tgg", source="user")
+        ctx = PluginContext(manifest, mgr)
+        ctx.register_hook("post_compaction_context", lambda **kw: 1 / 0, fail_closed=True)
+
+        with pytest.raises(RuntimeError, match="POST_COMPACTION_CONTEXT_REQUIRED_HOOK_FAILED"):
+            mgr.invoke_post_compaction_context(
+                old_session_id="old", new_session_id="new", boundary_reason="compression"
+            )
+
     def test_debug_handler_idempotent(self, monkeypatch):
         """Calling install twice (without force) does not double-attach."""
         monkeypatch.setenv("HERMES_PLUGINS_DEBUG", "1")

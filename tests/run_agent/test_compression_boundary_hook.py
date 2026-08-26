@@ -40,6 +40,7 @@ class TestCompressionBoundaryHook:
         with tempfile.TemporaryDirectory() as tmpdir:
             db = SessionDB(db_path=Path(tmpdir) / "test.db")
             agent = self._make_agent(db)
+            db.create_session("original-session", source="test", model="test/model")
 
             # Stub the context compressor: we only need to observe the hook.
             compressor = MagicMock()
@@ -154,3 +155,86 @@ class TestCompressionBoundaryHook:
             )
             assert compressed
             assert agent.session_id != original_sid
+
+    def test_post_compaction_context_is_persisted_once_after_native_callbacks(self):
+        """A media-heavy tail may evict the active operation; the hook restores it."""
+        from hermes_state import SessionDB
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db = SessionDB(db_path=Path(tmpdir) / "test.db")
+            agent = self._make_agent(db)
+            agent._logical_session_key = "whatsapp:amk@g.us"
+            db.create_session("original-session", source="test", model="test/model")
+            compressor = MagicMock()
+            # Overnight shape: preserve-recent retained only media/tool tail,
+            # not the old analyzer event / frozen interval instruction.
+            compressor.compress.return_value = [
+                {"role": "user", "content": "[CONTEXT COMPACTION] summary"},
+                {"role": "tool", "content": "vision receipt image-53"},
+                {"role": "tool", "content": "vision receipt image-54"},
+            ]
+            compressor.compression_count = 1
+            compressor.last_prompt_tokens = 0
+            compressor.last_completion_tokens = 0
+            compressor._last_summary_error = None
+            agent.context_compressor = compressor
+
+            injected = []
+
+            def _post_context(**kwargs):
+                injected.append(kwargs)
+                return {
+                    "context": "[TGG CONTINUATION]\n"
+                    "chat_jid=120363404682000990@g.us\n"
+                    "low_cursor=1042 high_cursor=1111\n"
+                    "input_message_ids=70 digest=abc123\n"
+                    "Do not seal until source-status confirms exact coverage.",
+                    "metadata": {"kind": "tgg_active_operation/v1", "chat_jid": "120363404682000990@g.us"},
+                }
+
+            with patch("hermes_cli.plugins.invoke_post_compaction_context", lambda **kwargs: [_post_context(**kwargs)]):
+                compressed, _ = agent._compress_context(
+                    [{"role": "user", "content": "old analyzer event with frozen batch"}] +
+                    [{"role": "tool", "content": f"vision receipt {i}"} for i in range(70)],
+                    "sys",
+                    approx_tokens=100_000,
+                )
+
+            assert len(injected) == 1
+            assert injected[0]["old_session_id"] == "original-session"
+            assert injected[0]["new_session_id"] == agent.session_id
+            assert injected[0]["logical_session_key"] == "whatsapp:amk@g.us"
+            assert compressed[-1]["content"].startswith("[TGG CONTINUATION]")
+            assert compressed[-1]["_hermes_post_compaction_context"]["kind"] == "tgg_active_operation/v1"
+            persisted = db.get_messages(agent.session_id)
+            assert persisted[-1]["content"] == compressed[-1]["content"]
+
+    def test_no_post_compaction_hook_on_ordinary_non_compacting_turn(self):
+        """The new integration is boundary-only, never a normal-turn injection."""
+        agent = self._make_agent(session_db=None)
+        with patch("hermes_cli.plugins.invoke_post_compaction_context") as hook:
+            # Deliberately do not call _compress_context; the normal model-loop
+            # path must not invoke this hook at all.
+            assert agent.session_id == "original-session"
+        hook.assert_not_called()
+
+    def test_required_post_compaction_failure_refuses_successor(self):
+        from hermes_state import SessionDB
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db = SessionDB(db_path=Path(tmpdir) / "test.db")
+            agent = self._make_agent(db)
+            compressor = MagicMock()
+            compressor.compress.return_value = [{"role": "user", "content": "summary"}]
+            compressor.compression_count = 1
+            compressor.last_prompt_tokens = 0
+            compressor.last_completion_tokens = 0
+            compressor._last_summary_error = None
+            agent.context_compressor = compressor
+
+            with patch(
+                "hermes_cli.plugins.invoke_post_compaction_context",
+                side_effect=RuntimeError("POST_COMPACTION_CONTEXT_REQUIRED_HOOK_FAILED:tgg"),
+            ):
+                with pytest.raises(RuntimeError, match="POST_COMPACTION_CONTEXT_REFUSED"):
+                    agent._compress_context([{"role": "user", "content": "m"}], "sys", approx_tokens=100)

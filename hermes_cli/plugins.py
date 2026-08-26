@@ -136,6 +136,13 @@ VALID_HOOKS: Set[str] = {
     "transform_llm_output",
     "pre_llm_call",
     "post_llm_call",
+    # Fired only after an automatic context-compression session split has
+    # created the successor session and native session/context callbacks have
+    # run.  It is deliberately not a per-request hook.  A callback may return
+    # one structured block, ``{"context": str, "metadata": dict}``, which
+    # Hermes persists in the successor transcript before the next provider
+    # request.  ``None`` means no continuation context applies.
+    "post_compaction_context",
     "pre_api_request",
     "post_api_request",
     "on_session_start",
@@ -655,7 +662,13 @@ class PluginContext:
 
     # -- hook registration --------------------------------------------------
 
-    def register_hook(self, hook_name: str, callback: Callable) -> None:
+    def register_hook(
+        self,
+        hook_name: str,
+        callback: Callable,
+        *,
+        fail_closed: bool = False,
+    ) -> None:
         """Register a lifecycle hook callback.
 
         Unknown hook names produce a warning but are still stored so
@@ -670,6 +683,8 @@ class PluginContext:
                 ", ".join(sorted(VALID_HOOKS)),
             )
         self._manager._hooks.setdefault(hook_name, []).append(callback)
+        if fail_closed:
+            self._manager._fail_closed_hooks.setdefault(hook_name, set()).add(callback)
         logger.debug("Plugin %s registered hook: %s", self.manifest.name, hook_name)
 
     # -- skill registration -------------------------------------------------
@@ -730,6 +745,10 @@ class PluginManager:
     def __init__(self) -> None:
         self._plugins: Dict[str, LoadedPlugin] = {}
         self._hooks: Dict[str, List[Callable]] = {}
+        # A tiny number of correctness hooks own an in-flight external
+        # operation.  They may opt into fail-closed dispatch without changing
+        # the historic best-effort behaviour of ordinary plugin hooks.
+        self._fail_closed_hooks: Dict[str, Set[Callable]] = {}
         self._plugin_tool_names: Set[str] = set()
         self._plugin_platform_names: Set[str] = set()
         self._cli_commands: Dict[str, dict] = {}
@@ -756,6 +775,7 @@ class PluginManager:
         if force:
             self._plugins.clear()
             self._hooks.clear()
+            self._fail_closed_hooks.clear()
             self._plugin_tool_names.clear()
             self._cli_commands.clear()
             self._plugin_commands.clear()
@@ -1286,6 +1306,43 @@ class PluginManager:
                 )
         return results
 
+    def invoke_post_compaction_context(self, **kwargs: Any) -> List[Dict[str, Any]]:
+        """Collect validated continuation blocks after a compression split.
+
+        This is intentionally separate from :meth:`invoke_hook`: normal hook
+        errors remain best-effort.  A callback registered with
+        ``fail_closed=True`` represents an external in-flight operation and a
+        failure from it aborts the continuation before another provider call.
+        Optional callbacks may fail or return ``None`` without changing normal
+        compression behaviour.
+        """
+        blocks: List[Dict[str, Any]] = []
+        for callback in self._hooks.get("post_compaction_context", []):
+            try:
+                block = callback(**kwargs)
+            except Exception as exc:
+                if callback in self._fail_closed_hooks.get("post_compaction_context", set()):
+                    raise RuntimeError(
+                        "POST_COMPACTION_CONTEXT_REQUIRED_HOOK_FAILED:"
+                        f"{getattr(callback, '__name__', repr(callback))}:{exc}"
+                    ) from exc
+                logger.warning(
+                    "Optional post_compaction_context callback %s raised: %s",
+                    getattr(callback, "__name__", repr(callback)),
+                    exc,
+                )
+                continue
+            if block is None:
+                continue
+            if not isinstance(block, dict):
+                raise RuntimeError("POST_COMPACTION_CONTEXT_INVALID_BLOCK")
+            context = block.get("context")
+            metadata = block.get("metadata", {})
+            if not isinstance(context, str) or not context.strip() or not isinstance(metadata, dict):
+                raise RuntimeError("POST_COMPACTION_CONTEXT_INVALID_BLOCK")
+            blocks.append({"context": context, "metadata": dict(metadata)})
+        return blocks
+
     # -----------------------------------------------------------------------
     # Introspection
     # -----------------------------------------------------------------------
@@ -1364,6 +1421,11 @@ def invoke_hook(hook_name: str, **kwargs: Any) -> List[Any]:
     Returns a list of non-``None`` return values from plugin callbacks.
     """
     return get_plugin_manager().invoke_hook(hook_name, **kwargs)
+
+
+def invoke_post_compaction_context(**kwargs: Any) -> List[Dict[str, Any]]:
+    """Collect persistent successor-session context after compression."""
+    return get_plugin_manager().invoke_post_compaction_context(**kwargs)
 
 
 
