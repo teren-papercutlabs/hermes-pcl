@@ -3140,7 +3140,8 @@ def _priority_direct_trigger(record: InboxRecord, config_path: Path) -> bool:
         "900000000000000003@g.us": ("pg", "120363423568509280@g.us"),
         "900000000000000004@g.us": ("sk", "120363403845802098@g.us"),
         "900000000000000005@g.us": ("rental", "120363421153247095@g.us"),
-        "900000000000000006@g.us": ("consolidator", None),
+        "900000000000000006@g.us": ("backend", "120363404682000990@g.us"),
+        "900000000000000007@g.us": ("consolidator", None),
     }
     expected = assignments.get(record.chat_id)
     if (
