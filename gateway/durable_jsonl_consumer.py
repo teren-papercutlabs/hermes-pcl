@@ -2046,13 +2046,13 @@ def _contained_existing_file(value: Any, roots: Sequence[Path]) -> Path:
     return candidate
 
 
-def _event_media(item: Mapping[str, Any]) -> list[tuple[Any, str | None]]:
+def _event_media(item: Mapping[str, Any]) -> list[tuple[int, Any, str | None]]:
     values = item.get("mediaUrls") or item.get("media") or item.get("mediaPaths") or []
     if isinstance(values, (str, bytes, Mapping)):
         values = [values]
     if not isinstance(values, Sequence):
         raise ItemMediaRetentionError("event media collection is not a list")
-    result: list[tuple[Any, str | None]] = []
+    result: list[tuple[int, Any, str | None]] = []
     event_mime = item.get("mediaType") or item.get("mimeType")
     event_kind = str(event_mime or "").split("/", 1)[0].strip().lower()
     declared_mimes = item.get("mediaMimes") or []
@@ -2074,7 +2074,7 @@ def _event_media(item: Mapping[str, Any]) -> list[tuple[Any, str | None]]:
         kind = str(declared or "").split("/", 1)[0].strip().lower()
         if kind != "image":
             continue
-        result.append((value, declared))
+        result.append((index, value, declared))
     return result
 
 
@@ -2246,7 +2246,7 @@ def _retained_document_glob(
 def _retain_record_media_impl(
     record: InboxRecord, *, config_path: Path
 ) -> dict[str, Any]:
-    """Retain one event's documents/images and converge image ledger entries.
+    """Retain one event's documents/images and converge ledger entries.
 
     Files land before the idempotent operation.  Therefore a crash after the
     rename or operation is safe to replay, while changed bytes/MIME at the
@@ -2264,6 +2264,7 @@ def _retain_record_media_impl(
     retained_documents = 0
     document_bytes = 0
     retained_spreadsheets = 0
+    retained: list[dict[str, Any]] = []
     if documents:
         from tools.pa_business_tools import validate_retainable_document
 
@@ -2334,37 +2335,36 @@ def _retain_record_media_impl(
             retained_documents += 1
             document_bytes += len(content)
             retained_spreadsheets += int(retention_kind == "spreadsheet")
+            retained.append({
+                "source_key": source_key,
+                "media_ordinal": ordinal,
+                "digest": digest,
+                "mime": declared_mime,
+                "ref": f"{config['ref_prefix']}/{target.name}",
+            })
     media = _event_media(item)
     if not media:
         if retained_documents:
-            result = {
-                "retained": retained_documents,
-                "bytes": document_bytes,
-                "operation": False,
-            }
-            if retained_documents != retained_spreadsheets:
-                result["validated_documents"] = len(documents)
-            if retained_spreadsheets:
-                result["validated_spreadsheets"] = retained_spreadsheets
-            return result
-        coarse_kind = str(
-            item.get("mediaType") or item.get("mimeType") or ""
-        ).split("/", 1)[0].strip().lower()
-        if coarse_kind != "image":
+            total_bytes = document_bytes
+        else:
+            coarse_kind = str(
+                item.get("mediaType") or item.get("mimeType") or ""
+            ).split("/", 1)[0].strip().lower()
+            if coarse_kind != "image":
+                return {"retained": 0, "bytes": 0, "operation": False}
+            if item.get("hasMedia") is True:
+                raise ItemMediaRetentionError(
+                    "mandatory inbound media has no resolvable capture path"
+                )
             return {"retained": 0, "bytes": 0, "operation": False}
-        if item.get("hasMedia") is True:
-            raise ItemMediaRetentionError(
-                "mandatory inbound media has no resolvable capture path"
-            )
-        return {"retained": 0, "bytes": 0, "operation": False}
-    root.mkdir(parents=True, exist_ok=True, mode=0o750)
-    _assert_media_headroom(
-        config_path,
-        _media_root_metrics(config_path, inspect=True, count_root=False),
-    )
-    retained: list[dict[str, Any]] = []
-    total_bytes = 0
-    for ordinal, (raw_path, declared_mime) in enumerate(media):
+    else:
+        root.mkdir(parents=True, exist_ok=True, mode=0o750)
+        _assert_media_headroom(
+            config_path,
+            _media_root_metrics(config_path, inspect=True, count_root=False),
+        )
+        total_bytes = document_bytes
+    for ordinal, raw_path, declared_mime in media:
         source = _contained_existing_file(raw_path, config["source_roots"])
         mime, ext = _validated_image_type(source, declared_mime)
         content = source.read_bytes()
@@ -2428,8 +2428,8 @@ def _retain_record_media_impl(
             raise
         raise MediaRetentionError(f"media retention convergence failed: {exc}") from exc
     return {
-        "retained": retained_documents + len(retained),
-        "bytes": document_bytes + total_bytes,
+        "retained": len(retained),
+        "bytes": total_bytes,
         "operation": True,
         **(
             {"validated_documents": len(documents)}

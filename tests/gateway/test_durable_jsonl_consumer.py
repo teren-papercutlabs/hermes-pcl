@@ -460,23 +460,48 @@ def test_media_retention_refuses_source_path_escape(tmp_path, monkeypatch):
         consumer.retain_record_media(record, config_path=config)
 
 
-def test_xlsx_only_retention_is_idempotent_and_completes(tmp_path):
+def test_backend_document_with_caption_xlsx_converges_exact_retained_entry(
+    tmp_path, monkeypatch
+):
     capture = tmp_path / "capture"
     capture.mkdir()
     workbook = capture / "jobs.xlsx"
     _xlsx(workbook)
     retained = tmp_path / "retained"
     config = _retention_config(tmp_path, capture, retained)
-    raw = _message("SHEET-1")
-    raw.update(
+    normalized = _message("SHEET-1")
+    normalized.update(
         {
             "hasMedia": True,
             "mediaType": "document",
             "mediaUrls": [str(workbook)],
-            "mediaMimes": [
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ],
         }
+    )
+    raw = {
+        "normalized": normalized,
+        "raw": {
+            "message": {
+                "documentWithCaptionMessage": {
+                    "message": {
+                        "documentMessage": {
+                            "mimetype": (
+                                "application/vnd.openxmlformats-officedocument."
+                                "spreadsheetml.sheet"
+                            )
+                        }
+                    }
+                }
+            }
+        },
+    }
+    convergence: list[dict] = []
+    monkeypatch.setattr(
+        consumer,
+        "_converge_retained_media",
+        lambda _config, **kwargs: convergence.append(kwargs["payload"]) or {
+            "ok": True,
+            "data": {"ledgerChanged": False, "observationsChanged": False},
+        },
     )
     source = tmp_path / "events.jsonl"
     _write_jsonl(source, [raw])
@@ -489,7 +514,7 @@ def test_xlsx_only_retention_is_idempotent_and_completes(tmp_path):
     expected = {
         "retained": 1,
         "bytes": workbook.stat().st_size,
-        "operation": False,
+        "operation": True,
         "validated_spreadsheets": 1,
     }
     assert consumer.retain_record_media(record, config_path=config) == expected
@@ -502,6 +527,25 @@ def test_xlsx_only_retention_is_idempotent_and_completes(tmp_path):
 
     assert consumer.retain_record_media(record, config_path=config) == expected
     assert list(retained.glob("*.xlsx")) == first_files
+    assert convergence[0] == convergence[1]
+    assert convergence[0]["message_id"] == "SHEET-1"
+    assert convergence[0]["chat_jid"] == "test-group@g.us"
+    assert convergence[0]["source_key"] == (
+        "whatsapp-capture-v1:"
+        + hashlib.sha256(b"test-group@g.us\0SHEET-1").hexdigest()
+    )
+    assert convergence[0]["media"] == [
+        {
+            "source_key": convergence[0]["source_key"],
+            "media_ordinal": 0,
+            "digest": hashlib.sha256(workbook.read_bytes()).hexdigest(),
+            "mime": (
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+            "ref": f"/media/tgg/hermes/{first_files[0].name}",
+        }
+    ]
 
     assert consumer.ensure_record_media_retained(
         inbox, record, config_path=config
@@ -555,17 +599,28 @@ def test_mixed_spreadsheet_and_image_still_retains_image(tmp_path, monkeypatch):
     assert len(list((tmp_path / "retained").glob("*.png"))) == 1
     assert len(list((tmp_path / "retained").glob("*.xlsx"))) == 1
     assert len(convergence) == 1
-    assert len(convergence[0]["media"]) == 1
-    assert convergence[0]["media"][0]["mime"] == "image/png"
+    assert [entry["media_ordinal"] for entry in convergence[0]["media"]] == [0, 1]
+    assert [entry["mime"] for entry in convergence[0]["media"]] == [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "image/png",
+    ]
 
 
-def test_pdf_only_retention_is_idempotent_and_completes(tmp_path):
+def test_pdf_only_retention_is_idempotent_and_completes(tmp_path, monkeypatch):
     capture = tmp_path / "capture"
     capture.mkdir()
     document = capture / "brief.pdf"
     document.write_bytes(b"%PDF-1.7\nfixture")
     retained = tmp_path / "retained"
     config = _retention_config(tmp_path, capture, retained)
+    monkeypatch.setattr(
+        consumer,
+        "_converge_retained_media",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "data": {"ledgerChanged": False, "observationsChanged": False},
+        },
+    )
     raw = _message("PDF-1")
     raw.update(
         {
@@ -586,7 +641,7 @@ def test_pdf_only_retention_is_idempotent_and_completes(tmp_path):
     expected = {
         "retained": 1,
         "bytes": document.stat().st_size,
-        "operation": False,
+        "operation": True,
         "validated_documents": 1,
     }
     assert consumer.retain_record_media(record, config_path=config) == expected
@@ -612,13 +667,21 @@ def test_pdf_only_retention_is_idempotent_and_completes(tmp_path):
         consumer.retain_record_media(record, config_path=config)
 
 
-def test_docx_only_retention_completes(tmp_path):
+def test_docx_only_retention_completes(tmp_path, monkeypatch):
     capture = tmp_path / "capture"
     capture.mkdir()
     document = capture / "brief.docx"
     _docx(document)
     retained = tmp_path / "retained"
     config = _retention_config(tmp_path, capture, retained)
+    monkeypatch.setattr(
+        consumer,
+        "_converge_retained_media",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "data": {"ledgerChanged": False, "observationsChanged": False},
+        },
+    )
     raw = _message("DOCX-1")
     raw.update(
         {
@@ -646,7 +709,7 @@ def test_docx_only_retention_completes(tmp_path):
     assert result == {
         "retained": 1,
         "bytes": document.stat().st_size,
-        "operation": False,
+        "operation": True,
         "validated_documents": 1,
     }
     files = list(retained.glob("*.docx"))
@@ -663,6 +726,7 @@ def test_docx_only_retention_completes(tmp_path):
 @pytest.mark.asyncio
 async def test_retained_documents_are_annotated_only_in_replay_copy(
     tmp_path,
+    monkeypatch,
 ):
     capture = tmp_path / "capture"
     capture.mkdir()
@@ -678,6 +742,14 @@ async def test_retained_documents_are_annotated_only_in_replay_copy(
         "datasets": {"media": {"type": "path", "path": str(retained)}}
     }
     config.write_text(yaml.safe_dump(config_data), encoding="utf-8")
+    monkeypatch.setattr(
+        consumer,
+        "_converge_retained_media",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "data": {"ledgerChanged": False, "observationsChanged": False},
+        },
+    )
     raw = _message("DOCUMENT-ANNOTATION")
     raw.update(
         {
@@ -764,6 +836,7 @@ async def test_retained_documents_are_annotated_only_in_replay_copy(
 
 def test_bypassed_document_is_not_annotated_even_if_retained_target_exists(
     tmp_path,
+    monkeypatch,
 ):
     capture = tmp_path / "capture"
     capture.mkdir()
@@ -776,6 +849,14 @@ def test_bypassed_document_is_not_annotated_even_if_retained_target_exists(
         "datasets": {"media": {"type": "path", "path": str(retained)}}
     }
     config.write_text(yaml.safe_dump(config_data), encoding="utf-8")
+    monkeypatch.setattr(
+        consumer,
+        "_converge_retained_media",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "data": {"ledgerChanged": False, "observationsChanged": False},
+        },
+    )
     raw = _message("DOCUMENT-BYPASSED")
     raw.update(
         {
@@ -866,7 +947,7 @@ def test_macro_document_refusal_is_durable_and_recorded(tmp_path):
     assert "macro-enabled document formats are refused" in row["retention_last_error"]
 
 
-def test_mixed_pdf_and_image_keeps_systems_ledger_image_only(
+def test_mixed_pdf_and_image_converges_both_retained_entries(
     tmp_path, monkeypatch
 ):
     capture = tmp_path / "capture"
@@ -906,8 +987,11 @@ def test_mixed_pdf_and_image_keeps_systems_ledger_image_only(
     assert len(list((tmp_path / "retained").glob("*.pdf"))) == 1
     assert len(list((tmp_path / "retained").glob("*.png"))) == 1
     assert len(convergence) == 1
-    assert len(convergence[0]["media"]) == 1
-    assert convergence[0]["media"][0]["mime"] == "image/png"
+    assert [entry["media_ordinal"] for entry in convergence[0]["media"]] == [0, 1]
+    assert [entry["mime"] for entry in convergence[0]["media"]] == [
+        "application/pdf",
+        "image/png",
+    ]
 
 
 def test_spreadsheet_without_declared_mime_is_permanently_refused(tmp_path):
