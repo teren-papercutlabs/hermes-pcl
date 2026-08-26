@@ -2546,9 +2546,9 @@ def test_internal_nightly_prose_without_structured_identity_is_rejected(tmp_path
     assert not consumer._priority_direct_trigger(consumer.InboxRecord(3, "wrong-sender", wrong_sender["chatId"], 3, 3, wrong_sender), config)
 
 
-def test_six_session_nightly_trigger_validates_structured_role_assignment_not_body(tmp_path):
+def test_seven_session_nightly_trigger_validates_structured_role_assignment_not_body(tmp_path):
     constitution = tmp_path / "constitution.yaml"
-    nightly_ids = [f"90000000000000000{index}@g.us" for index in range(1, 7)]
+    nightly_ids = [f"90000000000000000{index}@g.us" for index in range(1, 8)]
     constitution.write_text(yaml.safe_dump({
         "selectors": [
             {"job_type": "tgg_nightly_whatsapp", "match": {
@@ -2596,6 +2596,44 @@ def test_six_session_nightly_trigger_validates_structured_role_assignment_not_bo
         tampered["metadata"][key] = value
         assert not consumer._priority_direct_trigger(
             consumer.InboxRecord(2, f"tampered-{key}", tampered["chatId"], 2, 2, tampered), config
+        )
+
+    backend = _message("nightly-backend", nightly_ids[5])
+    backend.update({
+        "senderId": "system@internal",
+        "metadata": {
+            "job_type": "tgg_nightly_whatsapp",
+            "nightly_batch_id": batch_id,
+            "nightly_role": "backend",
+            "authoritative_chat_id": "120363404682000990@g.us",
+        },
+    })
+    assert consumer._priority_direct_trigger(
+        consumer.InboxRecord(3, "nightly-backend", backend["chatId"], 3, 3, backend), config
+    )
+    consolidator = _message("nightly-consolidator", nightly_ids[6])
+    consolidator.update({
+        "senderId": "system@internal",
+        "metadata": {
+            "job_type": "tgg_nightly_whatsapp",
+            "nightly_batch_id": batch_id,
+            "nightly_role": "consolidator",
+            "authoritative_chat_id": None,
+        },
+    })
+    assert consumer._priority_direct_trigger(
+        consumer.InboxRecord(4, "nightly-consolidator", consolidator["chatId"], 4, 4, consolidator), config
+    )
+    for record in (backend, consolidator):
+        swapped = json.loads(json.dumps(record))
+        swapped["metadata"]["nightly_role"] = (
+            "consolidator" if record is backend else "backend"
+        )
+        swapped["metadata"]["authoritative_chat_id"] = (
+            None if record is backend else "120363404682000990@g.us"
+        )
+        assert not consumer._priority_direct_trigger(
+            consumer.InboxRecord(5, "nightly-swapped", swapped["chatId"], 5, 5, swapped), config
         )
 
 
