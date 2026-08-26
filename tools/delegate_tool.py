@@ -19,6 +19,7 @@ never the child's intermediate tool calls or reasoning.
 import enum
 import json
 import logging
+import re
 from contextvars import copy_context
 
 logger = logging.getLogger(__name__)
@@ -132,11 +133,142 @@ MAX_DEPTH = 1  # flat by default: parent (0) -> child (1); grandchild rejected u
 _MIN_SPAWN_DEPTH = 1
 _MAX_SPAWN_DEPTH_CAP = 3
 
+# A case-list coordinator is an ordinary delegated Christopher child.  The
+# durable list is the authority on whether that child may return to management.
+# Keep this deliberately narrow: it is not a generic "make every child keep
+# going" policy, and it never changes leaf-investigator behaviour.
+_WHATSAPP_CASE_LIST_COORDINATOR = "whatsapp_case_list_coordinator"
+_WHATSAPP_CASE_LIST_CONTINUATION_CAP = 64
+_CASE_LIST_ID_PATTERNS = (
+    re.compile(
+        r'(?i)\b(?:whatsapp[_ -]?)?case[_ -]?list(?:[_ -]?(?:id|key))?\s*[:=]\s*["\']?([A-Za-z0-9][A-Za-z0-9._:-]{2,})'
+    ),
+    re.compile(r'(?i)["\'](?:caseListId|case_list_id|listId|list_id)["\']\s*:\s*["\']([A-Za-z0-9][A-Za-z0-9._:-]{2,})'),
+)
+
 
 def _submit_with_context(executor, fn, /, *args, **kwargs):
     """Submit one callable with the caller's task-local ContextVars."""
     context = copy_context()
     return executor.submit(context.run, fn, *args, **kwargs)
+
+
+def _coordinator_list_id(child, goal: str) -> Optional[str]:
+    """Return the durable list id only for the named TGG coordinator profile.
+
+    The profile can be supplied by the caller as a task name/profile, or in the
+    explicit coordinator brief.  Do not guess based on ordinary case-list prose:
+    only this named profile receives the terminal gate.
+    """
+    profile_values = (
+        getattr(child, "_delegate_profile", None),
+        getattr(child, "_delegate_name", None),
+        getattr(child, "_delegate_requested_role", None),
+    )
+    profile = next((v for v in profile_values if isinstance(v, str)), "")
+    context = getattr(child, "_delegate_context", None)
+    texts = [goal, context if isinstance(context, str) else ""]
+    if profile != _WHATSAPP_CASE_LIST_COORDINATOR and not any(
+        _WHATSAPP_CASE_LIST_COORDINATOR in text for text in texts if isinstance(text, str)
+    ):
+        return None
+
+    explicit = getattr(child, "_tgg_whatsapp_case_list_id", None)
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    for text in texts:
+        if not isinstance(text, str):
+            continue
+        for pattern in _CASE_LIST_ID_PATTERNS:
+            matched = pattern.search(text)
+            if matched:
+                return matched.group(1)
+    return None
+
+
+def _query_whatsapp_case_list_status(child, *, list_id: str, task_id: str) -> Dict[str, Any]:
+    """Call the registered status tool through a narrow, testable seam.
+
+    This runs after an otherwise-terminal coordinator turn.  It is intentionally
+    read-only and does not enqueue work, so continuation cannot duplicate the
+    durable list event.
+    """
+    callback = getattr(child, "_tgg_whatsapp_case_list_status", None)
+    try:
+        if callable(callback):
+            raw = callback(list_id=list_id)
+        else:
+            invoke = getattr(child, "_invoke_tool", None)
+            if not callable(invoke):
+                return {"error": "Coordinator has no status-tool invocation seam."}
+            raw = invoke(
+                "tgg_whatsapp_case_list_status",
+                {"list_id": list_id},
+                task_id,
+            )
+    except Exception as exc:
+        return {"error": f"Coordinator list-status lookup failed: {exc}"}
+
+    if isinstance(raw, dict):
+        value = raw
+    elif isinstance(raw, str):
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError:
+            return {"error": "Coordinator list-status tool returned non-JSON output."}
+    else:
+        return {"error": "Coordinator list-status tool returned an invalid result."}
+    if not isinstance(value, dict):
+        return {"error": "Coordinator list-status tool returned a non-object result."}
+    if value.get("error"):
+        return {"error": str(value["error"])}
+    status = value.get("status")
+    if not isinstance(status, str):
+        return {"error": "Coordinator list-status result has no string status."}
+    return {"status": status.strip().lower(), "raw": value}
+
+
+def _coordinator_continuation_prompt(list_id: str, status: Dict[str, Any]) -> str:
+    return (
+        "Continue the same durable WhatsApp case-list coordination run. "
+        f"List ID: {list_id}. The authoritative list status is:\n"
+        f"{json.dumps(status, ensure_ascii=False, sort_keys=True)}\n\n"
+        "Do not create another list or re-queue completed cases. Resume from "
+        "the durable list state, launch/submit the remaining work as needed, "
+        "then report only when the list is complete or a genuine terminal "
+        "provider/tool failure prevents further progress."
+    )
+
+
+def _run_coordinator_continuation_turn(
+    child, *, prompt: str, task_id: str, timeout: float
+) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Run one continuation on the same child/session/task, with the normal cap."""
+    executor = ThreadPoolExecutor(
+        max_workers=1,
+        initializer=_set_subagent_approval_cb,
+        initargs=(_get_subagent_approval_callback(),),
+    )
+    future = _submit_with_context(
+        executor,
+        child.run_conversation,
+        user_message=prompt,
+        task_id=task_id,
+    )
+    try:
+        value = future.result(timeout=timeout)
+    except Exception as exc:
+        try:
+            if hasattr(child, "interrupt"):
+                child.interrupt("Coordinator continuation failed or timed out")
+        except Exception:
+            pass
+        return None, str(exc)
+    finally:
+        executor.shutdown(wait=future.done())
+    if not isinstance(value, dict):
+        return None, "Coordinator continuation returned an invalid result."
+    return value, None
 
 
 # ---------------------------------------------------------------------------
@@ -606,6 +738,7 @@ def _build_child_system_prompt(
     goal: str,
     context: Optional[str] = None,
     *,
+    profile_instruction: Optional[str] = None,
     workspace_path: Optional[str] = None,
     role: str = "leaf",
     max_spawn_depth: int = 2,
@@ -626,6 +759,8 @@ def _build_child_system_prompt(
     ]
     if context and context.strip():
         parts.append(f"\nCONTEXT:\n{context}")
+    if profile_instruction and profile_instruction.strip():
+        parts.append(f"\nCAPABILITY PROFILE (authoritative):\n{profile_instruction.strip()}")
     if workspace_path and str(workspace_path).strip():
         parts.append(
             "\nWORKSPACE PATH:\n"
@@ -924,6 +1059,7 @@ def _build_child_agent(
     # 'leaf' (default) cannot; 'orchestrator' retains the delegation
     # toolset subject to depth/kill-switch bounds applied below.
     role: str = "leaf",
+    profile: Optional[str] = None,
 ):
     """
     Build a child AIAgent on the main thread (thread-safe construction).
@@ -1004,9 +1140,17 @@ def _build_child_agent(
         child_toolsets.append("delegation")
 
     workspace_hint = _resolve_workspace_hint(parent_agent)
+    profile_instruction = None
+    if isinstance(profile, str) and profile.strip():
+        configured_profiles = delegation_cfg.get("profile_instructions")
+        if isinstance(configured_profiles, dict):
+            configured_instruction = configured_profiles.get(profile.strip())
+            if isinstance(configured_instruction, str) and configured_instruction.strip():
+                profile_instruction = configured_instruction
     child_prompt = _build_child_system_prompt(
         goal,
         context,
+        profile_instruction=profile_instruction,
         workspace_path=workspace_hint,
         role=effective_role,
         max_spawn_depth=max_spawn,
@@ -1664,6 +1808,91 @@ def _run_single_child(
             # the parent while its executor winds down.
             _timeout_executor.shutdown(wait=_child_future.done())
 
+        # The named list coordinator is the sole delegated profile whose
+        # terminal response is gated by durable Systems state.  A coordinator
+        # may think it is done after submitting one investigator result while
+        # the durable list has promoted more work; do not return that false
+        # terminal to management.  Continuations reuse this exact AIAgent,
+        # task id and conversation history, and only read the list status.
+        coordinator_list_id = _coordinator_list_id(child, goal)
+        coordinator_gate: Optional[Dict[str, Any]] = None
+        continuation_turns = 0
+        if coordinator_list_id and not result.get("interrupted", False):
+            while True:
+                coordinator_gate = _query_whatsapp_case_list_status(
+                    child, list_id=coordinator_list_id, task_id=child_task_id
+                )
+                gate_error = coordinator_gate.get("error")
+                if gate_error:
+                    result = {
+                        "final_response": "",
+                        "completed": False,
+                        "interrupted": False,
+                        "api_calls": result.get("api_calls", 0),
+                        "messages": result.get("messages", []),
+                        "error": (
+                            "WhatsApp case-list coordinator cannot verify "
+                            f"durable list {coordinator_list_id}: {gate_error}"
+                        ),
+                    }
+                    break
+                if coordinator_gate.get("status") == "complete":
+                    break
+                if coordinator_gate.get("status") in {"failed", "error", "cancelled"}:
+                    result = {
+                        "final_response": "",
+                        "completed": False,
+                        "interrupted": False,
+                        "api_calls": result.get("api_calls", 0),
+                        "messages": result.get("messages", []),
+                        "error": (
+                            "WhatsApp case-list coordinator reached terminal "
+                            f"durable status {coordinator_gate.get('status')!r} "
+                            f"for list {coordinator_list_id}."
+                        ),
+                    }
+                    break
+                if continuation_turns >= _WHATSAPP_CASE_LIST_CONTINUATION_CAP:
+                    result = {
+                        "final_response": "",
+                        "completed": False,
+                        "interrupted": False,
+                        "api_calls": result.get("api_calls", 0),
+                        "messages": result.get("messages", []),
+                        "error": (
+                            "WhatsApp case-list coordinator remains visibly "
+                            f"incomplete after {_WHATSAPP_CASE_LIST_CONTINUATION_CAP} "
+                            f"continuation turns (list {coordinator_list_id}, "
+                            f"status {coordinator_gate.get('status')!r})."
+                        ),
+                    }
+                    break
+                continuation_turns += 1
+                continuation, continuation_error = _run_coordinator_continuation_turn(
+                    child,
+                    prompt=_coordinator_continuation_prompt(
+                        coordinator_list_id, coordinator_gate.get("raw", {})
+                    ),
+                    task_id=child_task_id,
+                    timeout=child_timeout,
+                )
+                if continuation_error or continuation is None:
+                    result = {
+                        "final_response": "",
+                        "completed": False,
+                        "interrupted": False,
+                        "api_calls": result.get("api_calls", 0),
+                        "messages": result.get("messages", []),
+                        "error": (
+                            "WhatsApp case-list coordinator continuation "
+                            f"failed for list {coordinator_list_id}: {continuation_error}"
+                        ),
+                    }
+                    break
+                result = continuation
+                if result.get("interrupted", False):
+                    break
+
         # Flush any remaining batched progress to gateway
         if child_progress_cb and hasattr(child_progress_cb, "_flush"):
             try:
@@ -1772,6 +2001,12 @@ def _run_single_child(
                 else 0.0
             ),
         }
+        if coordinator_list_id:
+            entry["coordinator_list_id"] = coordinator_list_id
+            entry["coordinator_continuation_turns"] = continuation_turns
+            entry["coordinator_list_status"] = (
+                coordinator_gate.get("status") if coordinator_gate else None
+            )
         if status == "failed":
             entry["error"] = result.get("error", "Subagent did not produce a response.")
 
@@ -1980,6 +2215,7 @@ def delegate_task(
     acp_command: Optional[str] = None,
     acp_args: Optional[List[str]] = None,
     role: Optional[str] = None,
+    profile: Optional[str] = None,
     background: Optional[bool] = None,
     parent_agent=None,
 ) -> str:
@@ -2087,7 +2323,14 @@ def delegate_task(
         task_list = tasks
     elif goal and isinstance(goal, str) and goal.strip():
         task_list = [
-            {"goal": goal, "context": context, "toolsets": toolsets, "role": top_role}
+            {
+                "goal": goal,
+                "context": context,
+                "toolsets": toolsets,
+                "role": top_role,
+                "profile": profile,
+                "requested_role": role,
+            }
         ]
     else:
         return tool_error("Provide either 'goal' (single task) or 'tasks' (batch).")
@@ -2150,7 +2393,22 @@ def delegate_task(
                     else (acp_args if acp_args is not None else creds.get("args"))
                 ),
                 role=effective_role,
+                profile=t.get("profile") or t.get("name"),
             )
+            # Domain profile is intentionally distinct from the delegation
+            # topology role (leaf/orchestrator).  Preserve the original task
+            # metadata so the narrow TGG coordinator completion gate can
+            # recognize its one permitted profile without changing all leaves.
+            task_profile = t.get("profile") or t.get("name")
+            requested_role = t.get("requested_role") or t.get("role") or role
+            child._delegate_profile = task_profile if isinstance(task_profile, str) else None
+            child._delegate_name = t.get("name") if isinstance(t.get("name"), str) else None
+            child._delegate_requested_role = (
+                requested_role if isinstance(requested_role, str) else None
+            )
+            child._delegate_context = t.get("context") if isinstance(t.get("context"), str) else None
+            list_id = t.get("case_list_id") or t.get("list_id")
+            child._tgg_whatsapp_case_list_id = list_id if isinstance(list_id, str) else None
             # Override with correct parent tool names (before child construction mutated global)
             child._delegate_saved_tool_names = _parent_tool_names
             children.append((i, t, child))
@@ -2881,6 +3139,14 @@ DELEGATE_TASK_SCHEMA = {
                             "enum": ["leaf", "orchestrator"],
                             "description": "Per-task role override. See top-level 'role' for semantics.",
                         },
+                        "profile": {
+                            "type": "string",
+                            "description": "Optional named capability profile for this task.",
+                        },
+                        "case_list_id": {
+                            "type": "string",
+                            "description": "Durable TGG WhatsApp case-list ID for the named coordinator profile.",
+                        },
                     },
                     "required": ["goal"],
                 },
@@ -2893,6 +3159,14 @@ DELEGATE_TASK_SCHEMA = {
                 "type": "string",
                 "enum": ["leaf", "orchestrator"],
                 "description": "(rebuilt at get_definitions() time)",
+            },
+            "profile": {
+                "type": "string",
+                "description": (
+                    "Optional named delegated capability profile. Use only when "
+                    "the active capability explicitly names one; this does not "
+                    "change leaf/orchestrator delegation permissions."
+                ),
             },
             "background": {
                 "type": "boolean",
@@ -2956,6 +3230,7 @@ registry.register(
         acp_command=args.get("acp_command"),
         acp_args=args.get("acp_args"),
         role=args.get("role"),
+        profile=args.get("profile"),
         background=args.get("background"),
         parent_agent=kw.get("parent_agent"),
     ),

@@ -4,12 +4,14 @@ import hashlib
 import importlib.util
 import json
 import os
+import sqlite3
 import threading
 from io import BytesIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import yaml
+import pytest
 from openpyxl import load_workbook
 
 
@@ -288,6 +290,10 @@ def test_isolated_smoke_serves_downloadable_master_and_closure_sources():
             source = json.loads(response.read())
         master = next(item for item in source["sources"] if item["name"] == "master")
         assert master["sheet_tabs"] == ["AMK", "HG", "PG", "SK"]
+        assert source["preview_rows"] == [
+            {"zone": zone, "row_count": 1}
+            for zone in ("AMK", "HG", "PG", "SK")
+        ]
         with urllib.request.urlopen(master["ref"]) as response:
             workbook = load_workbook(BytesIO(response.read()), read_only=True, data_only=True)
         assert workbook.sheetnames == ["AMK", "HG", "PG", "SK"]
@@ -305,6 +311,33 @@ def test_isolated_smoke_workbooks_are_valid_and_inspectable():
 
     assert workbook.sheetnames == ["AMK", "Serangoon", "Bishan"]
     assert workbook["AMK"]["A2"].value == "AM/JOB/2608/0001"
+
+
+def test_isolated_smoke_case_query_reads_the_copied_database_only(tmp_path):
+    module = _load_smoke()
+    database = tmp_path / "tgg.db"
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE TABLE cases (job_no TEXT, due_date TEXT)")
+        connection.executemany(
+            "INSERT INTO cases VALUES (?, ?)",
+            [("AM/JOB/2608/0001", "2026-08-25"), ("PG/JOB/2608/0002", "2026-08-26")],
+        )
+    module._OperatorStub.case_db = database
+    module._OperatorStub.case_queries = []
+
+    result = module._OperatorStub._run_case_query(
+        "SELECT job_no, due_date FROM cases ORDER BY job_no"
+    )
+
+    assert result["data"]["rows"] == [
+        {"job_no": "AM/JOB/2608/0001", "due_date": "2026-08-25"},
+        {"job_no": "PG/JOB/2608/0002", "due_date": "2026-08-26"},
+    ]
+    assert module._OperatorStub.case_queries[0]["row_count"] == 2
+    with pytest.raises(ValueError, match="read-only"):
+        module._OperatorStub._run_case_query("DELETE FROM cases")
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT count(*) FROM cases").fetchone()[0] == 2
 
 
 def test_runtime_verifier_identifies_its_systems_read_check_to_the_edge():

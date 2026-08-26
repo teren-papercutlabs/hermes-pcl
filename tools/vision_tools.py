@@ -610,6 +610,20 @@ async def _vision_analyze_native(
                     success=False,
                 )
 
+        # This is only a coverage receipt: native pixels are now in the main
+        # model's context, but the model's eventual interpretation stays in its
+        # own decision output.  Optional receipt failure must not hide pixels.
+        try:
+            from tools.vision_inspection_receipts import write_local_image_inspection_receipt
+            write_local_image_inspection_receipt(
+                image_path=temp_image_path,
+                mime=detected_mime_type,
+                question=question,
+                mode="native_pixels",
+            )
+        except Exception as receipt_error:
+            logger.warning("Vision inspection receipt failed: %s", receipt_error)
+
         return _build_native_vision_tool_result(
             image_url=image_url,
             question=question,
@@ -842,6 +856,21 @@ async def vision_analyze_tool(
             "success": True,
             "analysis": analysis or "There was a problem with the request and the image could not be analyzed."
         }
+
+        # Retain only the fact of a successful auxiliary inspection.  The
+        # analysis remains the normal tool result and is not duplicated into an
+        # audit receipt.
+        if analysis:
+            try:
+                from tools.vision_inspection_receipts import write_local_image_inspection_receipt
+                write_local_image_inspection_receipt(
+                    image_path=temp_image_path,
+                    mime=detected_mime_type,
+                    question=user_prompt,
+                    mode="auxiliary_result",
+                )
+            except Exception as receipt_error:
+                logger.warning("Vision inspection receipt failed: %s", receipt_error)
         
         debug_call_data["success"] = True
         debug_call_data["analysis_length"] = analysis_length

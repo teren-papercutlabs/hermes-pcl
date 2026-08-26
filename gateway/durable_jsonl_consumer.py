@@ -26,6 +26,7 @@ import re
 import shutil
 import sqlite3
 import sys
+import threading
 import time
 import uuid
 from collections import Counter
@@ -39,7 +40,47 @@ import yaml
 
 
 CURSOR_VERSION = 1
-INBOX_SCHEMA_VERSION = 4
+INBOX_SCHEMA_VERSION = 5
+
+
+def _cron_ticker(stop_event: threading.Event, *, interval_seconds: float = 60.0) -> None:
+    """Run Hermes's existing cron tick without blocking capture processing.
+
+    The consumer is Christopher's durable process.  Keeping this tiny loop
+    here gives it the normal scheduler behaviour without another daemon; the
+    scheduler's own file lock remains the cross-process duplicate guard.
+    """
+    from cron.scheduler import tick
+
+    while not stop_event.is_set():
+        try:
+            tick(verbose=False)
+        except Exception:
+            # A failed scheduled job/tick must not stop capture.  Scheduler
+            # state and job output retain the actual failure for delivery.
+            import logging
+            logging.getLogger(__name__).exception("Christopher cron ticker failed")
+        stop_event.wait(interval_seconds)
+
+
+def _start_cron_ticker(*, interval_seconds: float = 60.0) -> tuple[threading.Event, threading.Thread]:
+    """Start the bounded background tick owned by one consumer lifetime."""
+    stop_event = threading.Event()
+    thread = threading.Thread(
+        target=_cron_ticker,
+        args=(stop_event,),
+        kwargs={"interval_seconds": interval_seconds},
+        name="christopher-cron-ticker",
+        daemon=True,
+    )
+    thread.start()
+    return stop_event, thread
+
+
+def _stop_cron_ticker(stop_event: threading.Event, thread: threading.Thread) -> None:
+    """Stop and join the consumer-owned ticker during every exit path."""
+    stop_event.set()
+    thread.join(timeout=5)
 
 
 def _parse_ingress_timestamp(value: Any) -> datetime:
@@ -254,6 +295,35 @@ class SingletonLock:
         self._handle = None
 
 
+class SharedActivityLock:
+    """Shared release barrier held while Christopher owns an inbox claim.
+
+    The consumer takes a shared advisory lock before it changes a row to
+    ``processing`` and retains it until the row is terminal again.  The small
+    Christopher release executor takes the same file exclusively and refuses
+    rather than restarting a live investigation.  This is deliberately only a
+    barrier, not another queue or deployment state machine.
+    """
+
+    def __init__(self, path: Path | None):
+        self.path = path
+        self._handle: Any = None
+
+    def __enter__(self) -> "SharedActivityLock":
+        if self.path is None:
+            return self
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._handle = self.path.open("a+", encoding="utf-8")
+        fcntl.flock(self._handle.fileno(), fcntl.LOCK_SH)
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if self._handle is not None:
+            fcntl.flock(self._handle.fileno(), fcntl.LOCK_UN)
+            self._handle.close()
+            self._handle = None
+
+
 def _bridge_item_ref(value: Any) -> Mapping[str, Any]:
     """Resolve the durable bridge item or a shallow append-envelope wrapper."""
     if not isinstance(value, Mapping):
@@ -307,6 +377,10 @@ class InboxRecord:
     start_offset: int
     end_offset: int
     raw: dict[str, Any]
+    # The immutable capture wrapper, rather than the normalized bridge item.
+    # Systems source ingestion must receive this exact document so reply
+    # lineage and capture provenance cannot be reconstructed or lost here.
+    source_envelope: dict[str, Any] | None = None
     retention_state: str | None = None
     retention_quarantined: bool = False
 
@@ -428,6 +502,11 @@ class DurableInbox:
                         CHECK (retention_state IN ('pending','complete','bypassed','held')),
                     retention_last_error TEXT,
                     retention_updated_at TEXT,
+                    projection_state TEXT NOT NULL DEFAULT 'pending'
+                        CHECK (projection_state IN ('pending','complete','held')),
+                    projection_attempts INTEGER NOT NULL DEFAULT 0,
+                    projection_last_error TEXT,
+                    projection_updated_at TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -522,6 +601,24 @@ class DurableInbox:
                 conn.execute(
                     "ALTER TABLE ingress_events ADD COLUMN retention_updated_at TEXT"
                 )
+            if "projection_state" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN projection_state "
+                    "TEXT NOT NULL DEFAULT 'pending'"
+                )
+            if "projection_attempts" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN projection_attempts "
+                    "INTEGER NOT NULL DEFAULT 0"
+                )
+            if "projection_last_error" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN projection_last_error TEXT"
+                )
+            if "projection_updated_at" not in ingress_columns:
+                conn.execute(
+                    "ALTER TABLE ingress_events ADD COLUMN projection_updated_at TEXT"
+                )
             if retention_state_added:
                 rows = conn.execute(
                     "SELECT seq,raw_json,retained_media_count FROM ingress_events"
@@ -548,6 +645,10 @@ class DurableInbox:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS ingress_events_retention_queue_idx "
                 "ON ingress_events(status,retention_state,seq)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS ingress_events_projection_queue_idx "
+                "ON ingress_events(projection_state,projection_updated_at,seq)"
             )
             conn.execute(
                 "INSERT INTO ingress_meta(key,value) VALUES('schema_version',?) "
@@ -1183,6 +1284,123 @@ class DurableInbox:
             for row in rows
         ]
 
+    def source_projection_candidates(
+        self, *, limit: int, retry_interval_seconds: float = 0, retry_cap: int = 1
+    ) -> list[InboxRecord]:
+        """Return capture events awaiting independent Systems projection.
+
+        This deliberately does not inspect ``status`` or ``retention_state``.
+        Projection is a capture concern: a held Systems write must not block
+        later source staging, attachment retention, or a business/model turn.
+        """
+        retry_interval = max(0.0, float(retry_interval_seconds))
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT seq,message_id,chat_id,start_offset,end_offset,raw_json,"
+                "source_envelope_json,retention_state FROM ingress_events "
+                "WHERE projection_state IN ('pending','held') "
+                "AND (projection_state='pending' OR projection_attempts < ?) "
+                "AND (projection_state='pending' OR projection_updated_at IS NULL "
+                "OR julianday(projection_updated_at) <= julianday('now', ?)) "
+                "ORDER BY CASE projection_state WHEN 'pending' THEN 0 ELSE 1 END, "
+                "COALESCE(projection_updated_at,created_at),seq LIMIT ?",
+                (max(1, int(retry_cap)), f"-{retry_interval:.6f} seconds", max(1, int(limit))),
+            ).fetchall()
+        return [
+            InboxRecord(
+                seq=int(row["seq"]),
+                message_id=str(row["message_id"]),
+                chat_id=str(row["chat_id"]),
+                start_offset=int(row["start_offset"]),
+                end_offset=int(row["end_offset"]),
+                raw=json.loads(row["raw_json"]),
+                source_envelope=json.loads(row["source_envelope_json"]),
+                retention_state=str(row["retention_state"]),
+            )
+            for row in rows
+        ]
+
+    def record_source_projection(
+        self,
+        record: InboxRecord,
+        *,
+        error: str | None = None,
+        retry_cap: int = 1,
+    ) -> dict[str, Any]:
+        """Persist a projection success or bounded retryable hold.
+
+        A Systems commit can succeed immediately before this local update.  In
+        that crash window the event remains pending and is intentionally sent
+        again; Systems owns message-id idempotency.  No business row is ever
+        claimed or terminalled by this method.
+        """
+        now = _utc_now()
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT projection_state,projection_attempts FROM ingress_events WHERE seq=?",
+                (record.seq,),
+            ).fetchone()
+            if row is None:
+                raise ConsumerError(f"inbox record {record.seq} disappeared")
+            state = str(row["projection_state"])
+            if state == "complete":
+                conn.commit()
+                return {"complete": True, "already_complete": True}
+            attempts = int(row["projection_attempts"] or 0) + 1
+            if error is None:
+                changed = conn.execute(
+                    "UPDATE ingress_events SET projection_state='complete',"
+                    "projection_attempts=?,projection_last_error=NULL,projection_updated_at=? "
+                    "WHERE seq=? AND projection_state IN ('pending','held')",
+                    (attempts, now, record.seq),
+                ).rowcount
+                if changed != 1:
+                    raise ConsumerError(
+                        f"inbox record {record.seq} could not record projection success"
+                    )
+                conn.commit()
+                return {"complete": True, "attempt": attempts}
+            cap = max(1, int(retry_cap))
+            # ``held`` is durable operator-visible debt after every failed
+            # attempt.  At the cap it remains held but is no longer selected
+            # automatically; an operator/restart can explicitly re-arm it.
+            changed = conn.execute(
+                "UPDATE ingress_events SET projection_state='held',"
+                "projection_attempts=?,projection_last_error=?,projection_updated_at=? "
+                "WHERE seq=? AND projection_state IN ('pending','held')",
+                (attempts, str(error)[:2000], now, record.seq),
+            ).rowcount
+            if changed != 1:
+                raise ConsumerError(
+                    f"inbox record {record.seq} could not record projection failure"
+                )
+            conn.commit()
+            return {"complete": False, "attempt": attempts, "retry_cap": cap,
+                    "terminal_hold": attempts >= cap}
+
+    def source_projection_counts(self) -> dict[str, int]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT projection_state,COUNT(*) AS n FROM ingress_events "
+                "GROUP BY projection_state"
+            ).fetchall()
+        counts = {str(row["projection_state"]): int(row["n"]) for row in rows}
+        return {
+            "source_projection_pending": counts.get("pending", 0),
+            "source_projection_complete": counts.get("complete", 0),
+            "source_projection_held": counts.get("held", 0),
+        }
+
+    def source_projection_last_error(self) -> str | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT projection_last_error FROM ingress_events "
+                "WHERE projection_state='held' ORDER BY projection_updated_at DESC,seq DESC "
+                "LIMIT 1"
+            ).fetchone()
+        return str(row[0]) if row and row[0] else None
+
     def retention_result(self, record: InboxRecord) -> dict[str, Any] | None:
         with self.connect() as conn:
             row = conn.execute(
@@ -1545,6 +1763,136 @@ def _retention_config(config_path: Path) -> dict[str, Any] | None:
             1.0, float(raw.get("retry_interval_seconds", 60))
         ),
     }
+
+
+def _source_projection_config(config_path: Path) -> dict[str, Any] | None:
+    """Return the independent capture-to-Systems projection contract.
+
+    It is intentionally separate from ``pa.enabled``.  Turning model/business
+    processing off is not permission to let the authoritative source ledger
+    become stale.
+    """
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    pa = data.get("pa") if isinstance(data, Mapping) else None
+    raw = pa.get("source_projection") if isinstance(pa, Mapping) else None
+    if not isinstance(raw, Mapping) or raw.get("enabled") is not True:
+        return None
+    operation = str(raw.get("operation") or "tgg_whatsapp_source_ingest").strip()
+    if operation != "tgg_whatsapp_source_ingest":
+        raise ConsumerError("source projection operation must be tgg_whatsapp_source_ingest")
+    chat_ids = raw.get("chat_ids")
+    if (
+        not isinstance(chat_ids, list) or not chat_ids
+        or any(not isinstance(value, str) or not value.strip() for value in chat_ids)
+        or len(chat_ids) != len(set(chat_ids))
+    ):
+        raise ConsumerError("source projection chat_ids must be a non-empty unique list")
+    return {
+        "operation": operation,
+        "chat_ids": frozenset(chat_ids),
+        "max_attempts": max(1, int(raw.get("max_attempts", 5))),
+        "retry_interval_seconds": max(
+            1.0, float(raw.get("retry_interval_seconds", 15))
+        ),
+    }
+
+
+def _project_source_envelope(
+    config_path: Path, *, operation: str, source_envelope: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Idempotently project one untouched durable capture document to Systems."""
+    from types import SimpleNamespace
+
+    from agent.pa_constitution import configured_constitution, resolve_context
+    from tools.pa_business_tools import execute_business_operation, load_business_bridge_config
+
+    # Validate against the persisted source document, not a reconstructed
+    # bridge item.  Systems receives those same bytes as the operation payload.
+    item = _bridge_item_ref(source_envelope)
+    config_data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    resolved = resolve_context(
+        config_data,
+        {"source": {"platform": "whatsapp", "chat_id": str(item.get("chatId") or "")}},
+    )
+    constitution = (
+        resolved.constitution if resolved is not None else configured_constitution(config_data)
+    )
+    if constitution is None:
+        raise ConsumerError("source projection could not resolve constitution")
+    internal_context = SimpleNamespace(
+        constitution=constitution,
+        job_brief=None,
+        job_type="whatsapp_source_projection_internal",
+    )
+    bridge = load_business_bridge_config(config_data, pa_context=internal_context)
+    result = execute_business_operation(
+        bridge, operation=operation, payload=dict(source_envelope)
+    )
+    if not isinstance(result, Mapping) or result.get("ok") is not True:
+        details = ""
+        if isinstance(result, Mapping):
+            error = result.get("error")
+            if isinstance(error, Mapping):
+                details = str(error.get("message") or error.get("code") or "")
+            elif error:
+                details = str(error)
+        raise ConsumerError(
+            "source projection Systems operation failed" + (f": {details}" if details else "")
+        )
+    return dict(result)
+
+
+def project_pending_source_events(
+    inbox: DurableInbox, *, config_path: Path, limit: int
+) -> dict[str, int]:
+    """Drain a bounded independent projection outbox without touching model work."""
+    config = _source_projection_config(config_path)
+    if config is None:
+        return {"attempted": 0, "complete": 0, "held": 0, "skipped": 0, "disabled": 1}
+    summary = {"attempted": 0, "complete": 0, "held": 0, "skipped": 0, "disabled": 0}
+    records = inbox.source_projection_candidates(
+        limit=limit,
+        retry_interval_seconds=config["retry_interval_seconds"],
+        retry_cap=config["max_attempts"],
+    )
+    for record in records:
+        summary["attempted"] += 1
+        try:
+            if record.chat_id not in config["chat_ids"]:
+                inbox.record_source_projection(record, retry_cap=config["max_attempts"])
+                summary["skipped"] += 1
+                continue
+            envelope = record.source_envelope
+            if not isinstance(envelope, Mapping):
+                raise ConsumerError("source projection record lacks stored source envelope")
+            # Refuse an accidental mismatch before an external side effect.
+            item = _bridge_item_ref(envelope)
+            if (
+                str(item.get("messageId") or "") != record.message_id
+                or str(item.get("chatId") or "") != record.chat_id
+            ):
+                raise ConsumerError("source projection envelope identity diverges from inbox")
+            _project_source_envelope(
+                config_path,
+                operation=str(config["operation"]),
+                source_envelope=envelope,
+            )
+            inbox.record_source_projection(record, retry_cap=config["max_attempts"])
+            summary["complete"] += 1
+        except Exception as exc:
+            result = inbox.record_source_projection(
+                record,
+                error=f"source-projection-retry: {exc}",
+                retry_cap=config["max_attempts"],
+            )
+            summary["held"] += 1
+            if result.get("terminal_hold"):
+                print(
+                    "source projection retry cap reached: "
+                    f"message={record.message_id} error={exc}",
+                    file=sys.stderr,
+                )
+    return summary
 
 
 def _media_root_metrics(
@@ -3524,7 +3872,7 @@ def _new_gateway_runner(config_path: Path | None = None) -> Any:
         return GatewayRunner(load_gateway_config())
 
 
-async def _process_claimed_chat_batch(
+async def _process_claimed_chat_batch_unlocked(
     inbox: DurableInbox,
     records: Sequence[InboxRecord],
     *,
@@ -3624,7 +3972,7 @@ async def _process_claimed_chat_batch(
                     # follow-up after the active tool boundary; it never cancels
                     # file generation or another in-flight tool.
                     try:
-                        await _process_claimed_chat_batch(
+                        await _process_claimed_chat_batch_unlocked(
                             inbox,
                             followups,
                             config_path=config_path,
@@ -3699,6 +4047,22 @@ async def _process_claimed_chat_batch(
         )
 
 
+async def _process_claimed_chat_batch(
+    inbox: DurableInbox,
+    records: Sequence[InboxRecord],
+    *,
+    activity_lock_file: Path | None = None,
+    **kwargs: Any,
+) -> None:
+    """Process one batch while making a release/claim race impossible.
+
+    The lock starts before ``inbox.claim``; taking it only after the claim
+    leaves the exact check-then-restart race this seam exists to prevent.
+    """
+    with SharedActivityLock(activity_lock_file):
+        await _process_claimed_chat_batch_unlocked(inbox, records, **kwargs)
+
+
 async def run_consumer(args: argparse.Namespace) -> int:
     config_path = Path(args.config).resolve()
     source = Path(args.source).resolve()
@@ -3708,6 +4072,11 @@ async def run_consumer(args: argparse.Namespace) -> int:
     gate_path = Path(args.processing_gate).resolve()
     state_db = Path(args.state_db).resolve()
     case_db = Path(args.case_db).resolve()
+    activity_lock_file = (
+        Path(args.activity_lock_file).resolve()
+        if getattr(args, "activity_lock_file", None)
+        else None
+    )
     source_before_image_dir = Path(args.source_before_image_dir).resolve()
     site_concurrency = max(1, int(getattr(args, "site_concurrency", 4)))
     chat_batch_size = max(1, int(getattr(args, "chat_batch_size", 25)))
@@ -3721,6 +4090,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
         tasks: dict[str, asyncio.Task[None]] = {}
         lanes: dict[str, str] = {}
         source_projection_holds: dict[str, str] = {}
+        cron_stop, cron_thread = _start_cron_ticker()
         try:
             while True:
                 done_chats = [chat_id for chat_id, task in tasks.items() if task.done()]
@@ -3749,6 +4119,42 @@ async def run_consumer(args: argparse.Namespace) -> int:
                 config_enabled = processing_enabled(config_path)
                 gate = processing_gate_state(gate_path)
                 gate_enabled = gate["enabled"] is True
+                projection_enabled = _source_projection_config(config_path) is not None
+
+                # Capture staging and its Systems projection are independent
+                # from the business/model gate.  A paused Christopher must not
+                # make the authoritative ledger fall behind raw capture.
+                staged_total = 0
+                projection_cycle = {"attempted": 0, "complete": 0, "held": 0, "skipped": 0, "disabled": 1}
+                if projection_enabled:
+                    before_stage = inbox.total()
+                    staged = inbox.stage_from_source(
+                        source, cursor, max_records=args.max_records
+                    )
+                    staged_total = staged
+                    while staged >= args.max_records:
+                        staged = inbox.stage_from_source(
+                            source, cursor, max_records=args.max_records
+                        )
+                        staged_total += staged
+                    after_stage = inbox.total()
+                    if after_stage < before_stage:
+                        raise ConsumerError(
+                            "inbox conservation failed during capture staging: "
+                            f"before={before_stage} after={after_stage}"
+                        )
+                    expected_total += after_stage - before_stage
+                    if inbox.assert_and_record_conservation() != expected_total:
+                        raise ConsumerError(
+                            "inbox conservation hard-abort after capture staging: "
+                            f"expected={expected_total} actual={inbox.total()}"
+                        )
+                    projection_cycle = await asyncio.to_thread(
+                        project_pending_source_events,
+                        inbox,
+                        config_path=config_path,
+                        limit=max(1, int(getattr(args, "source_projection_batch_size", 100))),
+                    )
                 if not (config_enabled and gate_enabled):
                     if tasks:
                         for task in tasks.values():
@@ -3768,6 +4174,9 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             **_retention_status(
                                 inbox, config_path, inspect_media=False
                             ),
+                            **inbox.source_projection_counts(),
+                            "source_projection_cycle": projection_cycle,
+                            "source_projection_hold": inbox.source_projection_last_error(),
                             "state": "standby",
                             "processing_enabled": False,
                             "config_enabled": config_enabled,
@@ -3775,8 +4184,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "gate_generation": int(gate["generation"]),
                             "gate_change_run_id": gate.get("change_run_id"),
                             "pid": os.getpid(),
-                            "source_opened": False,
-                            "cursor_advanced": False,
+                            "source_opened": projection_enabled,
+                            "cursor_advanced": staged_total > 0,
                             "scheduler_mode": "per-chat-parallel",
                             "claim_stale_seconds": 1800,
                             "site_concurrency": site_concurrency,
@@ -3806,14 +4215,17 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         status_path,
                         {
                             **retention_status,
+                            **inbox.source_projection_counts(),
+                            "source_projection_cycle": projection_cycle,
+                            "source_capture_projection_hold": inbox.source_projection_last_error(),
                             "state": "held",
                             "processing_enabled": False,
                             "config_enabled": True,
                             "gate_enabled": True,
                             "gate_generation": int(gate["generation"]),
                             "pid": os.getpid(),
-                            "source_opened": False,
-                            "cursor_advanced": False,
+                            "source_opened": projection_enabled,
+                            "cursor_advanced": staged_total > 0,
                             "retention_hold": str(exc),
                             "inbox": inbox.counts(),
                         },
@@ -3822,10 +4234,41 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         return 0
                     await asyncio.sleep(args.poll_seconds)
                     continue
+                # Preserve the existing safety ordering for deployments that
+                # have not enabled the independent source projector: a media
+                # volume hold must not advance their business cursor.  Once
+                # projection is configured, it is intentionally independent
+                # and has already staged above.
+                if not projection_enabled:
+                    before_stage = inbox.total()
+                    staged = inbox.stage_from_source(
+                        source, cursor, max_records=args.max_records
+                    )
+                    staged_total = staged
+                    while staged >= args.max_records:
+                        staged = inbox.stage_from_source(
+                            source, cursor, max_records=args.max_records
+                        )
+                        staged_total += staged
+                    after_stage = inbox.total()
+                    if after_stage < before_stage:
+                        raise ConsumerError(
+                            "inbox conservation failed during staging: "
+                            f"before={before_stage} after={after_stage}"
+                        )
+                    expected_total += after_stage - before_stage
+                    if inbox.assert_and_record_conservation() != expected_total:
+                        raise ConsumerError(
+                            "inbox conservation hard-abort after staging: "
+                            f"expected={expected_total} actual={inbox.total()}"
+                        )
                 _write_status(
                     status_path,
                     {
                         **retention_status,
+                        **inbox.source_projection_counts(),
+                        "source_projection_cycle": projection_cycle,
+                        "source_capture_projection_hold": inbox.source_projection_last_error(),
                         "state": (
                             "held-pending"
                             if inbox.retention_last_error()
@@ -3839,7 +4282,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "gate_change_run_id": gate.get("change_run_id"),
                         "pid": os.getpid(),
                         "source_opened": True,
-                        "cursor_advanced": False,
+                        "cursor_advanced": staged_total > 0,
                         "scheduler_mode": "per-chat-parallel",
                         "claim_stale_seconds": 1800,
                         "site_concurrency": site_concurrency,
@@ -3864,27 +4307,6 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "inbox": inbox.counts(),
                     },
                 )
-
-                before_stage = inbox.total()
-                staged = inbox.stage_from_source(
-                    source, cursor, max_records=args.max_records
-                )
-                while staged >= args.max_records:
-                    staged = inbox.stage_from_source(
-                        source, cursor, max_records=args.max_records
-                    )
-                after_stage = inbox.total()
-                if after_stage < before_stage:
-                    raise ConsumerError(
-                        "inbox conservation failed during staging: "
-                        f"before={before_stage} after={after_stage}"
-                    )
-                expected_total += after_stage - before_stage
-                if inbox.assert_and_record_conservation() != expected_total:
-                    raise ConsumerError(
-                        "inbox conservation hard-abort after staging: "
-                        f"expected={expected_total} actual={inbox.total()}"
-                    )
 
                 # Retention is a capture-lane concern, not a model/business
                 # concern.  It runs before demo-pause lane selection and never
@@ -3930,6 +4352,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         _process_claimed_chat_batch(
                             inbox,
                             records,
+                            activity_lock_file=activity_lock_file,
                             config_path=config_path,
                             state_db=state_db,
                             gate_changed_at=gate_changed_at,
@@ -3949,6 +4372,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             _process_claimed_chat_batch(
                                 inbox,
                                 records,
+                                activity_lock_file=activity_lock_file,
                                 config_path=config_path,
                                 state_db=state_db,
                                 gate_changed_at=gate_changed_at,
@@ -3996,6 +4420,9 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             **_retention_status(
                                 inbox, config_path, inspect_media=True
                             ),
+                            **inbox.source_projection_counts(),
+                            "source_projection_cycle": projection_cycle,
+                            "source_capture_projection_hold": inbox.source_projection_last_error(),
                             "state": (
                                 "held-pending"
                                 if inbox.retention_last_error()
@@ -4008,7 +4435,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             "gate_generation": int(gate["generation"]),
                             "gate_change_run_id": gate.get("change_run_id"),
                             "pid": os.getpid(),
-                            "staged": after_stage - before_stage,
+                            "staged": staged_total,
                             "scheduler_mode": "per-chat-parallel",
                             "claim_stale_seconds": 1800,
                             "site_concurrency": site_concurrency,
@@ -4043,6 +4470,9 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         **_retention_status(
                             inbox, config_path, inspect_media=True
                         ),
+                        **inbox.source_projection_counts(),
+                        "source_projection_cycle": projection_cycle,
+                        "source_capture_projection_hold": inbox.source_projection_last_error(),
                         "state": (
                             "held-pending"
                             if inbox.retention_last_error()
@@ -4055,7 +4485,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         "gate_generation": int(gate["generation"]),
                         "gate_change_run_id": gate.get("change_run_id"),
                         "pid": os.getpid(),
-                        "staged": after_stage - before_stage,
+                        "staged": staged_total,
                         "scheduler_mode": "per-chat-parallel",
                         "claim_stale_seconds": 1800,
                         "site_concurrency": site_concurrency,
@@ -4090,6 +4520,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
                     "inbox conservation failed during graceful cancellation"
                 )
             raise
+        finally:
+            _stop_cron_ticker(cron_stop, cron_thread)
 
 
 async def run_fixture(args: argparse.Namespace) -> int:
@@ -4967,12 +5399,17 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--source-before-image-dir", required=True)
     run.add_argument("--processing-gate", required=True)
     run.add_argument("--lock-file", required=True)
+    run.add_argument(
+        "--activity-lock-file",
+        help="shared with standalone release executor; held before an inbox claim",
+    )
     run.add_argument("--status-file", required=True)
     run.add_argument("--poll-seconds", type=float, default=2.0)
     run.add_argument("--max-records", type=int, default=100)
     run.add_argument("--site-concurrency", type=int, default=4)
     run.add_argument("--chat-batch-size", type=int, default=25)
     run.add_argument("--retention-batch-size", type=int, default=25)
+    run.add_argument("--source-projection-batch-size", type=int, default=100)
     run.add_argument("--once", action="store_true")
 
     fixture = sub.add_parser(

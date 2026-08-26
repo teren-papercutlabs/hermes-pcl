@@ -1166,8 +1166,16 @@ def _tgg_nightly_analyzer_trigger(
     return batch_id, chat_id
 
 
-def _tgg_nightly_chat_receipt_status(batch_id: str, authoritative_chat_id: str) -> bool | None:
-    """Return receipt presence, or ``None`` when status cannot be verified."""
+def _tgg_nightly_chat_receipt_snapshot(
+    batch_id: str,
+    authoritative_chat_id: str,
+) -> tuple[bool, str | None, int | None, bool] | None:
+    """Return receipt presence, progress fingerprint and next page cursor.
+
+    ``page_classifications`` is an ordered, one-per-page mechanical receipt.
+    Its count therefore supplies a compact resume cursor without giving the
+    analyzer the entire (potentially very large) singular ledger again.
+    """
     try:
         from tools.registry import registry
 
@@ -1184,10 +1192,44 @@ def _tgg_nightly_chat_receipt_status(batch_id: str, authoritative_chat_id: str) 
         if not isinstance(completed, list):
             logger.warning("Nightly same-session gate: malformed status for %s", batch_id)
             return None
-        return authoritative_chat_id in completed
+        chat_progress = status.get("chat_progress")
+        progress_sha256 = None
+        next_cursor = None
+        all_frozen_items_covered = False
+        if isinstance(chat_progress, Mapping):
+            progress = chat_progress.get(authoritative_chat_id)
+            if isinstance(progress, Mapping):
+                candidate = progress.get("sha256")
+                if isinstance(candidate, str) and candidate:
+                    progress_sha256 = candidate
+                # New singular-ledger status exposes seal-equivalent coverage:
+                # the first page containing any item absent from the working
+                # ledger, plus an explicit all-covered marker.
+                first_incomplete = progress.get("first_incomplete_cursor")
+                covered = progress.get("all_items_covered")
+                if isinstance(first_incomplete, int) and first_incomplete >= 0:
+                    next_cursor = first_incomplete
+                    all_frozen_items_covered = covered is True
+                else:
+                    # Compatibility for older page-classification lanes.
+                    page_count = progress.get("page_classifications")
+                    if isinstance(page_count, int) and page_count >= 0:
+                        next_cursor = page_count * 25
+        return (
+            authoritative_chat_id in completed,
+            progress_sha256,
+            next_cursor,
+            all_frozen_items_covered,
+        )
     except Exception:
         logger.exception("Nightly same-session gate: status check raised for %s", batch_id)
         return None
+
+
+def _tgg_nightly_chat_receipt_status(batch_id: str, authoritative_chat_id: str) -> bool | None:
+    """Compatibility wrapper for callers that need only receipt presence."""
+    snapshot = _tgg_nightly_chat_receipt_snapshot(batch_id, authoritative_chat_id)
+    return None if snapshot is None else snapshot[0]
 
 
 def _tgg_nightly_result_is_terminal_failure(result: Mapping[str, Any]) -> bool:
@@ -1210,6 +1252,21 @@ def _mark_tgg_nightly_completion_incomplete(result: Mapping[str, Any], reason: s
     return marked
 
 
+def _mark_tgg_nightly_durable_receipt_completed(result: Mapping[str, Any]) -> dict[str, Any]:
+    """Let the immutable receipt, not trailing model prose, settle a run.
+
+    A model can return an incomplete marker after its last successful tool call
+    (for example while composing a summary).  Once the sealed receipt exists,
+    there is no incomplete analyzer state left to recover: the receipt is the
+    durable authority and the ingress row must not be failed for stale prose.
+    """
+    settled = dict(result)
+    settled["completed"] = True
+    for key in ("failed", "interrupted", "partial", "error"):
+        settled.pop(key, None)
+    return settled
+
+
 def _resolve_pa_context(
     user_config: Mapping[str, Any] | None,
     platform_extra: Mapping[str, Any] | None,
@@ -1226,6 +1283,18 @@ def _resolve_pa_context(
     except Exception as exc:
         logger.warning("PA context resolution failed: %s", exc)
         raise
+
+
+def _bind_resolved_pa_job_type(pa_context: Any) -> None:
+    """Carry the constitution-selected brief into cron creation for this turn.
+
+    Ordinary WhatsApp events do not carry a ``pa_job_type`` field; their job
+    type is selected here from the constitution.  Keep this task-local so
+    concurrent chats cannot bind each other's delayed work.
+    """
+    from gateway.session_context import set_session_pa_job_type
+
+    set_session_pa_job_type(getattr(pa_context, "job_type", None))
 
 
 def _make_whatsapp_pa_brief_resolver():
@@ -15705,6 +15774,7 @@ class GatewayRunner:
             session_key=context.session_key,
             session_id=context.session_id,
             source_message_refs=json.dumps(source_message_refs),
+            pa_job_type=str(getattr(event, "pa_job_type", "") or ""),
         )
 
     def _clear_session_env(self, tokens: list) -> None:
@@ -17162,6 +17232,7 @@ class GatewayRunner:
             _pa_platform_extra(getattr(self, "config", None), source.platform),
             pa_metadata,
         )
+        _bind_resolved_pa_job_type(pa_resolved_context)
         enabled_toolsets, disabled_toolsets = _merge_pa_toolsets(
             enabled_toolsets,
             disabled_toolsets,
@@ -18416,21 +18487,40 @@ class GatewayRunner:
                     _run_message = message
 
                 agent_run_started_at = time.monotonic()
+                nightly_trigger = _tgg_nightly_analyzer_trigger(pa_job_type, pa_context)
+                # Capture the durable baseline before the model can commit a
+                # page.  This distinguishes an incomplete response *after* a
+                # real ledger update from an incomplete response that did no
+                # work at all.
+                baseline_snapshot = (
+                    _tgg_nightly_chat_receipt_snapshot(*nightly_trigger)
+                    if nightly_trigger
+                    else None
+                )
+                last_progress_sha256 = (
+                    baseline_snapshot[1] if baseline_snapshot is not None else None
+                )
                 result = agent.run_conversation(
                     _run_message,
                     conversation_history=agent_history,
                     task_id=session_id,
                 )
 
-                nightly_trigger = _tgg_nightly_analyzer_trigger(pa_job_type, pa_context)
                 if nightly_trigger and isinstance(result, Mapping):
                     batch_id, authoritative_chat_id = nightly_trigger
                     while True:
-                        receipt_present = _tgg_nightly_chat_receipt_status(
+                        receipt_snapshot = _tgg_nightly_chat_receipt_snapshot(
                             batch_id,
                             authoritative_chat_id,
                         )
-                        if receipt_present is True or _tgg_nightly_result_is_terminal_failure(result):
+                        receipt_present = None if receipt_snapshot is None else receipt_snapshot[0]
+                        progress_sha256 = None if receipt_snapshot is None else receipt_snapshot[1]
+                        resume_cursor = None if receipt_snapshot is None else receipt_snapshot[2]
+                        all_frozen_items_covered = (
+                            False if receipt_snapshot is None else receipt_snapshot[3]
+                        )
+                        if receipt_present is True:
+                            result = _mark_tgg_nightly_durable_receipt_completed(result)
                             break
                         if receipt_present is None:
                             result = _mark_tgg_nightly_completion_incomplete(
@@ -18438,6 +18528,26 @@ class GatewayRunner:
                                 "the receipt could not be verified",
                             )
                             break
+                        progress_changed = (
+                            progress_sha256 is not None
+                            and progress_sha256 != last_progress_sha256
+                        )
+                        # A durable ledger advance survives an incomplete
+                        # model ending.  Resume from that durable state; only
+                        # an incomplete/no-progress turn is terminal.
+                        if _tgg_nightly_result_is_terminal_failure(result) and not progress_changed:
+                            break
+                        if (
+                            progress_sha256 is not None
+                            and last_progress_sha256 == progress_sha256
+                        ):
+                            result = _mark_tgg_nightly_completion_incomplete(
+                                result,
+                                "the preceding continuation made no durable analyzer progress",
+                            )
+                            break
+                        if progress_changed:
+                            last_progress_sha256 = progress_sha256
                         if (
                             time.monotonic() - agent_run_started_at
                             >= _TGG_NIGHTLY_MAX_ANALYZER_SECONDS
@@ -18460,16 +18570,36 @@ class GatewayRunner:
                         # bounded continuation with a clean model context and let
                         # it reload its compact ledger through the nightly tool.
                         continuation_history = []
+                        if all_frozen_items_covered:
+                            page_instruction = (
+                                "The seal-equivalent coverage inventory says every frozen item is "
+                                "already represented in the working ledger. Do not fetch another "
+                                "page; seal the chat receipt now."
+                            )
+                        elif resume_cursor is None:
+                            page_instruction = (
+                                "The compact durable page inventory is unavailable; first use the "
+                                "chat-page tool to identify the first unfinished page."
+                            )
+                        else:
+                            page_instruction = (
+                                "The compact durable page inventory records all earlier pages as "
+                                f"classified. Start at exact cursor={resume_cursor}."
+                            )
                         completion_prompt = (
                             "The immutable nightly chat receipt is still missing for "
                             f"batch_id={batch_id} and authoritative_chat_id={authoritative_chat_id}. "
-                            "Previous pages, image "
-                            "inspections and findings are durably saved. Continue this same batch "
-                            "session now: first read the chat ledger, then process every remaining "
-                            "unclassified page in cursor order. After committing one page, "
-                            "immediately fetch and process the next. Do not end the turn or "
-                            "summarize completion until the immutable chat receipt exists, unless "
-                            "a genuine terminal tool failure prevents further progress."
+                            "Previous pages, image inspections and findings are durably saved. "
+                            f"{page_instruction} Do not load the full chat ledger and do not revisit "
+                            "earlier pages: their output can exhaust this continuation's context. "
+                            "Unless the inventory says every item is already covered, process exactly "
+                            "that one page in cursor order, including every required image inspection, "
+                            "then commit its ledger decisions and groups. If it is the final page, seal "
+                            "the chat receipt after that commit; otherwise end "
+                            "the turn immediately. The runner will verify durable progress and start "
+                            "the next compact continuation. Do not summarize completion until the "
+                            "immutable chat receipt exists, unless a genuine terminal tool failure "
+                            "prevents further progress."
                         )
                         result = agent.run_conversation(
                             completion_prompt,

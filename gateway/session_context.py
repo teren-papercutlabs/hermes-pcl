@@ -59,6 +59,12 @@ _SESSION_ID: ContextVar = ContextVar("HERMES_SESSION_ID", default=_UNSET)
 _SESSION_SOURCE_MESSAGE_REFS: ContextVar = ContextVar(
     "HERMES_SESSION_SOURCE_MESSAGE_REFS", default=_UNSET
 )
+# The PA operating brief selected for this inbound turn.  A cron job created
+# from a PA turn inherits this value, but it is deliberately not model-facing:
+# the model cannot select a different future operating boundary.
+_SESSION_PA_JOB_TYPE: ContextVar = ContextVar(
+    "HERMES_SESSION_PA_JOB_TYPE", default=_UNSET
+)
 
 # Cron auto-delivery vars — set per-job in run_job() so concurrent jobs
 # don't clobber each other's delivery targets.
@@ -76,6 +82,7 @@ _VAR_MAP = {
     "HERMES_SESSION_KEY": _SESSION_KEY,
     "HERMES_SESSION_ID": _SESSION_ID,
     "HERMES_SESSION_SOURCE_MESSAGE_REFS": _SESSION_SOURCE_MESSAGE_REFS,
+    "HERMES_SESSION_PA_JOB_TYPE": _SESSION_PA_JOB_TYPE,
     "HERMES_CRON_AUTO_DELIVER_PLATFORM": _CRON_AUTO_DELIVER_PLATFORM,
     "HERMES_CRON_AUTO_DELIVER_CHAT_ID": _CRON_AUTO_DELIVER_CHAT_ID,
     "HERMES_CRON_AUTO_DELIVER_THREAD_ID": _CRON_AUTO_DELIVER_THREAD_ID,
@@ -92,6 +99,7 @@ def set_session_vars(
     session_key: str = "",
     session_id: str = "",
     source_message_refs: str = "",
+    pa_job_type: str = "",
 ) -> list:
     """Set all session context variables and return reset tokens.
 
@@ -111,6 +119,7 @@ def set_session_vars(
         _SESSION_KEY.set(session_key),
         _SESSION_ID.set(session_id),
         _SESSION_SOURCE_MESSAGE_REFS.set(source_message_refs),
+        _SESSION_PA_JOB_TYPE.set(pa_job_type),
     ]
     return tokens
 
@@ -136,8 +145,20 @@ def clear_session_vars(tokens: list) -> None:
         _SESSION_KEY,
         _SESSION_ID,
         _SESSION_SOURCE_MESSAGE_REFS,
+        _SESSION_PA_JOB_TYPE,
     ):
         var.set("")
+
+
+def set_session_pa_job_type(job_type: str | None) -> None:
+    """Bind the PA brief selected later in gateway turn resolution.
+
+    Normal inbound events are selected by the PA constitution only after the
+    initial session context exists, so this narrow setter completes the same
+    task-local context before any model tool call can create a cron job.
+    ``clear_session_vars`` owns clearing it at the outer turn boundary.
+    """
+    _SESSION_PA_JOB_TYPE.set(str(job_type or "").strip())
 
 
 def get_session_env(name: str, default: str = "") -> str:

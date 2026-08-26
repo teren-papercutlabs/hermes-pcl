@@ -576,6 +576,96 @@ def _send_media_via_adapter(
             logger.warning("Job '%s': failed to send media %s: %s", job.get("id", "?"), media_path, e)
 
 
+def _deliver_whatsapp_via_tgg_reply_bridge(
+    job: dict,
+    chat_id: str,
+    text: str,
+    media_files: list,
+) -> Optional[str]:
+    """Deliver Christopher cron output through the durable consumer bridge.
+
+    Christopher deliberately has Hermes's ordinary WhatsApp adapter disabled:
+    inbound capture and outbound policy live in the separate guarded bridge.
+    Cron jobs created in that management lane must use the same bridge instead
+    of treating the disabled generic adapter as an invitation to enable a
+    second WhatsApp gateway.
+    """
+    from urllib.error import HTTPError, URLError
+    from urllib.request import Request, urlopen
+    from pathlib import Path
+
+    bridge_url = os.environ.get("TGG_REPLY_BRIDGE_URL", "").strip().rstrip("/")
+    if not bridge_url:
+        return "Christopher WhatsApp bridge is not configured"
+
+    def resolve_media_path(value: str) -> Path:
+        text = str(value or "")
+        candidate = Path(text)
+        # Promoted refs are absolute-looking `/media/...` handles; every
+        # other absolute local path retains the established cron behaviour.
+        if candidate.is_absolute() and not text.startswith("/media/"):
+            return candidate.resolve(strict=True)
+        config = load_config() or {}
+        pa = config.get("pa") if isinstance(config, dict) else None
+        retention = pa.get("media_retention") if isinstance(pa, dict) else None
+        root = Path(str((retention or {}).get("media_root") or "")).expanduser()
+        prefix = str((retention or {}).get("media_ref_prefix") or "").rstrip("/")
+        expected = f"{prefix}/"
+        if not root.is_absolute() or not prefix or not text.startswith(expected):
+            raise ValueError("untrusted promoted media reference")
+        name = text[len(expected):]
+        if not name or "/" in name or "\\" in name or name in {".", ".."}:
+            raise ValueError("promoted media reference escapes configured root")
+        resolved = (root / name).resolve(strict=True)
+        if not resolved.is_file() or not resolved.is_relative_to(root.resolve()):
+            raise ValueError("promoted media reference is unavailable")
+        return resolved
+
+    def post(endpoint: str, payload: dict) -> Optional[str]:
+        try:
+            request = Request(
+                f"{bridge_url}/{endpoint}",
+                data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request, timeout=30) as response:
+                status = int(getattr(response, "status", 0) or 0)
+                body = json.loads(response.read() or b"{}")
+            if status == 200 and body.get("success") is True:
+                return None
+            return f"bridge {endpoint} outcome unconfirmed (http {status})"
+        except HTTPError as exc:
+            return f"bridge {endpoint} refused (http {exc.code})"
+        except (URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            return f"bridge {endpoint} failed: {exc}"
+
+    if text.strip():
+        error = post("send", {"chatId": chat_id, "message": text})
+        if error:
+            return error
+    for media_path, _is_voice in media_files:
+        try:
+            resolved_media = resolve_media_path(str(media_path))
+        except (OSError, ValueError) as exc:
+            return f"bridge media refused: {exc}"
+        suffix = resolved_media.suffix.lower()
+        media_type = (
+            "image" if suffix in _IMAGE_EXTS else "video" if suffix in _VIDEO_EXTS
+            else "audio" if suffix in {".aac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"}
+            else "document"
+        )
+        error = post("send-media", {
+            "chatId": chat_id,
+            "filePath": str(resolved_media),
+            "mediaType": media_type,
+            "fileName": resolved_media.name,
+        })
+        if error:
+            return error
+    return None
+
+
 def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Optional[str]:
     """
     Deliver job output to the configured target(s) (origin chat, specific platform, etc.).
@@ -666,6 +756,19 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
 
         pconfig = config.platforms.get(platform)
         if not pconfig or not pconfig.enabled:
+            if platform == Platform.WHATSAPP and os.environ.get("TGG_REPLY_BRIDGE_URL", "").strip():
+                error = _deliver_whatsapp_via_tgg_reply_bridge(
+                    job, chat_id, cleaned_delivery_content, media_files,
+                )
+                if error:
+                    logger.error("Job '%s': %s", job["id"], error)
+                    delivery_errors.append(error)
+                else:
+                    logger.info(
+                        "Job '%s': delivered to whatsapp:%s via Christopher reply bridge",
+                        job["id"], chat_id,
+                    )
+                continue
             msg = f"platform '{platform_name}' not configured/enabled"
             logger.warning("Job '%s': %s", job["id"], msg)
             delivery_errors.append(msg)
@@ -1333,6 +1436,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         platform="",
         chat_id="",
         chat_name="",
+        session_id=_cron_session_id,
     )
     _cron_delivery_vars = (
         "HERMES_CRON_AUTO_DELIVER_PLATFORM",
@@ -1525,9 +1629,17 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             )
 
         pa_resolved_context = _resolve_cron_pa_context(job, _cfg)
+        # Dedicated PA business tools resolve their bridge from task-local
+        # runtime context.  Bind the already-authorized cron brief here; this
+        # does not make cron look like an inbound WhatsApp message.
+        from gateway.session_context import set_session_pa_job_type
+        set_session_pa_job_type(getattr(pa_resolved_context, "job_type", None))
         cron_enabled_toolsets, cron_disabled_toolsets = _merge_cron_pa_toolsets(
             _resolve_cron_enabled_toolsets(job, _cfg),
-            ["cronjob", "messaging", "clarify"],
+            # A scheduled PA turn is the already-confirmed unit of work.  A
+            # child would lose the resolved management business surface and
+            # turn a simple report into an unbound second workflow.
+            ["cronjob", "messaging", "clarify", "delegation"],
             pa_resolved_context,
         )
         _record_cron_pa_behavior_event(

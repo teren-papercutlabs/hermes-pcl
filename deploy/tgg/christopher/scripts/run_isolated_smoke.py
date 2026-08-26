@@ -8,7 +8,9 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import shutil
+import sqlite3
 import stat
 import threading
 import time
@@ -34,6 +36,67 @@ class _OperatorStub(BaseHTTPRequestHandler):
     report_scenario = "none"
     request_paths: list[str] = []
     workbooks: dict[str, bytes] = {}
+    case_db: Path | None = None
+    case_queries: list[dict[str, object]] = []
+
+    def _read_json_body(self) -> dict[str, object]:
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0:
+            return {}
+        value = json.loads(self.rfile.read(length))
+        if not isinstance(value, dict):
+            raise ValueError("request body must be a JSON object")
+        return value
+
+    @classmethod
+    def _run_case_query(cls, sql: str) -> dict[str, object]:
+        if cls.case_db is None:
+            raise RuntimeError("case query requested without --case-db")
+        normalized = sql.strip()
+        first_word = normalized.split(None, 1)[0].upper() if normalized else ""
+        forbidden = (
+            "PRAGMA",
+            "ATTACH",
+            "DETACH",
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "REPLACE",
+            "CREATE",
+            "ALTER",
+            "DROP",
+            "VACUUM",
+        )
+        upper = normalized.upper()
+        if first_word not in {"SELECT", "WITH"} or any(
+            re.search(rf"\b{token}\b", upper) for token in forbidden
+        ):
+            raise ValueError("only read-only SELECT or WITH queries are allowed")
+        started = time.monotonic()
+        uri = f"file:{cls.case_db.as_posix()}?mode=ro&immutable=1"
+        with sqlite3.connect(uri, uri=True) as connection:
+            connection.row_factory = sqlite3.Row
+            cursor = connection.execute(normalized)
+            columns = [item[0] for item in (cursor.description or [])]
+            fetched = cursor.fetchmany(201)
+        truncated = len(fetched) > 200
+        rows = [dict(row) for row in fetched[:200]]
+        receipt = {
+            "sql_sha256": hashlib.sha256(normalized.encode()).hexdigest(),
+            "row_count": len(rows),
+            "truncated": truncated,
+        }
+        cls.case_queries.append(receipt)
+        return {
+            "ok": True,
+            "data": {
+                "columns": columns,
+                "rows": rows,
+                "rowCount": len(rows),
+                "truncated": truncated,
+                "elapsedMs": round((time.monotonic() - started) * 1000, 3),
+            },
+        }
 
     @staticmethod
     def _workbook(tabs: list[str]) -> bytes:
@@ -56,9 +119,18 @@ class _OperatorStub(BaseHTTPRequestHandler):
     def _reply(self) -> None:
         type(self).requests_total += 1
         type(self).request_paths.append(self.path)
-        if self.command in {"POST", "PATCH", "PUT", "DELETE"}:
+        request_path = urlsplit(self.path).path
+        if self.command in {"POST", "PATCH", "PUT", "DELETE"} and request_path != "/api/operator/query":
             type(self).mutation_requests += 1
-        if self.path.startswith("/api/operator/report-cycle/"):
+        if request_path == "/api/operator/query" and self.command == "POST":
+            try:
+                payload = self._read_json_body()
+                body = json.dumps(
+                    self._run_case_query(str(payload.get("sql") or ""))
+                ).encode()
+            except Exception as exc:
+                body = json.dumps({"ok": False, "error": str(exc)}).encode()
+        elif self.path.startswith("/api/operator/report-cycle/"):
             report_workbook = self._cached_workbook("report.xlsx", ["Report"])
             digest = hashlib.sha256(report_workbook).hexdigest()
             zones = ("AMK", "HG", "PG", "SK")
@@ -101,7 +173,7 @@ class _OperatorStub(BaseHTTPRequestHandler):
                         }
                         for name, file_name, sheet_tabs in source_specs
                     ],
-                    "preview_rows": [{"zone": zone, "row_count": 10} for zone in zones],
+                    "preview_rows": [{"zone": zone, "row_count": 1} for zone in zones],
                 }
             elif endpoint == "preview-reconcile":
                 result = {
@@ -235,6 +307,7 @@ def _prepare_home(
     live_memory: Path,
     soul_path: Path,
     stub_url: str,
+    case_db: Path | None,
 ) -> Path:
     run_root.mkdir(parents=True, mode=0o700)
     config = yaml.safe_load((slot_root / "config.yaml").read_text(encoding="utf-8"))
@@ -265,6 +338,8 @@ def _prepare_home(
     config["pa"]["media_retention"]["source_roots"] = [str(fixture_media)]
     config["python_sandbox"]["media_retention"]["root"] = str(fixture_media)
     config["python_sandbox"]["datasets"]["media"]["path"] = str(fixture_media)
+    if case_db is not None:
+        config["python_sandbox"]["datasets"]["cases"]["path"] = str(case_db)
     config["pa"]["overlay"]["client"]["business_bridge"] = _rewrite_http_urls(
         config["pa"]["overlay"]["client"]["business_bridge"], base_url=stub_url
     )
@@ -365,6 +440,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--test-root", required=True)
     parser.add_argument("--slot-file", required=True)
     parser.add_argument("--report", required=True)
+    parser.add_argument(
+        "--case-db",
+        help=(
+            "Optional production-sized SQLite copy. The local operator stub opens "
+            "it immutable/read-only and the sandbox receives it as the cases dataset."
+        ),
+    )
     # Optional fixture overrides. The defaults are the deploy-verification
     # probe (a management chat asked to reply READY); overriding them lets the
     # same isolated rig exercise a real turn shape — e.g. a management Q&A —
@@ -410,11 +492,16 @@ def main() -> int:
     report_path = Path(args.report).resolve()
     if report_path != test_root and test_root not in report_path.parents:
         raise RuntimeError("report path must stay inside test root")
+    case_db = Path(args.case_db).resolve() if args.case_db else None
+    if case_db is not None and not case_db.is_file():
+        raise RuntimeError(f"case database does not exist: {case_db}")
 
     _OperatorStub.requests_total = 0
     _OperatorStub.mutation_requests = 0
     _OperatorStub.request_paths = []
     _OperatorStub.workbooks = {}
+    _OperatorStub.case_db = case_db
+    _OperatorStub.case_queries = []
     _OperatorStub.report_scenario = args.report_ops_scenario
     server = ThreadingHTTPServer(("127.0.0.1", 0), _OperatorStub)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -431,6 +518,7 @@ def main() -> int:
             live_memory=live_home / "memories" / "MEMORY.md",
             soul_path=app_root / "deploy" / "tgg" / "christopher" / "SOUL.md",
             stub_url=stub_url,
+            case_db=case_db,
         )
         fixture = {
             "messageId": f"synthetic-{uuid.uuid4().hex}",
@@ -486,6 +574,9 @@ def main() -> int:
         report["external_outbound_sent"] = 0
         report["report_ops_scenario"] = args.report_ops_scenario
         report["report_ops_request_paths"] = list(_OperatorStub.request_paths)
+        report["case_db"] = str(case_db) if case_db is not None else None
+        report["case_db_bytes"] = case_db.stat().st_size if case_db is not None else None
+        report["case_queries"] = list(_OperatorStub.case_queries)
         if args.report_ops_scenario == "clean":
             expected = [
                 "/api/operator/report-cycle/status?tenant=tgg",

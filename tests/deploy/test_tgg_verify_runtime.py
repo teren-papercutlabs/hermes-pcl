@@ -366,15 +366,11 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     )
 
     deploy_script = (DEPLOY_ROOT / "scripts" / "deploy_runtime.sh").read_text()
-    assert 'd["spec"]["deploy"]["manifestRef"]' in deploy_script
-    assert '--manifest "$manifest_path"' in deploy_script
-    assert "output_quality_eval.py" in deploy_script
-    assert '"--trigger",\n            "deploy"' in deploy_script
-    assert '"--maker-session-id",' in deploy_script
-    assert 'f"deploy:{head_sha}"' in deploy_script
-    assert "set +e" in deploy_script
-    assert '"evaluator_ok": evaluator_ok' in deploy_script
-    assert '"evaluator_ok":%s' in deploy_script
+    assert "legacy deploy_runtime.sh is retired" in deploy_script
+    assert "/usr/local/lib/tgg-christopher/standalone_release.py" in deploy_script
+    assert "pcl pa-agent deploy" not in deploy_script
+    assert "systemctl" not in deploy_script
+    assert "ssh" not in deploy_script
 
     verify_script = VERIFY.read_text()
     assert 'expected_config["model"] = selected_slot_config["model"]' in verify_script

@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import logging
 import os
 import re
 import subprocess
@@ -24,6 +25,8 @@ from xml.etree import ElementTree
 from zoneinfo import ZoneInfo
 
 from tools.registry import registry, tool_error, tool_result
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -391,6 +394,10 @@ def _runtime_pa_context(config: Mapping[str, Any] | None) -> Any | None:
                 "user_name": get_session_env("HERMES_SESSION_USER_NAME", ""),
             },
             "session_key": get_session_env("HERMES_SESSION_KEY", ""),
+            # Cron has no inbound chat selector.  A PA-bound scheduled job
+            # supplies its already-selected brief task-locally so dedicated
+            # business tools resolve the same scoped registry as management.
+            "job_type": get_session_env("HERMES_SESSION_PA_JOB_TYPE", ""),
         }
         return resolve_context(pa_config, metadata)
     except Exception:
@@ -1083,6 +1090,62 @@ def _annotate_observation_result(raw: str, job_no: Any) -> str:
     return json.dumps(data, ensure_ascii=False)
 
 
+def _materialize_large_tgg_query_result(
+    operation: str,
+    result: Any,
+) -> Any:
+    """Give every tgg_case_query entrance the same sandbox handoff.
+
+    Christopher can reach a configured business operation through the generic
+    ``pa_business_read`` tool or through a compatibility tool such as
+    ``tgg_case_query``.  Operation semantics belong here, after the backend
+    result exists, rather than on either public entrance.  Otherwise a large
+    query can be usable through one tool and unusable through the other.
+    """
+    if operation != "tgg_case_query" or not isinstance(result, Mapping):
+        return result
+    try:
+        from gateway.session_context import get_session_env
+        from hermes_constants import get_hermes_home
+        from tools.python_sandbox_tool import _workspace_key
+
+        session_id = get_session_env("HERMES_SESSION_ID", "").strip()
+        if not session_id:
+            return result
+        encoded = json.dumps(result, ensure_ascii=False, sort_keys=True)
+        if len(encoded) <= 16_000:
+            return result
+        full_digest = hashlib.sha256(encoded.encode()).hexdigest()
+        workspace = (
+            get_hermes_home()
+            / "sandbox_workspaces"
+            / _workspace_key(session_id)
+            / "work"
+        )
+        workspace.mkdir(parents=True, exist_ok=True, mode=0o700)
+        path = workspace / f"pa-query-{full_digest[:16]}.json"
+        if not path.exists():
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(encoded, encoding="utf-8")
+            os.replace(tmp, path)
+        # Put the handle first so inline-preview fallback still tells the
+        # model where the complete immutable result is.
+        return {
+            "sandbox_artifact": f"/work/{path.name}",
+            "sandbox_artifact_sha256": full_digest,
+            "sandbox_artifact_usage": (
+                "The complete query result is already in this session workspace. "
+                "For workbook, table, or code work, call python_sandbox directly "
+                "with datasets omitted and read sandbox_artifact. Do not request "
+                "the cases dataset and do not delegate: this artifact is session-local."
+            ),
+            **dict(result),
+        }
+    except Exception:
+        logger.debug("Could not materialize large PA query for sandbox", exc_info=True)
+        return result
+
+
 def _handle_tgg_read(operation: str, payload: Mapping[str, Any]) -> str:
     try:
         result = execute_business_operation(
@@ -1093,6 +1156,7 @@ def _handle_tgg_read(operation: str, payload: Mapping[str, Any]) -> str:
     except Exception as exc:
         return tool_error(exc)
     _harvest_case_states(result)
+    result = _materialize_large_tgg_query_result(operation, result)
     return tool_result(result)
 
 
@@ -2371,6 +2435,8 @@ def _handle_business_call(args: Mapping[str, Any], *, user_task: Any = None) -> 
         )
     except Exception as exc:
         return tool_error(exc)
+    _harvest_case_states(result)
+    result = _materialize_large_tgg_query_result(effective_operation, result)
     return tool_result(_shape_attach_unjustified_result(result))
 
 
@@ -2489,7 +2555,11 @@ PA_BUSINESS_READ_SCHEMA = {
     "description": (
         "Run an opt-in configured PA business read operation. The tool calls "
         "an external HTTP endpoint or local command and returns JSON; it does "
-        "not persist business facts in Hermes state."
+        "not persist business facts in Hermes state. For tgg_case_query, a "
+        "large result may start with sandbox_artifact and "
+        "sandbox_artifact_usage. Follow that handoff for workbook/code work: "
+        "use python_sandbox directly with datasets omitted, never reload the "
+        "full cases dataset, and do not delegate a session-local artifact."
     ),
     "parameters": {
         "type": "object",
@@ -2573,6 +2643,10 @@ TGG_CASE_QUERY_SCHEMA = {
         "enforces read-only: single SELECT statement (WITH ... SELECT is "
         "fine), no writes/PRAGMA/ATTACH/semicolon chains, ~200-row cap with "
         "a truncated flag, results as {columns, rows, rowCount, truncated}. "
+        "A large result may start with sandbox_artifact and "
+        "sandbox_artifact_usage. Follow that handoff for workbook/code work: "
+        "use python_sandbox directly with datasets omitted, never reload the "
+        "full cases dataset, and do not delegate a session-local artifact. "
         "During a reconciliation exam the job brief may direct single-case "
         "questions here too. Canonical reconciliation views: "
         "tgg_case_truth(case_id, job_no, zone, address, receipt_at, "

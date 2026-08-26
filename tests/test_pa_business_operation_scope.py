@@ -7,6 +7,7 @@ that chat. Management carries the full case-shaped registry; ingest cannot read
 case photos or invoke the runtime-only media-retention convergence operation.
 """
 
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -86,6 +87,122 @@ def _unscoped_bridge():
             constitution=SimpleNamespace(client=config["pa"]["overlay"]["client"])
         ),
     )
+
+
+def test_cron_pa_job_type_resolves_management_business_registry(monkeypatch):
+    """A scheduled management job gets the same dedicated read surface."""
+    import tools.pa_business_tools as business_tools
+    from gateway.session_context import clear_session_vars, set_session_vars
+    from tools.registry import registry
+
+    config = _config()
+    config["pa"] = dict(config["pa"])
+    config["pa"]["enabled"] = True
+    config["pa"].pop("constitution_path", None)
+    config["pa"]["constitution"] = load_constitution_data(
+        yaml.safe_load(TGG_CONSTITUTION.read_text(encoding="utf-8")),
+        source=str(TGG_CONSTITUTION),
+    )
+    monkeypatch.setattr("hermes_cli.config.read_raw_config", lambda: config)
+    executed = []
+    monkeypatch.setattr(
+        business_tools,
+        "execute_business_operation",
+        lambda bridge, operation, payload: executed.append((bridge, operation, payload)) or {"ok": True},
+    )
+    tokens = set_session_vars(platform="", chat_id="", pa_job_type="tgg_management")
+    try:
+        entry = registry.get_entry("tgg_case_query")
+        assert entry is not None
+        assert entry.check_fn() is True
+        response = entry.handler({"sql": "SELECT 1"})
+    finally:
+        clear_session_vars(tokens)
+
+    assert '"ok": true' in response
+    assert executed[0][1] == "tgg_case_query"
+    assert executed[0][2] == {"sql": "SELECT 1"}
+
+
+@pytest.mark.parametrize("entrance", ["dedicated", "pa_business_read"])
+def test_large_case_query_becomes_session_sandbox_artifact(
+    entrance, tmp_path, monkeypatch
+):
+    import json
+    import tools.pa_business_tools as business_tools
+    import hermes_constants
+    from gateway.session_context import clear_session_vars, set_session_vars
+    from tools.python_sandbox_tool import _workspace_key
+
+    monkeypatch.setattr(hermes_constants, "get_hermes_home", lambda: tmp_path)
+    bridge = SimpleNamespace(
+        operations={"tgg_case_query": SimpleNamespace(path_params=())}
+    )
+    monkeypatch.setattr(
+        business_tools, "_load_runtime_bridge_config", lambda: bridge
+    )
+    rows = [[index, "x" * 120] for index in range(200)]
+    monkeypatch.setattr(
+        business_tools, "execute_business_operation",
+        lambda *_args, **_kwargs: {"ok": True, "columns": ["n", "value"], "rows": rows},
+    )
+    tokens = set_session_vars(session_id="cron-report-session")
+    try:
+        if entrance == "dedicated":
+            raw = business_tools._handle_tgg_case_query({"sql": "SELECT * FROM t"})
+        else:
+            raw = business_tools._handle_business_read(
+                {
+                    "operation": "tgg_case_query",
+                    "payload": {"sql": "SELECT * FROM t"},
+                }
+            )
+        response = json.loads(raw)
+    finally:
+        clear_session_vars(tokens)
+
+    assert response["sandbox_artifact"].startswith("/work/pa-query-")
+    assert "datasets omitted" in response["sandbox_artifact_usage"]
+    assert "do not delegate" in response["sandbox_artifact_usage"]
+    path = tmp_path / "sandbox_workspaces" / _workspace_key("cron-report-session") / "work" / response["sandbox_artifact"].split("/")[-1]
+    artifact_bytes = path.read_bytes()
+    assert hashlib.sha256(artifact_bytes).hexdigest() == response["sandbox_artifact_sha256"]
+    assert json.loads(artifact_bytes)["rows"] == rows
+
+
+def test_small_generic_case_query_stays_inline(tmp_path, monkeypatch):
+    import json
+    import tools.pa_business_tools as business_tools
+    import hermes_constants
+    from gateway.session_context import clear_session_vars, set_session_vars
+
+    monkeypatch.setattr(hermes_constants, "get_hermes_home", lambda: tmp_path)
+    bridge = SimpleNamespace(
+        operations={"tgg_case_query": SimpleNamespace(path_params=())}
+    )
+    monkeypatch.setattr(
+        business_tools, "_load_runtime_bridge_config", lambda: bridge
+    )
+    monkeypatch.setattr(
+        business_tools,
+        "execute_business_operation",
+        lambda *_args, **_kwargs: {"ok": True, "columns": ["n"], "rows": [[1]]},
+    )
+    tokens = set_session_vars(session_id="small-query-session")
+    try:
+        response = json.loads(
+            business_tools._handle_business_read(
+                {
+                    "operation": "tgg_case_query",
+                    "payload": {"sql": "SELECT 1"},
+                }
+            )
+        )
+    finally:
+        clear_session_vars(tokens)
+
+    assert response == {"ok": True, "columns": ["n"], "rows": [[1]]}
+    assert not (tmp_path / "sandbox_workspaces").exists()
 
 
 # ── loader validation ────────────────────────────────────────────────────────
