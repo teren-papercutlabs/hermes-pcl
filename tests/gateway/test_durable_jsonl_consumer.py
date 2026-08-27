@@ -2878,6 +2878,35 @@ async def test_validated_continuous_interval_reuses_persistent_nightly_chat_sess
     assert observed == [True]
 
 
+def test_continuous_and_full_nightly_triggers_never_steer_into_each_others_session(tmp_path):
+    pseudo = "900000000000000001@g.us"
+    batch_id = "nightly:2026-08-27:0123456789ab"
+    constitution = tmp_path / "constitution.yaml"
+    constitution.write_text(yaml.safe_dump({"selectors": [{
+        "job_type": "tgg_nightly_whatsapp",
+        "match": {"source.platform": "whatsapp", "source.chat_id": pseudo},
+    }]}), encoding="utf-8")
+    config = tmp_path / "config.yaml"
+    config.write_text(yaml.safe_dump({"pa": {"constitution_path": str(constitution)}}), encoding="utf-8")
+    metadata = {
+        "job_type": "tgg_nightly_whatsapp", "nightly_batch_id": batch_id,
+        "nightly_role": "amk", "authoritative_chat_id": "120363421424519051@g.us",
+    }
+    nightly = _message("nightly", pseudo)
+    nightly.update({"senderId": "system@internal", "metadata": dict(metadata)})
+    continuous = _message("continuous", pseudo)
+    continuous.update({"senderId": "system@internal", "metadata": {
+        **metadata, "continuous_interval": True,
+        "continuous_contract": "tgg-christopher-continuous-interval/v1",
+    }})
+    nightly_record = consumer.InboxRecord(1, "nightly", pseudo, 1, 1, nightly)
+    continuous_record = consumer.InboxRecord(2, "continuous", pseudo, 2, 2, continuous)
+    assert not consumer._same_session_steering_allowed([continuous_record], [nightly_record], config)
+    assert not consumer._same_session_steering_allowed([nightly_record], [continuous_record], config)
+    assert consumer._same_session_steering_allowed([continuous_record], [continuous_record], config)
+    assert consumer._same_session_steering_allowed([nightly_record], [nightly_record], config)
+
+
 def test_management_chat_waits_for_configured_trailing_quiet(tmp_path):
     inbox = consumer.DurableInbox(tmp_path / "inbox.db")
     source = tmp_path / "events.jsonl"

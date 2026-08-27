@@ -3174,6 +3174,19 @@ def _continuous_interval_batch(records: Sequence[InboxRecord], config_path: Path
     return bool(records) and all(_continuous_interval_trigger(record, config_path) for record in records)
 
 
+def _same_session_steering_allowed(
+    active: Sequence[InboxRecord], followups: Sequence[InboxRecord], config_path: Path,
+) -> bool:
+    if not active or not followups:
+        return False
+    chat_id = active[0].chat_id
+    if chat_id not in _nightly_selector_chats(config_path):
+        return True
+    return _continuous_interval_batch(active, config_path) == _continuous_interval_batch(
+        followups, config_path,
+    )
+
+
 def _parse_captured_send(entry: Mapping[str, Any]) -> dict[str, Any] | None:
     """Extract (chat_id, content, reply_to) from a captured adapter send.
 
@@ -3988,6 +4001,13 @@ async def _process_claimed_chat_batch_unlocked(
                         batch_size=steering_batch_size,
                     )
                     if not followups:
+                        continue
+                    # A continuous interval and the full nightly fallback use
+                    # the same reserved pseudo-chat but intentionally different
+                    # session lifetimes. Never steer one mode into the other's
+                    # active turn; leave it pending for the scheduler to launch
+                    # with its own persistent/fresh decision after this turn.
+                    if not _same_session_steering_allowed(records, followups, config_path):
                         continue
                     # The shared runner is still executing the addressed turn.
                     # With busy_input_mode=steer this second replay injects the
