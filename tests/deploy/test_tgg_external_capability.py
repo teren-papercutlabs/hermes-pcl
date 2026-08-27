@@ -28,28 +28,25 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def test_capability_baseline_provider_is_consistency_metadata_not_runtime_authority(
+def test_live_host_runtime_identity_is_validated_without_reserializing(
     tmp_path: Path,
 ) -> None:
     module = load_module()
     config = tmp_path / "config.yaml"
-    constitution = tmp_path / "constitution.yaml"
     config.write_text(yaml.safe_dump({
         "pa": {"enabled": False},
         "model": {"provider": "openai-codex", "default": "gpt-5.6-terra"},
         "agent": {"reasoning_effort": "medium"},
+        "group_sessions_per_user": False,
+        "platforms": {"whatsapp": {"enabled": False}},
     }), encoding="utf-8")
-    constitution.write_text(yaml.safe_dump({
-        "runtime": {"provider": "openai-codex", "model": "gpt-5.6-terra"},
-    }), encoding="utf-8")
+    value = yaml.safe_load(config.read_text())
+    value["model"]["credential_label"] = "configured-account"
+    config.write_text(yaml.safe_dump(value, sort_keys=False), encoding="utf-8")
 
-    module._validate_capability_runtime_baseline(config, constitution)
-
-    constitution.write_text(yaml.safe_dump({
-        "runtime": {"provider": "openai-direct-primary", "model": "gpt-5.6-terra"},
-    }), encoding="utf-8")
-    with pytest.raises(AssertionError):
-        module._validate_capability_runtime_baseline(config, constitution)
+    assert module._validate_live_runtime_config(
+        config, "gpt-5.6-terra-medium"
+    ) == ("openai-codex", "configured-account")
 
 
 def make_release(
@@ -74,23 +71,45 @@ def make_release(
     plugin.mkdir(parents=True)
     constitution = release / "christopher_tgg_constitution.yaml"
     constitution.write_bytes((SLOT / "christopher_tgg_constitution.yaml").read_bytes())
+    release_constitution = yaml.safe_load(constitution.read_text(encoding="utf-8"))
+    release_constitution.pop("runtime", None)
+    for brief in release_constitution.get("job_briefs", {}).values():
+        if isinstance(brief, dict):
+            brief.pop("runtime", None)
+    constitution.write_text(
+        yaml.safe_dump(release_constitution, sort_keys=False), encoding="utf-8"
+    )
     config = yaml.safe_load((SLOT / "config.yaml").read_text(encoding="utf-8"))
-    config["pa"]["constitution_path"] = str(capability / "current" / constitution.name)
-    config.setdefault("plugins", {}).setdefault("enabled", []).append("tgg-whatsapp-evidence")
+    config["pa"]["constitution_path"] = str(home / constitution.name)
+    enabled_plugins = config.setdefault("plugins", {}).setdefault("enabled", [])
+    for plugin_id in ("report-operations", "tgg-whatsapp-evidence"):
+        if plugin_id not in enabled_plugins:
+            enabled_plugins.append(plugin_id)
     if include_nightly_plugin:
-        config["plugins"]["enabled"].append("tgg-nightly-whatsapp")
+        enabled_plugins.append("tgg-nightly-whatsapp")
     if include_per_case_plugin:
-        config["plugins"]["enabled"].append("tgg-per-case-whatsapp")
+        enabled_plugins.append("tgg-per-case-whatsapp")
     if include_coordinator_plugin:
-        config["plugins"]["enabled"].append("tgg-per-case-whatsapp-coordinator")
+        enabled_plugins.append("tgg-per-case-whatsapp-coordinator")
     if include_spreadsheet_skill or include_whatsapp_skill or include_hdb_skill:
         config["skills"] = {"external_dirs": [str(capability / "current" / "skills")]}
     else:
         config.pop("skills", None)
-    config_path = release / "christopher-slot-config.yaml"
+    config["host_sentinel"] = {"preserve": "bytes-and-values"}
+    config_path = home / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    report_plugin = home / "plugins/report-operations/plugin.yaml"
+    report_plugin.parent.mkdir(parents=True, exist_ok=True)
+    report_plugin.write_text(
+        "name: report-operations\nprovides_tools:\n  - report_status\n",
+        encoding="utf-8",
+    )
     (plugin / "__init__.py").write_text("def register(ctx):\n    return None\n", encoding="utf-8")
-    (plugin / "plugin.yaml").write_text("name: tgg-whatsapp-evidence\n", encoding="utf-8")
+    (plugin / "plugin.yaml").write_text(
+        "name: tgg-whatsapp-evidence\nprovides_tools:\n  - tgg_whatsapp_source_query\n",
+        encoding="utf-8",
+    )
     nightly_plugin = release / "plugins" / "tgg-nightly-whatsapp"
     if include_nightly_plugin:
         nightly_plugin.mkdir(parents=True)
@@ -98,7 +117,7 @@ def make_release(
             "def register(ctx):\n    return None\n", encoding="utf-8"
         )
         (nightly_plugin / "plugin.yaml").write_text(
-            "name: tgg-nightly-whatsapp\n", encoding="utf-8"
+            "name: tgg-nightly-whatsapp\nprovides_tools:\n  - tgg_nightly_prepare_batch\n", encoding="utf-8"
         )
     nightly_launcher = release / "scripts" / "run-nightly-whatsapp.py"
     if include_nightly_launcher:
@@ -111,7 +130,7 @@ def make_release(
             "def register(ctx):\n    return None\n", encoding="utf-8"
         )
         (per_case_plugin / "plugin.yaml").write_text(
-            "name: tgg-per-case-whatsapp\n", encoding="utf-8"
+            "name: tgg-per-case-whatsapp\nprovides_tools:\n  - tgg_whatsapp_case_prepare\n", encoding="utf-8"
         )
     coordinator_plugin = release / "plugins" / "tgg-per-case-whatsapp-coordinator"
     if include_coordinator_plugin:
@@ -120,7 +139,7 @@ def make_release(
             "def register(ctx):\n    return None\n", encoding="utf-8"
         )
         (coordinator_plugin / "plugin.yaml").write_text(
-            "name: tgg-per-case-whatsapp-coordinator\n", encoding="utf-8"
+            "name: tgg-per-case-whatsapp-coordinator\nprovides_tools:\n  - tgg_whatsapp_case_list_create\n", encoding="utf-8"
         )
     per_case_engine = release / "scripts" / "per-case-whatsapp-engine.mjs"
     if include_per_case_helpers:
@@ -168,7 +187,6 @@ def make_release(
             "# Source layouts\n", encoding="utf-8"
         )
     release_files = [
-        config_path,
         constitution,
         plugin / "__init__.py",
         plugin / "plugin.yaml",
@@ -215,6 +233,25 @@ def make_release(
         "release_id": release.name,
         "audience": audience,
         "files": files,
+        "compatibility": {
+            "contract": "christopher-tgg-host-config/v1",
+            "plugins": [
+                {"id": "report-operations", "tools": ["report_status"]},
+                *(
+                    [{"id": "tgg-nightly-whatsapp", "tools": ["tgg_nightly_prepare_batch"]}]
+                    if include_nightly_plugin else []
+                ),
+                *(
+                    [{"id": "tgg-per-case-whatsapp", "tools": ["tgg_whatsapp_case_prepare"]}]
+                    if include_per_case_plugin else []
+                ),
+                *(
+                    [{"id": "tgg-per-case-whatsapp-coordinator", "tools": ["tgg_whatsapp_case_list_create"]}]
+                    if include_coordinator_plugin else []
+                ),
+                {"id": "tgg-whatsapp-evidence", "tools": ["tgg_whatsapp_source_query"]},
+            ],
+        },
         "canary": (
             {"management_chat_ids": [manifest_canary_chat_id]}
             if manifest_canary_chat_id
@@ -242,6 +279,28 @@ def test_resolves_verified_external_capability(tmp_path: Path) -> None:
     assert selected["release_id"] == "test-release"
     assert selected["release_root"] == release.resolve()
     assert selected["plugin_source"] == release / "plugins/tgg-whatsapp-evidence"
+    assert not (release / "christopher-slot-config.yaml").exists()
+
+
+def test_missing_host_plugin_refuses_without_config_or_pointer_mutation(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    home, runtime, release = make_release(tmp_path)
+    config_path = home / "config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["plugins"]["enabled"].remove("tgg-whatsapp-evidence")
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    config_before = config_path.read_bytes()
+    current = runtime / "capabilities/christopher-tgg/current"
+    current_before = current.resolve()
+
+    with pytest.raises(RuntimeError, match="required plugin missing"):
+        module._external_capability(runtime, home, "gpt-5.6-terra-medium")
+
+    assert config_path.read_bytes() == config_before
+    assert current.resolve() == current_before == release.resolve()
+    assert not (home / "plugins/tgg-whatsapp-evidence").exists()
 
 
 def test_resolves_external_capability_with_spreadsheet_skill(tmp_path: Path) -> None:
@@ -407,25 +466,12 @@ def test_rejects_executable_skill_payload(tmp_path: Path) -> None:
 def test_rejects_spreadsheet_skill_without_external_skill_path(tmp_path: Path) -> None:
     module = load_module()
     home, runtime, release = make_release(tmp_path, include_spreadsheet_skill=True)
-    config_path = release / "christopher-slot-config.yaml"
+    config_path = home / "config.yaml"
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     config.pop("skills")
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
-    manifest_path = release / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["files"]["christopher-slot-config.yaml"] = digest(config_path)
-    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
-    sums_path = release / "SHA256SUMS"
-    sums = {
-        **manifest["files"],
-        "manifest.json": digest(manifest_path),
-    }
-    sums_path.write_text(
-        "".join(f"{value}  {name}\n" for name, value in sorted(sums.items())),
-        encoding="utf-8",
-    )
 
-    with pytest.raises(RuntimeError, match="skills path mismatch"):
+    with pytest.raises(RuntimeError, match="capability skills path missing"):
         module._external_capability(runtime, home, "gpt-5.6-terra-medium")
 
 
@@ -530,6 +576,7 @@ def test_main_materializes_external_capability_and_receipt(
         include_per_case_plugin=True,
         include_per_case_helpers=True,
     )
+    config_before = (home / "config.yaml").read_bytes()
     monkeypatch.setattr(module.pwd, "getpwnam", lambda _name: SimpleNamespace(pw_uid=501))
     monkeypatch.setattr(module.grp, "getgrnam", lambda _name: SimpleNamespace(gr_gid=20))
     monkeypatch.setattr(module.os, "chown", lambda *_args: None)
@@ -545,23 +592,30 @@ def test_main_materializes_external_capability_and_receipt(
             str(home),
             "--slot",
             "gpt-5.6-terra-medium",
+            "--preserve-host-config",
         ],
     )
 
     assert module.main() == 0
 
+    assert (home / "config.yaml").read_bytes() == config_before
     live_config = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
-    release_config = yaml.safe_load(
-        (release / "christopher-slot-config.yaml").read_text(encoding="utf-8")
+    assert live_config["host_sentinel"] == {"preserve": "bytes-and-values"}
+    release_constitution = yaml.safe_load(
+        (release / "christopher_tgg_constitution.yaml").read_text(encoding="utf-8")
     )
-    assert live_config["pa"]["constitution_path"] == str(
-        home / "christopher_tgg_constitution.yaml"
+    assert "runtime" not in release_constitution
+    live_constitution = yaml.safe_load(
+        (home / "christopher_tgg_constitution.yaml").read_text(encoding="utf-8")
     )
-    live_config["pa"]["constitution_path"] = release_config["pa"]["constitution_path"]
-    assert live_config == release_config
-    assert (home / "christopher_tgg_constitution.yaml").read_bytes() == (
-        release / "christopher_tgg_constitution.yaml"
-    ).read_bytes()
+    assert live_constitution["runtime"] == {
+        "provider": "openai-direct-primary",
+        "model": "gpt-5.6-terra",
+    }
+    assert all(
+        brief["runtime"] == live_constitution["runtime"]
+        for brief in live_constitution["job_briefs"].values()
+    )
     plugin = home / "plugins/tgg-whatsapp-evidence"
     assert plugin.is_symlink()
     assert plugin.resolve() == (release / "plugins/tgg-whatsapp-evidence").resolve()
@@ -572,29 +626,17 @@ def test_main_materializes_external_capability_and_receipt(
     ).resolve()
     receipt = json.loads((home / "runtime/engine-slot-receipt.json").read_text())
     assert receipt["configuration_source"] == "external-capability"
+    assert receipt["host_config_authoritative"] is True
     assert receipt["capability_release_id"] == "test-release"
     assert receipt["capability_manifest_sha256"] == digest(release / "manifest.json")
 
 
-def test_engine_slot_overlays_runtime_fields_on_external_capability(
+def test_preserve_host_config_accepts_unrelated_values_without_slot_reserialization(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     module = load_module()
-    home, _runtime, release = make_release(tmp_path)
-    config_path = release / "christopher-slot-config.yaml"
-    stale_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    stale_config["pa"]["media_retention"].pop("min_free_bytes", None)
-    stale_config["pa"]["media_retention"]["min_free_percent"] = 20
-    config_path.write_text(yaml.safe_dump(stale_config, sort_keys=False), encoding="utf-8")
-    manifest_path = release / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["files"]["christopher-slot-config.yaml"] = digest(config_path)
-    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
-    sums = {**manifest["files"], "manifest.json": digest(manifest_path)}
-    (release / "SHA256SUMS").write_text(
-        "".join(f"{value}  {name}\n" for name, value in sorted(sums.items())),
-        encoding="utf-8",
-    )
+    home, _runtime, _release = make_release(tmp_path)
+    config_before = (home / "config.yaml").read_bytes()
     monkeypatch.setattr(module.pwd, "getpwnam", lambda _name: SimpleNamespace(pw_uid=501))
     monkeypatch.setattr(module.grp, "getgrnam", lambda _name: SimpleNamespace(gr_gid=20))
     monkeypatch.setattr(module.os, "chown", lambda *_args: None)
@@ -609,23 +651,14 @@ def test_engine_slot_overlays_runtime_fields_on_external_capability(
             "--hermes-home",
             str(home),
             "--slot",
-            "gpt-5.6-terra-high",
-            "--provider-profile",
-            "openai-codex",
-            "--credential-label",
-            "teren-temporary",
+            "gpt-5.6-terra-medium",
+            "--preserve-host-config",
         ],
     )
 
     assert module.main() == 0
 
-    config = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
-    assert config["model"]["provider"] == "openai-codex"
-    assert config["model"]["credential_label"] == "teren-temporary"
-    assert config["model"]["default"] == "gpt-5.6-terra"
-    assert config["agent"]["reasoning_effort"] == "high"
-    assert config["pa"]["media_retention"]["min_free_bytes"] == 5 * 1024**3
-    assert "min_free_percent" not in config["pa"]["media_retention"]
+    assert (home / "config.yaml").read_bytes() == config_before
     assert (home / "plugins/tgg-whatsapp-evidence").is_symlink()
 
 

@@ -427,40 +427,14 @@ loader = importlib.util.module_from_spec(loader_spec)
 loader_spec.loader.exec_module(loader)
 capability = loader._external_capability(runtime, home, slot)
 if capability:
-    source_config_path = capability["config_path"]
-    source_constitution_path = capability["constitution_path"]
     for plugin_name, plugin_source in capability["plugin_sources"].items():
         plugin_link = home / "plugins" / plugin_name
         assert plugin_link.is_symlink(), plugin_link
         assert plugin_link.resolve(strict=True) == plugin_source.resolve(strict=True)
-else:
-    source_config_path = deploy / "runtime-slots" / slot / "config.yaml"
-    source_constitution_path = deploy / "runtime-slots" / slot / "christopher_tgg_constitution.yaml"
-expected_config = yaml.safe_load(source_config_path.read_text())
-if capability:
-    selected_slot_config = yaml.safe_load(
-        (deploy / "runtime-slots" / slot / "config.yaml").read_text()
-    )
-    # Capabilities own tools/instructions. The selected engine slot owns the
-    # model, reasoning effort, and disk-retention contract applied at boot.
-    expected_config["model"] = selected_slot_config["model"]
-    expected_config["pa"]["media_retention"] = selected_slot_config["pa"]["media_retention"]
-    expected_config["pa"]["constitution_path"] = str(
-        home / "christopher_tgg_constitution.yaml"
-    )
-    expected_config["agent"].pop("reasoning_effort", None)
-    if "reasoning_effort" in selected_slot_config["agent"]:
-        expected_config["agent"]["reasoning_effort"] = selected_slot_config["agent"]["reasoning_effort"]
 config_enabled = config["pa"]["enabled"]
 assert isinstance(config_enabled, bool)
-# ExecStartPre preserves the activation-owned live key while every authored
-# slot stays disabled by default.  Normalize only that key before comparing;
-# every other config field must remain byte-semantically equal to the slot.
-normalized_config = json.loads(json.dumps(config))
-normalized_config["pa"]["enabled"] = False
-normalized_config["model"]["provider"] = "openai-direct-primary"
-normalized_config["model"].pop("credential_label", None)
-assert normalized_config == expected_config
+# Host config is authoritative. Verify only the runtime and capability
+# contracts consumed here; unrelated host values must survive deploys.
 assert config["group_sessions_per_user"] is False
 assert config["timezone"] == "Asia/Singapore"
 assert config["session_reset"] == {"mode": "none"}
@@ -487,18 +461,22 @@ assert {
     "fetch-sources", "preview-reconcile", "apply-reconcile",
     "generate", "get-reports", "status",
 }.issubset(report_operations["operations"])
-expected_plugins = expected_config["plugins"]["enabled"]
-assert config["plugins"]["enabled"] == expected_plugins
+if capability:
+    required_plugins = {
+        item["id"] for item in capability["compatibility"]["requirements"]
+    }
+    assert required_plugins.issubset(set(config["plugins"]["enabled"]))
 management = constitution["job_briefs"]["tgg_management"]
 assert "report-operations" in management["enabled_toolsets"]
 assert "report-operations" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
 if capability:
     assert "tgg-whatsapp-evidence" in management["enabled_toolsets"]
     assert "tgg-whatsapp-evidence" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
-    assert "127.0.0.1:5197" not in source_config_path.read_text()
     manifest = json.loads((capability["release_root"] / "manifest.json").read_text())
     receipt = json.loads((runtime / "engine-slot-receipt.json").read_text())
     assert receipt["configuration_source"] == "external-capability"
+    assert receipt["host_config_authoritative"] is True
+    assert receipt["config_sha256"] == sha(home / "config.yaml")
     assert receipt["capability_release_id"] == capability["release_id"]
     assert receipt["capability_manifest_sha256"] == capability["manifest_sha256"]
     systems = manifest["systems"]

@@ -80,6 +80,7 @@ fi
 "$APP_ROOT/.venv/bin/python" "$DEPLOY_ROOT/scripts/apply_engine_slot.py" \
   --app-root "$APP_ROOT" \
   --hermes-home "$HERMES_HOME" \
+  --preserve-host-config \
   "${slot_args[@]}"
 
 if [[ ! -e "$RUNTIME_ROOT/capture-cursor.json" ]]; then
