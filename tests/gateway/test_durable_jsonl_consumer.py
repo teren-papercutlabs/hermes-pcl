@@ -2829,6 +2829,55 @@ async def test_nightly_selector_runs_in_fresh_session_while_management_stays_per
     assert observed == [False]
 
 
+@pytest.mark.asyncio
+async def test_validated_continuous_interval_reuses_persistent_nightly_chat_session(
+    tmp_path, monkeypatch
+):
+    nightly_chat = "900000000000000001@g.us"
+    batch_id = "nightly:2026-08-27:0123456789ab"
+    event = _message("continuous-amk", nightly_chat)
+    event.update({
+        "senderId": "system@internal",
+        "metadata": {
+            "job_type": "tgg_nightly_whatsapp",
+            "nightly_batch_id": batch_id,
+            "nightly_role": "amk",
+            "authoritative_chat_id": "120363421424519051@g.us",
+            "continuous_interval": True,
+            "continuous_contract": "tgg-christopher-continuous-interval/v1",
+        },
+    })
+    args = _enabled_consumer_args(tmp_path, [event])
+    constitution = Path(yaml.safe_load(Path(args.config).read_text())["pa"]["constitution_path"])
+    constitution.write_text(yaml.safe_dump({
+        "selectors": [{"job_type": "tgg_nightly_whatsapp", "match": {
+            "source.platform": "whatsapp", "source.chat_id": nightly_chat,
+        }}],
+    }), encoding="utf-8")
+    record = consumer.InboxRecord(1, "continuous-amk", nightly_chat, 1, 1, event)
+    assert consumer._continuous_interval_trigger(record, Path(args.config))
+    tampered = json.loads(json.dumps(event))
+    tampered["metadata"]["continuous_contract"] = "untrusted/v1"
+    assert not consumer._continuous_interval_trigger(
+        consumer.InboxRecord(2, "tampered", nightly_chat, 2, 2, tampered), Path(args.config),
+    )
+    observed = []
+
+    async def fake_process(records, **kwargs):
+        observed.append(kwargs["persistent_session"])
+        return {
+            "processed": len(records),
+            "submitted_message_ids": [item.message_id for item in records],
+            "handled": [{"message_ids": [item.message_id for item in records], "turn_id": "turn-continuous"}],
+            "captured_outbound": [],
+        }
+
+    monkeypatch.setattr(consumer, "process_live_records", fake_process)
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    assert await consumer.run_consumer(args) == 0
+    assert observed == [True]
+
+
 def test_management_chat_waits_for_configured_trailing_quiet(tmp_path):
     inbox = consumer.DurableInbox(tmp_path / "inbox.db")
     source = tmp_path / "events.jsonl"
