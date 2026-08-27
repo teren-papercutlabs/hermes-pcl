@@ -379,6 +379,10 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert "--preserve-host-config" in bootstrap
     service = (DEPLOY_ROOT / "systemd/christopher-tgg-hermes.service").read_text()
     assert "--preserve-host-config" in service
+    assert (
+        "Environment=TGG_CONTINUOUS_STATE_DIR=/var/lib/tgg-continuous-whatsapp/state"
+        in service
+    )
     assert "for _ in range(30):" in verify_script
     assert 'current_status["active_management_chats"]' in verify_script
     assert 'set(datasets) == {"cases", "documents", "media"}' in verify_script

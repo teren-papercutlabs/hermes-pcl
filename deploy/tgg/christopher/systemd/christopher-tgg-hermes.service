@@ -15,6 +15,7 @@ Environment=HOME=/home/pclaw
 Environment=USER=pclaw
 Environment=LOGNAME=pclaw
 Environment=HERMES_HOME=/home/pclaw/.hermes-christopher-tgg
+Environment=TGG_CONTINUOUS_STATE_DIR=/var/lib/tgg-continuous-whatsapp/state
 Environment=PATH=/home/pclaw/apps/hermes-pcl/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=VIRTUAL_ENV=/home/pclaw/apps/hermes-pcl/.venv
 Environment=PYTHONDONTWRITEBYTECODE=1
