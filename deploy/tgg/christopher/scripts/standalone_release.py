@@ -526,10 +526,12 @@ def control_state(home: Path) -> dict[str, Any]:
             "gate_enabled": bool(json.loads(gate.read_text()).get("enabled")),
             "timer_active": systemctl_status(timer, "is-active"),
             "timer_enabled": systemctl_status(timer, "is-enabled")}
-    # The 18-August rollout is intentionally manual; a release must not turn
-    # an unattended timer into an accidental side effect.
-    if controls["timer_active"]["state"] != "inactive":
-        raise ReleaseError("nightly timer must remain inactive for this rollout")
+    # The release never owns the nightly schedule. PA-71 deliberately keeps an
+    # already-active timer as fallback; the before/after control-state equality
+    # below proves the release did not change it. A failed timer is never an
+    # acceptable baseline.
+    if controls["timer_active"]["state"] not in {"active", "inactive"}:
+        raise ReleaseError("nightly timer baseline is failed")
     return controls
 
 

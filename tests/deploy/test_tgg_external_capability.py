@@ -28,6 +28,17 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def test_capability_path_gate_admits_only_the_owned_post_compaction_module() -> None:
+    module = load_module()
+    assert module._capability_skill_files({
+        "plugins/tgg-whatsapp-evidence/post_compaction.py": "digest",
+    }) == {}
+    with pytest.raises(RuntimeError, match="external capability file path is not allowed"):
+        module._capability_skill_files({
+            "plugins/tgg-nightly-whatsapp/post_compaction.py": "digest",
+        })
+
+
 def test_live_host_runtime_identity_is_validated_without_reserializing(
     tmp_path: Path,
 ) -> None:
