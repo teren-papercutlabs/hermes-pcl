@@ -373,12 +373,12 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert "ssh" not in deploy_script
 
     verify_script = VERIFY.read_text()
-    assert 'expected_config["model"] = selected_slot_config["model"]' in verify_script
-    assert (
-        'expected_config["pa"]["media_retention"] = '
-        'selected_slot_config["pa"]["media_retention"]'
-        in verify_script
-    )
+    assert "normalized_config == expected_config" not in verify_script
+    assert "Host config is authoritative" in verify_script
+    assert "required_plugins.issubset" in verify_script
+    assert "--preserve-host-config" in bootstrap
+    service = (DEPLOY_ROOT / "systemd/christopher-tgg-hermes.service").read_text()
+    assert "--preserve-host-config" in service
     assert "for _ in range(30):" in verify_script
     assert 'current_status["active_management_chats"]' in verify_script
     assert 'set(datasets) == {"cases", "documents", "media"}' in verify_script

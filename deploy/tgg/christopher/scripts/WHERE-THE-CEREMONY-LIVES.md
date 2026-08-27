@@ -40,6 +40,13 @@ Deploy and provisioning only: `activate_processing.py` (the go-live *gate*, whic
 `apply_engine_slot.py`, `bootstrap_runtime.sh`, `build_runtime_slots.py`,
 `verify_runtime.sh`, and friends.
 
+Capability activation does not own the live host configuration. Bootstrap and
+the service `ExecStartPre` invoke `apply_engine_slot.py --preserve-host-config`:
+the loader validates the capability's bounded plugin/tool contract against the
+live `config.yaml`, materializes the capability constitution and plugin links,
+and proves the config bytes unchanged. Only the separate explicit engine/provider
+switch commands may rewrite the runtime fields they administer.
+
 The distinction that matters: **`activate_processing.py` READS check state; it does not
 retire checks.** Reading it and finding no retirement is not evidence that the ceremony
 never retires — it is evidence you are looking at the consumer, not the implementation.

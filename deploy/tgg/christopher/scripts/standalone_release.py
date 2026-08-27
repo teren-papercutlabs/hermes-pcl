@@ -534,8 +534,8 @@ def control_state(home: Path) -> dict[str, Any]:
 
 
 def operational_controls_unchanged(before: dict[str, Any], after: dict[str, Any]) -> bool:
-    """Capability config may change; gate and schedule must not change implicitly."""
-    keys = ("gate_sha256", "gate_enabled", "timer_active", "timer_enabled")
+    """Host config, processing gate, and schedule must remain byte-identical."""
+    keys = ("config_sha256", "gate_sha256", "gate_enabled", "timer_active", "timer_enabled")
     return all(before.get(key) == after.get(key) for key in keys)
 
 
@@ -556,7 +556,7 @@ def focused_verify(root: Path, home: Path, expected: dict[str, Any], before_cont
     if controls["gate_enabled"] != enabled:
         raise ReleaseError("processing gate disagrees with configuration")
     if not operational_controls_unchanged(before_controls, controls):
-        raise ReleaseError("release changed processing gate or timer state")
+        raise ReleaseError("release changed host config, processing gate, or timer state")
     engine = json.loads((home / "runtime/engine-slot-receipt.json").read_text(encoding="utf-8"))
     profile = json.loads((home / "runtime/provider-profile.json").read_text(encoding="utf-8"))
     if engine.get("config_sha256") != controls["config_sha256"]:
@@ -677,7 +677,11 @@ def apply(args: argparse.Namespace) -> int:
                 if old["runtime"]: replace_pointer(root / "runtime/current", Path(old["runtime"]))
                 if old["capability"]:
                     replace_pointer(root / "capability/current", Path(old["capability"]))
-                    replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(old["capability"]))
+                if old["home_capability"]:
+                    replace_pointer(
+                        home / "runtime/capabilities/christopher-tgg/current",
+                        Path(old["home_capability"]),
+                    )
                 for name, target in (old.get("plugins") or {}).items():
                     restore_pointer(home / "plugins" / name, target)
                 recover_service()
@@ -691,24 +695,106 @@ def apply(args: argparse.Namespace) -> int:
     return 0
 
 
+def _rollback_release_target(value: Any, releases_root: Path, label: str) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise ReleaseError(f"receipt {label} rollback target is invalid")
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        raise ReleaseError(f"receipt {label} rollback target is not absolute")
+    try:
+        root = releases_root.resolve(strict=True)
+        target = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise ReleaseError(f"receipt {label} rollback target does not exist") from exc
+    if not target.is_dir() or target.parent != root:
+        raise ReleaseError(f"receipt {label} rollback target escapes its release root")
+    return target
+
+
+def validated_rollback_targets(
+    receipt: dict[str, Any], root: Path, home: Path
+) -> dict[str, Any]:
+    """Validate an untrusted committed receipt before any rollback mutation."""
+    if not isinstance(receipt, dict):
+        raise ReleaseError("receipt must be a JSON object")
+    if receipt.get("schema") != SCHEMA or receipt.get("status") != "committed":
+        raise ReleaseError("receipt is not a committed standalone release")
+    before = receipt.get("before")
+    if not isinstance(before, dict):
+        raise ReleaseError("receipt has no rollback targets")
+    plugins = before.get("plugins")
+    if not isinstance(plugins, dict):
+        raise ReleaseError("receipt plugin rollback targets are invalid")
+    targets: dict[str, Any] = {
+        "runtime": _rollback_release_target(
+            before.get("runtime"), root / "runtime/releases", "runtime"
+        ),
+        "capability": _rollback_release_target(
+            before.get("capability"),
+            home / "runtime/capabilities/christopher-tgg/releases",
+            "capability",
+        ),
+        "home_capability": _rollback_release_target(
+            before.get("home_capability"),
+            home / "runtime/capabilities/christopher-tgg/releases",
+            "home capability",
+        ),
+        "plugins": {},
+    }
+    home_releases = (
+        home / "runtime/capabilities/christopher-tgg/releases"
+    ).resolve(strict=True)
+    for name, value in plugins.items():
+        if (
+            not isinstance(name, str)
+            or not name
+            or Path(name).name != name
+            or name in {".", ".."}
+            or (value is not None and (not isinstance(value, str) or not value.strip()))
+        ):
+            raise ReleaseError("receipt plugin rollback targets are invalid")
+        if value is None:
+            targets["plugins"][name] = None
+            continue
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            raise ReleaseError(f"receipt plugin rollback target is not absolute: {name}")
+        try:
+            target = candidate.resolve(strict=True)
+            relative = target.relative_to(home_releases)
+        except (OSError, ValueError) as exc:
+            raise ReleaseError(
+                f"receipt plugin rollback target escapes capability releases: {name}"
+            ) from exc
+        if (
+            not target.is_dir()
+            or len(relative.parts) != 3
+            or relative.parts[1:] != ("plugins", name)
+        ):
+            raise ReleaseError(f"receipt plugin rollback target is invalid: {name}")
+        targets["plugins"][name] = target
+    return targets
+
+
 def rollback(args: argparse.Namespace) -> int:
     receipt = json.loads(Path(args.receipt).read_text(encoding="utf-8"))
-    before = receipt.get("before") or {}
-    if not before.get("runtime") or not before.get("capability") or not isinstance(before.get("plugins"), dict):
-        raise ReleaseError("receipt has no rollback targets")
     root, home = Path(args.root), Path(args.hermes_home)
+    targets = validated_rollback_targets(receipt, root, home)
     unit_path = Path(getattr(args, "systemd_unit", DEFAULT_UNIT))
     with ExclusiveActivityLock(root / "release-activity.lock"):
         if processing_rows(home / "runtime/capture-inbox.db"):
             raise ReleaseError("Christopher is processing; rollback refused")
         ensure_plugin_pointer_directory(home)
         ensure_vision_receipt_tree(home)
-        replace_pointer(root / "runtime/current", Path(before["runtime"]))
-        replace_pointer(root / "capability/current", Path(before["capability"]))
-        replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(before["capability"]))
-        for name, target in before["plugins"].items():
-            restore_pointer(home / "plugins" / name, target)
-        prior_runtime_unit = Path(before["runtime"]) / UNIT_REL
+        replace_pointer(root / "runtime/current", targets["runtime"])
+        replace_pointer(root / "capability/current", targets["capability"])
+        replace_pointer(
+            home / "runtime/capabilities/christopher-tgg/current",
+            targets["home_capability"],
+        )
+        for name, target in targets["plugins"].items():
+            restore_pointer(home / "plugins" / name, str(target) if target else None)
+        prior_runtime_unit = targets["runtime"] / UNIT_REL
         install_unit(prior_runtime_unit, unit_path)
         command(["systemctl", "daemon-reload"])
         restart_service()

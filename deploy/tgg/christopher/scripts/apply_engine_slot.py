@@ -36,8 +36,8 @@ SLOT_REASONING_EFFORT = {
 ALLOWED_SLOTS = tuple(SLOT_MODELS)
 DEFAULT_SLOT = ALLOWED_SLOTS[0]
 CAPABILITY_ID = "christopher-tgg"
+CAPABILITY_COMPATIBILITY_CONTRACT = "christopher-tgg-host-config/v1"
 CAPABILITY_BASE_FILES = frozenset({
-    "christopher-slot-config.yaml",
     "christopher_tgg_constitution.yaml",
     "plugins/tgg-whatsapp-evidence/__init__.py",
     "plugins/tgg-whatsapp-evidence/plugin.yaml",
@@ -67,6 +67,16 @@ DEFAULT_PROVIDER_PROFILE = "openai-direct-primary"
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _file_identity(path: Path) -> dict[str, int | str]:
+    value = path.stat()
+    return {
+        "sha256": _sha256(path),
+        "mode": value.st_mode & 0o777,
+        "uid": value.st_uid,
+        "gid": value.st_gid,
+    }
 
 
 def _expected_hashes(slots_root: Path) -> dict[str, str]:
@@ -187,6 +197,54 @@ def _apply_provider_profile(
         _atomic_write_yaml(constitution_path, constitution, mode=0o644, uid=uid, gid=gid)
 
 
+def _apply_constitution_runtime(
+    constitution_path: Path,
+    *,
+    provider: str,
+    model: str,
+    uid: int,
+    gid: int,
+) -> None:
+    """Overlay runtime identity onto instructions without touching host config."""
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
+    original = json.loads(json.dumps(constitution))
+    constitution["runtime"] = {"provider": provider, "model": model}
+    for brief in constitution.get("job_briefs", {}).values():
+        if isinstance(brief, dict):
+            brief["runtime"] = {"provider": provider, "model": model}
+    if constitution != original:
+        _atomic_write_yaml(constitution_path, constitution, mode=0o644, uid=uid, gid=gid)
+
+
+def _validate_live_runtime_config(config_path: Path, slot: str) -> tuple[str, str | None]:
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    model = config.get("model") or {}
+    agent = config.get("agent") or {}
+    pa = config.get("pa") or {}
+    provider = model.get("provider")
+    credential_label = model.get("credential_label")
+    if provider not in PROVIDER_PROFILES:
+        raise RuntimeError(f"live host provider is invalid: {provider!r}")
+    if provider == "openai-codex":
+        if not isinstance(credential_label, str) or not credential_label.strip():
+            raise RuntimeError("live openai-codex config requires credential_label")
+        credential_label = credential_label.strip()
+    elif credential_label is not None:
+        raise RuntimeError("live direct provider must not carry credential_label")
+    if model.get("default") != SLOT_MODELS[slot]:
+        raise RuntimeError("live host model does not match selected engine slot")
+    effort = agent.get("reasoning_effort")
+    if effort != SLOT_REASONING_EFFORT.get(slot):
+        raise RuntimeError("live host reasoning effort does not match selected engine slot")
+    if not isinstance(pa.get("enabled"), bool):
+        raise RuntimeError("live host processing state must be boolean")
+    if config.get("group_sessions_per_user") is not False:
+        raise RuntimeError("live host group session contract invalid")
+    if (config.get("platforms") or {}).get("whatsapp", {}).get("enabled") is not False:
+        raise RuntimeError("live host generic WhatsApp adapter must remain disabled")
+    return provider, credential_label
+
+
 def _apply_slot_runtime_contract(
     config_path: Path,
     constitution_path: Path,
@@ -258,22 +316,6 @@ def _validate_runtime_pair(config_path: Path, constitution_path: Path, slot: str
     assert constitution["runtime"] == {
         "provider": "openai-direct-primary",
         "model": model,
-    }
-
-
-def _validate_capability_runtime_baseline(config_path: Path, constitution_path: Path) -> None:
-    """Validate capability engine metadata without making it authoritative."""
-    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
-    assert config["pa"]["enabled"] is False
-    provider = config["model"].get("provider")
-    assert isinstance(provider, str) and provider
-    assert config["model"]["default"] in set(SLOT_MODELS.values())
-    effort = config.get("agent", {}).get("reasoning_effort")
-    assert effort is None or effort in {"low", "medium", "high", "xhigh"}
-    assert constitution["runtime"] == {
-        "provider": provider,
-        "model": config["model"]["default"],
     }
 
 
@@ -371,6 +413,90 @@ def _validate_capability_skills(release_root: Path, grouped: dict[str, set[str]]
                 )
 
 
+def _capability_compatibility(
+    manifest: dict[str, Any],
+    release_root: Path,
+    hermes_home: Path,
+    current: Path,
+    files: dict[str, str],
+    skill_files: dict[str, set[str]],
+) -> dict[str, Any]:
+    compatibility = manifest.get("compatibility")
+    if (
+        not isinstance(compatibility, dict)
+        or set(compatibility) != {"contract", "plugins"}
+        or compatibility.get("contract") != CAPABILITY_COMPATIBILITY_CONTRACT
+    ):
+        raise RuntimeError("external capability compatibility contract invalid")
+    requirements = compatibility.get("plugins")
+    if not isinstance(requirements, list) or not requirements:
+        raise RuntimeError("external capability compatibility plugins invalid")
+    config_path = hermes_home / "config.yaml"
+    if not config_path.is_file() or config_path.is_symlink():
+        raise RuntimeError("live host config is missing")
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    enabled_plugins = (config.get("plugins") or {}).get("enabled")
+    if not isinstance(enabled_plugins, list):
+        raise RuntimeError("live host enabled plugin list is invalid")
+    plugin_ids: list[str] = []
+    tool_ids: list[str] = []
+    bundled_plugins = {
+        relative.split("/")[1]
+        for relative in files
+        if relative.startswith("plugins/") and len(relative.split("/")) == 3
+    }
+    declared_bundled: set[str] = set()
+    for requirement in requirements:
+        if not isinstance(requirement, dict) or set(requirement) != {"id", "tools"}:
+            raise RuntimeError("external capability plugin requirement invalid")
+        plugin_id = requirement.get("id")
+        required_tools = requirement.get("tools")
+        if (
+            not isinstance(plugin_id, str)
+            or not plugin_id
+            or not isinstance(required_tools, list)
+            or not required_tools
+            or any(not isinstance(tool, str) or not tool for tool in required_tools)
+            or len(required_tools) != len(set(required_tools))
+        ):
+            raise RuntimeError("external capability plugin requirement invalid")
+        plugin_ids.append(plugin_id)
+        tool_ids.extend(required_tools)
+        if enabled_plugins.count(plugin_id) != 1:
+            raise RuntimeError(f"live host required plugin missing: {plugin_id}")
+        bundled_descriptor = release_root / "plugins" / plugin_id / "plugin.yaml"
+        host_descriptor = hermes_home / "plugins" / plugin_id / "plugin.yaml"
+        descriptor_path = bundled_descriptor if bundled_descriptor.is_file() else host_descriptor
+        if not descriptor_path.is_file():
+            raise RuntimeError(f"required plugin descriptor missing: {plugin_id}")
+        descriptor = yaml.safe_load(descriptor_path.read_text(encoding="utf-8")) or {}
+        provided = descriptor.get("provides_tools")
+        if descriptor.get("name") != plugin_id or not isinstance(provided, list):
+            raise RuntimeError(f"required plugin descriptor invalid: {plugin_id}")
+        missing_tools = sorted(set(required_tools) - set(provided))
+        if missing_tools:
+            raise RuntimeError(
+                f"required plugin tools missing: {plugin_id}:{','.join(missing_tools)}"
+            )
+        if bundled_descriptor.is_file():
+            declared_bundled.add(plugin_id)
+    if len(plugin_ids) != len(set(plugin_ids)) or len(tool_ids) != len(set(tool_ids)):
+        raise RuntimeError("external capability compatibility identity duplicate")
+    if declared_bundled != bundled_plugins:
+        raise RuntimeError("external capability bundled plugin declaration mismatch")
+    if skill_files:
+        external_dirs = (config.get("skills") or {}).get("external_dirs")
+        expected = str(current / "skills")
+        if not isinstance(external_dirs, list) or expected not in external_dirs:
+            raise RuntimeError("live host capability skills path missing")
+    expected_constitution = hermes_home / "christopher_tgg_constitution.yaml"
+    if Path((config.get("pa") or {}).get("constitution_path", "")) != expected_constitution:
+        raise RuntimeError("live host constitution path is incompatible")
+    return {
+        "contract": CAPABILITY_COMPATIBILITY_CONTRACT,
+        "requirements": requirements,
+        "bundled_plugins": sorted(bundled_plugins),
+    }
 def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> dict[str, Any] | None:
     capability_root = runtime_root / "capabilities" / CAPABILITY_ID
     current = capability_root / "current"
@@ -410,18 +536,16 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
         ):
             raise RuntimeError(f"external capability checksum mismatch: {relative}")
     _validate_capability_skills(release_root, skill_files)
-    config_path = release_root / "christopher-slot-config.yaml"
     constitution_path = release_root / "christopher_tgg_constitution.yaml"
-    _validate_capability_runtime_baseline(config_path, constitution_path)
-    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8"))
-    includes_external_skills = bool(skill_files)
-    expected_external_dirs = (
-        [str(current / "skills")] if includes_external_skills else []
+    compatibility = _capability_compatibility(
+        manifest,
+        release_root,
+        hermes_home,
+        current,
+        files,
+        skill_files,
     )
-    configured_external_dirs = config.get("skills", {}).get("external_dirs", [])
-    if configured_external_dirs != expected_external_dirs:
-        raise RuntimeError("external capability skills path mismatch")
     # Christopher has one production runtime. Both the real and test
     # management chats are permanent selectors; testing is traffic sent to
     # the test chat, never a restricted shadow/canary release.
@@ -433,24 +557,19 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
     }
     if not SHARED_MANAGEMENT_CHAT_IDS.issubset(management_chat_ids):
         raise RuntimeError("external capability shared management selector missing")
-    configured_constitution = Path(config["pa"]["constitution_path"])
-    expected_constitution = current / "christopher_tgg_constitution.yaml"
-    if configured_constitution != expected_constitution:
-        raise RuntimeError("external capability constitution path mismatch")
     plugin_names = sorted({
         relative.split("/")[1]
         for relative in files
         if relative.startswith("plugins/") and len(relative.split("/")) == 3
     })
-    enabled_plugins = config.get("plugins", {}).get("enabled", [])
     if "tgg-whatsapp-evidence" not in plugin_names:
         raise RuntimeError("external WhatsApp evidence plugin missing")
     for name in plugin_names:
         expected_files = {
             f"plugins/{name}/__init__.py", f"plugins/{name}/plugin.yaml",
         }
-        if not expected_files <= set(files) or enabled_plugins.count(name) != 1:
-            raise RuntimeError(f"external capability plugin incomplete or disabled: {name}")
+        if not expected_files <= set(files):
+            raise RuntimeError(f"external capability plugin incomplete: {name}")
     includes_per_case_plugin = "tgg-per-case-whatsapp" in plugin_names
     includes_per_case_helpers = CAPABILITY_PER_CASE_HELPER_FILES.issubset(files)
     if includes_per_case_plugin != includes_per_case_helpers:
@@ -463,8 +582,8 @@ def _external_capability(runtime_root: Path, hermes_home: Path, slot: str) -> di
         "release_root": release_root,
         "release_id": manifest["release_id"],
         "manifest_sha256": _sha256(manifest_path),
-        "config_path": config_path,
         "constitution_path": constitution_path,
+        "compatibility": compatibility,
         "plugin_source": plugin_source,
         "plugin_link": hermes_home / "plugins" / "tgg-whatsapp-evidence",
         "plugin_sources": plugin_sources,
@@ -493,6 +612,11 @@ def main() -> int:
     parser.add_argument("--slot", choices=ALLOWED_SLOTS)
     parser.add_argument("--provider-profile", choices=sorted(PROVIDER_PROFILES))
     parser.add_argument("--credential-label")
+    parser.add_argument(
+        "--preserve-host-config",
+        action="store_true",
+        help="validate the live config and materialize only runtime-owned state",
+    )
     args = parser.parse_args()
 
     app_root = Path(args.app_root).resolve()
@@ -515,7 +639,8 @@ def main() -> int:
             )
 
     capability = _external_capability(runtime_root, hermes_home, selected)
-    config_source = capability["config_path"] if capability else slot_root / "config.yaml"
+    live_config_path = hermes_home / "config.yaml"
+    config_source = live_config_path if capability else slot_root / "config.yaml"
     constitution_source = (
         capability["constitution_path"]
         if capability
@@ -524,6 +649,22 @@ def main() -> int:
 
     user = pwd.getpwnam("pclaw")
     group = grp.getgrnam("pclaw")
+    host_config_before: dict[str, int | str] | None = None
+    if args.preserve_host_config:
+        if args.provider_profile or args.credential_label:
+            raise RuntimeError(
+                "provider selection is not allowed while preserving host config"
+            )
+        host_config_before = _file_identity(live_config_path)
+        provider, credential_label = _validate_live_runtime_config(
+            live_config_path,
+            selected,
+        )
+        declared_provider, declared_label = _read_provider_profile(profile_file)
+        if (provider, credential_label) != (declared_provider, declared_label):
+            raise RuntimeError("live host config and provider profile disagree")
+    else:
+        provider = credential_label = None
     if args.provider_profile:
         if args.provider_profile == "openai-codex" and not (args.credential_label or "").strip():
             raise RuntimeError("--credential-label is required for openai-codex")
@@ -535,56 +676,45 @@ def main() -> int:
              "credential_label": (args.credential_label or "").strip() or None},
             mode=0o640, uid=0, gid=group.gr_gid,
         )
-    provider, credential_label = _read_provider_profile(profile_file)
-    # The LIVE processing key is owned by the activation transaction
-    # (processing_activation_transaction.py flips config pa.enabled + the gate
-    # file together, both-or-neither), NOT by the slot: every slot file pins
-    # pa.enabled false as its authored disabled-state default. This script
-    # runs as ExecStartPre on EVERY service start — re-imposing the slot copy
-    # verbatim silently reverted an in-flight activation's pa.enabled=true one
-    # second after the transaction wrote it (2026-07-21 rounds 6 and 7:
-    # config false + gate true -> consumer standby -> 20s confirmation
-    # timeout -> fail-closed rollback, engine-slot receipt stamped between the
-    # transaction's write and the consumer's first read). Preserve the live
-    # value across the copy; fail-closed default when unreadable. The gate
-    # file (which this script never touches) remains the second key, so a
-    # preserved-true config alone still processes nothing.
-    live_processing_enabled = False
-    live_config_path = hermes_home / "config.yaml"
-    if live_config_path.is_file():
-        pa_match = re.search(
-            r"^pa:\s*(?:#.*)?\n((?:[ \t].*\n|\n)*)",
-            live_config_path.read_text(encoding="utf-8"),
-            flags=re.MULTILINE,
-        )
-        if pa_match and re.search(
-            r"^  enabled:\s*true\s*(?:#.*)?$", pa_match.group(1), flags=re.MULTILINE
-        ):
-            live_processing_enabled = True
-    _atomic_copy(
-        config_source,
-        hermes_home / "config.yaml",
-        mode=0o640,
-        uid=0,
-        gid=group.gr_gid,
-    )
-    if live_processing_enabled:
-        config_text = (hermes_home / "config.yaml").read_text(encoding="utf-8")
-        patched, count = re.subn(
-            r"(^pa:\s*(?:#.*)?\n  enabled:)\s*false(\s*(?:#.*)?$)",
-            r"\1 true\2",
-            config_text,
-            flags=re.MULTILINE,
-        )
-        if count != 1:
-            raise RuntimeError(
-                f"expected exactly one pa.enabled to re-apply the live processing key, found {count}"
+    if not args.preserve_host_config:
+        provider, credential_label = _read_provider_profile(profile_file)
+        # Explicit engine/provider switches may rewrite their owned fields,
+        # while boot/deploy callers use --preserve-host-config below.
+        live_processing_enabled = False
+        if live_config_path.is_file():
+            pa_match = re.search(
+                r"^pa:\s*(?:#.*)?\n((?:[ \t].*\n|\n)*)",
+                live_config_path.read_text(encoding="utf-8"),
+                flags=re.MULTILINE,
             )
-        patch_tmp = hermes_home / f".config.{os.getpid()}.tmp"
-        patch_tmp.write_text(patched, encoding="utf-8")
-        os.chmod(patch_tmp, 0o640)
-        os.chown(patch_tmp, 0, group.gr_gid)
-        os.replace(patch_tmp, hermes_home / "config.yaml")
+            if pa_match and re.search(
+                r"^  enabled:\s*true\s*(?:#.*)?$", pa_match.group(1), flags=re.MULTILINE
+            ):
+                live_processing_enabled = True
+        _atomic_copy(
+            config_source,
+            live_config_path,
+            mode=0o640,
+            uid=0,
+            gid=group.gr_gid,
+        )
+        if live_processing_enabled:
+            config_text = live_config_path.read_text(encoding="utf-8")
+            patched, count = re.subn(
+                r"(^pa:\s*(?:#.*)?\n  enabled:)\s*false(\s*(?:#.*)?$)",
+                r"\1 true\2",
+                config_text,
+                flags=re.MULTILINE,
+            )
+            if count != 1:
+                raise RuntimeError(
+                    f"expected exactly one pa.enabled to re-apply the live processing key, found {count}"
+                )
+            patch_tmp = hermes_home / f".config.{os.getpid()}.tmp"
+            patch_tmp.write_text(patched, encoding="utf-8")
+            os.chmod(patch_tmp, 0o640)
+            os.chown(patch_tmp, 0, group.gr_gid)
+            os.replace(patch_tmp, live_config_path)
     _atomic_copy(
         constitution_source,
         hermes_home / "christopher_tgg_constitution.yaml",
@@ -592,26 +722,36 @@ def main() -> int:
         uid=0,
         gid=group.gr_gid,
     )
-    if capability:
+    if capability and not args.preserve_host_config:
         _apply_slot_runtime_contract(
-            hermes_home / "config.yaml",
+            live_config_path,
             hermes_home / "christopher_tgg_constitution.yaml",
             slot_root=slot_root,
             uid=0,
             gid=group.gr_gid,
         )
-    _apply_provider_profile(
-        hermes_home / "config.yaml", hermes_home / "christopher_tgg_constitution.yaml",
-        provider=provider, credential_label=credential_label, model=SLOT_MODELS[selected],
-        uid=0, gid=group.gr_gid,
-    )
-    if capability:
+    if args.preserve_host_config:
+        _apply_constitution_runtime(
+            hermes_home / "christopher_tgg_constitution.yaml",
+            provider=provider,
+            model=SLOT_MODELS[selected],
+            uid=0,
+            gid=group.gr_gid,
+        )
+    else:
+        _apply_provider_profile(
+            live_config_path, hermes_home / "christopher_tgg_constitution.yaml",
+            provider=provider, credential_label=credential_label, model=SLOT_MODELS[selected],
+            uid=0, gid=group.gr_gid,
+        )
+    if capability and not args.preserve_host_config:
         _bind_live_constitution_path(
-            hermes_home / "config.yaml",
+            live_config_path,
             hermes_home / "christopher_tgg_constitution.yaml",
             uid=0,
             gid=group.gr_gid,
         )
+    if capability:
         for plugin_name, plugin_link in capability["plugin_links"].items():
             if plugin_link.exists() and not plugin_link.is_symlink():
                 raise RuntimeError(
@@ -631,6 +771,8 @@ def main() -> int:
     os.chown(slot_tmp, 0, group.gr_gid)
     os.replace(slot_tmp, slot_file)
     os.chown(hermes_home, user.pw_uid, group.gr_gid)
+    if host_config_before is not None and _file_identity(live_config_path) != host_config_before:
+        raise RuntimeError("live host config changed during runtime materialization")
 
     receipt = {
         "version": 2,
@@ -645,6 +787,7 @@ def main() -> int:
             hermes_home / "christopher_tgg_constitution.yaml"
         ),
         "configuration_source": "external-capability" if capability else "repo-engine-slot",
+        "host_config_authoritative": args.preserve_host_config,
         "capability_release_id": capability["release_id"] if capability else None,
         "capability_manifest_sha256": capability["manifest_sha256"] if capability else None,
     }

@@ -47,6 +47,62 @@ def repository_guard(commit: str) -> dict[str, str]:
     }
 
 
+def rollback_security_fixture(tmp_path: Path) -> tuple[dict, object, dict[str, str | None]]:
+    root, home = tmp_path / "root", tmp_path / "home"
+    old_runtime = root / "runtime/releases/old"
+    active_runtime = root / "runtime/releases/active"
+    home_releases = home / "runtime/capabilities/christopher-tgg/releases"
+    old_capability = home_releases / "r140"
+    active_capability = home_releases / "active-opt"
+    old_home_capability = home_releases / "r148"
+    active_home_capability = home_releases / "active-home"
+    runtime(old_runtime, "old")
+    runtime(active_runtime, "active")
+    capability(old_capability, "r140")
+    capability(active_capability, "active")
+    capability(old_home_capability, "r148")
+    capability(active_home_capability, "active")
+    for target in (old_home_capability, active_home_capability):
+        (target / "plugins/tgg").mkdir(parents=True)
+    release.replace_pointer(root / "runtime/current", active_runtime)
+    release.replace_pointer(root / "capability/current", active_capability)
+    release.replace_pointer(
+        home / "runtime/capabilities/christopher-tgg/current", active_home_capability
+    )
+    release.replace_pointer(home / "plugins/tgg", active_home_capability / "plugins/tgg")
+    (home / "config.yaml").write_text("pa:\n  enabled: false\n")
+    unit = tmp_path / "christopher.service"
+    unit.write_text("[Service]\n# active\n")
+    receipt = {
+        "schema": release.SCHEMA,
+        "status": "committed",
+        "before": {
+            "runtime": str(old_runtime),
+            "capability": str(old_capability),
+            "home_capability": str(old_home_capability),
+            "plugins": {"tgg": str(old_home_capability / "plugins/tgg")},
+        },
+    }
+    receipt_path = tmp_path / "receipt.json"
+    receipt_path.write_text(json.dumps(receipt))
+    args = type("A", (), {
+        "receipt": str(receipt_path),
+        "root": str(root),
+        "hermes_home": str(home),
+        "systemd_unit": str(unit),
+    })()
+    snapshot = {
+        "runtime": release.pointer_target(root / "runtime/current"),
+        "capability": release.pointer_target(root / "capability/current"),
+        "home_capability": release.pointer_target(
+            home / "runtime/capabilities/christopher-tgg/current"
+        ),
+        "plugin": release.pointer_target(home / "plugins/tgg"),
+        "unit": unit.read_text(),
+    }
+    return receipt, args, snapshot
+
+
 def test_prepare_builds_separately_hashed_payloads(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     rt, cap, bundle = tmp_path / "runtime", tmp_path / "capability", tmp_path / "bundle"
     runtime(rt); capability(cap)
@@ -216,16 +272,22 @@ def test_break_glass_requires_reason_and_records_audit(monkeypatch: pytest.Monke
 def test_receipt_rollback_is_exempt_from_fresh_main_lookup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, home = tmp_path / "root", tmp_path / "home"
     old_runtime = root / "runtime/releases/old"
-    old_capability = home / "runtime/capabilities/christopher-tgg/releases/oldcap"
+    home_releases = home / "runtime/capabilities/christopher-tgg/releases"
+    old_capability = home_releases / "r140"
+    old_home_capability = home_releases / "r148"
     runtime(old_runtime, "old")
-    capability(old_capability, "oldcap")
+    capability(old_capability, "r140")
+    capability(old_home_capability, "r148")
     home.mkdir(parents=True, exist_ok=True)
     (home / "config.yaml").write_text("pa:\n  enabled: false\n")
     receipt = tmp_path / "receipt.json"
     receipt.write_text(json.dumps({
+        "schema": release.SCHEMA,
+        "status": "committed",
         "before": {
             "runtime": str(old_runtime),
             "capability": str(old_capability),
+            "home_capability": str(old_home_capability),
             "plugins": {},
         }
     }))
@@ -246,7 +308,82 @@ def test_receipt_rollback_is_exempt_from_fresh_main_lookup(tmp_path: Path, monke
 
     assert release.rollback(args) == 0
     assert release.pointer_target(root / "runtime/current") == str(old_runtime)
+    assert release.pointer_target(root / "capability/current") == str(old_capability)
+    assert release.pointer_target(
+        home / "runtime/capabilities/christopher-tgg/current"
+    ) == str(old_home_capability)
     assert ["systemctl", "restart", release.SERVICE] in calls
+
+
+def test_receipt_rollback_requires_independent_home_capability_target(
+    tmp_path: Path,
+) -> None:
+    receipt, args, _snapshot = rollback_security_fixture(tmp_path)
+    receipt["before"].pop("home_capability")
+    Path(args.receipt).write_text(json.dumps(receipt))
+
+    with pytest.raises(release.ReleaseError, match="home capability rollback target"):
+        release.rollback(args)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "schema",
+        "status",
+        "runtime-type",
+        "runtime-outside",
+        "capability-outside",
+        "home-capability-outside",
+        "plugins-shape",
+        "plugin-key",
+        "plugin-outside",
+    ],
+)
+def test_untrusted_rollback_receipt_refuses_before_any_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    receipt, args, snapshot = rollback_security_fixture(tmp_path)
+    before = receipt["before"]
+    outside = tmp_path / "outside" / case
+    outside.mkdir(parents=True)
+    if case == "schema":
+        receipt["schema"] = "wrong/v1"
+    elif case == "status":
+        receipt["status"] = "rolled_back"
+    elif case == "runtime-type":
+        before["runtime"] = 42
+    elif case == "runtime-outside":
+        before["runtime"] = str(outside)
+    elif case == "capability-outside":
+        before["capability"] = str(outside)
+    elif case == "home-capability-outside":
+        before["home_capability"] = str(outside)
+    elif case == "plugins-shape":
+        before["plugins"] = []
+    elif case == "plugin-key":
+        before["plugins"] = {"../tgg": None}
+    elif case == "plugin-outside":
+        before["plugins"] = {"tgg": str(outside)}
+    Path(args.receipt).write_text(json.dumps(receipt))
+    service_calls: list[list[str]] = []
+    monkeypatch.setattr(
+        release, "command", lambda argv: service_calls.append(argv) or ""
+    )
+
+    with pytest.raises(release.ReleaseError):
+        release.rollback(args)
+
+    root, home = Path(args.root), Path(args.hermes_home)
+    assert release.pointer_target(root / "runtime/current") == snapshot["runtime"]
+    assert release.pointer_target(root / "capability/current") == snapshot["capability"]
+    assert release.pointer_target(
+        home / "runtime/capabilities/christopher-tgg/current"
+    ) == snapshot["home_capability"]
+    assert release.pointer_target(home / "plugins/tgg") == snapshot["plugin"]
+    assert Path(args.systemd_unit).read_text() == snapshot["unit"]
+    assert service_calls == []
+    assert not (root / "release-activity.lock").exists()
 
 
 def test_exclusive_release_lock_refuses_shared_consumer_lock(tmp_path: Path) -> None:
@@ -282,16 +419,51 @@ def test_restart_clears_start_limit_before_restart(monkeypatch: pytest.MonkeyPat
     assert calls == [["systemctl", "reset-failed", release.SERVICE], ["systemctl", "restart", release.SERVICE]]
 
 
-def test_capability_config_may_change_while_gate_and_timer_remain_fixed() -> None:
+def test_host_config_gate_and_timer_must_all_remain_fixed() -> None:
     before = {
         "config_sha256": "old", "gate_sha256": "gate", "gate_enabled": True,
         "timer_active": {"state": "inactive", "returncode": 3},
         "timer_enabled": {"state": "linked", "returncode": 0},
     }
     after = {**before, "config_sha256": "new"}
-    assert release.operational_controls_unchanged(before, after)
+    assert not release.operational_controls_unchanged(before, after)
+    after = dict(before)
     after["gate_enabled"] = False
     assert not release.operational_controls_unchanged(before, after)
+
+
+def test_focused_verify_rejects_host_config_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, home = tmp_path / "root", tmp_path / "home"
+    runtime_release = root / "runtime/releases/abcdef0"
+    capability_release = root / "capability/releases/newcap"
+    runtime(runtime_release, "abcdef0")
+    capability(capability_release, "newcap")
+    release.replace_pointer(root / "runtime/current", runtime_release)
+    release.replace_pointer(root / "capability/current", capability_release)
+    home.mkdir(parents=True)
+    (home / "config.yaml").write_text("pa:\n  enabled: false\n")
+    before = {
+        "config_sha256": "before-config",
+        "gate_sha256": "gate",
+        "gate_enabled": False,
+        "timer_active": {"state": "inactive", "returncode": 3},
+        "timer_enabled": {"state": "linked", "returncode": 0},
+    }
+    after = {**before, "config_sha256": "mutated-config"}
+    monkeypatch.setattr(release, "control_state", lambda _home: after)
+    monkeypatch.setattr(release, "command", lambda _argv: "active")
+    expected = {
+        "runtime_commit": "abcdef0",
+        "capability_release_id": "newcap",
+        "provider": "provider",
+        "model": "model",
+        "reasoning_effort": "medium",
+    }
+
+    with pytest.raises(release.ReleaseError, match="changed host config"):
+        release.focused_verify(root, home, expected, before)
 
 
 def test_release_tree_is_made_read_only_without_losing_execute_bits(tmp_path: Path) -> None:
@@ -377,13 +549,17 @@ def test_vision_receipt_tree_rejects_symlink_entries(tmp_path: Path) -> None:
 
 def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, home = tmp_path / "root", tmp_path / "home"
-    old_runtime, old_cap = root / "runtime/releases/old", root / "capability/releases/old"
+    old_runtime = root / "runtime/releases/old"
+    home_releases = home / "runtime/capabilities/christopher-tgg/releases"
+    old_cap, old_home_cap = home_releases / "r140", home_releases / "r148"
     runtime(old_runtime, "old"); capability(old_cap, "oldcap")
+    capability(old_home_cap, "r148")
     (old_cap / "plugins/tgg").mkdir(parents=True)
+    (old_home_cap / "plugins/tgg").mkdir(parents=True)
     root.joinpath("runtime").mkdir(parents=True, exist_ok=True); root.joinpath("capability").mkdir(parents=True, exist_ok=True)
     release.replace_pointer(root / "runtime/current", old_runtime); release.replace_pointer(root / "capability/current", old_cap)
-    release.replace_pointer(home / "runtime/capabilities/christopher-tgg/current", old_cap)
-    release.replace_pointer(home / "plugins/tgg", old_cap / "plugins/tgg")
+    release.replace_pointer(home / "runtime/capabilities/christopher-tgg/current", old_home_cap)
+    release.replace_pointer(home / "plugins/tgg", old_home_cap / "plugins/tgg")
     (home / "runtime").mkdir(parents=True, exist_ok=True)
     (home / "config.yaml").write_text("pa:\n  enabled: false\n")
     (home / "runtime/processing-gate.json").write_text('{"enabled": false}')
@@ -413,9 +589,17 @@ def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Pat
     with pytest.raises(release.ReleaseError, match="bad verify"):
         release.apply(args)
     assert release.pointer_target(root / "runtime/current") == str(old_runtime)
-    assert release.pointer_target(home / "plugins/tgg") == str(old_cap / "plugins/tgg")
+    assert release.pointer_target(root / "capability/current") == str(old_cap)
+    assert release.pointer_target(
+        home / "runtime/capabilities/christopher-tgg/current"
+    ) == str(old_home_cap)
+    assert release.pointer_target(home / "plugins/tgg") == str(old_home_cap / "plugins/tgg")
     assert not (home / "plugins/new-plugin").exists()
     assert unit_path.read_text() == "[Service]\n# old\n"
     approved = home / "runtime/capabilities/christopher-tgg/releases/newcap"
     assert observed == {"runtime": str(root / "runtime/releases/abcdef0"), "plugin": str(approved / "plugins/tgg"), "unit": "[Service]\n# abcdef0\n"}
     assert str(approved).startswith(str(home / "runtime/capabilities/christopher-tgg/releases"))
+    rollback_receipt = next((root / "transactions").rglob("receipt.json"))
+    before = json.loads(rollback_receipt.read_text())["before"]
+    assert before["capability"] == str(old_cap)
+    assert before["home_capability"] == str(old_home_cap)
