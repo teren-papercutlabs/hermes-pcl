@@ -51,10 +51,11 @@ def rollback_security_fixture(tmp_path: Path) -> tuple[dict, object, dict[str, s
     root, home = tmp_path / "root", tmp_path / "home"
     old_runtime = root / "runtime/releases/old"
     active_runtime = root / "runtime/releases/active"
-    old_capability = root / "capability/releases/r140"
-    active_capability = root / "capability/releases/active"
-    old_home_capability = home / "runtime/capabilities/christopher-tgg/releases/r148"
-    active_home_capability = home / "runtime/capabilities/christopher-tgg/releases/active"
+    home_releases = home / "runtime/capabilities/christopher-tgg/releases"
+    old_capability = home_releases / "r140"
+    active_capability = home_releases / "active-opt"
+    old_home_capability = home_releases / "r148"
+    active_home_capability = home_releases / "active-home"
     runtime(old_runtime, "old")
     runtime(active_runtime, "active")
     capability(old_capability, "r140")
@@ -271,8 +272,9 @@ def test_break_glass_requires_reason_and_records_audit(monkeypatch: pytest.Monke
 def test_receipt_rollback_is_exempt_from_fresh_main_lookup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, home = tmp_path / "root", tmp_path / "home"
     old_runtime = root / "runtime/releases/old"
-    old_capability = root / "capability/releases/r140"
-    old_home_capability = home / "runtime/capabilities/christopher-tgg/releases/r148"
+    home_releases = home / "runtime/capabilities/christopher-tgg/releases"
+    old_capability = home_releases / "r140"
+    old_home_capability = home_releases / "r148"
     runtime(old_runtime, "old")
     capability(old_capability, "r140")
     capability(old_home_capability, "r148")
@@ -547,8 +549,9 @@ def test_vision_receipt_tree_rejects_symlink_entries(tmp_path: Path) -> None:
 
 def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root, home = tmp_path / "root", tmp_path / "home"
-    old_runtime, old_cap = root / "runtime/releases/old", root / "capability/releases/old"
-    old_home_cap = home / "runtime/capabilities/christopher-tgg/releases/r148"
+    old_runtime = root / "runtime/releases/old"
+    home_releases = home / "runtime/capabilities/christopher-tgg/releases"
+    old_cap, old_home_cap = home_releases / "r140", home_releases / "r148"
     runtime(old_runtime, "old"); capability(old_cap, "oldcap")
     capability(old_home_cap, "r148")
     (old_cap / "plugins/tgg").mkdir(parents=True)

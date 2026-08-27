@@ -730,7 +730,9 @@ def validated_rollback_targets(
             before.get("runtime"), root / "runtime/releases", "runtime"
         ),
         "capability": _rollback_release_target(
-            before.get("capability"), root / "capability/releases", "capability"
+            before.get("capability"),
+            home / "runtime/capabilities/christopher-tgg/releases",
+            "capability",
         ),
         "home_capability": _rollback_release_target(
             before.get("home_capability"),
