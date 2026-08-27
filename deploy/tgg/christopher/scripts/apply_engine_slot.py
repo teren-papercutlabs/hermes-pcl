@@ -344,9 +344,10 @@ def _capability_skill_files(files: dict[str, str]) -> dict[str, set[str]]:
         parts = relative.split("/")
         valid = relative in CAPABILITY_BASE_FILES
         if len(parts) == 3 and parts[0] == "plugins":
-            valid = bool(CAPABILITY_SKILL_SLUG.fullmatch(parts[1])) and parts[2] in {
-                "__init__.py", "plugin.yaml",
-            }
+            allowed_plugin_files = {"__init__.py", "plugin.yaml"}
+            if parts[1] == "tgg-whatsapp-evidence":
+                allowed_plugin_files.add("post_compaction.py")
+            valid = bool(CAPABILITY_SKILL_SLUG.fullmatch(parts[1])) and parts[2] in allowed_plugin_files
         elif len(parts) == 2 and parts[0] == "scripts":
             valid = bool(re.fullmatch(r"[a-z0-9][a-z0-9._-]*\.(?:py|mjs)", parts[1]))
         if not valid:

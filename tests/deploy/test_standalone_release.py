@@ -412,6 +412,39 @@ def test_systemctl_status_accepts_inactive_exit_three(monkeypatch: pytest.Monkey
     assert release.systemctl_status("nightly.timer", "is-active") == {"state": "inactive", "returncode": 3}
 
 
+def test_control_state_preserves_an_active_nightly_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    home = tmp_path / "home"
+    (home / "runtime").mkdir(parents=True)
+    (home / "config.yaml").write_text("pa:\n  enabled: true\n")
+    (home / "runtime/processing-gate.json").write_text('{"enabled":true}\n')
+    monkeypatch.setattr(
+        release, "systemctl_status",
+        lambda _unit, verb: {"state": "active", "returncode": 0}
+        if verb == "is-active" else {"state": "enabled", "returncode": 0},
+    )
+    controls = release.control_state(home)
+    assert controls["timer_active"] == {"state": "active", "returncode": 0}
+    assert controls["timer_enabled"] == {"state": "enabled", "returncode": 0}
+
+
+def test_control_state_refuses_a_failed_nightly_timer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    home = tmp_path / "home"
+    (home / "runtime").mkdir(parents=True)
+    (home / "config.yaml").write_text("pa:\n  enabled: true\n")
+    (home / "runtime/processing-gate.json").write_text('{"enabled":true}\n')
+    monkeypatch.setattr(
+        release, "systemctl_status",
+        lambda _unit, verb: {"state": "failed", "returncode": 3}
+        if verb == "is-active" else {"state": "enabled", "returncode": 0},
+    )
+    with pytest.raises(release.ReleaseError, match="timer baseline is failed"):
+        release.control_state(home)
+
+
 def test_restart_clears_start_limit_before_restart(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[list[str]] = []
     monkeypatch.setattr(release, "command", lambda argv: calls.append(argv) or "")
