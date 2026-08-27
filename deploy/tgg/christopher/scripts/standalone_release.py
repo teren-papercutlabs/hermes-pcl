@@ -534,8 +534,8 @@ def control_state(home: Path) -> dict[str, Any]:
 
 
 def operational_controls_unchanged(before: dict[str, Any], after: dict[str, Any]) -> bool:
-    """Capability config may change; gate and schedule must not change implicitly."""
-    keys = ("gate_sha256", "gate_enabled", "timer_active", "timer_enabled")
+    """Host config, processing gate, and schedule must remain byte-identical."""
+    keys = ("config_sha256", "gate_sha256", "gate_enabled", "timer_active", "timer_enabled")
     return all(before.get(key) == after.get(key) for key in keys)
 
 
@@ -556,7 +556,7 @@ def focused_verify(root: Path, home: Path, expected: dict[str, Any], before_cont
     if controls["gate_enabled"] != enabled:
         raise ReleaseError("processing gate disagrees with configuration")
     if not operational_controls_unchanged(before_controls, controls):
-        raise ReleaseError("release changed processing gate or timer state")
+        raise ReleaseError("release changed host config, processing gate, or timer state")
     engine = json.loads((home / "runtime/engine-slot-receipt.json").read_text(encoding="utf-8"))
     profile = json.loads((home / "runtime/provider-profile.json").read_text(encoding="utf-8"))
     if engine.get("config_sha256") != controls["config_sha256"]:
@@ -677,7 +677,11 @@ def apply(args: argparse.Namespace) -> int:
                 if old["runtime"]: replace_pointer(root / "runtime/current", Path(old["runtime"]))
                 if old["capability"]:
                     replace_pointer(root / "capability/current", Path(old["capability"]))
-                    replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(old["capability"]))
+                if old["home_capability"]:
+                    replace_pointer(
+                        home / "runtime/capabilities/christopher-tgg/current",
+                        Path(old["home_capability"]),
+                    )
                 for name, target in (old.get("plugins") or {}).items():
                     restore_pointer(home / "plugins" / name, target)
                 recover_service()
@@ -694,7 +698,12 @@ def apply(args: argparse.Namespace) -> int:
 def rollback(args: argparse.Namespace) -> int:
     receipt = json.loads(Path(args.receipt).read_text(encoding="utf-8"))
     before = receipt.get("before") or {}
-    if not before.get("runtime") or not before.get("capability") or not isinstance(before.get("plugins"), dict):
+    if (
+        not before.get("runtime")
+        or not before.get("capability")
+        or not before.get("home_capability")
+        or not isinstance(before.get("plugins"), dict)
+    ):
         raise ReleaseError("receipt has no rollback targets")
     root, home = Path(args.root), Path(args.hermes_home)
     unit_path = Path(getattr(args, "systemd_unit", DEFAULT_UNIT))
@@ -705,7 +714,10 @@ def rollback(args: argparse.Namespace) -> int:
         ensure_vision_receipt_tree(home)
         replace_pointer(root / "runtime/current", Path(before["runtime"]))
         replace_pointer(root / "capability/current", Path(before["capability"]))
-        replace_pointer(home / "runtime/capabilities/christopher-tgg/current", Path(before["capability"]))
+        replace_pointer(
+            home / "runtime/capabilities/christopher-tgg/current",
+            Path(before["home_capability"]),
+        )
         for name, target in before["plugins"].items():
             restore_pointer(home / "plugins" / name, target)
         prior_runtime_unit = Path(before["runtime"]) / UNIT_REL
