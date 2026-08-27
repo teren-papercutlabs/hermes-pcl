@@ -2788,12 +2788,16 @@ def _replay_messages_with_retained_documents(
             and _priority_direct_trigger(record, config_path)
         ):
             item["_hermes_pa_job_type"] = "tgg_nightly_whatsapp"
-            item["_hermes_pa_context"] = {
+            context = {
                 "job_type": "tgg_nightly_whatsapp",
                 "nightly_batch_id": metadata.get("nightly_batch_id"),
                 "nightly_role": metadata.get("nightly_role"),
                 "authoritative_chat_id": metadata.get("authoritative_chat_id"),
             }
+            if metadata.get("continuous_interval") is True:
+                context["continuous_interval"] = True
+                context["continuous_contract"] = metadata.get("continuous_contract")
+            item["_hermes_pa_context"] = context
         if record.retention_quarantined:
             warning = (
                 "[Attachment unavailable: retention quarantine for message "
@@ -3151,6 +3155,23 @@ def _priority_direct_trigger(record: InboxRecord, config_path: Path) -> bool:
     ):
         return False
     return True
+
+
+def _continuous_interval_trigger(record: InboxRecord, config_path: Path) -> bool:
+    """Admit persistence only for a fully validated internal PA-26 trigger."""
+    if not _priority_direct_trigger(record, config_path):
+        return False
+    item = _bridge_item_ref(record.raw)
+    metadata = item.get("metadata") if isinstance(item, Mapping) else None
+    return bool(
+        isinstance(metadata, Mapping)
+        and metadata.get("continuous_interval") is True
+        and metadata.get("continuous_contract") == "tgg-christopher-continuous-interval/v1"
+    )
+
+
+def _continuous_interval_batch(records: Sequence[InboxRecord], config_path: Path) -> bool:
+    return bool(records) and all(_continuous_interval_trigger(record, config_path) for record in records)
 
 
 def _parse_captured_send(entry: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -4362,7 +4383,10 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             source_before_image_dir=source_before_image_dir,
                             direct_trigger_required=True,
                             allow_active_steering=True,
-                            persistent_session=chat_id not in nightly_chats,
+                            persistent_session=(
+                                _continuous_interval_batch(records, config_path)
+                                or chat_id not in nightly_chats
+                            ),
                         )
                     )
                     lanes[chat_id] = "management"

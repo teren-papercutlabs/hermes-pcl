@@ -10863,6 +10863,57 @@ class AIAgent:
         except Exception as _me_err:
             logger.debug("memory manager on_session_switch (compression): %s", _me_err)
 
+        # A compression split is the one point at which a persistent
+        # conversation can lose externally-owned in-flight operation context.
+        # Give plugins one narrow, persisted successor-session hook here --
+        # after Hermes has rotated and rebound the native session, but before
+        # this method returns to the next provider request.  This is *not* a
+        # normal-turn or per-request injection mechanism.
+        _old_sid = locals().get("old_session_id")
+        if _old_sid and self.session_id and self.session_id != _old_sid:
+            try:
+                from hermes_cli.plugins import invoke_post_compaction_context
+
+                _blocks = invoke_post_compaction_context(
+                    old_session_id=_old_sid,
+                    new_session_id=self.session_id,
+                    boundary_reason="compression",
+                    task_id=task_id,
+                    logical_session_key=(
+                        getattr(self, "logical_session_key", None)
+                        or getattr(self, "_logical_session_key", None)
+                        or getattr(self, "_gateway_session_key", None)
+                        or ""
+                    ),
+                    platform=self.platform or "",
+                    sender_id=getattr(self, "_user_id", None) or "",
+                )
+            except Exception as _pc_exc:
+                # A registered fail-closed operation provider could not prove
+                # continuation context.  Do not make another model request
+                # with a partial successor transcript.
+                raise RuntimeError(
+                    f"POST_COMPACTION_CONTEXT_REFUSED:{_pc_exc}"
+                ) from _pc_exc
+
+            for _block in _blocks:
+                _context = _block["context"].strip()
+                _metadata = _block["metadata"]
+                compressed.append({
+                    "role": "user",
+                    "content": _context,
+                    "_hermes_post_compaction_context": _metadata,
+                })
+
+            if _blocks:
+                # Persist the continuation block before control returns to the
+                # model loop.  _last_flushed_db_idx was reset when the child
+                # session was created, so this writes the exact compressed
+                # transcript plus the context block into the successor.
+                self._flush_messages_to_session_db(compressed, None)
+                if self._last_flushed_db_idx != len(compressed):
+                    raise RuntimeError("POST_COMPACTION_CONTEXT_PERSIST_REFUSED")
+
         # Warn on repeated compressions (quality degrades with each pass)
         _cc = self.context_compressor.compression_count
         if _cc >= 2:
