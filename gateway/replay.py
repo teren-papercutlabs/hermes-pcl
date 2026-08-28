@@ -722,6 +722,14 @@ class ReplayPlan:
 
         replay_namespace = data.get("replay_namespace") or data.get("replayNamespace")
         replay_policy = _manifest_mapping(data.get("replay_policy") or data.get("replayPolicy") or {})
+        requested_write_mode = str(
+            data.get("business_write_mode", data.get("businessWriteMode", "apply"))
+        ).strip().lower()
+        # A JSON/CLI replay plan is not the PA-75 runtime authority.  Capture
+        # can only be selected by the durable consumer's direct constructor
+        # after it verifies the approved management selector.
+        if requested_write_mode != "apply":
+            raise ValueError("business_write_mode capture is runtime-only")
         if corpus_policy:
             replay_policy = {**corpus_policy, **replay_policy}
         return cls(
@@ -732,7 +740,7 @@ class ReplayPlan:
             delivery_mode=delivery_mode,
             bypass_require_mention=bool(data.get("bypass_require_mention", data.get("bypassRequireMention", True))),
             bypass_auth=bool(data.get("bypass_auth", data.get("bypassAuth", True))),
-            business_write_mode=str(data.get("business_write_mode", data.get("businessWriteMode", "apply"))).strip().lower(),
+            business_write_mode="apply",
             replay_safe_commands=safe_commands,
             history_before_ts=before,
             source_path=source_path or (str(data.get("source_path") or data.get("sourcePath") or "") or None),

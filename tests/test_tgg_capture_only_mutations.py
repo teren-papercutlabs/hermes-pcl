@@ -74,9 +74,10 @@ def test_capture_mode_keeps_only_explicit_pure_reads_live(tmp_path):
     assert ctx.captured_business_mutations == []
 
 
-def test_capture_mode_is_rejected_when_deserialized_with_invalid_value():
-    with pytest.raises(ValueError, match="business_write_mode"):
-        ReplayPlan.from_mapping({"platform": "whatsapp", "businessWriteMode": "nope"})
+@pytest.mark.parametrize("value", ["capture", "nope"])
+def test_capture_mode_is_rejected_when_deserialized_from_untrusted_replay_input(value):
+    with pytest.raises(ValueError, match="runtime-only"):
+        ReplayPlan.from_mapping({"platform": "whatsapp", "businessWriteMode": value})
 
 
 def test_capture_context_has_a_normalized_serializable_receipt(tmp_path):
