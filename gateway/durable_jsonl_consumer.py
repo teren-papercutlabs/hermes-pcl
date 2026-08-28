@@ -4264,6 +4264,35 @@ def _internal_management_document_message(
     }
 
 
+def _normalize_management_document_captured_outbound(
+    entry: Mapping[str, Any], captured_outbound: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Remove only the synthetic initial-event quote before bridge delivery.
+
+    The typed initial event is deliberately presented to Christopher as a
+    message so the ordinary management selector can respond naturally.  The
+    adapter therefore quite reasonably captures a reply to that synthetic
+    message ID.  It is not a real WhatsApp message and cannot be sent as a
+    bridge quote.  Lifecycle entries instead must retain their quote so the
+    existing delivery guard can validate it against the real initial notice.
+    """
+    if str(entry.get("entryKind") or "") != "initial_default":
+        return [dict(item) for item in captured_outbound]
+    synthetic_anchor = f"human-resolution-document-entry:{str(entry['id'])}"
+    normalized: list[dict[str, Any]] = []
+    for raw in captured_outbound:
+        item = dict(raw)
+        kwargs = dict(item.get("kwargs") or {})
+        args = list(item.get("args") or [])
+        if kwargs.get("reply_to") == synthetic_anchor:
+            kwargs.pop("reply_to")
+            item["kwargs"] = kwargs
+        elif len(args) > 2 and args[2] == synthetic_anchor:
+            item["args"] = args[:2] + args[3:]
+        normalized.append(item)
+    return normalized
+
+
 async def _run_management_document_turn(
     entry: Mapping[str, Any],
     *,
@@ -4296,7 +4325,8 @@ async def _run_management_document_turn(
             replay_namespace=f"agent:live-drain:persistent-chat:{provider}:{model}",
         )
     )
-    return [dict(item) for item in result.outbound if isinstance(item, Mapping)]
+    captured = [dict(item) for item in result.outbound if isinstance(item, Mapping)]
+    return _normalize_management_document_captured_outbound(entry, captured)
 
 
 def _deliver_management_document_notice(
