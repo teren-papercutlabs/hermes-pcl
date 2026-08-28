@@ -17,6 +17,10 @@ while [[ -L "$SCRIPT_PATH" ]]; do
 done
 SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" && pwd)"
 DEPLOY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# The immutable release repository owns the deployment spec and every source
+# it names. APP_ROOT remains deliberately separate: it only owns the durable
+# Python virtualenv used to execute those release-owned helpers.
+RELEASE_ROOT="$(cd "$DEPLOY_ROOT/../../.." && pwd)"
 RUNTIME_ROOT="$HERMES_HOME/runtime"
 
 if [[ "$MODE" == "--verify-status-contract" ]]; then
@@ -281,7 +285,7 @@ if systemctl is-enabled --quiet christopher-tgg-report-monthly.timer; then
 fi
 "$APP_ROOT/.venv/bin/python" \
   "$DEPLOY_ROOT/scripts/validate_deployment_spec.py" \
-  --app-root "$APP_ROOT" \
+  --app-root "$RELEASE_ROOT" \
   --spec "$DEPLOY_ROOT/client-agent-deployment.yaml" >/dev/null
 
 if grep -q '/messages' "$DEPLOY_ROOT/systemd/christopher-tgg-hermes.service"; then
