@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from gateway import durable_jsonl_consumer as consumer
+from gateway.config import Platform, PlatformConfig
 
 from gateway.durable_jsonl_consumer import (
     DurableInbox,
@@ -25,6 +26,7 @@ from gateway.durable_jsonl_consumer import (
     _replay_messages_with_retained_documents,
     _deliver_management_document_notice,
     _internal_management_document_message,
+    _normalize_management_document_captured_outbound,
     _parse_captured_send,
     _pa75_capture_reply_batch,
     _run_management_document_turn,
@@ -696,9 +698,69 @@ async def test_existing_lifecycle_delivery_suppresses_later_poll_turn(
 def test_document_event_model_input_is_internal_not_a_capture_envelope() -> None:
     message = _internal_management_document_message(_document_entry("entry-1"), chat_id=MGMT_CHAT)
     assert message["senderId"] == "system@internal"
+    assert message["isGroup"] is True
+    assert message["chatName"] == "TGG Management"
     assert message["metadata"]["contract"] == "tgg_management_document_event/v1"
     assert "sourceKey" not in message and "source_key" not in message
     assert message["messageId"].startswith("human-resolution-document-entry:")
+
+
+def test_document_event_reaches_real_whatsapp_group_gate() -> None:
+    """Internal management input must not be rejected as a system DM."""
+    from gateway.platforms.whatsapp import WhatsAppAdapter
+
+    adapter = object.__new__(WhatsAppAdapter)
+    adapter.platform = Platform.WHATSAPP
+    adapter.config = PlatformConfig(enabled=True, extra={
+        "dm_policy": "allowlist",
+        "allow_from": [],
+        "group_policy": "allowlist",
+        "group_allow_from": [MGMT_CHAT],
+        "require_mention": True,
+    })
+    adapter._dm_policy = "allowlist"
+    adapter._allow_from = WhatsAppAdapter._coerce_allow_list([])
+    adapter._group_policy = "allowlist"
+    adapter._group_allow_from = WhatsAppAdapter._coerce_allow_list([MGMT_CHAT])
+    adapter._mention_patterns = adapter._compile_mention_patterns()
+    adapter._free_response_chats = adapter._whatsapp_free_response_chats()
+
+    message = _internal_management_document_message(_document_entry("entry-1"), chat_id=MGMT_CHAT)
+    assert adapter._should_process_message(message, bypass_require_mention=True) is True
+
+    dm_shaped = {**message, "isGroup": False}
+    assert adapter._should_process_message(dm_shaped, bypass_require_mention=True) is False
+
+
+def test_initial_document_transport_strips_only_its_synthetic_reply_anchor() -> None:
+    entry = _document_entry("entry-initial")
+    synthetic_anchor = "human-resolution-document-entry:entry-initial"
+    captured = _captured(MGMT_CHAT, "Could you confirm the workbook?", reply_to=synthetic_anchor)
+
+    normalized = _normalize_management_document_captured_outbound(entry, [captured])
+
+    assert _parse_captured_send(normalized[0])["reply_to"] is None
+    assert _parse_captured_send(captured)["reply_to"] == synthetic_anchor
+
+
+def test_lifecycle_transport_preserves_synthetic_anchor_for_existing_fail_closed_guard(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _enable_document_events(monkeypatch)
+    _seed_initial_notice(inbox)
+    entry = _document_entry("entry-amendment", kind="amendment")
+    synthetic_anchor = "human-resolution-document-entry:entry-amendment"
+    normalized = _normalize_management_document_captured_outbound(
+        entry, [_captured(MGMT_CHAT, "I have updated the cases.", reply_to=synthetic_anchor)],
+    )
+    assert _parse_captured_send(normalized[0])["reply_to"] == synthetic_anchor
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("bridge must not be called")))
+    config = consumer._management_document_event_config(config_path)
+    assert config is not None
+    with pytest.raises(consumer.ConsumerError, match="invalid lifecycle notice anchor"):
+        _deliver_management_document_notice(
+            inbox, config=config, entry=entry, captured_outbound=normalized,
+        )
 
 
 def test_quoted_management_reply_maps_to_its_document_without_interpreting_body(

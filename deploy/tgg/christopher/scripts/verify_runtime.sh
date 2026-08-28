@@ -5,7 +5,18 @@ MODE="${1:---quick}"
 APP_ROOT="${APP_ROOT:-/home/pclaw/apps/hermes-pcl}"
 HERMES_HOME="${HERMES_HOME:-/home/pclaw/.hermes-christopher-tgg}"
 TEST_HOME="${TEST_HOME:-/home/pclaw/.hermes-christopher-tgg-test}"
-DEPLOY_ROOT="$APP_ROOT/deploy/tgg/christopher"
+# APP_ROOT owns the long-lived virtualenv and Python package checkout.  The
+# release assets being verified must instead come from the script actually
+# invoked by systemd: after a standalone release, that is the current runtime
+# symlink rather than the retired app checkout.
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_PATH" ]]; do
+  SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" && pwd)"
+  SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+  [[ "$SCRIPT_PATH" = /* ]] || SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" && pwd)"
+DEPLOY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUNTIME_ROOT="$HERMES_HOME/runtime"
 
 if [[ "$MODE" == "--verify-status-contract" ]]; then
@@ -214,7 +225,7 @@ fi
 if [[ "$MODE" == "--check-mode" ]]; then
   raw="$(pcl service locate --system christopher --domain pa)"
   target="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["data"]["system"]["liveFacts"]["host"]["sshTargetAlias"])' <<<"$raw")"
-  exec ssh "$target" "$DEPLOY_ROOT/scripts/verify_runtime.sh" --full
+  exec ssh "$target" /opt/tgg-christopher/runtime/current/deploy/tgg/christopher/scripts/verify_runtime.sh --full
 fi
 if [[ "$MODE" != "--quick" && "$MODE" != "--full" ]]; then
   echo "usage: $0 --quick|--full|--check-mode" >&2
@@ -363,12 +374,12 @@ then
   done
 fi
 
-"$APP_ROOT/.venv/bin/python" - "$APP_ROOT" "$HERMES_HOME" <<'PY'
+"$APP_ROOT/.venv/bin/python" - "$APP_ROOT" "$HERMES_HOME" "$DEPLOY_ROOT" <<'PY'
 import datetime, hashlib, importlib.util, json, os, pathlib, sqlite3, stat, subprocess, sys, time, urllib.request, yaml
 
 app = pathlib.Path(sys.argv[1])
 home = pathlib.Path(sys.argv[2])
-deploy = app / "deploy/tgg/christopher"
+deploy = pathlib.Path(sys.argv[3])
 runtime = home / "runtime"
 slot = (runtime / "engine-slot").read_text().strip()
 profile_path = runtime / "provider-profile.json"

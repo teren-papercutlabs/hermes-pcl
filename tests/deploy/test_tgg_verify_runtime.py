@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -370,6 +371,11 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert "ssh" not in deploy_script
 
     verify_script = VERIFY.read_text()
+    assert 'SCRIPT_PATH="${BASH_SOURCE[0]}"' in verify_script
+    assert 'DEPLOY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"' in verify_script
+    assert '"$APP_ROOT/.venv/bin/python" - "$APP_ROOT" "$HERMES_HOME" "$DEPLOY_ROOT"' in verify_script
+    assert 'deploy = pathlib.Path(sys.argv[3])' in verify_script
+    assert 'exec ssh "$target" /opt/tgg-christopher/runtime/current/deploy/tgg/christopher/scripts/verify_runtime.sh --full' in verify_script
     assert "normalized_config == expected_config" not in verify_script
     assert "Host config is authoritative" in verify_script
     assert "required_plugins.issubset" in verify_script
@@ -438,6 +444,50 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
             "timeoutMs": 600000,
         }
     ]
+
+
+def test_health_unit_verifies_current_release_with_legacy_virtualenv() -> None:
+    service = (DEPLOY_ROOT / "systemd/christopher-tgg-hermes-health.service").read_text()
+    assert "WorkingDirectory=/home/pclaw/apps/hermes-pcl" in service
+    assert (
+        "ExecStart=/opt/tgg-christopher/runtime/current/deploy/tgg/christopher/"
+        "scripts/verify_runtime.sh --quick"
+    ) in service
+
+
+def test_verifier_uses_invoked_release_assets_and_legacy_app_virtualenv(tmp_path: Path) -> None:
+    """The health unit follows the release symlink without moving APP_ROOT."""
+    release = tmp_path / "releases" / "r162"
+    release_script = release / "deploy/tgg/christopher/scripts/verify_runtime.sh"
+    release_script.parent.mkdir(parents=True)
+    shutil.copy2(VERIFY, release_script)
+    current = tmp_path / "runtime-current"
+    current.symlink_to(release, target_is_directory=True)
+    invoked = current / "deploy/tgg/christopher/scripts/verify_runtime.sh"
+
+    config_path = tmp_path / "config.yaml"
+    gate_path = tmp_path / "processing-gate.json"
+    status_path = tmp_path / "capture-consumer-status.json"
+    config_path.write_text(yaml.safe_dump({"pa": {"enabled": True, "media_retention": {"max_attempts": 5, "retry_interval_seconds": 60}}}))
+    gate_path.write_text(json.dumps({"enabled": True}))
+    status_path.write_text(json.dumps(_status(state="running", enabled=True)))
+
+    legacy_app_root = tmp_path / "retired-app-root"
+    result = subprocess.run(
+        ["bash", "-x", str(invoked), "--verify-status-contract", str(config_path), str(gate_path), str(status_path)],
+        text=True,
+        capture_output=True,
+        check=False,
+        env={
+            **os.environ,
+            "APP_ROOT": str(legacy_app_root),
+            "VERIFY_PYTHON": sys.executable,
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"DEPLOY_ROOT={release}/deploy/tgg/christopher" in result.stderr
+    assert f"APP_ROOT={legacy_app_root}" in result.stderr
 
 
 def _run_preserve_env_key(
