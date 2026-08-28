@@ -29,6 +29,7 @@ from gateway.durable_jsonl_consumer import (
     _run_management_document_turn,
     deliver_management_replies,
     process_live_records,
+    process_management_document_canary_event,
     process_management_document_events,
 )
 
@@ -198,6 +199,48 @@ async def test_document_event_drains_typed_outbox_without_creating_whatsapp_ingr
     with inbox.connect() as conn:
         row = conn.execute("SELECT delivery_key,reply_to_message_id,status,bridge_message_id FROM reply_deliveries").fetchone()
     assert tuple(row) == ("human-resolution:entry-1", None, "delivered", "WA-notice-1")
+
+
+@pytest.mark.asyncio
+async def test_pa75_typed_canary_event_uses_real_notice_delivery_without_poll_or_cursor(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    calls: list[str] = []
+
+    def fake_urlopen(request, timeout=0):
+        calls.append(request.full_url)
+        assert request.full_url == "http://127.0.0.1:3011/send"
+        return _FakeResponse({"success": True, "messageId": "WA-canary-1"})
+
+    async def fake_turn(entry, **kwargs):
+        assert entry["id"] == "canary-entry-1"
+        assert kwargs["destination_chat_id"] == MGMT_CHAT
+        return [_captured(MGMT_CHAT, "Which cases should I update from this workbook?", reply_to=None)]
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
+    event = {
+        "contract": "tgg-pa75-typed-canary-event/v1",
+        "id": "batch3-canary-1",
+        "destination_chat_id": MGMT_CHAT,
+        "entry": _document_entry("canary-entry-1"),
+    }
+    result = await process_management_document_canary_event(
+        inbox, config_path=config_path, runner=object(), event=event,
+    )
+    assert result == {
+        "contract": "tgg-pa75-typed-canary-event-receipt/v1",
+        "canary_event_id": "batch3-canary-1",
+        "record_id": "record-1",
+        "entry_id": "canary-entry-1",
+        "destination_chat_id": MGMT_CHAT,
+        "delivery_outcome": "delivered",
+        "outbound_count": 1,
+    }
+    assert calls == ["http://127.0.0.1:3011/send"]
+    assert inbox.management_document_cursor() is None
+    assert inbox.total() == 0
 
 
 @pytest.mark.asyncio

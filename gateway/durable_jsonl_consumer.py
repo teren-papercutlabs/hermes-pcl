@@ -4417,6 +4417,53 @@ async def process_management_document_events(
     return summary
 
 
+async def process_management_document_canary_event(
+    inbox: DurableInbox,
+    *,
+    config_path: Path,
+    runner: Any,
+    event: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Exercise PA-74's real notice path from one immutable PA-75 projection.
+
+    This deliberately does *not* insert a document entry, poll Systems, append
+    a WhatsApp capture row, or advance the production document cursor.  The
+    caller supplies a read-only projection of the Batch 3 record.  That keeps
+    the live chat proof honest while Tier 1 separately proves the real source
+    transaction produces an outbox entry.
+    """
+    if event.get("contract") != "tgg-pa75-typed-canary-event/v1":
+        raise ConsumerError("management document canary event has the wrong contract")
+    if str(event.get("destination_chat_id") or "") != "120363426509183563@g.us":
+        raise ConsumerError("management document canary destination is not the approved test chat")
+    entry = event.get("entry")
+    if not isinstance(entry, Mapping):
+        raise ConsumerError("management document canary entry is missing")
+    required = ("id", "recordId", "createdAt", "entryKind")
+    if any(not str(entry.get(field) or "").strip() for field in required):
+        raise ConsumerError("management document canary entry identity is incomplete")
+    if str(entry.get("entryKind")) != "initial_default":
+        raise ConsumerError("management document canary entry must be initial_default")
+    config = _management_document_event_config(config_path)
+    if config is None or config.chat_id != "120363426509183563@g.us":
+        raise ConsumerError("management document canary transport is not bound to the approved test chat")
+    outbound = await _run_management_document_turn(
+        entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
+    )
+    outcome = _deliver_management_document_notice(
+        inbox, config=config, entry=entry, captured_outbound=outbound,
+    )
+    return {
+        "contract": "tgg-pa75-typed-canary-event-receipt/v1",
+        "canary_event_id": str(event.get("id") or ""),
+        "record_id": str(entry["recordId"]),
+        "entry_id": str(entry["id"]),
+        "destination_chat_id": config.chat_id,
+        "delivery_outcome": outcome,
+        "outbound_count": len(outbound),
+    }
+
+
 def _write_status(path: Path, payload: Mapping[str, Any]) -> None:
     _atomic_write_json(path, {"version": 1, "updated_at": _utc_now(), **dict(payload)})
 
