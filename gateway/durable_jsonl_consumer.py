@@ -4188,12 +4188,21 @@ async def process_management_document_events(
         if str(entry["entryKind"]) != "initial_default":
             summary["skipped"] += 1
         else:
-            outcome = await _run_management_document_turn(
-                entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
-            )
-            terminal = _deliver_management_document_notice(
-                inbox, config=config, entry=entry, captured_outbound=outcome,
-            )
+            # A crash can land after bridge confirmation but before the local
+            # cursor write.  The durable delivery row is then the terminal
+            # fact: advance without reconstructing a model turn, which avoids
+            # needless persistent-session context and any accidental second
+            # interpretation of an already-notified document.
+            prior = inbox.reply_delivery_status(f"human-resolution:{entry_id}")
+            if prior is not None:
+                terminal = prior
+            else:
+                outcome = await _run_management_document_turn(
+                    entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
+                )
+                terminal = _deliver_management_document_notice(
+                    inbox, config=config, entry=entry, captured_outbound=outcome,
+                )
             summary[terminal] += 1
         inbox.advance_management_document_cursor(created_at=created_at, entry_id=entry_id)
         cursor = (created_at, entry_id)

@@ -254,6 +254,32 @@ async def test_document_event_unknown_bridge_outcome_is_terminal_and_never_retri
     assert bridge_calls == 1
 
 
+@pytest.mark.asyncio
+async def test_document_event_crash_after_send_advances_cursor_without_reopening_session(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    inbox.claim_reply_delivery(
+        "human-resolution:entry-crash", chat_id=MGMT_CHAT, reply_to_message_id=None,
+    )
+    inbox.record_reply_delivery(
+        "human-resolution:entry-crash", status="delivered", bridge_message_id="WA-previous",
+    )
+
+    def fake_urlopen(request, timeout=0):
+        assert request.full_url.startswith("http://systems.test/")
+        return _FakeResponse({"data": {"contract": "tgg-human-resolution-document-entry/v1", "entries": [_document_entry("entry-crash")]}})
+
+    async def forbidden_turn(*args, **kwargs):
+        raise AssertionError("already-terminal document entry must not reopen Christopher")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", forbidden_turn)
+    result = await process_management_document_events(inbox, config_path=config_path, runner=object())
+    assert result == {"examined": 1, "delivered": 1, "undelivered": 0, "skipped": 0}
+    assert inbox.management_document_cursor() == (100, "entry-crash")
+
+
 def test_document_event_model_input_is_internal_not_a_capture_envelope() -> None:
     message = _internal_management_document_message(_document_entry("entry-1"), chat_id=MGMT_CHAT)
     assert message["senderId"] == "system@internal"
