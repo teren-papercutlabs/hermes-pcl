@@ -316,6 +316,24 @@ def test_pa75_canary_cli_refuses_divergent_receipt(
     ]) == 2
     assert "receipt collision is divergent" in capsys.readouterr().err
 
+    # Matching event IDs alone cannot bless a malformed or cross-destination
+    # terminal receipt and suppress the real canary path.
+    receipt_path.write_text(json.dumps({
+        "contract": "tgg-pa75-typed-canary-event-receipt/v1",
+        "canary_event_id": event["id"],
+        "canary_event_sha256": event["event_sha256"],
+        "record_id": event["entry"]["recordId"],
+        "entry_id": event["entry"]["id"],
+        "destination_chat_id": "production-chat@g.us",
+        "delivery_outcome": "delivered",
+        "outbound_count": 1,
+    }), encoding="utf-8")
+    assert consumer.main([
+        "management-document-canary", "--event", str(event_path), "--inbox", str(inbox.db_path),
+        "--config", str(config_path), "--receipt", str(receipt_path),
+    ]) == 2
+    assert "receipt collision is divergent" in capsys.readouterr().err
+
 
 @pytest.mark.asyncio
 async def test_pa75_claimed_reply_persists_raw_mutation_receipt_before_terminal(

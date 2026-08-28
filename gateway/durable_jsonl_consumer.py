@@ -4728,11 +4728,24 @@ async def run_management_document_canary(args: argparse.Namespace) -> int:
             existing = json.loads(receipt_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise ConsumerError(f"cannot read existing PA-75 canary receipt: {receipt_path}") from exc
+        entry = event.get("entry")
+        expected = {
+            "contract": "tgg-pa75-typed-canary-event-receipt/v1",
+            "canary_event_id": event.get("id"),
+            "canary_event_sha256": event.get("event_sha256"),
+            "record_id": entry.get("recordId") if isinstance(entry, Mapping) else None,
+            "entry_id": entry.get("id") if isinstance(entry, Mapping) else None,
+            "destination_chat_id": event.get("destination_chat_id"),
+        }
+        terminal_outcome = existing.get("delivery_outcome") if isinstance(existing, Mapping) else None
+        outbound_count = existing.get("outbound_count") if isinstance(existing, Mapping) else None
         if (
             isinstance(existing, Mapping)
-            and existing.get("contract") == "tgg-pa75-typed-canary-event-receipt/v1"
-            and existing.get("canary_event_id") == event.get("id")
-            and existing.get("canary_event_sha256") == event.get("event_sha256")
+            and all(existing.get(key) == value for key, value in expected.items())
+            and terminal_outcome in {"delivered", "undelivered", "unknown"}
+            and isinstance(outbound_count, int)
+            and not isinstance(outbound_count, bool)
+            and outbound_count >= 0
         ):
             print(json.dumps(dict(existing), sort_keys=True))
             return 0
