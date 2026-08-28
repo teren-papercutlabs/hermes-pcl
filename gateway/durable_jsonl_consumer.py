@@ -1847,13 +1847,19 @@ class DurableInbox:
             raise ConsumerError("human-resolution delivery correlation is incomplete")
         if str(row["delivery_key"]) != f"human-resolution:{entry_id}":
             raise ConsumerError("human-resolution delivery correlation key mismatch")
-        return {
+        correlation = {
             "document_id": document_id,
             "document_entry_id": entry_id,
             "outbound_notice_id": str(row["bridge_message_id"]),
             "reply_message_id": record.message_id,
             "confidence": "quoted_outbound_notice_exact",
         }
+        canary_projection = stored.get("pa75_canary_projection")
+        if canary_projection is not None:
+            if not isinstance(canary_projection, Mapping):
+                raise ConsumerError("human-resolution canary projection is invalid")
+            correlation["pa75_canary_projection"] = dict(canary_projection)
+        return correlation
 
     def record_reply_delivery(
         self,
@@ -4204,7 +4210,7 @@ def _management_document_entries(
 
 
 def _internal_management_document_message(
-    entry: Mapping[str, Any], *, chat_id: str
+    entry: Mapping[str, Any], *, chat_id: str, canary_projection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create transient typed model input without claiming WhatsApp provenance."""
     entry_id = str(entry["id"])
@@ -4216,6 +4222,27 @@ def _internal_management_document_message(
         if entry_kind == "initial_default" else
         "A Christopher human-resolution document has a new lifecycle entry and needs a management update. "
     )
+    metadata: dict[str, Any] = {
+        "contract": "tgg_management_document_event/v1",
+        "entry_id": entry_id,
+        "record_id": record_id,
+        "entry_kind": str(entry["entryKind"]),
+        "document_url": f"/tgg/human-resolutions/{record_id}",
+    }
+    if canary_projection is not None:
+        metadata["pa75_canary_projection"] = dict(canary_projection)
+        visible_projection = {
+            "entry": dict(canary_projection.get("entry") or {}),
+            "source_record_projection_sha256": canary_projection.get("source_record_projection_sha256"),
+            "event_sha256": canary_projection.get("event_sha256"),
+        }
+        instruction += (
+            " This is the approved PA-75 typed-canary projection; its authored entry, "
+            "cited evidence and source-record hash are included below. Use that immutable "
+            "projection together with fresh case reads; do not claim it is a live Systems entry."
+            "\n\nTyped-canary projection:\n"
+            + json.dumps(visible_projection, ensure_ascii=False, sort_keys=True)
+        )
     return {
         "messageId": f"human-resolution-document-entry:{entry_id}",
         "chatId": chat_id,
@@ -4227,13 +4254,7 @@ def _internal_management_document_message(
             "Then write one natural, first-person message for the management chat. "
             "Do not treat this internal event as WhatsApp evidence and do not make a case change."
         ),
-        "metadata": {
-            "contract": "tgg_management_document_event/v1",
-            "entry_id": entry_id,
-            "record_id": record_id,
-            "entry_kind": str(entry["entryKind"]),
-            "document_url": f"/tgg/human-resolutions/{record_id}",
-        },
+        "metadata": metadata,
     }
 
 
@@ -4243,6 +4264,7 @@ async def _run_management_document_turn(
     config_path: Path,
     destination_chat_id: str,
     runner: Any,
+    canary_projection: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Run the existing management selector in its persistent namespace.
 
@@ -4255,7 +4277,9 @@ async def _run_management_document_turn(
     result = await runner.replay(
         ReplayPlan(
             platform="whatsapp",
-            messages=(_internal_management_document_message(entry, chat_id=destination_chat_id),),
+            messages=(_internal_management_document_message(
+                entry, chat_id=destination_chat_id, canary_projection=canary_projection,
+            ),),
             run_id=f"management-document-{uuid.uuid4().hex[:12]}",
             attempt_id=f"attempt-{uuid.uuid4().hex[:12]}",
             delivery_mode="capture",
@@ -4275,6 +4299,7 @@ def _deliver_management_document_notice(
     config: ManagementDocumentEventConfig,
     entry: Mapping[str, Any],
     captured_outbound: Sequence[Mapping[str, Any]],
+    canary_projection: Mapping[str, Any] | None = None,
 ) -> str:
     """Make one durable, proactive attempt for a document lifecycle entry.
 
@@ -4298,6 +4323,8 @@ def _deliver_management_document_notice(
         "entry_id": entry_id,
         "entry_kind": entry_kind,
     }
+    if canary_projection is not None:
+        correlation["pa75_canary_projection"] = dict(canary_projection)
     initial_notice = None
     if entry_kind != "initial_default":
         initial_notice = inbox.initial_management_document_notice(
@@ -4417,6 +4444,63 @@ async def process_management_document_events(
     return summary
 
 
+def _validated_pa75_canary_projection(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate the durable projection again before a reply can select capture."""
+    if value.get("contract") != "tgg-pa75-typed-canary-projection/v1":
+        raise ConsumerError("management document canary projection contract is invalid")
+    event_id = str(value.get("event_id") or "")
+    event_sha = str(value.get("event_sha256") or "")
+    entry = value.get("entry")
+    source = value.get("source_record_projection")
+    source_sha = str(value.get("source_record_projection_sha256") or "")
+    event_payload = value.get("event_payload")
+    if (
+        not re.fullmatch(r"pa75-canary:[a-z0-9][a-z0-9-]{0,127}", event_id)
+        or not isinstance(entry, Mapping)
+        or not re.fullmatch(r"pa75-canary-entry:[a-z0-9][a-z0-9-]{0,127}", str(entry.get("id") or ""))
+        or not isinstance(entry.get("body"), Mapping)
+        or not entry.get("body")
+        or not isinstance(entry.get("effects"), list)
+        or not isinstance(source, Mapping)
+        or not source
+    ):
+        raise ConsumerError("management document canary projection is incomplete")
+    actual_source_sha = hashlib.sha256(
+        (json.dumps(dict(source), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    if source_sha != actual_source_sha:
+        raise ConsumerError("management document canary projection source hash mismatch")
+    if not isinstance(event_payload, Mapping) or event_payload.get("id") != event_id:
+        raise ConsumerError("management document canary projection event payload is invalid")
+    unsigned = dict(event_payload)
+    actual_event_sha = hashlib.sha256(
+        (json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    if event_sha != actual_event_sha:
+        raise ConsumerError("management document canary projection event hash mismatch")
+    return dict(value)
+
+
+def _pa75_capture_reply_batch(
+    records: Sequence[InboxRecord],
+    correlations: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    """Select capture only for authentic quotes of our stored canary notice."""
+    if not records or {record.chat_id for record in records} != {"120363426509183563@g.us"}:
+        return False
+    if set(correlations) != {record.message_id for record in records}:
+        return False
+    try:
+        for correlation in correlations.values():
+            projection = correlation.get("pa75_canary_projection")
+            if not isinstance(projection, Mapping):
+                return False
+            _validated_pa75_canary_projection(projection)
+    except ConsumerError:
+        return False
+    return True
+
+
 async def process_management_document_canary_event(
     inbox: DurableInbox,
     *,
@@ -4434,28 +4518,65 @@ async def process_management_document_canary_event(
     """
     if event.get("contract") != "tgg-pa75-typed-canary-event/v1":
         raise ConsumerError("management document canary event has the wrong contract")
+    event_id = str(event.get("id") or "").strip()
+    if not re.fullmatch(r"pa75-canary:[a-z0-9][a-z0-9-]{0,127}", event_id):
+        raise ConsumerError("management document canary event ID is invalid")
     if str(event.get("destination_chat_id") or "") != "120363426509183563@g.us":
         raise ConsumerError("management document canary destination is not the approved test chat")
     entry = event.get("entry")
     if not isinstance(entry, Mapping):
         raise ConsumerError("management document canary entry is missing")
-    required = ("id", "recordId", "createdAt", "entryKind")
+    required = ("id", "recordId", "createdAt", "entryKind", "body", "effects")
     if any(not str(entry.get(field) or "").strip() for field in required):
         raise ConsumerError("management document canary entry identity is incomplete")
-    if str(entry.get("entryKind")) != "initial_default":
-        raise ConsumerError("management document canary entry must be initial_default")
+    entry_id = str(entry["id"])
+    if not re.fullmatch(r"pa75-canary-entry:[a-z0-9][a-z0-9-]{0,127}", entry_id):
+        raise ConsumerError("management document canary entry ID must use the canary namespace")
+    if str(entry.get("entryKind")) not in {"initial_default", "amendment", "closure"}:
+        raise ConsumerError("management document canary entry kind is invalid")
+    if not isinstance(entry.get("body"), Mapping) or not entry["body"] or not isinstance(entry.get("effects"), list):
+        raise ConsumerError("management document canary entry projection is incomplete")
+    source_projection = event.get("source_record_projection")
+    source_sha = str(event.get("source_record_projection_sha256") or "")
+    if not isinstance(source_projection, Mapping) or not source_projection or not re.fullmatch(r"[0-9a-f]{64}", source_sha):
+        raise ConsumerError("management document canary source projection is invalid")
+    actual_source_sha = hashlib.sha256(
+        (json.dumps(dict(source_projection), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    if actual_source_sha != source_sha:
+        raise ConsumerError("management document canary source projection hash mismatch")
+    supplied_event_sha = str(event.get("event_sha256") or "")
+    unsigned_event = {key: value for key, value in event.items() if key != "event_sha256"}
+    actual_event_sha = hashlib.sha256(
+        (json.dumps(unsigned_event, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    if supplied_event_sha != actual_event_sha:
+        raise ConsumerError("management document canary event hash mismatch")
+    projection = {
+        "contract": "tgg-pa75-typed-canary-projection/v1",
+        "event_id": event_id,
+        "event_sha256": supplied_event_sha,
+        "entry": dict(entry),
+        "source_record_projection": dict(source_projection),
+        "source_record_projection_sha256": source_sha,
+        "event_payload": unsigned_event,
+    }
+    _validated_pa75_canary_projection(projection)
     config = _management_document_event_config(config_path)
     if config is None or config.chat_id != "120363426509183563@g.us":
         raise ConsumerError("management document canary transport is not bound to the approved test chat")
     outbound = await _run_management_document_turn(
         entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
+        canary_projection=projection,
     )
     outcome = _deliver_management_document_notice(
         inbox, config=config, entry=entry, captured_outbound=outbound,
+        canary_projection=projection,
     )
     return {
         "contract": "tgg-pa75-typed-canary-event-receipt/v1",
-        "canary_event_id": str(event.get("id") or ""),
+        "canary_event_id": event_id,
+        "canary_event_sha256": supplied_event_sha,
         "record_id": str(entry["recordId"]),
         "entry_id": str(entry["id"]),
         "destination_chat_id": config.chat_id,
@@ -4579,6 +4700,9 @@ async def _process_claimed_chat_batch_unlocked(
             if record.chat_id in _management_selector_chats(config_path)
             if (correlation := inbox.management_document_correlation(record)) is not None
         }
+        capture_canary_reply = _pa75_capture_reply_batch(
+            records, management_document_correlations,
+        )
         async with _management_typing_presence(
             records,
             config_path=config_path,
@@ -4592,6 +4716,7 @@ async def _process_claimed_chat_batch_unlocked(
                     persistent_session=persistent_session,
                     runner=runner,
                     management_document_correlations=management_document_correlations,
+                    capture_business_writes_for_test_management=capture_canary_reply,
                 )
             )
             if allow_active_steering:

@@ -26,6 +26,7 @@ from gateway.durable_jsonl_consumer import (
     _deliver_management_document_notice,
     _internal_management_document_message,
     _parse_captured_send,
+    _pa75_capture_reply_batch,
     _run_management_document_turn,
     deliver_management_replies,
     process_live_records,
@@ -155,8 +156,27 @@ def _document_entry(entry_id: str, *, created_at: int = 100, kind: str = "initia
         "entryKind": kind,
         "createdAt": created_at,
         "body": {"statement": "I need a decision."},
-        "effects": [],
+        "effects": [{"caseJobNo": "AM/JOB/2608/1234", "effectRole": "provisional"}],
     }
+
+
+def _canary_event(entry_id: str = "pa75-canary-entry:batch3") -> dict:
+    source = {"id": "record-1", "sourceRunRef": "read-only:batch3", "evidence": ["msg-1"]}
+    source_sha = __import__("hashlib").sha256(
+        (json.dumps(source, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    event = {
+        "contract": "tgg-pa75-typed-canary-event/v1",
+        "id": "pa75-canary:batch3",
+        "destination_chat_id": MGMT_CHAT,
+        "entry": _document_entry(entry_id),
+        "source_record_projection": source,
+        "source_record_projection_sha256": source_sha,
+    }
+    event["event_sha256"] = __import__("hashlib").sha256(
+        (json.dumps(event, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    return event
 
 
 def _enable_document_events(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -214,26 +234,23 @@ async def test_pa75_typed_canary_event_uses_real_notice_delivery_without_poll_or
         return _FakeResponse({"success": True, "messageId": "WA-canary-1"})
 
     async def fake_turn(entry, **kwargs):
-        assert entry["id"] == "canary-entry-1"
+        assert entry["id"] == "pa75-canary-entry:batch3"
         assert kwargs["destination_chat_id"] == MGMT_CHAT
+        assert kwargs["canary_projection"]["source_record_projection_sha256"]
         return [_captured(MGMT_CHAT, "Which cases should I update from this workbook?", reply_to=None)]
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
     monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
-    event = {
-        "contract": "tgg-pa75-typed-canary-event/v1",
-        "id": "batch3-canary-1",
-        "destination_chat_id": MGMT_CHAT,
-        "entry": _document_entry("canary-entry-1"),
-    }
+    event = _canary_event("pa75-canary-entry:batch3")
     result = await process_management_document_canary_event(
         inbox, config_path=config_path, runner=object(), event=event,
     )
     assert result == {
         "contract": "tgg-pa75-typed-canary-event-receipt/v1",
-        "canary_event_id": "batch3-canary-1",
+        "canary_event_id": "pa75-canary:batch3",
+        "canary_event_sha256": event["event_sha256"],
         "record_id": "record-1",
-        "entry_id": "canary-entry-1",
+        "entry_id": "pa75-canary-entry:batch3",
         "destination_chat_id": MGMT_CHAT,
         "delivery_outcome": "delivered",
         "outbound_count": 1,
@@ -241,6 +258,46 @@ async def test_pa75_typed_canary_event_uses_real_notice_delivery_without_poll_or
     assert calls == ["http://127.0.0.1:3011/send"]
     assert inbox.management_document_cursor() is None
     assert inbox.total() == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mutate,reason",
+    [
+        (lambda event: event["entry"].pop("body"), "entry identity is incomplete"),
+        (lambda event: event.update(source_record_projection_sha256="0" * 64), "source projection hash mismatch"),
+        (lambda event: event["entry"].update(id="3d781e49-242e-46ea-951c-1cec68675953"), "entry ID must use the canary namespace"),
+    ],
+)
+async def test_pa75_typed_canary_event_rejects_incomplete_or_colliding_projection(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch, mutate, reason: str,
+) -> None:
+    _enable_document_events(monkeypatch)
+    event = _canary_event()
+    mutate(event)
+    with pytest.raises(consumer.ConsumerError, match=reason):
+        await process_management_document_canary_event(
+            inbox, config_path=config_path, runner=object(), event=event,
+        )
+
+
+def test_pa75_capture_selection_requires_authenticated_quoted_canary_correlation() -> None:
+    event = _canary_event()
+    projection = {
+        "contract": "tgg-pa75-typed-canary-projection/v1",
+        "event_id": event["id"], "event_sha256": event["event_sha256"],
+        "entry": event["entry"],
+        "source_record_projection": event["source_record_projection"],
+        "source_record_projection_sha256": event["source_record_projection_sha256"],
+        "event_payload": {key: value for key, value in event.items() if key != "event_sha256"},
+    }
+    record = _record(MGMT_CHAT, "reply-1")
+    correlation = {"reply-1": {"pa75_canary_projection": projection}}
+    assert _pa75_capture_reply_batch([record], correlation) is True
+    assert _pa75_capture_reply_batch([record], {}) is False  # bare test-chat message
+    forged = {"reply-1": {"pa75_canary_projection": {**projection, "event_sha256": "0" * 64}}}
+    assert _pa75_capture_reply_batch([record], forged) is False
+    assert _pa75_capture_reply_batch([_record("120363407903158826@g.us", "reply-1")], correlation) is False
 
 
 @pytest.mark.asyncio
