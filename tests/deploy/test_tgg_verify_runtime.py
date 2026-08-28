@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import os
 import shutil
 import sqlite3
@@ -15,6 +16,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 DEPLOY_ROOT = ROOT / "deploy" / "tgg" / "christopher"
 VERIFY = DEPLOY_ROOT / "scripts" / "verify_runtime.sh"
+VALIDATE_DEPLOYMENT_SPEC = DEPLOY_ROOT / "scripts" / "validate_deployment_spec.py"
 
 
 def _status(
@@ -453,6 +455,46 @@ def test_health_unit_verifies_current_release_with_legacy_virtualenv() -> None:
         "ExecStart=/opt/tgg-christopher/runtime/current/deploy/tgg/christopher/"
         "scripts/verify_runtime.sh --quick"
     ) in service
+
+
+def _load_deployment_spec_validator():
+    spec = importlib.util.spec_from_file_location(
+        "tgg_deployment_spec_validator", VALIDATE_DEPLOYMENT_SPEC,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_verifier_validates_release_assets_not_divergent_legacy_checkout(tmp_path: Path) -> None:
+    """A retired checkout cannot stand in for an installed release's unit sources."""
+    validator = _load_deployment_spec_validator()
+    spec_path = DEPLOY_ROOT / "client-agent-deployment.yaml"
+    assert validator.validate(ROOT, spec_path)["ok"] is True
+
+    legacy_root = tmp_path / "retired-app"
+    legacy_root.mkdir()
+    # Preserve all non-deployment source paths through harmless symlinks, but
+    # give the old checkout its own stale deployment asset tree.
+    for child in ROOT.iterdir():
+        if child.name != "deploy":
+            (legacy_root / child.name).symlink_to(child, target_is_directory=child.is_dir())
+    shutil.copytree(ROOT / "deploy", legacy_root / "deploy")
+    legacy_consumer = legacy_root / "deploy/tgg/christopher/systemd/christopher-tgg-hermes.service"
+    legacy_consumer.write_text(
+        legacy_consumer.read_text().replace(
+            "Environment=TGG_REPLY_BRIDGE_URL=http://127.0.0.1:3011\n", "",
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="guarded reply bridge"):
+        validator.validate(legacy_root, spec_path)
+
+    verify_script = VERIFY.read_text()
+    assert 'RELEASE_ROOT="$(cd "$DEPLOY_ROOT/../../.." && pwd)"' in verify_script
+    assert '--app-root "$RELEASE_ROOT"' in verify_script
 
 
 def test_verifier_uses_invoked_release_assets_and_legacy_app_virtualenv(tmp_path: Path) -> None:
