@@ -4509,6 +4509,87 @@ def _pa75_capture_reply_batch(
     return True
 
 
+def _write_immutable_json_receipt(path: Path, value: Mapping[str, Any], *, label: str) -> dict[str, Any]:
+    """Write one canonical receipt, accepting only an identical retry.
+
+    O_EXCL is intentional: these receipts are evidence, never a mutable status
+    file.  A same-path mismatch is a failed-closed collision rather than an
+    opportunity to overwrite an earlier capture.
+    """
+    payload = (json.dumps(dict(value), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        try:
+            existing = path.read_bytes()
+        except OSError as exc:
+            raise ConsumerError(f"cannot read existing {label} receipt: {path}") from exc
+        if existing != payload:
+            raise ConsumerError(f"{label} receipt collision is divergent: {path}")
+        return dict(value)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except Exception:
+        # The receipt is not usable unless it is fully durable.  Remove only
+        # the O_EXCL file this invocation created, never a pre-existing one.
+        with contextlib.suppress(OSError):
+            path.unlink()
+        raise
+    return dict(value)
+
+
+def _pa75_capture_receipt(
+    *,
+    records: Sequence[InboxRecord],
+    correlations: Mapping[str, Mapping[str, Any]],
+    result: Mapping[str, Any],
+    config_path: Path,
+) -> Path:
+    """Persist the canary's raw mutation evidence before terminal inbox state."""
+    configured_dir = os.environ.get("TGG_PA75_CAPTURE_RECEIPT_DIR", "").strip()
+    if not configured_dir:
+        raise ConsumerError("PA-75 canary capture requires TGG_PA75_CAPTURE_RECEIPT_DIR")
+    message_ids = sorted(record.message_id for record in records)
+    correlation_rows: list[dict[str, str]] = []
+    for message_id in message_ids:
+        correlation = correlations.get(message_id)
+        projection = correlation.get("pa75_canary_projection") if isinstance(correlation, Mapping) else None
+        if not isinstance(projection, Mapping):
+            raise ConsumerError("PA-75 canary capture lost its authenticated correlation")
+        correlation_rows.append({
+            "message_id": message_id,
+            "event_id": str(projection["event_id"]),
+            "event_sha256": str(projection["event_sha256"]),
+        })
+    identity = {
+        "chat_id": records[0].chat_id,
+        "message_ids": message_ids,
+        "correlations": correlation_rows,
+    }
+    receipt_key = hashlib.sha256(
+        (json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    provider, model = configured_engine(config_path)
+    receipt = {
+        "contract": "tgg-pa75-capture-mutation-receipt/v1",
+        "receipt_key_sha256": receipt_key,
+        **identity,
+        "provider": provider,
+        "model": model,
+        "handled": [dict(item) for item in (result.get("handled") or []) if isinstance(item, Mapping)],
+        "captured_business_mutations": [
+            dict(item) for item in (result.get("captured_business_mutations") or []) if isinstance(item, Mapping)
+        ],
+    }
+    receipt_path = Path(configured_dir).expanduser().resolve() / f"{receipt_key}.json"
+    _write_immutable_json_receipt(receipt_path, receipt, label="PA-75 capture")
+    return receipt_path
+
+
 async def process_management_document_canary_event(
     inbox: DurableInbox,
     *,
@@ -4626,6 +4707,47 @@ def _new_gateway_runner(config_path: Path | None = None) -> Any:
 
     with _runtime_config_context(config_path):
         return GatewayRunner(load_gateway_config())
+
+
+async def run_management_document_canary(args: argparse.Namespace) -> int:
+    """Run one file-backed PA-75 event through the real notice path only."""
+    event_path = Path(args.event).resolve()
+    receipt_path = Path(args.receipt).resolve()
+    try:
+        event = json.loads(event_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConsumerError(f"cannot read structured PA-75 canary event: {event_path}") from exc
+    if not isinstance(event, Mapping):
+        raise ConsumerError("PA-75 canary event must be a JSON object")
+
+    # A retry must not open another model turn or attempt another bridge send.
+    # The event SHA binds every signed event field; a different event at this
+    # immutable receipt location is explicitly refused.
+    if receipt_path.exists():
+        try:
+            existing = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConsumerError(f"cannot read existing PA-75 canary receipt: {receipt_path}") from exc
+        if (
+            isinstance(existing, Mapping)
+            and existing.get("contract") == "tgg-pa75-typed-canary-event-receipt/v1"
+            and existing.get("canary_event_id") == event.get("id")
+            and existing.get("canary_event_sha256") == event.get("event_sha256")
+        ):
+            print(json.dumps(dict(existing), sort_keys=True))
+            return 0
+        raise ConsumerError(f"PA-75 canary receipt collision is divergent: {receipt_path}")
+
+    inbox = DurableInbox(Path(args.inbox).resolve())
+    config_path = Path(args.config).resolve()
+    with SharedActivityLock(Path(args.activity_lock_file).resolve() if args.activity_lock_file else None):
+        runner = _new_gateway_runner(config_path)
+        receipt = await process_management_document_canary_event(
+            inbox, config_path=config_path, runner=runner, event=event,
+        )
+        _write_immutable_json_receipt(receipt_path, receipt, label="PA-75 canary event")
+    print(json.dumps(receipt, sort_keys=True))
+    return 0
 
 
 async def _process_claimed_chat_batch_unlocked(
@@ -4788,6 +4910,17 @@ async def _process_claimed_chat_batch_unlocked(
         if unknown:
             raise ConsumerError(
                 f"turn evidence referenced messages outside claimed chat batch: {sorted(unknown)}"
+            )
+        if capture_canary_reply:
+            # This receipt is the canary's durable raw-mutation boundary.  It
+            # must exist before the claimed WhatsApp rows become terminal; a
+            # storage failure therefore follows the existing failed/requeue
+            # path instead of falsely recording a successful capture.
+            _pa75_capture_receipt(
+                records=records,
+                correlations=management_document_correlations,
+                result=result,
+                config_path=config_path,
             )
         # One transaction: a multi-turn batch can never land partially
         # terminal if the process exits between turn groups.
@@ -6254,6 +6387,19 @@ def build_parser() -> argparse.ArgumentParser:
     bounded.add_argument("--lock-file", required=True)
     bounded.add_argument("--run-id")
     bounded.add_argument("--dry-run", action="store_true")
+
+    canary = sub.add_parser(
+        "management-document-canary",
+        help="Run one typed PA-75 test-chat event without polling or cursor advance",
+    )
+    canary.add_argument("--event", required=True, help="immutable typed event JSON file")
+    canary.add_argument("--inbox", required=True)
+    canary.add_argument("--config", required=True)
+    canary.add_argument("--receipt", required=True, help="immutable canary receipt path")
+    canary.add_argument(
+        "--activity-lock-file",
+        help="shared with release executor while the real GatewayRunner owns the canary",
+    )
     return parser
 
 
@@ -6272,6 +6418,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             return asyncio.run(run_fixture(args))
         if args.command == "bounded-backplay":
             return asyncio.run(run_bounded_backplay(args))
+        if args.command == "management-document-canary":
+            return asyncio.run(run_management_document_canary(args))
         raise ConsumerError(f"unknown command {args.command}")
     except ConsumerError as exc:
         print(f"consumer error: {exc}", file=sys.stderr)

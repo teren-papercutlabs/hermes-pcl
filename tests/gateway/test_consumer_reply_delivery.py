@@ -260,6 +260,141 @@ async def test_pa75_typed_canary_event_uses_real_notice_delivery_without_poll_or
     assert inbox.total() == 0
 
 
+def test_pa75_canary_cli_uses_real_notice_path_and_immutable_receipt(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys
+) -> None:
+    _enable_document_events(monkeypatch)
+    event = _canary_event("pa75-canary-entry:cli")
+    event_path = tmp_path / "event.json"
+    receipt_path = tmp_path / "receipts" / "canary.json"
+    event_path.write_text(json.dumps(event), encoding="utf-8")
+    calls: list[str] = []
+
+    def fake_urlopen(request, timeout=0):
+        calls.append(request.full_url)
+        return _FakeResponse({"success": True, "messageId": "WA-cli-1"})
+
+    async def fake_turn(entry, **kwargs):
+        assert kwargs["runner"] is fake_runner
+        return [_captured(MGMT_CHAT, "Canary question", reply_to=None)]
+
+    fake_runner = object()
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda path: fake_runner)
+    monkeypatch.setattr(consumer, "_run_management_document_turn", fake_turn)
+    assert consumer.main([
+        "management-document-canary", "--event", str(event_path), "--inbox", str(inbox.db_path),
+        "--config", str(config_path), "--receipt", str(receipt_path),
+        "--activity-lock-file", str(tmp_path / "activity.lock"),
+    ]) == 0
+    receipt = json.loads(receipt_path.read_text())
+    assert receipt["canary_event_sha256"] == event["event_sha256"]
+    assert calls == ["http://127.0.0.1:3011/send"]
+    assert inbox.management_document_cursor() is None
+    # Exact retry reads the immutable receipt; it does not construct a runner
+    # or re-enter the bridge/model path.
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda path: pytest.fail("runner reopened"))
+    assert consumer.main([
+        "management-document-canary", "--event", str(event_path), "--inbox", str(inbox.db_path),
+        "--config", str(config_path), "--receipt", str(receipt_path),
+    ]) == 0
+    assert calls == ["http://127.0.0.1:3011/send"]
+    assert json.loads(capsys.readouterr().out.splitlines()[-1]) == receipt
+
+
+def test_pa75_canary_cli_refuses_divergent_receipt(
+    inbox: DurableInbox, config_path: Path, tmp_path: Path, capsys
+) -> None:
+    event = _canary_event()
+    event_path = tmp_path / "event.json"
+    receipt_path = tmp_path / "receipt.json"
+    event_path.write_text(json.dumps(event), encoding="utf-8")
+    receipt_path.write_text(json.dumps({"contract": "other"}), encoding="utf-8")
+    assert consumer.main([
+        "management-document-canary", "--event", str(event_path), "--inbox", str(inbox.db_path),
+        "--config", str(config_path), "--receipt", str(receipt_path),
+    ]) == 2
+    assert "receipt collision is divergent" in capsys.readouterr().err
+
+
+@pytest.mark.asyncio
+async def test_pa75_claimed_reply_persists_raw_mutation_receipt_before_terminal(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    event = _canary_event()
+    projection = {
+        "contract": "tgg-pa75-typed-canary-projection/v1",
+        "event_id": event["id"], "event_sha256": event["event_sha256"],
+        "entry": event["entry"], "source_record_projection": event["source_record_projection"],
+        "source_record_projection_sha256": event["source_record_projection_sha256"],
+        "event_payload": {key: value for key, value in event.items() if key != "event_sha256"},
+    }
+    config_path.write_text(config_path.read_text() + "model:\n  provider: test-provider\n  default: test-model\n")
+    source = tmp_path / "reply.jsonl"
+    source.write_text(json.dumps({"messageId": "reply-1", "chatId": MGMT_CHAT, "timestamp": FRESH_TS}) + "\n")
+    cursor = tmp_path / "cursor.json"
+    consumer.initialize_cursor(source, cursor, position="start")
+    inbox.stage_from_source(source, cursor)
+    records = inbox.pending(limit=1)
+    monkeypatch.setenv("TGG_PA75_CAPTURE_RECEIPT_DIR", str(tmp_path / "capture-receipts"))
+    monkeypatch.setattr(inbox, "management_document_correlation", lambda record: {"pa75_canary_projection": projection})
+    monkeypatch.setattr(consumer, "ensure_record_media_retained", lambda *args, **kwargs: None)
+    monkeypatch.setattr(consumer, "_inject_bounded_source_evidence", lambda *args, **kwargs: None)
+
+    async def fake_process(records, **kwargs):
+        assert kwargs["capture_business_writes_for_test_management"] is True
+        return {
+            "submitted_message_ids": ["reply-1"],
+            "handled": [{"message_ids": ["reply-1"], "turn_id": "turn-canary"}],
+            "captured_outbound": [],
+            "captured_business_mutations": [{"operation": "captured-only"}],
+        }
+
+    original_finish = inbox.finish_processed_batch
+    def receipt_before_finish(records, **kwargs):
+        receipt_files = list((tmp_path / "capture-receipts").glob("*.json"))
+        assert len(receipt_files) == 1
+        receipt = json.loads(receipt_files[0].read_text())
+        assert receipt["message_ids"] == ["reply-1"]
+        assert receipt["provider"] == "test-provider"
+        assert receipt["captured_business_mutations"] == [{"operation": "captured-only"}]
+        return original_finish(records, **kwargs)
+
+    monkeypatch.setattr(consumer, "process_live_records", fake_process)
+    monkeypatch.setattr(inbox, "finish_processed_batch", receipt_before_finish)
+    await consumer._process_claimed_chat_batch(
+        inbox, records, config_path=config_path, state_db=tmp_path / "state.db",
+        case_db=tmp_path / "case.db", source_before_image_dir=tmp_path / "before",
+        gate_changed_at=GATE_CHANGED_AT, runner=object(),
+    )
+    assert inbox.counts() == {"completed": 1}
+
+
+def test_pa75_raw_capture_receipt_is_idempotent_and_refuses_divergence(
+    config_path: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    event = _canary_event()
+    projection = {
+        "contract": "tgg-pa75-typed-canary-projection/v1", "event_id": event["id"],
+        "event_sha256": event["event_sha256"], "entry": event["entry"],
+        "source_record_projection": event["source_record_projection"],
+        "source_record_projection_sha256": event["source_record_projection_sha256"],
+        "event_payload": {key: value for key, value in event.items() if key != "event_sha256"},
+    }
+    config_path.write_text(config_path.read_text() + "model:\n  provider: test-provider\n  default: test-model\n")
+    monkeypatch.setenv("TGG_PA75_CAPTURE_RECEIPT_DIR", str(tmp_path / "receipts"))
+    record = _record(MGMT_CHAT, "reply-1")
+    result = {"handled": [{"message_ids": ["reply-1"], "turn_id": "turn-1"}], "captured_business_mutations": []}
+    correlations = {"reply-1": {"pa75_canary_projection": projection}}
+    first = consumer._pa75_capture_receipt(records=[record], correlations=correlations, result=result, config_path=config_path)
+    assert consumer._pa75_capture_receipt(records=[record], correlations=correlations, result=result, config_path=config_path) == first
+    with pytest.raises(consumer.ConsumerError, match="collision is divergent"):
+        consumer._pa75_capture_receipt(
+            records=[record], correlations=correlations,
+            result={**result, "captured_business_mutations": [{"different": True}]}, config_path=config_path,
+        )
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "mutate,reason",
