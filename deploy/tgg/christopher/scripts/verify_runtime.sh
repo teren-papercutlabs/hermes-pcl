@@ -379,7 +379,7 @@ then
 fi
 
 "$APP_ROOT/.venv/bin/python" - "$APP_ROOT" "$HERMES_HOME" "$DEPLOY_ROOT" <<'PY'
-import datetime, hashlib, importlib.util, json, os, pathlib, sqlite3, stat, subprocess, sys, time, urllib.request, yaml
+import datetime, hashlib, importlib.util, json, os, pathlib, sqlite3, stat, subprocess, sys, time, urllib.parse, urllib.request, yaml
 
 app = pathlib.Path(sys.argv[1])
 home = pathlib.Path(sys.argv[2])
@@ -486,15 +486,20 @@ assert "report-operations" not in constitution["job_briefs"]["tgg_ops_ingest"]["
 if capability:
     assert "tgg-whatsapp-evidence" in management["enabled_toolsets"]
     assert "tgg-whatsapp-evidence" not in constitution["job_briefs"]["tgg_ops_ingest"]["enabled_toolsets"]
-    manifest = json.loads((capability["release_root"] / "manifest.json").read_text())
     receipt = json.loads((runtime / "engine-slot-receipt.json").read_text())
     assert receipt["configuration_source"] == "external-capability"
     assert receipt["host_config_authoritative"] is True
     assert receipt["config_sha256"] == sha(home / "config.yaml")
     assert receipt["capability_release_id"] == capability["release_id"]
     assert receipt["capability_manifest_sha256"] == capability["manifest_sha256"]
-    systems = manifest["systems"]
-    base_url = systems["base_url"].rstrip("/")
+    # Capability releases pin Systems source compatibility by commit; the
+    # endpoint remains host-owned config just like the report operations that
+    # use this authenticated read-only health/query path.
+    base_url = str(report_operations.get("base_url") or "").strip().rstrip("/")
+    parsed_base_url = urllib.parse.urlparse(base_url)
+    assert parsed_base_url.scheme == "https" and parsed_base_url.hostname, base_url
+    allowed_hosts = set(report_operations.get("allowed_download_hosts") or [])
+    assert parsed_base_url.hostname in allowed_hosts, (parsed_base_url.hostname, allowed_hosts)
     health_request = urllib.request.Request(
         base_url + "/api/health",
         headers={"User-Agent": "Christopher-TGG/1.0"},
