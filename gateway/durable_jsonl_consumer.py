@@ -4246,6 +4246,12 @@ def _internal_management_document_message(
     return {
         "messageId": f"human-resolution-document-entry:{entry_id}",
         "chatId": chat_id,
+        # This is an internal typed event, but it must enter the real WhatsApp
+        # adapter as the configured management *group*.  Omitting this made
+        # the adapter treat system@internal as a direct-message sender and
+        # reject it under the DM allowlist before the management selector ran.
+        "isGroup": True,
+        "chatName": "TGG Management",
         "senderId": "system@internal",
         "timestamp": created_at,
         "body": (
