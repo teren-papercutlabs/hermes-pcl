@@ -15,12 +15,15 @@ from pathlib import Path
 
 import pytest
 
+from gateway import durable_jsonl_consumer as consumer
+
 from gateway.durable_jsonl_consumer import (
     DurableInbox,
     InboxRecord,
     _management_typing_presence,
     _management_selector_chats,
     _replay_messages_with_retained_documents,
+    _deliver_management_document_notice,
     _internal_management_document_message,
     _parse_captured_send,
     _run_management_document_turn,
@@ -280,6 +283,136 @@ async def test_document_event_crash_after_send_advances_cursor_without_reopening
     result = await process_management_document_events(inbox, config_path=config_path, runner=object())
     assert result == {"examined": 1, "delivered": 1, "undelivered": 0, "skipped": 0}
     assert inbox.management_document_cursor() == (100, "entry-crash")
+
+
+def _seed_initial_notice(inbox: DurableInbox) -> None:
+    inbox.claim_reply_delivery(
+        "human-resolution:entry-initial", chat_id=MGMT_CHAT, reply_to_message_id=None,
+        correlation={"document_id": "record-1", "entry_id": "entry-initial", "entry_kind": "initial_default"},
+    )
+    inbox.record_reply_delivery(
+        "human-resolution:entry-initial", status="delivered", bridge_message_id="WA-initial",
+    )
+    inbox.update_reply_delivery_correlation(
+        "human-resolution:entry-initial", {"notice_body": "Which workbook should I apply?"},
+    )
+
+
+def test_lifecycle_closeout_quotes_only_the_stored_initial_notice(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    _seed_initial_notice(inbox)
+    sent: list[dict] = []
+    def fake_urlopen(request, timeout=0):
+        sent.append(json.loads(request.data))
+        return _FakeResponse({"success": True, "messageId": "WA-closure"})
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    config = consumer._management_document_event_config(config_path)
+    assert config is not None
+    entry = _document_entry("entry-closure", created_at=101, kind="closure")
+    result = _deliver_management_document_notice(
+        inbox, config=config, entry=entry,
+        captured_outbound=[_captured(MGMT_CHAT, "I have updated the 82 cases.", reply_to="WA-initial")],
+    )
+    assert result == "delivered"
+    assert sent == [{
+        "chatId": MGMT_CHAT,
+        "message": "I have updated the 82 cases.",
+        "replyTo": {"messageId": "WA-initial", "body": "Which workbook should I apply?", "fromMe": True},
+    }]
+
+
+def test_lifecycle_wrong_notice_is_suppressed_before_bridge(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    _seed_initial_notice(inbox)
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("bridge must not be called")))
+    config = consumer._management_document_event_config(config_path)
+    assert config is not None
+    with pytest.raises(consumer.ConsumerError, match="invalid lifecycle notice anchor"):
+        _deliver_management_document_notice(
+            inbox, config=config, entry=_document_entry("entry-wrong", kind="amendment"),
+            captured_outbound=[_captured(MGMT_CHAT, "Wrong quote", reply_to="WA-unrelated")],
+        )
+
+
+def test_lifecycle_without_delivered_initial_is_terminal_without_forged_quote(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("bridge must not be called")))
+    config = consumer._management_document_event_config(config_path)
+    assert config is not None
+    assert _deliver_management_document_notice(
+        inbox, config=config, entry=_document_entry("entry-no-initial", kind="closure"), captured_outbound=[],
+    ) == "undelivered"
+    assert inbox.reply_delivery_status("human-resolution:entry-no-initial") == "undelivered"
+
+
+def test_lifecycle_duplicate_and_unknown_outcome_never_resend(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    _seed_initial_notice(inbox)
+    calls = 0
+    def fake_urlopen(request, timeout=0):
+        nonlocal calls
+        calls += 1
+        return _FakeResponse({"success": False, "outcome": "unknown", "retrySafe": False}, status=202)
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    config = consumer._management_document_event_config(config_path)
+    assert config is not None
+    entry = _document_entry("entry-202-close", kind="closure")
+    outbound = [_captured(MGMT_CHAT, "Close out", reply_to="WA-initial")]
+    assert _deliver_management_document_notice(inbox, config=config, entry=entry, captured_outbound=outbound) == "undelivered"
+    assert _deliver_management_document_notice(inbox, config=config, entry=entry, captured_outbound=outbound) == "undelivered"
+    assert calls == 1
+
+
+@pytest.mark.asyncio
+async def test_source_fired_closure_runs_turn_and_quotes_initial_notice(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    _seed_initial_notice(inbox)
+    sent: list[dict] = []
+    def fake_urlopen(request, timeout=0):
+        if request.full_url.startswith("http://systems.test/"):
+            return _FakeResponse({"data": {"contract": "tgg-human-resolution-document-entry/v1", "entries": [_document_entry("entry-source-closure", created_at=101, kind="closure")]}})
+        sent.append(json.loads(request.data))
+        return _FakeResponse({"success": True, "messageId": "WA-closure"})
+    async def fake_turn(entry, **kwargs):
+        assert entry["entryKind"] == "closure"
+        return [_captured(MGMT_CHAT, "I have now updated the cases.", reply_to="WA-initial")]
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
+    assert await process_management_document_events(inbox, config_path=config_path, runner=object()) == {
+        "examined": 1, "delivered": 1, "undelivered": 0, "skipped": 0,
+    }
+    assert sent[0]["replyTo"]["messageId"] == "WA-initial"
+
+
+@pytest.mark.asyncio
+async def test_existing_lifecycle_delivery_suppresses_later_poll_turn(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    inbox.claim_reply_delivery(
+        "human-resolution:entry-already-closed", chat_id=MGMT_CHAT, reply_to_message_id="WA-initial",
+        correlation={"document_id": "record-1", "entry_id": "entry-already-closed", "entry_kind": "closure"},
+    )
+    inbox.record_reply_delivery("human-resolution:entry-already-closed", status="delivered", bridge_message_id="WA-closure")
+    def fake_urlopen(request, timeout=0):
+        return _FakeResponse({"data": {"contract": "tgg-human-resolution-document-entry/v1", "entries": [_document_entry("entry-already-closed", kind="closure")]}})
+    async def forbidden_turn(*args, **kwargs):
+        raise AssertionError("already delivered lifecycle entry must not recreate a turn")
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", forbidden_turn)
+    assert await process_management_document_events(inbox, config_path=config_path, runner=object()) == {
+        "examined": 1, "delivered": 1, "undelivered": 0, "skipped": 0,
+    }
 
 
 def test_document_event_model_input_is_internal_not_a_capture_envelope() -> None:

@@ -1344,6 +1344,66 @@ class DurableInbox:
             ).fetchone()
         return str(row[0]) if row is not None else None
 
+    def reply_delivery_correlation(self, delivery_key: str) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT correlation_json FROM reply_deliveries WHERE delivery_key=?",
+                (delivery_key,),
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        try:
+            value = json.loads(row[0])
+        except (TypeError, ValueError) as exc:
+            raise ConsumerError("reply delivery correlation is unreadable") from exc
+        if not isinstance(value, Mapping):
+            raise ConsumerError("reply delivery correlation is invalid")
+        return dict(value)
+
+    def update_reply_delivery_correlation(
+        self, delivery_key: str, updates: Mapping[str, Any]
+    ) -> None:
+        """Merge durable delivery context after a confirmed provider response."""
+        current = self.reply_delivery_correlation(delivery_key) or {}
+        merged = {**current, **dict(updates)}
+        with self.connect() as conn:
+            changed = conn.execute(
+                "UPDATE reply_deliveries SET correlation_json=? WHERE delivery_key=?",
+                (json.dumps(merged, sort_keys=True, separators=(",", ":")), delivery_key),
+            ).rowcount
+        if changed != 1:
+            raise ConsumerError("reply delivery disappeared before correlation update")
+
+    def initial_management_document_notice(
+        self, *, chat_id: str, document_id: str
+    ) -> dict[str, str] | None:
+        """Return the confirmed initial notice used as a lifecycle quote anchor."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT delivery_key,bridge_message_id,correlation_json FROM reply_deliveries "
+                "WHERE chat_id=? AND status='delivered' AND bridge_message_id IS NOT NULL "
+                "AND delivery_key GLOB 'human-resolution:*' ORDER BY created_at,delivery_key",
+                (chat_id,),
+            ).fetchall()
+        for row in rows:
+            try:
+                correlation = json.loads(row["correlation_json"] or "{}")
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(correlation, Mapping):
+                continue
+            if (
+                correlation.get("document_id") == document_id
+                and correlation.get("entry_kind") == "initial_default"
+                and str(correlation.get("notice_body") or "").strip()
+            ):
+                return {
+                    "delivery_key": str(row["delivery_key"]),
+                    "message_id": str(row["bridge_message_id"]),
+                    "body": str(correlation["notice_body"]),
+                }
+        return None
+
     def retention_candidates(
         self, *, limit: int, retry_interval_seconds: float = 0
     ) -> list[InboxRecord]:
@@ -4141,15 +4201,21 @@ def _internal_management_document_message(
     entry_id = str(entry["id"])
     record_id = str(entry["recordId"])
     created_at = int(entry["createdAt"])
+    entry_kind = str(entry["entryKind"])
+    instruction = (
+        "A new Christopher human-resolution document needs a management notice. "
+        if entry_kind == "initial_default" else
+        "A Christopher human-resolution document has a new lifecycle entry and needs a management update. "
+    )
     return {
         "messageId": f"human-resolution-document-entry:{entry_id}",
         "chatId": chat_id,
         "senderId": "system@internal",
         "timestamp": created_at,
         "body": (
-            "A new Christopher human-resolution document needs a management notice. "
+            instruction +
             "Read the durable document and its cited evidence using the document ID below. "
-            "Then write one natural, first-person question for the management chat. "
+            "Then write one natural, first-person message for the management chat. "
             "Do not treat this internal event as WhatsApp evidence and do not make a case change."
         ),
         "metadata": {
@@ -4201,7 +4267,7 @@ def _deliver_management_document_notice(
     entry: Mapping[str, Any],
     captured_outbound: Sequence[Mapping[str, Any]],
 ) -> str:
-    """Make one durable, proactive notice attempt for an initial document.
+    """Make one durable, proactive attempt for a document lifecycle entry.
 
     WhatsApp has no transaction/idempotency key.  The local claim is therefore
     intentionally at-most-once: a delivered, refused, failed or unknown bridge
@@ -4212,29 +4278,68 @@ def _deliver_management_document_notice(
     from urllib.request import Request, urlopen
 
     entry_id = str(entry["id"])
+    document_id = str(entry["recordId"])
+    entry_kind = str(entry["entryKind"])
     key = f"human-resolution:{entry_id}"
     previous = inbox.reply_delivery_status(key)
     if previous is not None:
         return previous
+    correlation = {
+        "document_id": document_id,
+        "entry_id": entry_id,
+        "entry_kind": entry_kind,
+    }
+    initial_notice = None
+    if entry_kind != "initial_default":
+        initial_notice = inbox.initial_management_document_notice(
+            chat_id=config.chat_id, document_id=document_id,
+        )
+        if initial_notice is None:
+            # The lifecycle entry is real and visible, but quote-less external
+            # delivery would sever it from the original escalation. Record one
+            # terminal safe outcome; never invent an inbound anchor or retry.
+            if inbox.claim_reply_delivery(
+                key, chat_id=config.chat_id, reply_to_message_id=None,
+                correlation=correlation,
+            ):
+                inbox.record_reply_delivery(
+                    key, status="undelivered", error="initial-management-notice-not-delivered",
+                )
+            return inbox.reply_delivery_status(key) or "undelivered"
     sends = [
         parsed for raw in captured_outbound
         if (parsed := _parse_captured_send(raw)) is not None
         and parsed["chat_id"] == config.chat_id
     ]
-    if len(sends) != 1 or sends[0].get("reply_to"):
+    expected_reply_to = initial_notice["message_id"] if initial_notice else None
+    if (
+        len(sends) != 1
+        or (entry_kind == "initial_default" and sends[0].get("reply_to"))
+        or (entry_kind != "initial_default" and sends[0].get("reply_to") != expected_reply_to)
+    ):
         raise ConsumerError(
-            "management document turn must emit exactly one unanchored text notice"
+            "management document turn emitted an invalid lifecycle notice anchor"
         )
     if not inbox.claim_reply_delivery(
         key,
         chat_id=config.chat_id,
-        reply_to_message_id=None,
-        correlation={"document_id": str(entry["recordId"]), "entry_id": entry_id},
+        reply_to_message_id=expected_reply_to,
+        correlation=correlation,
     ):
         return inbox.reply_delivery_status(key) or "undelivered"
+    payload: dict[str, Any] = {"chatId": config.chat_id, "message": sends[0]["content"]}
+    if initial_notice is not None:
+        # Quote only the actual previously delivered Christopher notice. The
+        # lifecycle event is internal and is never rewritten as an inbound
+        # WhatsApp message merely to satisfy the bridge's quote shape.
+        payload["replyTo"] = {
+            "messageId": initial_notice["message_id"],
+            "body": initial_notice["body"][:1024],
+            "fromMe": True,
+        }
     request = Request(
         f"{os.environ.get('TGG_REPLY_BRIDGE_URL', 'http://127.0.0.1:3011').rstrip('/')}/send",
-        data=json.dumps({"chatId": config.chat_id, "message": sends[0]["content"]}).encode(),
+        data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
@@ -4246,6 +4351,9 @@ def _deliver_management_document_notice(
             inbox.record_reply_delivery(
                 key, status="delivered", bridge_message_id=str(payload.get("messageId") or ""),
                 provider_outcome=str(payload.get("outcome") or "delivered"),
+            )
+            inbox.update_reply_delivery_correlation(
+                key, {"notice_body": sends[0]["content"]},
             )
             return "delivered"
         inbox.record_reply_delivery(
@@ -4271,17 +4379,19 @@ async def process_management_document_events(
     for entry in await asyncio.to_thread(_management_document_entries, config, cursor):
         summary["examined"] += 1
         created_at, entry_id = int(entry["createdAt"]), str(entry["id"])
-        if str(entry["entryKind"]) != "initial_default":
-            summary["skipped"] += 1
+        # A crash can land after bridge confirmation but before the local
+        # cursor write. The durable delivery row is then terminal: advance
+        # without reconstructing a model turn or lifecycle notice.
+        prior = inbox.reply_delivery_status(f"human-resolution:{entry_id}")
+        if prior is not None:
+            terminal = prior
         else:
-            # A crash can land after bridge confirmation but before the local
-            # cursor write.  The durable delivery row is then the terminal
-            # fact: advance without reconstructing a model turn, which avoids
-            # needless persistent-session context and any accidental second
-            # interpretation of an already-notified document.
-            prior = inbox.reply_delivery_status(f"human-resolution:{entry_id}")
-            if prior is not None:
-                terminal = prior
+            if str(entry["entryKind"]) != "initial_default" and inbox.initial_management_document_notice(
+                chat_id=config.chat_id, document_id=str(entry["recordId"]),
+            ) is None:
+                terminal = _deliver_management_document_notice(
+                    inbox, config=config, entry=entry, captured_outbound=[],
+                )
             else:
                 outcome = await _run_management_document_turn(
                     entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
@@ -4289,7 +4399,7 @@ async def process_management_document_events(
                 terminal = _deliver_management_document_notice(
                     inbox, config=config, entry=entry, captured_outbound=outcome,
                 )
-            summary[terminal] += 1
+        summary[terminal] += 1
         inbox.advance_management_document_cursor(created_at=created_at, entry_id=entry_id)
         cursor = (created_at, entry_id)
     return summary

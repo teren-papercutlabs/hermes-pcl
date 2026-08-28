@@ -97,6 +97,12 @@ the same ledger supplies the document ID as turn-local correlation metadata.
 Christopher still interprets the reply naturally; an unquoted `yes` (or any
 other bare message) receives no document correlation.
 
+Later amendment and closure entries are also source-fired lifecycle events.
+Their single notice is allowed only when an initial notice was confirmed; it
+quotes that stored provider message ID and stored notice body. If no initial
+notice was delivered, the lifecycle entry remains visible but receives one
+terminal `undelivered` ledger outcome—never an unanchored or fabricated quote.
+
 ## One-time migration (do not run during active processing)
 
 1. Install the fixed executor as root-owned
