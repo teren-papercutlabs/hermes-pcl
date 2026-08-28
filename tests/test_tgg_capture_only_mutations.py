@@ -26,6 +26,8 @@ def _config(sentinel: Path):
                 "tgg_case_update": {"type": "command", "command": command},
                 "tgg_human_resolution_apply": {"type": "command", "command": command},
                 "tgg_case_lookup": {"type": "command", "command": command},
+                "tgg_human_resolution_document_context": {"type": "command", "command": command},
+                "tgg_contractor_update_prepare": {"type": "command", "command": command},
             }
         }
     }
@@ -58,16 +60,22 @@ def test_capture_only_intercepts_every_non_read_operation_at_final_bridge(tmp_pa
     assert len(ctx.captured_business_mutations[0]["payload_sha256"]) == 64
 
 
-def test_capture_mode_keeps_only_explicit_pure_reads_live(tmp_path):
+@pytest.mark.parametrize(
+    "operation,payload",
+    [
+        ("tgg_case_lookup", {"jobNo": "AM/JOB/2601/1018"}),
+        ("tgg_human_resolution_document_context", {"id": "record-1"}),
+        ("tgg_contractor_update_prepare", {"path": "/media/tgg/batch3.xlsx"}),
+    ],
+)
+def test_capture_mode_keeps_only_explicit_pure_reads_live(tmp_path, operation, payload):
     sentinel = tmp_path / "read-was-called"
     plan = ReplayPlan(
         platform="whatsapp", run_id="pa75-capture", attempt_id="pa75-attempt",
         live_business_writes=True, business_write_mode="capture",
     )
     with replay_context(plan) as ctx:
-        result = execute_business_operation(
-            _config(sentinel), "tgg_case_lookup", {"jobNo": "AM/JOB/2601/1018"}
-        )
+        result = execute_business_operation(_config(sentinel), operation, payload)
 
     assert result["ok"] is True
     assert sentinel.read_text() == "executed"
