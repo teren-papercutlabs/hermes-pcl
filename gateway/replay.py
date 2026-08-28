@@ -615,6 +615,10 @@ class ReplayPlan:
     # and debounce parity. Evals/replays keep the default False so the
     # server-side replay-target protection continues to refuse prod writes.
     live_business_writes: bool = False
+    # Trusted runtime code may replace only the final business-mutation
+    # dispatch with a recorder for a bounded canary.  It is deliberately not a
+    # model tool argument or a business-operation payload.
+    business_write_mode: str = "apply"  # apply | capture
     replay_safe_commands: tuple[str, ...] = ()
     history_before_ts: Optional[int] = None
     source_path: Optional[str] = None
@@ -632,6 +636,8 @@ class ReplayPlan:
             raise ValueError("replay_namespace cannot be empty")
         if namespace.startswith("agent:main"):
             raise ValueError("replay_namespace must not use the live agent:main namespace")
+        if self.business_write_mode not in {"apply", "capture"}:
+            raise ValueError("business_write_mode must be 'apply' or 'capture'")
         object.__setattr__(self, "replay_namespace", namespace)
 
     @classmethod
@@ -726,6 +732,7 @@ class ReplayPlan:
             delivery_mode=delivery_mode,
             bypass_require_mention=bool(data.get("bypass_require_mention", data.get("bypassRequireMention", True))),
             bypass_auth=bool(data.get("bypass_auth", data.get("bypassAuth", True))),
+            business_write_mode=str(data.get("business_write_mode", data.get("businessWriteMode", "apply"))).strip().lower(),
             replay_safe_commands=safe_commands,
             history_before_ts=before,
             source_path=source_path or (str(data.get("source_path") or data.get("sourcePath") or "") or None),
@@ -787,6 +794,7 @@ class ReplayPlan:
             "delivery_mode": self.delivery_mode,
             "bypass_require_mention": self.bypass_require_mention,
             "bypass_auth": self.bypass_auth,
+            "business_write_mode": self.business_write_mode,
             "replay_safe_commands": list(self.replay_safe_commands),
             "history_before_ts": self.history_before_ts,
             "source_path": self.source_path,
@@ -805,6 +813,7 @@ class ReplayPlan:
             "delivery_mode": self.delivery_mode,
             "bypass_require_mention": self.bypass_require_mention,
             "bypass_auth": self.bypass_auth,
+            "business_write_mode": self.business_write_mode,
             "history_before_ts": self.history_before_ts,
             "replay_safe_commands": list(self.replay_safe_commands),
             "replay_namespace": self.replay_namespace,
@@ -971,6 +980,7 @@ class ReplayExecutionContext:
     started_at: float = field(default_factory=time.time)
     outbound: list[dict[str, Any]] = field(default_factory=list)
     blocked_commands: list[dict[str, Any]] = field(default_factory=list)
+    captured_business_mutations: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def execution_mode(self) -> str:
@@ -995,6 +1005,10 @@ class ReplayExecutionContext:
     @property
     def bypass_auth(self) -> bool:
         return self.plan.bypass_auth
+
+    @property
+    def business_write_mode(self) -> str:
+        return self.plan.business_write_mode
 
     @property
     def replay_safe_commands(self) -> set[str]:
@@ -1025,6 +1039,35 @@ class ReplayExecutionContext:
             "chat_id": chat_id,
             "reason": "replay_command_side_effect_blocked",
         })
+
+    def record_captured_business_mutation(
+        self,
+        *,
+        operation: str,
+        payload: Mapping[str, Any],
+        target: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Record a normalized final-bridge write proposed during PA-75.
+
+        The caller has already resolved and validated the configured operation.
+        This is intentionally in replay context, so it is scoped to exactly one
+        trusted runner invocation rather than a process-wide dry-run switch.
+        """
+        entry = {
+            "contract": "tgg-pa75-captured-business-mutation/v1",
+            "capture_id": f"capture-{len(self.captured_business_mutations) + 1}",
+            "run_id": self.run_id,
+            "attempt_id": self.attempt_id,
+            "replay_namespace": self.replay_namespace,
+            "operation": operation,
+            "payload": dict(payload),
+            "target": dict(target),
+        }
+        entry["payload_sha256"] = hashlib.sha256(
+            canonical_json({key: value for key, value in entry.items() if key != "payload_sha256"}).encode("utf-8")
+        ).hexdigest()
+        self.captured_business_mutations.append(entry)
+        return dict(entry)
 
     def record_outbound(self, *, kind: str, args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> str:
         message_id = f"replay-{len(self.outbound) + 1}"
@@ -1131,6 +1174,7 @@ class ReplayResult:
     outbound: list[dict[str, Any]]
     blocked_commands: list[dict[str, Any]]
     delivery_mode: str
+    captured_business_mutations: list[dict[str, Any]] = field(default_factory=list)
     corpus_report: Optional[dict[str, Any]] = None
     attempt: Optional[dict[str, Any]] = None
     execution_report: Optional[dict[str, Any]] = None
@@ -1143,6 +1187,7 @@ class ReplayResult:
             "processed": self.processed,
             "outbound": self.outbound,
             "blocked_commands": self.blocked_commands,
+            "captured_business_mutations": self.captured_business_mutations,
             "delivery_mode": self.delivery_mode,
             "corpus_report": self.corpus_report,
             "attempt": self.attempt,

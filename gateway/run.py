@@ -6785,6 +6785,7 @@ class GatewayRunner:
                     processed=int(processed or 0),
                     outbound=list(ctx.outbound),
                     blocked_commands=list(ctx.blocked_commands),
+                    captured_business_mutations=list(ctx.captured_business_mutations),
                     delivery_mode=ctx.delivery_mode,
                     corpus_report=dict(plan.corpus_manifest.get("report") or {}),
                     attempt=attempt_dict,
@@ -6797,6 +6798,7 @@ class GatewayRunner:
             if ctx is not None:
                 try:
                     setattr(exc, "replay_outbound", list(ctx.outbound))
+                    setattr(exc, "replay_captured_business_mutations", list(ctx.captured_business_mutations))
                 except Exception:
                     pass
             if session_db is not None and hasattr(session_db, "finish_replay_attempt"):

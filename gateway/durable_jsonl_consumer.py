@@ -3066,6 +3066,7 @@ async def process_live_records(
     runner: Any | None = None,
     defer_provider_errors: bool = False,
     management_document_correlations: Mapping[str, Mapping[str, Any]] | None = None,
+    capture_business_writes_for_test_management: bool = False,
 ) -> dict[str, Any]:
     """Process live durable records through the replay orchestrator.
 
@@ -3091,6 +3092,17 @@ async def process_live_records(
     from gateway.run import GatewayRunner
 
     provider, model = configured_engine(config_path)
+    business_write_mode = "apply"
+    if capture_business_writes_for_test_management:
+        # This is the only PA-75 selector.  It is evaluated by the durable
+        # runtime from its already-authenticated records, not by Christopher,
+        # a replay file, or an operation payload.  The literal test chat is an
+        # independent guard against a canary invoking the real group.
+        test_chat = "120363426509183563@g.us"
+        record_chats = {record.chat_id for record in records}
+        if record_chats != {test_chat} or test_chat not in _management_selector_chats(config_path):
+            raise ConsumerError("capture-only mode requires the approved test management selector")
+        business_write_mode = "capture"
     # Production passes one long-lived runner into every per-chat task.  The
     # optional construction path preserves isolated callers and fixtures.
     runner = runner or GatewayRunner(load_gateway_config())
@@ -3108,6 +3120,7 @@ async def process_live_records(
         bypass_require_mention=True,
         bypass_auth=True,
         live_business_writes=True,
+        business_write_mode=business_write_mode,
         source_path="durable-jsonl-consumer-live",
         # Ordinary live drain is one ongoing conversation per chat. Bounded
         # backplay is recovery/diagnostic replay and remains isolated.
@@ -3138,6 +3151,11 @@ async def process_live_records(
             "processed": 0,
             "handled": [],
             "captured_outbound": captured,
+            "captured_business_mutations": [
+                dict(entry)
+                for entry in (getattr(exc, "replay_captured_business_mutations", None) or [])
+                if isinstance(entry, Mapping)
+            ],
             "provider_errors": [f"{type(exc).__name__}: {exc}"],
             "outbound_sent": 0,
             "submitted_message_ids": [record.message_id for record in records],
@@ -3169,6 +3187,10 @@ async def process_live_records(
         ids = [str(ref) for ref in refs if ref]
         handled.append({"message_ids": ids, "turn_id": turn_id})
     captured_outbound = [dict(entry) for entry in result.outbound]
+    captured_business_mutations = [
+        dict(entry)
+        for entry in (getattr(result, "captured_business_mutations", None) or [])
+    ]
     if not handled and not provider_errors:
         captured_error = _captured_provider_error(captured_outbound)
         if captured_error:
@@ -3181,6 +3203,7 @@ async def process_live_records(
         "processed": int(result.processed or 0),
         "handled": handled,
         "captured_outbound": captured_outbound,
+        "captured_business_mutations": captured_business_mutations,
         "provider_errors": provider_errors,
         "outbound_sent": 0,
         "submitted_message_ids": [record.message_id for record in records],
