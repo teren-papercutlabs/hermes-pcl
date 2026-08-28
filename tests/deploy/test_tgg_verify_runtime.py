@@ -497,6 +497,25 @@ def test_verifier_validates_release_assets_not_divergent_legacy_checkout(tmp_pat
     assert '--app-root "$RELEASE_ROOT"' in verify_script
 
 
+def test_capability_systems_binding_is_commit_only_and_health_uses_host_base_url() -> None:
+    """A capability does not own the Systems endpoint consumed by host health."""
+    production_capability_manifest = {
+        "systems": {"commit": "26636ec355b9b35691bda469e0b4c4237b00c353"},
+    }
+    assert set(production_capability_manifest["systems"]) == {"commit"}
+
+    config = yaml.safe_load((DEPLOY_ROOT / "config.yaml").read_text())
+    report_operations = config["pa"]["report_operations"]
+    assert report_operations["base_url"] == "https://systems.papercut-labs.com"
+    assert "systems.papercut-labs.com" in report_operations["allowed_download_hosts"]
+
+    verify_script = VERIFY.read_text()
+    assert 'base_url = str(report_operations.get("base_url") or "").strip().rstrip("/")' in verify_script
+    assert 'parsed_base_url.scheme == "https"' in verify_script
+    assert 'manifest = json.loads((capability["release_root"] / "manifest.json").read_text())' not in verify_script
+    assert 'systems = manifest["systems"]' not in verify_script
+
+
 def test_verifier_uses_invoked_release_assets_and_legacy_app_virtualenv(tmp_path: Path) -> None:
     """The health unit follows the release symlink without moving APP_ROOT."""
     release = tmp_path / "releases" / "r162"
