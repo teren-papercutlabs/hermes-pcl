@@ -16,13 +16,14 @@ from zoneinfo import ZoneInfo
 
 MANAGEMENT_CHAT = "120363407903158826@g.us"
 DEFAULT_SOURCE = "/var/lib/tgg-capture/whatsapp/capture/events.jsonl"
+INTERNAL_TRIGGER_ID = "system@internal"
 
 
 def build_record(cycle: str, *, now: int) -> dict[str, object]:
     return {
         "messageId": f"SYSREPORT-{cycle}-{now}-{uuid.uuid4().hex[:8]}",
         "chatId": MANAGEMENT_CHAT,
-        "senderId": "system@internal",
+        "senderId": INTERNAL_TRIGGER_ID,
         "senderName": "system",
         "chatName": "Christopher x TGG Management",
         "isGroup": True,
@@ -30,7 +31,12 @@ def build_record(cycle: str, *, now: int) -> dict[str, object]:
         "hasMedia": False,
         "mediaType": None,
         "mediaUrls": [],
-        "mentionedIds": [],
+        # Management rows are intentionally mention/reply gated.  Mark the
+        # trusted internal scheduler as explicitly addressing its own trigger
+        # identity so the existing gate admits this exact machine-authored
+        # event without weakening ordinary management-chat routing.
+        "mentionedIds": [INTERNAL_TRIGGER_ID],
+        "botIds": [INTERNAL_TRIGGER_ID],
         "quotedMessageId": None,
         "quotedText": "",
         "timestamp": now,

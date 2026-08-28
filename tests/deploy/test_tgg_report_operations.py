@@ -9,6 +9,7 @@ import threading
 from io import BytesIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
 import pytest
@@ -345,7 +346,7 @@ def test_runtime_verifier_identifies_its_systems_read_check_to_the_edge():
     assert source.count('"User-Agent": "Christopher-TGG/1.0"') == 2
 
 
-def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path):
+def test_scheduled_runner_builds_addressed_management_records_for_both_cycles(monkeypatch):
     script = DEPLOY / "scripts" / "run_scheduled_report.py"
     source = script.read_text()
     assert "process_live_records" not in source
@@ -364,13 +365,49 @@ def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path)
     runner = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     spec.loader.exec_module(runner)
-    record = runner.build_record("weekly", now=123)
-    assert record["senderId"] == "system@internal"
-    assert record["body"] == "[system] scheduled weekly report run"
-    assert record["chatId"] == runner.MANAGEMENT_CHAT
+
+    assert runner.DEFAULT_SOURCE == "/var/lib/tgg-capture/whatsapp/capture/events.jsonl"
+    for cycle in ("weekly", "monthly"):
+        record = runner.build_record(cycle, now=123)
+        assert record["senderId"] == runner.INTERNAL_TRIGGER_ID == "system@internal"
+        assert record["mentionedIds"] == [runner.INTERNAL_TRIGGER_ID]
+        assert record["botIds"] == [runner.INTERNAL_TRIGGER_ID]
+        assert record["body"] == f"[system] scheduled {cycle} report run"
+        assert record["chatId"] == runner.MANAGEMENT_CHAT
+
+
+def test_scheduled_runner_is_outbound_disabled_in_dry_run(monkeypatch, tmp_path):
+    script = DEPLOY / "scripts" / "run_scheduled_report.py"
+    spec = importlib.util.spec_from_file_location(
+        "christopher_scheduled_report", DEPLOY / "scripts" / "run_scheduled_report.py"
+    )
+    runner = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(runner)
     monkeypatch.setattr(runner, "append_record", lambda *_args: (_ for _ in ()).throw(AssertionError("dry-run appended")))
     monkeypatch.setattr("sys.argv", [str(script), "--cycle", "weekly", "--dry-run", "--timestamp", "123"])
     assert runner.main() == 0
+
+
+def test_scheduled_runner_keeps_monthly_first_week_guard(monkeypatch, capsys):
+    script = DEPLOY / "scripts" / "run_scheduled_report.py"
+    spec = importlib.util.spec_from_file_location(
+        "christopher_scheduled_report", DEPLOY / "scripts" / "run_scheduled_report.py"
+    )
+    runner = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(runner)
+
+    monkeypatch.setattr(runner, "datetime", SimpleNamespace(now=lambda _tz: SimpleNamespace(day=8)))
+    monkeypatch.setattr(runner, "build_record", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("guard built a record")))
+    monkeypatch.setattr("sys.argv", [str(script), "--cycle", "monthly", "--dry-run"])
+
+    assert runner.main() == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "ok": True,
+        "cycle": "monthly",
+        "skipped": "not-first-monday",
+    }
 
 
 def test_nightly_whatsapp_trigger_is_internal_idempotent_and_outbound_disabled(monkeypatch, tmp_path):
