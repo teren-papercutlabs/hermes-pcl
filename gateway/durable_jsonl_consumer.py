@@ -385,6 +385,20 @@ class InboxRecord:
     retention_quarantined: bool = False
 
 
+@dataclass(frozen=True)
+class ManagementDocumentEventConfig:
+    """The narrow, opt-in transport contract for document outbox events.
+
+    This is intentionally separate from WhatsApp capture configuration.  A
+    document entry is an internal Systems event, not a forged inbound WhatsApp
+    message, so it has its own endpoint, cursor and destination declaration.
+    """
+
+    api_url: str
+    chat_id: str
+    token_env: str
+
+
 def _initial_retention_state(item: Mapping[str, Any]) -> str:
     """Classify media that needs content validation before model ingress."""
     coarse = str(item.get("mediaType") or item.get("mimeType") or "")
@@ -1252,6 +1266,80 @@ class DurableInbox:
                 "SELECT status,COUNT(*) AS n FROM ingress_events GROUP BY status"
             ).fetchall()
         return {str(row["status"]): int(row["n"]) for row in rows}
+
+    def management_document_cursor(self) -> tuple[int, str] | None:
+        """Return the exclusive Systems document-entry cursor, if initialized.
+
+        It lives in the existing durable consumer metadata store rather than a
+        second queue table.  The tuple is Systems' canonical ascending order;
+        it is advanced only after this process has reached a terminal local
+        delivery outcome for that entry.
+        """
+        with self.connect() as conn:
+            created = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='management_document_cursor_created_at'"
+            ).fetchone()
+            entry_id = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='management_document_cursor_id'"
+            ).fetchone()
+        if created is None and entry_id is None:
+            return None
+        if created is None or entry_id is None:
+            raise ConsumerError("management document cursor is incomplete")
+        try:
+            created_at = int(str(created[0]))
+        except (TypeError, ValueError) as exc:
+            raise ConsumerError("management document cursor created_at is invalid") from exc
+        value = str(entry_id[0]).strip()
+        if created_at < 0 or not value:
+            raise ConsumerError("management document cursor is invalid")
+        return created_at, value
+
+    def advance_management_document_cursor(self, *, created_at: int, entry_id: str) -> None:
+        """CAS-advance the event cursor after an at-most-once terminal outcome."""
+        if created_at < 0 or not entry_id.strip():
+            raise ConsumerError("management document cursor advance is invalid")
+        current = self.management_document_cursor()
+        candidate = (int(created_at), str(entry_id))
+        if current is not None and candidate < current:
+            raise ConsumerError("management document cursor cannot move backwards")
+        if current == candidate:
+            return
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            observed_created = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='management_document_cursor_created_at'"
+            ).fetchone()
+            observed_id = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='management_document_cursor_id'"
+            ).fetchone()
+            observed = (
+                (int(str(observed_created[0])), str(observed_id[0]))
+                if observed_created is not None and observed_id is not None
+                else None
+            )
+            if observed != current:
+                conn.rollback()
+                raise ConsumerError("management document cursor changed concurrently")
+            conn.execute(
+                "INSERT INTO ingress_meta(key,value) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                ("management_document_cursor_created_at", str(candidate[0])),
+            )
+            conn.execute(
+                "INSERT INTO ingress_meta(key,value) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                ("management_document_cursor_id", candidate[1]),
+            )
+            conn.commit()
+
+    def reply_delivery_status(self, delivery_key: str) -> str | None:
+        """Read a prior durable claim for crash recovery, without retrying it."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status FROM reply_deliveries WHERE delivery_key=?", (delivery_key,)
+            ).fetchone()
+        return str(row[0]) if row is not None else None
 
     def retention_candidates(
         self, *, limit: int, retry_interval_seconds: float = 0
@@ -3872,6 +3960,246 @@ def deliver_management_replies(
     return summary
 
 
+def _management_document_event_config(config_path: Path) -> ManagementDocumentEventConfig | None:
+    """Load the explicit opt-in document-outbox transport declaration.
+
+    Runtime deployment owns these values because the destination is operational
+    authority, not something Christopher may choose from an event body.  Keep
+    the feature entirely dormant until all required values are present.
+    """
+    api_url = os.environ.get("TGG_MANAGEMENT_DOCUMENT_API_URL", "").strip().rstrip("/")
+    chat_id = os.environ.get("TGG_MANAGEMENT_DOCUMENT_CHAT_ID", "").strip()
+    token_env = os.environ.get(
+        "TGG_MANAGEMENT_DOCUMENT_TOKEN_ENV", "CHRISTOPHER_TGG_PS_SERVICE_TOKEN"
+    ).strip()
+    if not api_url and not chat_id:
+        return None
+    if not api_url or not chat_id or not token_env:
+        raise ConsumerError(
+            "management document event transport requires API URL, chat ID and token env"
+        )
+    if not api_url.startswith(("http://", "https://")):
+        raise ConsumerError("management document event API URL must be HTTP(S)")
+    if chat_id not in _management_selector_chats(config_path):
+        raise ConsumerError(
+            "management document event destination is not a WhatsApp management selector"
+        )
+    if not os.environ.get(token_env, "").strip():
+        raise ConsumerError("management document event service token is absent")
+    return ManagementDocumentEventConfig(
+        api_url=api_url, chat_id=chat_id, token_env=token_env,
+    )
+
+
+def _management_document_entries(
+    config: ManagementDocumentEventConfig, cursor: tuple[int, str] | None, *, limit: int = 100
+) -> list[dict[str, Any]]:
+    """Read PA-73's typed, exclusive document-outbox page.
+
+    This is deliberately a Systems operator read, never a capture read.  The
+    resulting values are used only to make a transient internal turn prompt;
+    they are not inserted into ``ingress_events`` or source-evidence tables.
+    """
+    from urllib.error import HTTPError, URLError
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
+
+    query: dict[str, str] = {"limit": str(max(1, min(500, int(limit))))}
+    if cursor is not None:
+        query.update({"after_created_at": str(cursor[0]), "after_id": cursor[1]})
+    request = Request(
+        f"{config.api_url}/api/operator/human-resolution-document-entries?{urlencode(query)}",
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {os.environ[config.token_env]}",
+        },
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            status_code = int(getattr(response, "status", 0) or 0)
+            payload = json.loads(response.read() or b"{}")
+    except HTTPError as exc:
+        raise ConsumerError(f"management document event poll HTTP {exc.code}") from exc
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
+        raise ConsumerError(f"management document event poll failed: {exc}") from exc
+    if status_code != 200 or not isinstance(payload, Mapping):
+        raise ConsumerError("management document event poll returned an invalid envelope")
+    data = payload.get("data", payload)
+    if not isinstance(data, Mapping) or data.get("contract") != "tgg-human-resolution-document-entry/v1":
+        raise ConsumerError("management document event poll returned the wrong contract")
+    entries = data.get("entries")
+    if not isinstance(entries, list):
+        raise ConsumerError("management document event poll entries are invalid")
+    result: list[dict[str, Any]] = []
+    previous = cursor
+    for raw in entries:
+        if not isinstance(raw, Mapping):
+            raise ConsumerError("management document event entry is not an object")
+        try:
+            created_at = int(raw["createdAt"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ConsumerError("management document event entry has invalid createdAt") from exc
+        entry_id = str(raw.get("id") or "").strip()
+        record_id = str(raw.get("recordId") or "").strip()
+        kind = str(raw.get("entryKind") or "").strip()
+        if created_at < 0 or not entry_id or not record_id or not kind:
+            raise ConsumerError("management document event entry identity is incomplete")
+        identity = (created_at, entry_id)
+        if previous is not None and identity <= previous:
+            raise ConsumerError("management document event page is not exclusive ascending")
+        previous = identity
+        result.append(dict(raw))
+    return result
+
+
+def _internal_management_document_message(
+    entry: Mapping[str, Any], *, chat_id: str
+) -> dict[str, Any]:
+    """Create transient typed model input without claiming WhatsApp provenance."""
+    entry_id = str(entry["id"])
+    record_id = str(entry["recordId"])
+    created_at = int(entry["createdAt"])
+    return {
+        "messageId": f"human-resolution-document-entry:{entry_id}",
+        "chatId": chat_id,
+        "senderId": "system@internal",
+        "timestamp": created_at,
+        "body": (
+            "A new Christopher human-resolution document needs a management notice. "
+            "Read the durable document and its cited evidence using the document ID below. "
+            "Then write one natural, first-person question for the management chat. "
+            "Do not treat this internal event as WhatsApp evidence and do not make a case change."
+        ),
+        "metadata": {
+            "contract": "tgg_management_document_event/v1",
+            "entry_id": entry_id,
+            "record_id": record_id,
+            "entry_kind": str(entry["entryKind"]),
+            "document_url": f"/tgg/human-resolutions/{record_id}",
+        },
+    }
+
+
+async def _run_management_document_turn(
+    entry: Mapping[str, Any],
+    *,
+    config_path: Path,
+    destination_chat_id: str,
+    runner: Any,
+) -> list[dict[str, Any]]:
+    """Run the existing management selector in its persistent namespace.
+
+    The sole input is an in-memory typed event.  It never reaches capture,
+    source projection or the business compiler as a WhatsApp message.
+    """
+    from gateway.replay import ReplayPlan
+
+    provider, model = configured_engine(config_path)
+    result = await runner.replay(
+        ReplayPlan(
+            platform="whatsapp",
+            messages=(_internal_management_document_message(entry, chat_id=destination_chat_id),),
+            run_id=f"management-document-{uuid.uuid4().hex[:12]}",
+            attempt_id=f"attempt-{uuid.uuid4().hex[:12]}",
+            delivery_mode="capture",
+            bypass_require_mention=True,
+            bypass_auth=True,
+            live_business_writes=False,
+            source_path="tgg-management-document-event",
+            replay_namespace=f"agent:live-drain:persistent-chat:{provider}:{model}",
+        )
+    )
+    return [dict(item) for item in result.outbound if isinstance(item, Mapping)]
+
+
+def _deliver_management_document_notice(
+    inbox: DurableInbox,
+    *,
+    config: ManagementDocumentEventConfig,
+    entry: Mapping[str, Any],
+    captured_outbound: Sequence[Mapping[str, Any]],
+) -> str:
+    """Make one durable, proactive notice attempt for an initial document.
+
+    WhatsApp has no transaction/idempotency key.  The local claim is therefore
+    intentionally at-most-once: a delivered, refused, failed or unknown bridge
+    outcome is terminal and the cursor may advance.  A prior claim after a
+    process crash is never sent again.
+    """
+    from urllib.error import HTTPError, URLError
+    from urllib.request import Request, urlopen
+
+    entry_id = str(entry["id"])
+    key = f"human-resolution:{entry_id}"
+    previous = inbox.reply_delivery_status(key)
+    if previous is not None:
+        return previous
+    sends = [
+        parsed for raw in captured_outbound
+        if (parsed := _parse_captured_send(raw)) is not None
+        and parsed["chat_id"] == config.chat_id
+    ]
+    if len(sends) != 1 or sends[0].get("reply_to"):
+        raise ConsumerError(
+            "management document turn must emit exactly one unanchored text notice"
+        )
+    if not inbox.claim_reply_delivery(key, chat_id=config.chat_id, reply_to_message_id=None):
+        return inbox.reply_delivery_status(key) or "undelivered"
+    request = Request(
+        f"{os.environ.get('TGG_REPLY_BRIDGE_URL', 'http://127.0.0.1:3011').rstrip('/')}/send",
+        data=json.dumps({"chatId": config.chat_id, "message": sends[0]["content"]}).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            status_code = int(getattr(response, "status", 0) or 0)
+            payload = json.loads(response.read() or b"{}")
+        if status_code == 200 and payload.get("success") is True:
+            inbox.record_reply_delivery(
+                key, status="delivered", bridge_message_id=str(payload.get("messageId") or ""),
+                provider_outcome=str(payload.get("outcome") or "delivered"),
+            )
+            return "delivered"
+        inbox.record_reply_delivery(
+            key, status="undelivered", provider_outcome=str(payload.get("outcome") or "unconfirmed"),
+            error=f"http-{status_code}-unconfirmed: {json.dumps(payload)[:200]}",
+        )
+    except HTTPError as exc:
+        inbox.record_reply_delivery(key, status="undelivered", error=f"http-{exc.code}")
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
+        inbox.record_reply_delivery(key, status="undelivered", error=str(exc)[:300])
+    return "undelivered"
+
+
+async def process_management_document_events(
+    inbox: DurableInbox, *, config_path: Path, runner: Any
+) -> dict[str, int]:
+    """Drain PA-73 initial entries in strict source order through the consumer."""
+    config = _management_document_event_config(config_path)
+    summary = {"examined": 0, "delivered": 0, "undelivered": 0, "skipped": 0}
+    if config is None:
+        return summary
+    cursor = inbox.management_document_cursor()
+    for entry in await asyncio.to_thread(_management_document_entries, config, cursor):
+        summary["examined"] += 1
+        created_at, entry_id = int(entry["createdAt"]), str(entry["id"])
+        if str(entry["entryKind"]) != "initial_default":
+            summary["skipped"] += 1
+        else:
+            outcome = await _run_management_document_turn(
+                entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
+            )
+            terminal = _deliver_management_document_notice(
+                inbox, config=config, entry=entry, captured_outbound=outcome,
+            )
+            summary[terminal] += 1
+        inbox.advance_management_document_cursor(created_at=created_at, entry_id=entry_id)
+        cursor = (created_at, entry_id)
+    return summary
+
+
 def _write_status(path: Path, payload: Mapping[str, Any]) -> None:
     _atomic_write_json(path, {"version": 1, "updated_at": _utc_now(), **dict(payload)})
 
@@ -4384,8 +4712,24 @@ async def run_consumer(args: argparse.Namespace) -> int:
                 selected_site_batches = (
                     [] if demo_management_only else site_batches[:available_site]
                 )
-                if (management_batches or selected_site_batches) and runner is None:
+                document_event_config = _management_document_event_config(config_path)
+                if (
+                    management_batches
+                    or selected_site_batches
+                    or document_event_config is not None
+                ) and runner is None:
                     runner = _new_gateway_runner()
+
+                # PA-74's source-fired document outbox is deliberately
+                # adjacent to, not inside, WhatsApp ingress.  It reuses this
+                # durable consumer's runner and outbound ledger, but never
+                # creates a capture row, source projection, or business-model
+                # write from the internal event itself.
+                document_event_cycle = {"examined": 0, "delivered": 0, "undelivered": 0, "skipped": 0}
+                if document_event_config is not None:
+                    document_event_cycle = await process_management_document_events(
+                        inbox, config_path=config_path, runner=runner
+                    )
 
                 # Reserved management capacity: these tasks never acquire or
                 # wait for a site slot.  One task per chat preserves FIFO.

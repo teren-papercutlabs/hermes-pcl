@@ -20,8 +20,11 @@ from gateway.durable_jsonl_consumer import (
     InboxRecord,
     _management_typing_presence,
     _management_selector_chats,
+    _internal_management_document_message,
     _parse_captured_send,
+    _run_management_document_turn,
     deliver_management_replies,
+    process_management_document_events,
 )
 
 MGMT_CHAT = "120363426509183563@g.us"
@@ -137,6 +140,148 @@ def test_parse_extracts_send_and_rejects_other_kinds() -> None:
     assert parsed == {"chat_id": MGMT_CHAT, "content": "reply text", "reply_to": "MSG1"}
     assert _parse_captured_send({**_captured(MGMT_CHAT), "kind": "send_image"}) is None
     assert _parse_captured_send({"kind": "send", "args": [], "kwargs": {}}) is None
+
+
+def _document_entry(entry_id: str, *, created_at: int = 100, kind: str = "initial_default") -> dict:
+    return {
+        "id": entry_id,
+        "recordId": "record-1",
+        "entryKind": kind,
+        "createdAt": created_at,
+        "body": {"statement": "I need a decision."},
+        "effects": [],
+    }
+
+
+def _enable_document_events(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TGG_MANAGEMENT_DOCUMENT_API_URL", "http://systems.test")
+    monkeypatch.setenv("TGG_MANAGEMENT_DOCUMENT_CHAT_ID", MGMT_CHAT)
+    monkeypatch.setenv("CHRISTOPHER_TGG_PS_SERVICE_TOKEN", "test-token")
+
+
+@pytest.mark.asyncio
+async def test_document_event_drains_typed_outbox_without_creating_whatsapp_ingress(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    calls: list[tuple[str, dict | None]] = []
+
+    def fake_urlopen(request, timeout=0):
+        body = json.loads(request.data) if request.data else None
+        calls.append((request.full_url, body))
+        if request.full_url.startswith("http://systems.test/"):
+            return _FakeResponse({"data": {"contract": "tgg-human-resolution-document-entry/v1", "entries": [_document_entry("entry-1")]}})
+        return _FakeResponse({"success": True, "messageId": "WA-notice-1"})
+
+    async def fake_turn(entry, **kwargs):
+        assert entry["id"] == "entry-1"
+        assert kwargs["destination_chat_id"] == MGMT_CHAT
+        return [_captured(MGMT_CHAT, "Could you confirm which case this workbook updates?", reply_to=None)]
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
+    result = await process_management_document_events(
+        inbox, config_path=config_path, runner=object()
+    )
+    assert result == {"examined": 1, "delivered": 1, "undelivered": 0, "skipped": 0}
+    assert inbox.management_document_cursor() == (100, "entry-1")
+    assert inbox.total() == 0
+    assert calls == [
+        ("http://systems.test/api/operator/human-resolution-document-entries?limit=100", None),
+        ("http://127.0.0.1:3011/send", {"chatId": MGMT_CHAT, "message": "Could you confirm which case this workbook updates?"}),
+    ]
+    with inbox.connect() as conn:
+        row = conn.execute("SELECT delivery_key,reply_to_message_id,status,bridge_message_id FROM reply_deliveries").fetchone()
+    assert tuple(row) == ("human-resolution:entry-1", None, "delivered", "WA-notice-1")
+
+
+@pytest.mark.asyncio
+async def test_document_event_restart_does_not_repeat_prior_send(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    sends = 0
+    document_requests: list[str] = []
+
+    def fake_urlopen(request, timeout=0):
+        nonlocal sends
+        if request.full_url.startswith("http://systems.test/"):
+            document_requests.append(request.full_url)
+            return _FakeResponse({"data": {"contract": "tgg-human-resolution-document-entry/v1", "entries": [_document_entry("entry-1", created_at=100)]}})
+        sends += 1
+        return _FakeResponse({"success": True, "messageId": "WA-notice-1"})
+
+    async def fake_turn(entry, **kwargs):
+        return [_captured(MGMT_CHAT, "A natural question", reply_to=None)]
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
+    assert (await process_management_document_events(inbox, config_path=config_path, runner=object()))["delivered"] == 1
+    # A new process sees the persisted cursor and gets an empty exclusive page.
+    def empty_page(request, timeout=0):
+        assert "after_created_at=100" in request.full_url and "after_id=entry-1" in request.full_url
+        return _FakeResponse({"data": {"contract": "tgg-human-resolution-document-entry/v1", "entries": []}})
+    monkeypatch.setattr("urllib.request.urlopen", empty_page)
+    assert await process_management_document_events(inbox, config_path=config_path, runner=object()) == {
+        "examined": 0, "delivered": 0, "undelivered": 0, "skipped": 0,
+    }
+    assert sends == 1
+
+
+@pytest.mark.asyncio
+async def test_document_event_unknown_bridge_outcome_is_terminal_and_never_retried(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    bridge_calls = 0
+
+    def fake_urlopen(request, timeout=0):
+        nonlocal bridge_calls
+        if request.full_url.startswith("http://systems.test/"):
+            return _FakeResponse({"data": {"contract": "tgg-human-resolution-document-entry/v1", "entries": [_document_entry("entry-202")]}})
+        bridge_calls += 1
+        return _FakeResponse({"success": False, "outcome": "unknown", "retrySafe": False}, status=202)
+
+    async def fake_turn(entry, **kwargs):
+        return [_captured(MGMT_CHAT, "A natural question", reply_to=None)]
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
+    result = await process_management_document_events(inbox, config_path=config_path, runner=object())
+    assert result == {"examined": 1, "delivered": 0, "undelivered": 1, "skipped": 0}
+    assert inbox.management_document_cursor() == (100, "entry-202")
+    assert inbox.reply_delivery_status("human-resolution:entry-202") == "undelivered"
+    assert bridge_calls == 1
+
+
+def test_document_event_model_input_is_internal_not_a_capture_envelope() -> None:
+    message = _internal_management_document_message(_document_entry("entry-1"), chat_id=MGMT_CHAT)
+    assert message["senderId"] == "system@internal"
+    assert message["metadata"]["contract"] == "tgg_management_document_event/v1"
+    assert "sourceKey" not in message and "source_key" not in message
+    assert message["messageId"].startswith("human-resolution-document-entry:")
+
+
+@pytest.mark.asyncio
+async def test_document_event_recreates_the_same_persistent_management_session(
+    config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("gateway.durable_jsonl_consumer.configured_engine", lambda _: ("openai-codex", "gpt-5.6-terra"))
+
+    class Runner:
+        def __init__(self): self.plans = []
+        async def replay(self, plan):
+            self.plans.append(plan)
+            return type("Result", (), {"outbound": []})()
+
+    runner = Runner()
+    await _run_management_document_turn(_document_entry("entry-1"), config_path=config_path, destination_chat_id=MGMT_CHAT, runner=runner)
+    await _run_management_document_turn(_document_entry("entry-2", created_at=101), config_path=config_path, destination_chat_id=MGMT_CHAT, runner=runner)
+    assert [plan.replay_namespace for plan in runner.plans] == [
+        "agent:live-drain:persistent-chat:openai-codex:gpt-5.6-terra",
+        "agent:live-drain:persistent-chat:openai-codex:gpt-5.6-terra",
+    ]
+    assert all(plan.live_business_writes is False for plan in runner.plans)
 
 
 def test_multi_photo_delivery_uses_send_media_and_distinct_durable_keys(
