@@ -358,12 +358,9 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     bootstrap = (DEPLOY_ROOT / "scripts" / "bootstrap_runtime.sh").read_text()
     assert 'slot_args=(--slot "$CHRISTOPHER_ENGINE_SLOT")' in bootstrap
     assert '"${slot_args[@]}"' in bootstrap
-    assert "christopher-tgg-retention-cleanup.service" in bootstrap
-    assert "christopher-tgg-retention-cleanup.timer" in bootstrap
-    assert (
-        "systemctl enable --now christopher-tgg-retention-cleanup.timer"
-        in bootstrap
-    )
+    assert "christopher-tgg-retention-cleanup.service" not in bootstrap
+    assert "christopher-tgg-retention-cleanup.timer" not in bootstrap
+    assert "systemctl enable --now christopher-tgg-retention-cleanup.timer" not in bootstrap
 
     deploy_script = (DEPLOY_ROOT / "scripts" / "deploy_runtime.sh").read_text()
     assert "legacy deploy_runtime.sh is retired" in deploy_script
@@ -376,6 +373,7 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert "normalized_config == expected_config" not in verify_script
     assert "Host config is authoritative" in verify_script
     assert "required_plugins.issubset" in verify_script
+    assert "christopher-tgg-retention-cleanup.timer" not in verify_script
     assert "--preserve-host-config" in bootstrap
     service = (DEPLOY_ROOT / "systemd/christopher-tgg-hermes.service").read_text()
     assert "--preserve-host-config" in service

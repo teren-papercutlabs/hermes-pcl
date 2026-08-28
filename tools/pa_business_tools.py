@@ -31,6 +31,34 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
+# PA-75 treats this as an allow-list rather than attempting to enumerate
+# writes.  Unknown future configured operations are captured by default.  The
+# source-sync helper is intentionally not a read: it has its own side effect.
+TGG_CAPTURE_PURE_READ_OPERATIONS = frozenset(
+    {
+        "agent_config_read",
+        "ilinked_lookup",
+        "ilinked_status",
+        "ilinked_wc_lookup",
+        "job_work_costings",
+        "message_search",
+        "tgg_case_list",
+        "tgg_case_lookup",
+        "tgg_case_media",
+        "tgg_case_query",
+        "tgg_case_search",
+        "tgg_attention_list",
+        "tgg_attention_read",
+        "tgg_contractor_update_prepare",
+        "tgg_human_resolution_document_context",
+        "tgg_structured_ingestion_inspect",
+        "tgg_structured_ingestion_status",
+        "tgg_structured_ingestion_test",
+        "tgg_whatsapp_case_context",
+        "work_costing_lookup",
+    }
+)
+
 ILINKED_READ_OPERATIONS = frozenset(
     {"ilinked_lookup", "ilinked_status", "ilinked_wc_lookup"}
 )
@@ -659,6 +687,22 @@ def _execute_command_operation(
     return _parse_jsonish(completed.stdout)
 
 
+def _capture_target(op: PABusinessOperation) -> dict[str, Any]:
+    """Expose enough configured-target provenance for disposable replay.
+
+    Command strings can contain filesystem or operational detail, so retain a
+    hash rather than copying a runnable command into a mutable receipt.
+    """
+    if op.kind == "http":
+        return {"kind": "http", "method": op.method, "url": op.url}
+    return {
+        "kind": "command",
+        "command_sha256": hashlib.sha256(
+            json.dumps(list(op.command or ()), separators=(",", ":")).encode("utf-8")
+        ).hexdigest(),
+    }
+
+
 def execute_business_operation(
     config: Mapping[str, Any] | PABusinessBridgeConfig | None,
     operation: str,
@@ -707,6 +751,36 @@ def execute_business_operation(
 
     normalized_payload = _normalize_operation_payload(operation, payload)
     _validate_operation_payload(op, normalized_payload)
+
+    # PA-75's final trusted mutation adapter.  The consumer constructs the
+    # replay context only after validating the exact approved test-management
+    # selector; neither this operation name nor its payload can select capture
+    # mode.  All generic and dedicated business-write tools converge here.
+    try:
+        from gateway.replay import current_replay_context
+
+        replay_ctx = current_replay_context()
+    except Exception:
+        replay_ctx = None
+    if (
+        replay_ctx is not None
+        and replay_ctx.business_write_mode == "capture"
+        and operation not in TGG_CAPTURE_PURE_READ_OPERATIONS
+    ):
+        captured = replay_ctx.record_captured_business_mutation(
+            operation=operation,
+            payload=normalized_payload,
+            target=_capture_target(op),
+        )
+        return {
+            "ok": True,
+            "status_code": 202,
+            "data": {
+                "capture_only": True,
+                "capture_id": captured["capture_id"],
+                "payload_sha256": captured["payload_sha256"],
+            },
+        }
 
     if op.kind == "http":
         return _execute_http_operation(op, normalized_payload, bridge_config)

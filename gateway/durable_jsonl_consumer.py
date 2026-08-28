@@ -385,6 +385,20 @@ class InboxRecord:
     retention_quarantined: bool = False
 
 
+@dataclass(frozen=True)
+class ManagementDocumentEventConfig:
+    """The narrow, opt-in transport contract for document outbox events.
+
+    This is intentionally separate from WhatsApp capture configuration.  A
+    document entry is an internal Systems event, not a forged inbound WhatsApp
+    message, so it has its own endpoint, cursor and destination declaration.
+    """
+
+    api_url: str
+    chat_id: str
+    token_env: str
+
+
 def _initial_retention_state(item: Mapping[str, Any]) -> str:
     """Classify media that needs content validation before model ingress."""
     coarse = str(item.get("mediaType") or item.get("mimeType") or "")
@@ -472,6 +486,7 @@ class DurableInbox:
                     delivery_key TEXT PRIMARY KEY,
                     chat_id TEXT NOT NULL,
                     reply_to_message_id TEXT,
+                    correlation_json TEXT,
                     status TEXT NOT NULL
                         CHECK (status IN ('delivered','undelivered')),
                     bridge_message_id TEXT,
@@ -544,6 +559,8 @@ class DurableInbox:
             }
             if "provider_outcome" not in reply_columns:
                 conn.execute("ALTER TABLE reply_deliveries ADD COLUMN provider_outcome TEXT")
+            if "correlation_json" not in reply_columns:
+                conn.execute("ALTER TABLE reply_deliveries ADD COLUMN correlation_json TEXT")
             ingress_columns = {
                 str(row[1]) for row in conn.execute("PRAGMA table_info(ingress_events)")
             }
@@ -1253,6 +1270,126 @@ class DurableInbox:
             ).fetchall()
         return {str(row["status"]): int(row["n"]) for row in rows}
 
+    def management_document_cursor(self) -> tuple[int, str] | None:
+        """Return the exclusive Systems document-entry cursor, if initialized.
+
+        It lives in the existing durable consumer metadata store rather than a
+        second queue table.  The tuple is Systems' canonical ascending order;
+        it is advanced only after this process has reached a terminal local
+        delivery outcome for that entry.
+        """
+        with self.connect() as conn:
+            created = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='management_document_cursor_created_at'"
+            ).fetchone()
+            entry_id = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='management_document_cursor_id'"
+            ).fetchone()
+        if created is None and entry_id is None:
+            return None
+        if created is None or entry_id is None:
+            raise ConsumerError("management document cursor is incomplete")
+        try:
+            created_at = int(str(created[0]))
+        except (TypeError, ValueError) as exc:
+            raise ConsumerError("management document cursor created_at is invalid") from exc
+        value = str(entry_id[0]).strip()
+        if created_at < 0 or not value:
+            raise ConsumerError("management document cursor is invalid")
+        return created_at, value
+
+    def advance_management_document_cursor(self, *, created_at: int, entry_id: str) -> None:
+        """CAS-advance the event cursor after an at-most-once terminal outcome."""
+        if created_at < 0 or not entry_id.strip():
+            raise ConsumerError("management document cursor advance is invalid")
+        current = self.management_document_cursor()
+        candidate = (int(created_at), str(entry_id))
+        if current is not None and candidate < current:
+            raise ConsumerError("management document cursor cannot move backwards")
+        if current == candidate:
+            return
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            observed_created = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='management_document_cursor_created_at'"
+            ).fetchone()
+            observed_id = conn.execute(
+                "SELECT value FROM ingress_meta WHERE key='management_document_cursor_id'"
+            ).fetchone()
+            observed = (
+                (int(str(observed_created[0])), str(observed_id[0]))
+                if observed_created is not None and observed_id is not None
+                else None
+            )
+            if observed != current:
+                conn.rollback()
+                raise ConsumerError("management document cursor changed concurrently")
+            conn.execute(
+                "INSERT INTO ingress_meta(key,value) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                ("management_document_cursor_created_at", str(candidate[0])),
+            )
+            conn.execute(
+                "INSERT INTO ingress_meta(key,value) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                ("management_document_cursor_id", candidate[1]),
+            )
+            conn.commit()
+
+    def reply_delivery_status(self, delivery_key: str) -> str | None:
+        """Read a prior durable claim for crash recovery, without retrying it."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status FROM reply_deliveries WHERE delivery_key=?", (delivery_key,)
+            ).fetchone()
+        return str(row[0]) if row is not None else None
+
+    def reply_delivery_correlation(self, delivery_key: str) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT correlation_json FROM reply_deliveries WHERE delivery_key=?",
+                (delivery_key,),
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        try:
+            value = json.loads(row[0])
+        except (TypeError, ValueError) as exc:
+            raise ConsumerError("reply delivery correlation is unreadable") from exc
+        if not isinstance(value, Mapping):
+            raise ConsumerError("reply delivery correlation is invalid")
+        return dict(value)
+
+    def initial_management_document_notice(
+        self, *, chat_id: str, document_id: str
+    ) -> dict[str, str] | None:
+        """Return the confirmed initial notice used as a lifecycle quote anchor."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT delivery_key,bridge_message_id,correlation_json FROM reply_deliveries "
+                "WHERE chat_id=? AND status='delivered' AND bridge_message_id IS NOT NULL "
+                "AND delivery_key GLOB 'human-resolution:*' ORDER BY created_at,delivery_key",
+                (chat_id,),
+            ).fetchall()
+        for row in rows:
+            try:
+                correlation = json.loads(row["correlation_json"] or "{}")
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(correlation, Mapping):
+                continue
+            if (
+                correlation.get("document_id") == document_id
+                and correlation.get("entry_kind") == "initial_default"
+                and str(correlation.get("notice_body") or "").strip()
+            ):
+                return {
+                    "delivery_key": str(row["delivery_key"]),
+                    "message_id": str(row["bridge_message_id"]),
+                    "body": str(correlation["notice_body"]),
+                }
+        return None
+
     def retention_candidates(
         self, *, limit: int, retry_interval_seconds: float = 0
     ) -> list[InboxRecord]:
@@ -1637,7 +1774,12 @@ class DurableInbox:
         return str(row[0]) if row and row[0] else None
 
     def claim_reply_delivery(
-        self, delivery_key: str, *, chat_id: str, reply_to_message_id: str | None
+        self,
+        delivery_key: str,
+        *,
+        chat_id: str,
+        reply_to_message_id: str | None,
+        correlation: Mapping[str, Any] | None = None,
     ) -> bool:
         """Durably claim a reply delivery BEFORE the send (at-most-once).
 
@@ -1649,12 +1791,75 @@ class DurableInbox:
             cursor = conn.execute(
                 """
                 INSERT OR IGNORE INTO reply_deliveries(
-                    delivery_key,chat_id,reply_to_message_id,status,error,created_at
-                ) VALUES(?,?,?,'undelivered','claimed-in-flight',?)
+                    delivery_key,chat_id,reply_to_message_id,correlation_json,status,error,created_at
+                ) VALUES(?,?,?,?, 'undelivered','claimed-in-flight',?)
                 """,
-                (delivery_key, chat_id, reply_to_message_id, _utc_now()),
+                (
+                    delivery_key,
+                    chat_id,
+                    reply_to_message_id,
+                    json.dumps(dict(correlation), sort_keys=True, separators=(",", ":"))
+                    if correlation is not None else None,
+                    _utc_now(),
+                ),
             )
             return cursor.rowcount == 1
+
+    def management_document_correlation(self, record: InboxRecord) -> dict[str, Any] | None:
+        """Resolve only an authentic quoted management reply to a sent notice.
+
+        A bare acknowledgement has no document binding and remains an ordinary
+        management message.  This lookup supplies context to Christopher; it
+        never classifies the reply body or writes source/case evidence.
+        """
+        item = _bridge_item(record.raw)
+        if bool(item.get("fromMe")):
+            return None
+        reply_to = item.get("replyTo")
+        reply_to_id = reply_to.get("messageId") if isinstance(reply_to, Mapping) else None
+        quoted = str(
+            item.get("quotedMessageId")
+            or item.get("replyToMessageId")
+            or item.get("reply_to_message_id")
+            or reply_to_id
+            or ""
+        ).strip()
+        if not quoted:
+            return None
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT delivery_key,bridge_message_id,correlation_json FROM reply_deliveries "
+                "WHERE chat_id=? AND bridge_message_id=? AND status='delivered' "
+                "AND delivery_key GLOB 'human-resolution:*'",
+                (record.chat_id, quoted),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            stored = json.loads(row["correlation_json"] or "{}")
+        except (TypeError, ValueError):
+            raise ConsumerError("human-resolution delivery correlation is unreadable") from None
+        if not isinstance(stored, Mapping):
+            raise ConsumerError("human-resolution delivery correlation is invalid")
+        document_id = str(stored.get("document_id") or "").strip()
+        entry_id = str(stored.get("entry_id") or "").strip()
+        if not document_id or not entry_id:
+            raise ConsumerError("human-resolution delivery correlation is incomplete")
+        if str(row["delivery_key"]) != f"human-resolution:{entry_id}":
+            raise ConsumerError("human-resolution delivery correlation key mismatch")
+        correlation = {
+            "document_id": document_id,
+            "document_entry_id": entry_id,
+            "outbound_notice_id": str(row["bridge_message_id"]),
+            "reply_message_id": record.message_id,
+            "confidence": "quoted_outbound_notice_exact",
+        }
+        canary_projection = stored.get("pa75_canary_projection")
+        if canary_projection is not None:
+            if not isinstance(canary_projection, Mapping):
+                raise ConsumerError("human-resolution canary projection is invalid")
+            correlation["pa75_canary_projection"] = dict(canary_projection)
+        return correlation
 
     def record_reply_delivery(
         self,
@@ -2750,7 +2955,10 @@ def _mutable_bridge_item(value: dict[str, Any]) -> dict[str, Any]:
 
 
 def _replay_messages_with_retained_documents(
-    records: Sequence[InboxRecord], *, config_path: Path
+    records: Sequence[InboxRecord],
+    *,
+    config_path: Path,
+    management_document_correlations: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], ...]:
     """Copy records and append retention evidence or quarantine warnings."""
     config = _retention_config(config_path)
@@ -2773,6 +2981,16 @@ def _replay_messages_with_retained_documents(
         message = copy.deepcopy(record.raw)
         messages.append(message)
         item = _mutable_bridge_item(message)
+        correlation = (management_document_correlations or {}).get(record.message_id)
+        if correlation is not None:
+            # This is turn-local correlation metadata derived from an
+            # authenticated WhatsApp quote and our own delivery receipt. It
+            # is not capture provenance, is never projected to Systems, and
+            # does not decide what the human's language means.
+            existing_context = item.get("_hermes_pa_context")
+            context = dict(existing_context) if isinstance(existing_context, Mapping) else {}
+            context["management_document_correlation"] = dict(correlation)
+            item["_hermes_pa_context"] = context
         # The durable consumer enters Hermes through the replay adapter.  That
         # adapter only exposes PA turn metadata from these private bridge
         # fields; retaining ``metadata`` on the raw capture record is not
@@ -2853,6 +3071,8 @@ async def process_live_records(
     persistent_session: bool,
     runner: Any | None = None,
     defer_provider_errors: bool = False,
+    management_document_correlations: Mapping[str, Mapping[str, Any]] | None = None,
+    capture_business_writes_for_test_management: bool = False,
 ) -> dict[str, Any]:
     """Process live durable records through the replay orchestrator.
 
@@ -2878,6 +3098,17 @@ async def process_live_records(
     from gateway.run import GatewayRunner
 
     provider, model = configured_engine(config_path)
+    business_write_mode = "apply"
+    if capture_business_writes_for_test_management:
+        # This is the only PA-75 selector.  It is evaluated by the durable
+        # runtime from its already-authenticated records, not by Christopher,
+        # a replay file, or an operation payload.  The literal test chat is an
+        # independent guard against a canary invoking the real group.
+        test_chat = "120363426509183563@g.us"
+        record_chats = {record.chat_id for record in records}
+        if record_chats != {test_chat} or test_chat not in _management_selector_chats(config_path):
+            raise ConsumerError("capture-only mode requires the approved test management selector")
+        business_write_mode = "capture"
     # Production passes one long-lived runner into every per-chat task.  The
     # optional construction path preserves isolated callers and fixtures.
     runner = runner or GatewayRunner(load_gateway_config())
@@ -2885,7 +3116,9 @@ async def process_live_records(
     replay_plan = ReplayPlan(
         platform="whatsapp",
         messages=_replay_messages_with_retained_documents(
-            records, config_path=config_path
+            records,
+            config_path=config_path,
+            management_document_correlations=management_document_correlations,
         ),
         run_id=run_id,
         attempt_id=f"attempt-{uuid.uuid4().hex[:12]}",
@@ -2893,6 +3126,7 @@ async def process_live_records(
         bypass_require_mention=True,
         bypass_auth=True,
         live_business_writes=True,
+        business_write_mode=business_write_mode,
         source_path="durable-jsonl-consumer-live",
         # Ordinary live drain is one ongoing conversation per chat. Bounded
         # backplay is recovery/diagnostic replay and remains isolated.
@@ -2923,6 +3157,11 @@ async def process_live_records(
             "processed": 0,
             "handled": [],
             "captured_outbound": captured,
+            "captured_business_mutations": [
+                dict(entry)
+                for entry in (getattr(exc, "replay_captured_business_mutations", None) or [])
+                if isinstance(entry, Mapping)
+            ],
             "provider_errors": [f"{type(exc).__name__}: {exc}"],
             "outbound_sent": 0,
             "submitted_message_ids": [record.message_id for record in records],
@@ -2954,6 +3193,10 @@ async def process_live_records(
         ids = [str(ref) for ref in refs if ref]
         handled.append({"message_ids": ids, "turn_id": turn_id})
     captured_outbound = [dict(entry) for entry in result.outbound]
+    captured_business_mutations = [
+        dict(entry)
+        for entry in (getattr(result, "captured_business_mutations", None) or [])
+    ]
     if not handled and not provider_errors:
         captured_error = _captured_provider_error(captured_outbound)
         if captured_error:
@@ -2966,6 +3209,7 @@ async def process_live_records(
         "processed": int(result.processed or 0),
         "handled": handled,
         "captured_outbound": captured_outbound,
+        "captured_business_mutations": captured_business_mutations,
         "provider_errors": provider_errors,
         "outbound_sent": 0,
         "submitted_message_ids": [record.message_id for record in records],
@@ -3872,6 +4116,564 @@ def deliver_management_replies(
     return summary
 
 
+def _management_document_event_config(config_path: Path) -> ManagementDocumentEventConfig | None:
+    """Load the explicit opt-in document-outbox transport declaration.
+
+    Runtime deployment owns these values because the destination is operational
+    authority, not something Christopher may choose from an event body.  Keep
+    the feature entirely dormant until all required values are present.
+    """
+    api_url = os.environ.get("TGG_MANAGEMENT_DOCUMENT_API_URL", "").strip().rstrip("/")
+    chat_id = os.environ.get("TGG_MANAGEMENT_DOCUMENT_CHAT_ID", "").strip()
+    token_env = os.environ.get(
+        "TGG_MANAGEMENT_DOCUMENT_TOKEN_ENV", "CHRISTOPHER_TGG_PS_SERVICE_TOKEN"
+    ).strip()
+    if not api_url and not chat_id:
+        return None
+    if not api_url or not chat_id or not token_env:
+        raise ConsumerError(
+            "management document event transport requires API URL, chat ID and token env"
+        )
+    if not api_url.startswith(("http://", "https://")):
+        raise ConsumerError("management document event API URL must be HTTP(S)")
+    if chat_id not in _management_selector_chats(config_path):
+        raise ConsumerError(
+            "management document event destination is not a WhatsApp management selector"
+        )
+    if not os.environ.get(token_env, "").strip():
+        raise ConsumerError("management document event service token is absent")
+    return ManagementDocumentEventConfig(
+        api_url=api_url, chat_id=chat_id, token_env=token_env,
+    )
+
+
+def _management_document_entries(
+    config: ManagementDocumentEventConfig, cursor: tuple[int, str] | None, *, limit: int = 100
+) -> list[dict[str, Any]]:
+    """Read PA-73's typed, exclusive document-outbox page.
+
+    This is deliberately a Systems operator read, never a capture read.  The
+    resulting values are used only to make a transient internal turn prompt;
+    they are not inserted into ``ingress_events`` or source-evidence tables.
+    """
+    from urllib.error import HTTPError, URLError
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
+
+    query: dict[str, str] = {"limit": str(max(1, min(500, int(limit))))}
+    if cursor is not None:
+        query.update({"after_created_at": str(cursor[0]), "after_id": cursor[1]})
+    request = Request(
+        f"{config.api_url}/api/operator/human-resolution-document-entries?{urlencode(query)}",
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {os.environ[config.token_env]}",
+        },
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            status_code = int(getattr(response, "status", 0) or 0)
+            payload = json.loads(response.read() or b"{}")
+    except HTTPError as exc:
+        raise ConsumerError(f"management document event poll HTTP {exc.code}") from exc
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
+        raise ConsumerError(f"management document event poll failed: {exc}") from exc
+    if status_code != 200 or not isinstance(payload, Mapping):
+        raise ConsumerError("management document event poll returned an invalid envelope")
+    data = payload.get("data", payload)
+    if not isinstance(data, Mapping) or data.get("contract") != "tgg-human-resolution-document-entry/v1":
+        raise ConsumerError("management document event poll returned the wrong contract")
+    entries = data.get("entries")
+    if not isinstance(entries, list):
+        raise ConsumerError("management document event poll entries are invalid")
+    result: list[dict[str, Any]] = []
+    previous = cursor
+    for raw in entries:
+        if not isinstance(raw, Mapping):
+            raise ConsumerError("management document event entry is not an object")
+        try:
+            created_at = int(raw["createdAt"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ConsumerError("management document event entry has invalid createdAt") from exc
+        entry_id = str(raw.get("id") or "").strip()
+        record_id = str(raw.get("recordId") or "").strip()
+        kind = str(raw.get("entryKind") or "").strip()
+        if created_at < 0 or not entry_id or not record_id or not kind:
+            raise ConsumerError("management document event entry identity is incomplete")
+        identity = (created_at, entry_id)
+        if previous is not None and identity <= previous:
+            raise ConsumerError("management document event page is not exclusive ascending")
+        previous = identity
+        result.append(dict(raw))
+    return result
+
+
+def _internal_management_document_message(
+    entry: Mapping[str, Any], *, chat_id: str, canary_projection: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create transient typed model input without claiming WhatsApp provenance."""
+    entry_id = str(entry["id"])
+    record_id = str(entry["recordId"])
+    created_at = int(entry["createdAt"])
+    entry_kind = str(entry["entryKind"])
+    instruction = (
+        "A new Christopher human-resolution document needs a management notice. "
+        if entry_kind == "initial_default" else
+        "A Christopher human-resolution document has a new lifecycle entry and needs a management update. "
+    )
+    metadata: dict[str, Any] = {
+        "contract": "tgg_management_document_event/v1",
+        "entry_id": entry_id,
+        "record_id": record_id,
+        "entry_kind": str(entry["entryKind"]),
+        "document_url": f"/tgg/human-resolutions/{record_id}",
+    }
+    if canary_projection is not None:
+        metadata["pa75_canary_projection"] = dict(canary_projection)
+        visible_projection = {
+            "entry": dict(canary_projection.get("entry") or {}),
+            "source_record_projection_sha256": canary_projection.get("source_record_projection_sha256"),
+            "event_sha256": canary_projection.get("event_sha256"),
+        }
+        instruction += (
+            " This is the approved PA-75 typed-canary projection; its authored entry, "
+            "cited evidence and source-record hash are included below. Use that immutable "
+            "projection together with fresh case reads; do not claim it is a live Systems entry."
+            "\n\nTyped-canary projection:\n"
+            + json.dumps(visible_projection, ensure_ascii=False, sort_keys=True)
+        )
+    return {
+        "messageId": f"human-resolution-document-entry:{entry_id}",
+        "chatId": chat_id,
+        "senderId": "system@internal",
+        "timestamp": created_at,
+        "body": (
+            instruction +
+            "Read the durable document and its cited evidence using the document ID below. "
+            "Then write one natural, first-person message for the management chat. "
+            "Do not treat this internal event as WhatsApp evidence and do not make a case change."
+        ),
+        "metadata": metadata,
+    }
+
+
+async def _run_management_document_turn(
+    entry: Mapping[str, Any],
+    *,
+    config_path: Path,
+    destination_chat_id: str,
+    runner: Any,
+    canary_projection: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Run the existing management selector in its persistent namespace.
+
+    The sole input is an in-memory typed event.  It never reaches capture,
+    source projection or the business compiler as a WhatsApp message.
+    """
+    from gateway.replay import ReplayPlan
+
+    provider, model = configured_engine(config_path)
+    result = await runner.replay(
+        ReplayPlan(
+            platform="whatsapp",
+            messages=(_internal_management_document_message(
+                entry, chat_id=destination_chat_id, canary_projection=canary_projection,
+            ),),
+            run_id=f"management-document-{uuid.uuid4().hex[:12]}",
+            attempt_id=f"attempt-{uuid.uuid4().hex[:12]}",
+            delivery_mode="capture",
+            bypass_require_mention=True,
+            bypass_auth=True,
+            live_business_writes=False,
+            source_path="tgg-management-document-event",
+            replay_namespace=f"agent:live-drain:persistent-chat:{provider}:{model}",
+        )
+    )
+    return [dict(item) for item in result.outbound if isinstance(item, Mapping)]
+
+
+def _deliver_management_document_notice(
+    inbox: DurableInbox,
+    *,
+    config: ManagementDocumentEventConfig,
+    entry: Mapping[str, Any],
+    captured_outbound: Sequence[Mapping[str, Any]],
+    canary_projection: Mapping[str, Any] | None = None,
+) -> str:
+    """Make one durable, proactive attempt for a document lifecycle entry.
+
+    WhatsApp has no transaction/idempotency key.  The local claim is therefore
+    intentionally at-most-once: a delivered, refused, failed or unknown bridge
+    outcome is terminal and the cursor may advance.  A prior claim after a
+    process crash is never sent again.
+    """
+    from urllib.error import HTTPError, URLError
+    from urllib.request import Request, urlopen
+
+    entry_id = str(entry["id"])
+    document_id = str(entry["recordId"])
+    entry_kind = str(entry["entryKind"])
+    key = f"human-resolution:{entry_id}"
+    previous = inbox.reply_delivery_status(key)
+    if previous is not None:
+        return previous
+    correlation = {
+        "document_id": document_id,
+        "entry_id": entry_id,
+        "entry_kind": entry_kind,
+    }
+    if canary_projection is not None:
+        correlation["pa75_canary_projection"] = dict(canary_projection)
+    initial_notice = None
+    if entry_kind != "initial_default":
+        initial_notice = inbox.initial_management_document_notice(
+            chat_id=config.chat_id, document_id=document_id,
+        )
+        if initial_notice is None:
+            # The lifecycle entry is real and visible, but quote-less external
+            # delivery would sever it from the original escalation. Record one
+            # terminal safe outcome; never invent an inbound anchor or retry.
+            if inbox.claim_reply_delivery(
+                key, chat_id=config.chat_id, reply_to_message_id=None,
+                correlation=correlation,
+            ):
+                inbox.record_reply_delivery(
+                    key, status="undelivered", error="initial-management-notice-not-delivered",
+                )
+            return inbox.reply_delivery_status(key) or "undelivered"
+    sends = [
+        parsed for raw in captured_outbound
+        if (parsed := _parse_captured_send(raw)) is not None
+        and parsed["chat_id"] == config.chat_id
+    ]
+    expected_reply_to = initial_notice["message_id"] if initial_notice else None
+    if (
+        len(sends) != 1
+        or (entry_kind == "initial_default" and sends[0].get("reply_to"))
+        or (entry_kind != "initial_default" and sends[0].get("reply_to") != expected_reply_to)
+    ):
+        raise ConsumerError(
+            "management document turn emitted an invalid lifecycle notice anchor"
+        )
+    # The authored initial text is known before any bridge I/O. Store it in
+    # the same durable pre-send claim as the idempotency key so a crash after a
+    # confirmed provider send cannot leave future lifecycle entries unable to
+    # build their honest quote context.
+    if entry_kind == "initial_default":
+        correlation["notice_body"] = sends[0]["content"]
+    if not inbox.claim_reply_delivery(
+        key,
+        chat_id=config.chat_id,
+        reply_to_message_id=expected_reply_to,
+        correlation=correlation,
+    ):
+        return inbox.reply_delivery_status(key) or "undelivered"
+    payload: dict[str, Any] = {"chatId": config.chat_id, "message": sends[0]["content"]}
+    if initial_notice is not None:
+        # Quote only the actual previously delivered Christopher notice. The
+        # lifecycle event is internal and is never rewritten as an inbound
+        # WhatsApp message merely to satisfy the bridge's quote shape.
+        payload["replyTo"] = {
+            "messageId": initial_notice["message_id"],
+            "body": initial_notice["body"][:1024],
+            "fromMe": True,
+        }
+    request = Request(
+        f"{os.environ.get('TGG_REPLY_BRIDGE_URL', 'http://127.0.0.1:3011').rstrip('/')}/send",
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            status_code = int(getattr(response, "status", 0) or 0)
+            payload = json.loads(response.read() or b"{}")
+        if status_code == 200 and payload.get("success") is True:
+            inbox.record_reply_delivery(
+                key, status="delivered", bridge_message_id=str(payload.get("messageId") or ""),
+                provider_outcome=str(payload.get("outcome") or "delivered"),
+            )
+            return "delivered"
+        inbox.record_reply_delivery(
+            key, status="undelivered", provider_outcome=str(payload.get("outcome") or "unconfirmed"),
+            error=f"http-{status_code}-unconfirmed: {json.dumps(payload)[:200]}",
+        )
+    except HTTPError as exc:
+        inbox.record_reply_delivery(key, status="undelivered", error=f"http-{exc.code}")
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
+        inbox.record_reply_delivery(key, status="undelivered", error=str(exc)[:300])
+    return "undelivered"
+
+
+async def process_management_document_events(
+    inbox: DurableInbox, *, config_path: Path, runner: Any
+) -> dict[str, int]:
+    """Drain PA-73 initial entries in strict source order through the consumer."""
+    config = _management_document_event_config(config_path)
+    summary = {"examined": 0, "delivered": 0, "undelivered": 0, "skipped": 0}
+    if config is None:
+        return summary
+    cursor = inbox.management_document_cursor()
+    for entry in await asyncio.to_thread(_management_document_entries, config, cursor):
+        summary["examined"] += 1
+        created_at, entry_id = int(entry["createdAt"]), str(entry["id"])
+        # A crash can land after bridge confirmation but before the local
+        # cursor write. The durable delivery row is then terminal: advance
+        # without reconstructing a model turn or lifecycle notice.
+        prior = inbox.reply_delivery_status(f"human-resolution:{entry_id}")
+        if prior is not None:
+            terminal = prior
+        else:
+            if str(entry["entryKind"]) != "initial_default" and inbox.initial_management_document_notice(
+                chat_id=config.chat_id, document_id=str(entry["recordId"]),
+            ) is None:
+                terminal = _deliver_management_document_notice(
+                    inbox, config=config, entry=entry, captured_outbound=[],
+                )
+            else:
+                outcome = await _run_management_document_turn(
+                    entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
+                )
+                terminal = _deliver_management_document_notice(
+                    inbox, config=config, entry=entry, captured_outbound=outcome,
+                )
+        summary[terminal] += 1
+        inbox.advance_management_document_cursor(created_at=created_at, entry_id=entry_id)
+        cursor = (created_at, entry_id)
+    return summary
+
+
+def _validated_pa75_canary_projection(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate the durable projection again before a reply can select capture."""
+    if value.get("contract") != "tgg-pa75-typed-canary-projection/v1":
+        raise ConsumerError("management document canary projection contract is invalid")
+    event_id = str(value.get("event_id") or "")
+    event_sha = str(value.get("event_sha256") or "")
+    entry = value.get("entry")
+    source = value.get("source_record_projection")
+    source_sha = str(value.get("source_record_projection_sha256") or "")
+    event_payload = value.get("event_payload")
+    if (
+        not re.fullmatch(r"pa75-canary:[a-z0-9][a-z0-9-]{0,127}", event_id)
+        or not isinstance(entry, Mapping)
+        or not re.fullmatch(r"pa75-canary-entry:[a-z0-9][a-z0-9-]{0,127}", str(entry.get("id") or ""))
+        or not isinstance(entry.get("body"), Mapping)
+        or not entry.get("body")
+        or not isinstance(entry.get("effects"), list)
+        or not isinstance(source, Mapping)
+        or not source
+    ):
+        raise ConsumerError("management document canary projection is incomplete")
+    actual_source_sha = hashlib.sha256(
+        (json.dumps(dict(source), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    if source_sha != actual_source_sha:
+        raise ConsumerError("management document canary projection source hash mismatch")
+    if (
+        not isinstance(event_payload, Mapping)
+        or event_payload.get("contract") != "tgg-pa75-typed-canary-event/v1"
+        or event_payload.get("id") != event_id
+        or event_payload.get("destination_chat_id") != "120363426509183563@g.us"
+        or event_payload.get("entry") != dict(entry)
+        or event_payload.get("source_record_projection") != dict(source)
+        or event_payload.get("source_record_projection_sha256") != source_sha
+    ):
+        raise ConsumerError("management document canary projection event payload is invalid")
+    unsigned = dict(event_payload)
+    actual_event_sha = hashlib.sha256(
+        (json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    if event_sha != actual_event_sha:
+        raise ConsumerError("management document canary projection event hash mismatch")
+    return dict(value)
+
+
+def _pa75_capture_reply_batch(
+    records: Sequence[InboxRecord],
+    correlations: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    """Select capture only for authentic quotes of our stored canary notice."""
+    if not records or {record.chat_id for record in records} != {"120363426509183563@g.us"}:
+        return False
+    if set(correlations) != {record.message_id for record in records}:
+        return False
+    try:
+        for correlation in correlations.values():
+            projection = correlation.get("pa75_canary_projection")
+            if not isinstance(projection, Mapping):
+                return False
+            _validated_pa75_canary_projection(projection)
+    except ConsumerError:
+        return False
+    return True
+
+
+def _write_immutable_json_receipt(path: Path, value: Mapping[str, Any], *, label: str) -> dict[str, Any]:
+    """Write one canonical receipt, accepting only an identical retry.
+
+    O_EXCL is intentional: these receipts are evidence, never a mutable status
+    file.  A same-path mismatch is a failed-closed collision rather than an
+    opportunity to overwrite an earlier capture.
+    """
+    payload = (json.dumps(dict(value), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        try:
+            existing = path.read_bytes()
+        except OSError as exc:
+            raise ConsumerError(f"cannot read existing {label} receipt: {path}") from exc
+        if existing != payload:
+            raise ConsumerError(f"{label} receipt collision is divergent: {path}")
+        return dict(value)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except Exception:
+        # The receipt is not usable unless it is fully durable.  Remove only
+        # the O_EXCL file this invocation created, never a pre-existing one.
+        with contextlib.suppress(OSError):
+            path.unlink()
+        raise
+    return dict(value)
+
+
+def _pa75_capture_receipt(
+    *,
+    records: Sequence[InboxRecord],
+    correlations: Mapping[str, Mapping[str, Any]],
+    result: Mapping[str, Any],
+    config_path: Path,
+) -> Path:
+    """Persist the canary's raw mutation evidence before terminal inbox state."""
+    configured_dir = os.environ.get("TGG_PA75_CAPTURE_RECEIPT_DIR", "").strip()
+    if not configured_dir:
+        raise ConsumerError("PA-75 canary capture requires TGG_PA75_CAPTURE_RECEIPT_DIR")
+    message_ids = sorted(record.message_id for record in records)
+    correlation_rows: list[dict[str, str]] = []
+    for message_id in message_ids:
+        correlation = correlations.get(message_id)
+        projection = correlation.get("pa75_canary_projection") if isinstance(correlation, Mapping) else None
+        if not isinstance(projection, Mapping):
+            raise ConsumerError("PA-75 canary capture lost its authenticated correlation")
+        correlation_rows.append({
+            "message_id": message_id,
+            "event_id": str(projection["event_id"]),
+            "event_sha256": str(projection["event_sha256"]),
+        })
+    identity = {
+        "chat_id": records[0].chat_id,
+        "message_ids": message_ids,
+        "correlations": correlation_rows,
+    }
+    receipt_key = hashlib.sha256(
+        (json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    provider, model = configured_engine(config_path)
+    receipt = {
+        "contract": "tgg-pa75-capture-mutation-receipt/v1",
+        "receipt_key_sha256": receipt_key,
+        **identity,
+        "provider": provider,
+        "model": model,
+        "handled": [dict(item) for item in (result.get("handled") or []) if isinstance(item, Mapping)],
+        "captured_business_mutations": [
+            dict(item) for item in (result.get("captured_business_mutations") or []) if isinstance(item, Mapping)
+        ],
+    }
+    receipt_path = Path(configured_dir).expanduser().resolve() / f"{receipt_key}.json"
+    _write_immutable_json_receipt(receipt_path, receipt, label="PA-75 capture")
+    return receipt_path
+
+
+async def process_management_document_canary_event(
+    inbox: DurableInbox,
+    *,
+    config_path: Path,
+    runner: Any,
+    event: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Exercise PA-74's real notice path from one immutable PA-75 projection.
+
+    This deliberately does *not* insert a document entry, poll Systems, append
+    a WhatsApp capture row, or advance the production document cursor.  The
+    caller supplies a read-only projection of the Batch 3 record.  That keeps
+    the live chat proof honest while Tier 1 separately proves the real source
+    transaction produces an outbox entry.
+    """
+    if event.get("contract") != "tgg-pa75-typed-canary-event/v1":
+        raise ConsumerError("management document canary event has the wrong contract")
+    event_id = str(event.get("id") or "").strip()
+    if not re.fullmatch(r"pa75-canary:[a-z0-9][a-z0-9-]{0,127}", event_id):
+        raise ConsumerError("management document canary event ID is invalid")
+    if str(event.get("destination_chat_id") or "") != "120363426509183563@g.us":
+        raise ConsumerError("management document canary destination is not the approved test chat")
+    entry = event.get("entry")
+    if not isinstance(entry, Mapping):
+        raise ConsumerError("management document canary entry is missing")
+    required = ("id", "recordId", "createdAt", "entryKind", "body", "effects")
+    if any(not str(entry.get(field) or "").strip() for field in required):
+        raise ConsumerError("management document canary entry identity is incomplete")
+    entry_id = str(entry["id"])
+    if not re.fullmatch(r"pa75-canary-entry:[a-z0-9][a-z0-9-]{0,127}", entry_id):
+        raise ConsumerError("management document canary entry ID must use the canary namespace")
+    if str(entry.get("entryKind")) not in {"initial_default", "amendment", "closure"}:
+        raise ConsumerError("management document canary entry kind is invalid")
+    if not isinstance(entry.get("body"), Mapping) or not entry["body"] or not isinstance(entry.get("effects"), list):
+        raise ConsumerError("management document canary entry projection is incomplete")
+    source_projection = event.get("source_record_projection")
+    source_sha = str(event.get("source_record_projection_sha256") or "")
+    if not isinstance(source_projection, Mapping) or not source_projection or not re.fullmatch(r"[0-9a-f]{64}", source_sha):
+        raise ConsumerError("management document canary source projection is invalid")
+    actual_source_sha = hashlib.sha256(
+        (json.dumps(dict(source_projection), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    if actual_source_sha != source_sha:
+        raise ConsumerError("management document canary source projection hash mismatch")
+    supplied_event_sha = str(event.get("event_sha256") or "")
+    unsigned_event = {key: value for key, value in event.items() if key != "event_sha256"}
+    actual_event_sha = hashlib.sha256(
+        (json.dumps(unsigned_event, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    if supplied_event_sha != actual_event_sha:
+        raise ConsumerError("management document canary event hash mismatch")
+    projection = {
+        "contract": "tgg-pa75-typed-canary-projection/v1",
+        "event_id": event_id,
+        "event_sha256": supplied_event_sha,
+        "entry": dict(entry),
+        "source_record_projection": dict(source_projection),
+        "source_record_projection_sha256": source_sha,
+        "event_payload": unsigned_event,
+    }
+    _validated_pa75_canary_projection(projection)
+    config = _management_document_event_config(config_path)
+    if config is None or config.chat_id != "120363426509183563@g.us":
+        raise ConsumerError("management document canary transport is not bound to the approved test chat")
+    outbound = await _run_management_document_turn(
+        entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
+        canary_projection=projection,
+    )
+    outcome = _deliver_management_document_notice(
+        inbox, config=config, entry=entry, captured_outbound=outbound,
+        canary_projection=projection,
+    )
+    return {
+        "contract": "tgg-pa75-typed-canary-event-receipt/v1",
+        "canary_event_id": event_id,
+        "canary_event_sha256": supplied_event_sha,
+        "record_id": str(entry["recordId"]),
+        "entry_id": str(entry["id"]),
+        "destination_chat_id": config.chat_id,
+        "delivery_outcome": outcome,
+        "outbound_count": len(outbound),
+    }
+
+
 def _write_status(path: Path, payload: Mapping[str, Any]) -> None:
     _atomic_write_json(path, {"version": 1, "updated_at": _utc_now(), **dict(payload)})
 
@@ -3905,6 +4707,60 @@ def _new_gateway_runner(config_path: Path | None = None) -> Any:
 
     with _runtime_config_context(config_path):
         return GatewayRunner(load_gateway_config())
+
+
+async def run_management_document_canary(args: argparse.Namespace) -> int:
+    """Run one file-backed PA-75 event through the real notice path only."""
+    event_path = Path(args.event).resolve()
+    receipt_path = Path(args.receipt).resolve()
+    try:
+        event = json.loads(event_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConsumerError(f"cannot read structured PA-75 canary event: {event_path}") from exc
+    if not isinstance(event, Mapping):
+        raise ConsumerError("PA-75 canary event must be a JSON object")
+
+    # A retry must not open another model turn or attempt another bridge send.
+    # The event SHA binds every signed event field; a different event at this
+    # immutable receipt location is explicitly refused.
+    if receipt_path.exists():
+        try:
+            existing = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConsumerError(f"cannot read existing PA-75 canary receipt: {receipt_path}") from exc
+        entry = event.get("entry")
+        expected = {
+            "contract": "tgg-pa75-typed-canary-event-receipt/v1",
+            "canary_event_id": event.get("id"),
+            "canary_event_sha256": event.get("event_sha256"),
+            "record_id": entry.get("recordId") if isinstance(entry, Mapping) else None,
+            "entry_id": entry.get("id") if isinstance(entry, Mapping) else None,
+            "destination_chat_id": event.get("destination_chat_id"),
+        }
+        terminal_outcome = existing.get("delivery_outcome") if isinstance(existing, Mapping) else None
+        outbound_count = existing.get("outbound_count") if isinstance(existing, Mapping) else None
+        if (
+            isinstance(existing, Mapping)
+            and all(existing.get(key) == value for key, value in expected.items())
+            and terminal_outcome in {"delivered", "undelivered", "unknown"}
+            and isinstance(outbound_count, int)
+            and not isinstance(outbound_count, bool)
+            and outbound_count >= 0
+        ):
+            print(json.dumps(dict(existing), sort_keys=True))
+            return 0
+        raise ConsumerError(f"PA-75 canary receipt collision is divergent: {receipt_path}")
+
+    inbox = DurableInbox(Path(args.inbox).resolve())
+    config_path = Path(args.config).resolve()
+    with SharedActivityLock(Path(args.activity_lock_file).resolve() if args.activity_lock_file else None):
+        runner = _new_gateway_runner(config_path)
+        receipt = await process_management_document_canary_event(
+            inbox, config_path=config_path, runner=runner, event=event,
+        )
+        _write_immutable_json_receipt(receipt_path, receipt, label="PA-75 canary event")
+    print(json.dumps(receipt, sort_keys=True))
+    return 0
 
 
 async def _process_claimed_chat_batch_unlocked(
@@ -3977,6 +4833,19 @@ async def _process_claimed_chat_batch_unlocked(
             raise SourceEvidenceProjectionError(
                 f"source-evidence-projection-held: {exc}"
             ) from exc
+        # A reply quote can deterministically locate one of Christopher's own
+        # prior document notices.  The metadata is only supplied to the model
+        # turn; the capture event remains the same source record and ordinary
+        # unquoted management messages receive no correlation at all.
+        management_document_correlations = {
+            record.message_id: correlation
+            for record in records
+            if record.chat_id in _management_selector_chats(config_path)
+            if (correlation := inbox.management_document_correlation(record)) is not None
+        }
+        capture_canary_reply = _pa75_capture_reply_batch(
+            records, management_document_correlations,
+        )
         async with _management_typing_presence(
             records,
             config_path=config_path,
@@ -3989,6 +4858,8 @@ async def _process_claimed_chat_batch_unlocked(
                     state_db=state_db,
                     persistent_session=persistent_session,
                     runner=runner,
+                    management_document_correlations=management_document_correlations,
+                    capture_business_writes_for_test_management=capture_canary_reply,
                 )
             )
             if allow_active_steering:
@@ -4052,6 +4923,17 @@ async def _process_claimed_chat_batch_unlocked(
         if unknown:
             raise ConsumerError(
                 f"turn evidence referenced messages outside claimed chat batch: {sorted(unknown)}"
+            )
+        if capture_canary_reply:
+            # This receipt is the canary's durable raw-mutation boundary.  It
+            # must exist before the claimed WhatsApp rows become terminal; a
+            # storage failure therefore follows the existing failed/requeue
+            # path instead of falsely recording a successful capture.
+            _pa75_capture_receipt(
+                records=records,
+                correlations=management_document_correlations,
+                result=result,
+                config_path=config_path,
             )
         # One transaction: a multi-turn batch can never land partially
         # terminal if the process exits between turn groups.
@@ -4384,8 +5266,24 @@ async def run_consumer(args: argparse.Namespace) -> int:
                 selected_site_batches = (
                     [] if demo_management_only else site_batches[:available_site]
                 )
-                if (management_batches or selected_site_batches) and runner is None:
+                document_event_config = _management_document_event_config(config_path)
+                if (
+                    management_batches
+                    or selected_site_batches
+                    or document_event_config is not None
+                ) and runner is None:
                     runner = _new_gateway_runner()
+
+                # PA-74's source-fired document outbox is deliberately
+                # adjacent to, not inside, WhatsApp ingress.  It reuses this
+                # durable consumer's runner and outbound ledger, but never
+                # creates a capture row, source projection, or business-model
+                # write from the internal event itself.
+                document_event_cycle = {"examined": 0, "delivered": 0, "undelivered": 0, "skipped": 0}
+                if document_event_config is not None:
+                    document_event_cycle = await process_management_document_events(
+                        inbox, config_path=config_path, runner=runner
+                    )
 
                 # Reserved management capacity: these tasks never acquire or
                 # wait for a site slot.  One task per chat preserves FIFO.
@@ -5502,6 +6400,19 @@ def build_parser() -> argparse.ArgumentParser:
     bounded.add_argument("--lock-file", required=True)
     bounded.add_argument("--run-id")
     bounded.add_argument("--dry-run", action="store_true")
+
+    canary = sub.add_parser(
+        "management-document-canary",
+        help="Run one typed PA-75 test-chat event without polling or cursor advance",
+    )
+    canary.add_argument("--event", required=True, help="immutable typed event JSON file")
+    canary.add_argument("--inbox", required=True)
+    canary.add_argument("--config", required=True)
+    canary.add_argument("--receipt", required=True, help="immutable canary receipt path")
+    canary.add_argument(
+        "--activity-lock-file",
+        help="shared with release executor while the real GatewayRunner owns the canary",
+    )
     return parser
 
 
@@ -5520,6 +6431,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             return asyncio.run(run_fixture(args))
         if args.command == "bounded-backplay":
             return asyncio.run(run_bounded_backplay(args))
+        if args.command == "management-document-canary":
+            return asyncio.run(run_management_document_canary(args))
         raise ConsumerError(f"unknown command {args.command}")
     except ConsumerError as exc:
         print(f"consumer error: {exc}", file=sys.stderr)

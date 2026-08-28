@@ -70,6 +70,39 @@ python3 /usr/local/lib/tgg-christopher/standalone_release.py rollback \
   --receipt /opt/tgg-christopher/transactions/<id>/receipt.json
 ```
 
+## Human-resolution notice outbox
+
+The durable consumer can also drain the typed Systems document outbox. This is
+off by default: do not set only one of these values. When PA-75 arms its test
+management canary, the host-owned `.env` supplies all three:
+
+```sh
+TGG_MANAGEMENT_DOCUMENT_API_URL=https://systems.papercut-labs.com
+TGG_MANAGEMENT_DOCUMENT_CHAT_ID=<approved-management-whatsapp-jid>
+CHRISTOPHER_TGG_PS_SERVICE_TOKEN=<existing-agent-service-token>
+```
+
+`TGG_MANAGEMENT_DOCUMENT_TOKEN_ENV` is optional and defaults to
+`CHRISTOPHER_TGG_PS_SERVICE_TOKEN`. The destination must already be a
+WhatsApp `tgg_management` selector. The consumer polls Systems' exclusive
+`(created_at,id)` document-entry cursor, makes one at-most-once bridge attempt
+per initial entry, and stores that result in its existing `reply_deliveries`
+ledger. It does not append a fabricated WhatsApp capture event or source
+evidence row. Leave this environment absent until the capture-only canary is
+ready; a runtime rollback disables new notices by removing both URL and chat
+variables and restarting Christopher during an idle window.
+
+When an authenticated management message quotes the stored outbound notice ID,
+the same ledger supplies the document ID as turn-local correlation metadata.
+Christopher still interprets the reply naturally; an unquoted `yes` (or any
+other bare message) receives no document correlation.
+
+Later amendment and closure entries are also source-fired lifecycle events.
+Their single notice is allowed only when an initial notice was confirmed; it
+quotes that stored provider message ID and stored notice body. If no initial
+notice was delivered, the lifecycle entry remains visible but receives one
+terminal `undelivered` ledger outcome—never an unanchored or fabricated quote.
+
 ## One-time migration (do not run during active processing)
 
 1. Install the fixed executor as root-owned
