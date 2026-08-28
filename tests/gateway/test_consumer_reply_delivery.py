@@ -20,10 +20,12 @@ from gateway.durable_jsonl_consumer import (
     InboxRecord,
     _management_typing_presence,
     _management_selector_chats,
+    _replay_messages_with_retained_documents,
     _internal_management_document_message,
     _parse_captured_send,
     _run_management_document_turn,
     deliver_management_replies,
+    process_live_records,
     process_management_document_events,
 )
 
@@ -286,6 +288,77 @@ def test_document_event_model_input_is_internal_not_a_capture_envelope() -> None
     assert message["metadata"]["contract"] == "tgg_management_document_event/v1"
     assert "sourceKey" not in message and "source_key" not in message
     assert message["messageId"].startswith("human-resolution-document-entry:")
+
+
+def test_quoted_management_reply_maps_to_its_document_without_interpreting_body(
+    inbox: DurableInbox,
+) -> None:
+    inbox.claim_reply_delivery(
+        "human-resolution:entry-1",
+        chat_id=MGMT_CHAT,
+        reply_to_message_id=None,
+        correlation={"document_id": "record-1", "entry_id": "entry-1"},
+    )
+    inbox.record_reply_delivery(
+        "human-resolution:entry-1", status="delivered", bridge_message_id="WA-notice-1",
+    )
+    reply = _record(MGMT_CHAT, "reply-1")
+    reply.raw.update({"body": "yes, please do it", "quotedMessageId": "WA-notice-1", "fromMe": False})
+    assert inbox.management_document_correlation(reply) == {
+        "document_id": "record-1",
+        "document_entry_id": "entry-1",
+        "outbound_notice_id": "WA-notice-1",
+        "reply_message_id": "reply-1",
+        "confidence": "quoted_outbound_notice_exact",
+    }
+
+
+def test_bare_management_yes_has_no_document_correlation(inbox: DurableInbox) -> None:
+    inbox.claim_reply_delivery(
+        "human-resolution:entry-1",
+        chat_id=MGMT_CHAT,
+        reply_to_message_id=None,
+        correlation={"document_id": "record-1", "entry_id": "entry-1"},
+    )
+    inbox.record_reply_delivery(
+        "human-resolution:entry-1", status="delivered", bridge_message_id="WA-notice-1",
+    )
+    reply = _record(MGMT_CHAT, "bare-yes")
+    reply.raw.update({"body": "yes", "fromMe": False})
+    assert inbox.management_document_correlation(reply) is None
+
+
+@pytest.mark.asyncio
+async def test_correlated_reply_reaches_recreated_management_session_as_metadata(
+    config_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    correlation = {
+        "document_id": "record-1", "document_entry_id": "entry-1",
+        "outbound_notice_id": "WA-notice-1", "reply_message_id": "reply-1",
+        "confidence": "quoted_outbound_notice_exact",
+    }
+    record = _record(MGMT_CHAT, "reply-1")
+    record.raw.update({"body": "Please update the cases.", "quotedMessageId": "WA-notice-1"})
+    rendered = _replay_messages_with_retained_documents(
+        [record], config_path=config_path,
+        management_document_correlations={"reply-1": correlation},
+    )
+    assert rendered[0]["_hermes_pa_context"]["management_document_correlation"] == correlation
+
+    monkeypatch.setattr("gateway.durable_jsonl_consumer.configured_engine", lambda _: ("openai-codex", "gpt-5.6-terra"))
+    class Runner:
+        def __init__(self): self.plans = []
+        async def replay(self, plan):
+            self.plans.append(plan)
+            return type("Result", (), {"processed": 1, "outbound": []})()
+    runner = Runner()
+    state_db = tmp_path / "state.db"
+    await process_live_records(
+        [record], config_path=config_path, state_db=state_db, persistent_session=True,
+        runner=runner, management_document_correlations={"reply-1": correlation},
+    )
+    assert runner.plans[0].replay_namespace == "agent:live-drain:persistent-chat:openai-codex:gpt-5.6-terra"
+    assert runner.plans[0].messages[0]["_hermes_pa_context"]["management_document_correlation"] == correlation
 
 
 @pytest.mark.asyncio

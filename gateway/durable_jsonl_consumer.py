@@ -486,6 +486,7 @@ class DurableInbox:
                     delivery_key TEXT PRIMARY KEY,
                     chat_id TEXT NOT NULL,
                     reply_to_message_id TEXT,
+                    correlation_json TEXT,
                     status TEXT NOT NULL
                         CHECK (status IN ('delivered','undelivered')),
                     bridge_message_id TEXT,
@@ -558,6 +559,8 @@ class DurableInbox:
             }
             if "provider_outcome" not in reply_columns:
                 conn.execute("ALTER TABLE reply_deliveries ADD COLUMN provider_outcome TEXT")
+            if "correlation_json" not in reply_columns:
+                conn.execute("ALTER TABLE reply_deliveries ADD COLUMN correlation_json TEXT")
             ingress_columns = {
                 str(row[1]) for row in conn.execute("PRAGMA table_info(ingress_events)")
             }
@@ -1725,7 +1728,12 @@ class DurableInbox:
         return str(row[0]) if row and row[0] else None
 
     def claim_reply_delivery(
-        self, delivery_key: str, *, chat_id: str, reply_to_message_id: str | None
+        self,
+        delivery_key: str,
+        *,
+        chat_id: str,
+        reply_to_message_id: str | None,
+        correlation: Mapping[str, Any] | None = None,
     ) -> bool:
         """Durably claim a reply delivery BEFORE the send (at-most-once).
 
@@ -1737,12 +1745,69 @@ class DurableInbox:
             cursor = conn.execute(
                 """
                 INSERT OR IGNORE INTO reply_deliveries(
-                    delivery_key,chat_id,reply_to_message_id,status,error,created_at
-                ) VALUES(?,?,?,'undelivered','claimed-in-flight',?)
+                    delivery_key,chat_id,reply_to_message_id,correlation_json,status,error,created_at
+                ) VALUES(?,?,?,?, 'undelivered','claimed-in-flight',?)
                 """,
-                (delivery_key, chat_id, reply_to_message_id, _utc_now()),
+                (
+                    delivery_key,
+                    chat_id,
+                    reply_to_message_id,
+                    json.dumps(dict(correlation), sort_keys=True, separators=(",", ":"))
+                    if correlation is not None else None,
+                    _utc_now(),
+                ),
             )
             return cursor.rowcount == 1
+
+    def management_document_correlation(self, record: InboxRecord) -> dict[str, Any] | None:
+        """Resolve only an authentic quoted management reply to a sent notice.
+
+        A bare acknowledgement has no document binding and remains an ordinary
+        management message.  This lookup supplies context to Christopher; it
+        never classifies the reply body or writes source/case evidence.
+        """
+        item = _bridge_item(record.raw)
+        if bool(item.get("fromMe")):
+            return None
+        reply_to = item.get("replyTo")
+        reply_to_id = reply_to.get("messageId") if isinstance(reply_to, Mapping) else None
+        quoted = str(
+            item.get("quotedMessageId")
+            or item.get("replyToMessageId")
+            or item.get("reply_to_message_id")
+            or reply_to_id
+            or ""
+        ).strip()
+        if not quoted:
+            return None
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT delivery_key,bridge_message_id,correlation_json FROM reply_deliveries "
+                "WHERE chat_id=? AND bridge_message_id=? AND status='delivered' "
+                "AND delivery_key GLOB 'human-resolution:*'",
+                (record.chat_id, quoted),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            stored = json.loads(row["correlation_json"] or "{}")
+        except (TypeError, ValueError):
+            raise ConsumerError("human-resolution delivery correlation is unreadable") from None
+        if not isinstance(stored, Mapping):
+            raise ConsumerError("human-resolution delivery correlation is invalid")
+        document_id = str(stored.get("document_id") or "").strip()
+        entry_id = str(stored.get("entry_id") or "").strip()
+        if not document_id or not entry_id:
+            raise ConsumerError("human-resolution delivery correlation is incomplete")
+        if str(row["delivery_key"]) != f"human-resolution:{entry_id}":
+            raise ConsumerError("human-resolution delivery correlation key mismatch")
+        return {
+            "document_id": document_id,
+            "document_entry_id": entry_id,
+            "outbound_notice_id": str(row["bridge_message_id"]),
+            "reply_message_id": record.message_id,
+            "confidence": "quoted_outbound_notice_exact",
+        }
 
     def record_reply_delivery(
         self,
@@ -2838,7 +2903,10 @@ def _mutable_bridge_item(value: dict[str, Any]) -> dict[str, Any]:
 
 
 def _replay_messages_with_retained_documents(
-    records: Sequence[InboxRecord], *, config_path: Path
+    records: Sequence[InboxRecord],
+    *,
+    config_path: Path,
+    management_document_correlations: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], ...]:
     """Copy records and append retention evidence or quarantine warnings."""
     config = _retention_config(config_path)
@@ -2861,6 +2929,16 @@ def _replay_messages_with_retained_documents(
         message = copy.deepcopy(record.raw)
         messages.append(message)
         item = _mutable_bridge_item(message)
+        correlation = (management_document_correlations or {}).get(record.message_id)
+        if correlation is not None:
+            # This is turn-local correlation metadata derived from an
+            # authenticated WhatsApp quote and our own delivery receipt. It
+            # is not capture provenance, is never projected to Systems, and
+            # does not decide what the human's language means.
+            existing_context = item.get("_hermes_pa_context")
+            context = dict(existing_context) if isinstance(existing_context, Mapping) else {}
+            context["management_document_correlation"] = dict(correlation)
+            item["_hermes_pa_context"] = context
         # The durable consumer enters Hermes through the replay adapter.  That
         # adapter only exposes PA turn metadata from these private bridge
         # fields; retaining ``metadata`` on the raw capture record is not
@@ -2941,6 +3019,7 @@ async def process_live_records(
     persistent_session: bool,
     runner: Any | None = None,
     defer_provider_errors: bool = False,
+    management_document_correlations: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Process live durable records through the replay orchestrator.
 
@@ -2973,7 +3052,9 @@ async def process_live_records(
     replay_plan = ReplayPlan(
         platform="whatsapp",
         messages=_replay_messages_with_retained_documents(
-            records, config_path=config_path
+            records,
+            config_path=config_path,
+            management_document_correlations=management_document_correlations,
         ),
         run_id=run_id,
         attempt_id=f"attempt-{uuid.uuid4().hex[:12]}",
@@ -4144,7 +4225,12 @@ def _deliver_management_document_notice(
         raise ConsumerError(
             "management document turn must emit exactly one unanchored text notice"
         )
-    if not inbox.claim_reply_delivery(key, chat_id=config.chat_id, reply_to_message_id=None):
+    if not inbox.claim_reply_delivery(
+        key,
+        chat_id=config.chat_id,
+        reply_to_message_id=None,
+        correlation={"document_id": str(entry["recordId"]), "entry_id": entry_id},
+    ):
         return inbox.reply_delivery_status(key) or "undelivered"
     request = Request(
         f"{os.environ.get('TGG_REPLY_BRIDGE_URL', 'http://127.0.0.1:3011').rstrip('/')}/send",
@@ -4314,6 +4400,16 @@ async def _process_claimed_chat_batch_unlocked(
             raise SourceEvidenceProjectionError(
                 f"source-evidence-projection-held: {exc}"
             ) from exc
+        # A reply quote can deterministically locate one of Christopher's own
+        # prior document notices.  The metadata is only supplied to the model
+        # turn; the capture event remains the same source record and ordinary
+        # unquoted management messages receive no correlation at all.
+        management_document_correlations = {
+            record.message_id: correlation
+            for record in records
+            if record.chat_id in _management_selector_chats(config_path)
+            if (correlation := inbox.management_document_correlation(record)) is not None
+        }
         async with _management_typing_presence(
             records,
             config_path=config_path,
@@ -4326,6 +4422,7 @@ async def _process_claimed_chat_batch_unlocked(
                     state_db=state_db,
                     persistent_session=persistent_session,
                     runner=runner,
+                    management_document_correlations=management_document_correlations,
                 )
             )
             if allow_active_steering:

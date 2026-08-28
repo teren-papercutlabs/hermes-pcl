@@ -92,6 +92,11 @@ evidence row. Leave this environment absent until the capture-only canary is
 ready; a runtime rollback disables new notices by removing both URL and chat
 variables and restarting Christopher during an idle window.
 
+When an authenticated management message quotes the stored outbound notice ID,
+the same ledger supplies the document ID as turn-local correlation metadata.
+Christopher still interprets the reply naturally; an unquoted `yes` (or any
+other bare message) receives no document correlation.
+
 ## One-time migration (do not run during active processing)
 
 1. Install the fixed executor as root-owned
