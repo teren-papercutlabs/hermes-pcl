@@ -1360,20 +1360,6 @@ class DurableInbox:
             raise ConsumerError("reply delivery correlation is invalid")
         return dict(value)
 
-    def update_reply_delivery_correlation(
-        self, delivery_key: str, updates: Mapping[str, Any]
-    ) -> None:
-        """Merge durable delivery context after a confirmed provider response."""
-        current = self.reply_delivery_correlation(delivery_key) or {}
-        merged = {**current, **dict(updates)}
-        with self.connect() as conn:
-            changed = conn.execute(
-                "UPDATE reply_deliveries SET correlation_json=? WHERE delivery_key=?",
-                (json.dumps(merged, sort_keys=True, separators=(",", ":")), delivery_key),
-            ).rowcount
-        if changed != 1:
-            raise ConsumerError("reply delivery disappeared before correlation update")
-
     def initial_management_document_notice(
         self, *, chat_id: str, document_id: str
     ) -> dict[str, str] | None:
