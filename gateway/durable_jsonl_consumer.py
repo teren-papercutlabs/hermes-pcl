@@ -4470,7 +4470,15 @@ def _validated_pa75_canary_projection(value: Mapping[str, Any]) -> dict[str, Any
     ).hexdigest()
     if source_sha != actual_source_sha:
         raise ConsumerError("management document canary projection source hash mismatch")
-    if not isinstance(event_payload, Mapping) or event_payload.get("id") != event_id:
+    if (
+        not isinstance(event_payload, Mapping)
+        or event_payload.get("contract") != "tgg-pa75-typed-canary-event/v1"
+        or event_payload.get("id") != event_id
+        or event_payload.get("destination_chat_id") != "120363426509183563@g.us"
+        or event_payload.get("entry") != dict(entry)
+        or event_payload.get("source_record_projection") != dict(source)
+        or event_payload.get("source_record_projection_sha256") != source_sha
+    ):
         raise ConsumerError("management document canary projection event payload is invalid")
     unsigned = dict(event_payload)
     actual_event_sha = hashlib.sha256(

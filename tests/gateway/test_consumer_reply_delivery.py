@@ -297,6 +297,10 @@ def test_pa75_capture_selection_requires_authenticated_quoted_canary_correlation
     assert _pa75_capture_reply_batch([record], {}) is False  # bare test-chat message
     forged = {"reply-1": {"pa75_canary_projection": {**projection, "event_sha256": "0" * 64}}}
     assert _pa75_capture_reply_batch([record], forged) is False
+    divergent = {"reply-1": {"pa75_canary_projection": {
+        **projection, "entry": {**projection["entry"], "body": {"statement": "forged"}},
+    }}}
+    assert _pa75_capture_reply_batch([record], divergent) is False
     assert _pa75_capture_reply_batch([_record("120363407903158826@g.us", "reply-1")], correlation) is False
 
 
