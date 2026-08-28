@@ -4320,6 +4320,12 @@ def _deliver_management_document_notice(
         raise ConsumerError(
             "management document turn emitted an invalid lifecycle notice anchor"
         )
+    # The authored initial text is known before any bridge I/O. Store it in
+    # the same durable pre-send claim as the idempotency key so a crash after a
+    # confirmed provider send cannot leave future lifecycle entries unable to
+    # build their honest quote context.
+    if entry_kind == "initial_default":
+        correlation["notice_body"] = sends[0]["content"]
     if not inbox.claim_reply_delivery(
         key,
         chat_id=config.chat_id,
@@ -4351,9 +4357,6 @@ def _deliver_management_document_notice(
             inbox.record_reply_delivery(
                 key, status="delivered", bridge_message_id=str(payload.get("messageId") or ""),
                 provider_outcome=str(payload.get("outcome") or "delivered"),
-            )
-            inbox.update_reply_delivery_correlation(
-                key, {"notice_body": sends[0]["content"]},
             )
             return "delivered"
         inbox.record_reply_delivery(

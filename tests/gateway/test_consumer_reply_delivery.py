@@ -288,14 +288,35 @@ async def test_document_event_crash_after_send_advances_cursor_without_reopening
 def _seed_initial_notice(inbox: DurableInbox) -> None:
     inbox.claim_reply_delivery(
         "human-resolution:entry-initial", chat_id=MGMT_CHAT, reply_to_message_id=None,
-        correlation={"document_id": "record-1", "entry_id": "entry-initial", "entry_kind": "initial_default"},
+        correlation={
+            "document_id": "record-1", "entry_id": "entry-initial",
+            "entry_kind": "initial_default", "notice_body": "Which workbook should I apply?",
+        },
     )
     inbox.record_reply_delivery(
         "human-resolution:entry-initial", status="delivered", bridge_message_id="WA-initial",
     )
-    inbox.update_reply_delivery_correlation(
-        "human-resolution:entry-initial", {"notice_body": "Which workbook should I apply?"},
+
+
+def test_initial_pre_send_body_survives_confirmation_crash_for_lifecycle_quote(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    # This is the exact crash window: provider confirmation has been recorded,
+    # but no separate post-send metadata write ever ran.
+    _seed_initial_notice(inbox)
+    sent: list[dict] = []
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda request, timeout=0: (sent.append(json.loads(request.data)) or _FakeResponse({"success": True, "messageId": "WA-amendment"})),
     )
+    config = consumer._management_document_event_config(config_path)
+    assert config is not None
+    assert _deliver_management_document_notice(
+        inbox, config=config, entry=_document_entry("entry-crash-recovery", kind="amendment"),
+        captured_outbound=[_captured(MGMT_CHAT, "The scope has been corrected.", reply_to="WA-initial")],
+    ) == "delivered"
+    assert sent[0]["replyTo"]["body"] == "Which workbook should I apply?"
 
 
 def test_lifecycle_closeout_quotes_only_the_stored_initial_notice(
