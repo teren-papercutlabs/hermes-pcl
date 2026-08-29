@@ -4384,10 +4384,18 @@ def _deliver_management_document_notice(
         and parsed["chat_id"] == config.chat_id
     ]
     expected_reply_to = initial_notice["message_id"] if initial_notice else None
+    # Christopher is replying to the transient lifecycle event presented to
+    # the ordinary WhatsApp adapter, so the captured transport anchor must be
+    # that exact event.  The real provider message ID is deliberately not
+    # model-visible; the bridge attaches the already-delivered initial notice
+    # below after this current-event anchor has been validated.
+    captured_reply_to = (
+        None if entry_kind == "initial_default"
+        else f"human-resolution-document-entry:{entry_id}"
+    )
     if (
         len(sends) != 1
-        or (entry_kind == "initial_default" and sends[0].get("reply_to"))
-        or (entry_kind != "initial_default" and sends[0].get("reply_to") != expected_reply_to)
+        or sends[0].get("reply_to") != captured_reply_to
     ):
         raise ConsumerError(
             "management document turn emitted an invalid lifecycle notice anchor"
