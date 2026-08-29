@@ -4256,7 +4256,7 @@ def _internal_management_document_message(
         "timestamp": created_at,
         "body": (
             instruction +
-            "Read the durable document and its cited evidence using the document ID below. "
+            f"Read the durable document and its cited evidence using document ID {record_id}. "
             "Then write one natural, first-person message for the management chat. "
             "Do not treat this internal event as WhatsApp evidence and do not make a case change."
         ),

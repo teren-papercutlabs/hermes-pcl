@@ -701,6 +701,7 @@ def test_document_event_model_input_is_internal_not_a_capture_envelope() -> None
     assert message["isGroup"] is True
     assert message["chatName"] == "TGG Management"
     assert message["metadata"]["contract"] == "tgg_management_document_event/v1"
+    assert "document ID record-1" in message["body"]
     assert "sourceKey" not in message and "source_key" not in message
     assert message["messageId"].startswith("human-resolution-document-entry:")
 
