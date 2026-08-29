@@ -573,7 +573,7 @@ def test_initial_pre_send_body_survives_confirmation_crash_for_lifecycle_quote(
     assert config is not None
     assert _deliver_management_document_notice(
         inbox, config=config, entry=_document_entry("entry-crash-recovery", kind="amendment"),
-        captured_outbound=[_captured(MGMT_CHAT, "The scope has been corrected.", reply_to="WA-initial")],
+        captured_outbound=[_captured(MGMT_CHAT, "The scope has been corrected.", reply_to="human-resolution-document-entry:entry-crash-recovery")],
     ) == "delivered"
     assert sent[0]["replyTo"]["body"] == "Which workbook should I apply?"
 
@@ -593,7 +593,7 @@ def test_lifecycle_closeout_quotes_only_the_stored_initial_notice(
     entry = _document_entry("entry-closure", created_at=101, kind="closure")
     result = _deliver_management_document_notice(
         inbox, config=config, entry=entry,
-        captured_outbound=[_captured(MGMT_CHAT, "I have updated the 82 cases.", reply_to="WA-initial")],
+        captured_outbound=[_captured(MGMT_CHAT, "I have updated the 82 cases.", reply_to="human-resolution-document-entry:entry-closure")],
     )
     assert result == "delivered"
     assert sent == [{
@@ -645,7 +645,7 @@ def test_lifecycle_duplicate_and_unknown_outcome_never_resend(
     config = consumer._management_document_event_config(config_path)
     assert config is not None
     entry = _document_entry("entry-202-close", kind="closure")
-    outbound = [_captured(MGMT_CHAT, "Close out", reply_to="WA-initial")]
+    outbound = [_captured(MGMT_CHAT, "Close out", reply_to="human-resolution-document-entry:entry-202-close")]
     assert _deliver_management_document_notice(inbox, config=config, entry=entry, captured_outbound=outbound) == "undelivered"
     assert _deliver_management_document_notice(inbox, config=config, entry=entry, captured_outbound=outbound) == "undelivered"
     assert calls == 1
@@ -665,7 +665,7 @@ async def test_source_fired_closure_runs_turn_and_quotes_initial_notice(
         return _FakeResponse({"success": True, "messageId": "WA-closure"})
     async def fake_turn(entry, **kwargs):
         assert entry["entryKind"] == "closure"
-        return [_captured(MGMT_CHAT, "I have now updated the cases.", reply_to="WA-initial")]
+        return [_captured(MGMT_CHAT, "I have now updated the cases.", reply_to="human-resolution-document-entry:entry-source-closure")]
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
     monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
     assert await process_management_document_events(inbox, config_path=config_path, runner=object()) == {
@@ -744,7 +744,7 @@ def test_initial_document_transport_strips_only_its_synthetic_reply_anchor() -> 
     assert _parse_captured_send(captured)["reply_to"] == synthetic_anchor
 
 
-def test_lifecycle_transport_preserves_synthetic_anchor_for_existing_fail_closed_guard(
+def test_lifecycle_transport_rewrites_current_event_anchor_to_delivered_initial_notice(
     inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _enable_document_events(monkeypatch)
@@ -755,13 +755,21 @@ def test_lifecycle_transport_preserves_synthetic_anchor_for_existing_fail_closed
         entry, [_captured(MGMT_CHAT, "I have updated the cases.", reply_to=synthetic_anchor)],
     )
     assert _parse_captured_send(normalized[0])["reply_to"] == synthetic_anchor
-    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("bridge must not be called")))
+    sent: list[dict] = []
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda request, timeout=0: (sent.append(json.loads(request.data)) or _FakeResponse({"success": True, "messageId": "WA-amendment"})),
+    )
     config = consumer._management_document_event_config(config_path)
     assert config is not None
-    with pytest.raises(consumer.ConsumerError, match="invalid lifecycle notice anchor"):
-        _deliver_management_document_notice(
-            inbox, config=config, entry=entry, captured_outbound=normalized,
-        )
+    assert _deliver_management_document_notice(
+        inbox, config=config, entry=entry, captured_outbound=normalized,
+    ) == "delivered"
+    assert sent == [{
+        "chatId": MGMT_CHAT,
+        "message": "I have updated the cases.",
+        "replyTo": {"messageId": "WA-initial", "body": "Which workbook should I apply?", "fromMe": True},
+    }]
 
 
 def test_quoted_management_reply_maps_to_its_document_without_interpreting_body(
