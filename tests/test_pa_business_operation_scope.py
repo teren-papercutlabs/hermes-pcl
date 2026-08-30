@@ -44,6 +44,40 @@ MANAGEMENT_CASE_OPERATIONS = (
     "tgg_clarification_raise",
 )
 
+# The management brief is deliberately an explicit allow-list. Keep this as a
+# set rather than a count: a new bridge operation is an authority decision,
+# not merely another item in a total.
+MANAGEMENT_OPERATION_SET = {
+    "agent_action_record",
+    "agent_config_read",
+    "ilinked_lookup",
+    "ilinked_status",
+    "ilinked_wc_lookup",
+    "job_work_costings",
+    "message_search",
+    "tgg_attention_annotate",
+    "tgg_attention_list",
+    "tgg_attention_raise",
+    "tgg_attention_read",
+    "tgg_case_create",
+    "tgg_case_list",
+    "tgg_case_lookup",
+    "tgg_case_media",
+    "tgg_case_observation",
+    "tgg_case_query",
+    "tgg_case_search",
+    "tgg_case_update",
+    "tgg_case_wc_attach",
+    "tgg_clarification_raise",
+    "tgg_human_resolution_apply_case_update",
+    "tgg_human_resolution_create",
+    "tgg_human_resolution_document_append",
+    "tgg_human_resolution_document_context",
+    "work_costing_ingest_ilinked",
+    "work_costing_lookup",
+    "work_costing_upsert",
+}
+
 
 def _config():
     return yaml.safe_load(TGG_CONFIG.read_text(encoding="utf-8"))
@@ -309,9 +343,9 @@ def test_management_chat_allows_case_photos_but_not_retention_primitive():
     assert "tgg_media_retention" in bridge.denied_operations
 
 
-def test_management_operation_count_is_twenty_four():
+def test_management_operation_registry_is_exactly_authorized():
     bridge = _bridge(MGMT_CHAT_ID)
-    assert len(bridge.operations) == 24, sorted(bridge.operations)
+    assert set(bridge.operations) == MANAGEMENT_OPERATION_SET
 
 
 def test_ingest_chat_resolves_the_new_attention_reads():
