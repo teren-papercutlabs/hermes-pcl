@@ -1628,6 +1628,34 @@ def test_case_search_accepts_structured_fields_as_single_query(path_param_endpoi
     assert "limit=10" in last["path"]
 
 
+def test_case_search_preserves_block_and_unit_embedded_in_address(path_param_endpoint):
+    config = {
+        "pa_business": {
+            "operations": {
+                "tgg_case_search": {
+                    "type": "http",
+                    "method": "GET",
+                    "url": f"{path_param_endpoint}/api/operator/cases",
+                }
+            }
+        }
+    }
+
+    result = execute_business_operation(
+        config,
+        "tgg_case_search",
+        {"address": "Blk 463A Sengkang West Way #09-273", "limit": 10},
+    )
+
+    assert result["ok"] is True
+    last = _PathParamHandler.last_request
+    assert last["method"] == "GET"
+    assert "search=Blk+463A+Sengkang+West+Way+%2309-273" in last["path"]
+    assert "block=463A" in last["path"]
+    assert "unit=09-273" in last["path"]
+    assert "address=" not in last["path"]
+
+
 def test_case_search_uses_work_text_only_when_no_address(path_param_endpoint):
     config = {
         "pa_business": {

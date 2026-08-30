@@ -513,6 +513,24 @@ def _case_search_address_text(payload: Mapping[str, Any]) -> str:
     return _dedupe_text_parts(raw_parts)
 
 
+def _case_search_address_anchors(value: Any) -> tuple[str, str]:
+    """Derive the structured candidate anchors already present in an address."""
+    address = str(value or "").strip()
+    if not address:
+        return "", ""
+    block_match = re.search(r"\bbl(?:oc)?k\.?\s*(\d{1,4}[A-Z]?)\b", address, re.IGNORECASE)
+    unit_match = re.search(r"#\s*(\d{1,2}\s*-\s*\d{1,4})\b", address)
+    if unit_match is None:
+        bare_units = re.findall(r"\b(\d{1,2}-\d{1,4})\b", address)
+        unit = bare_units[0] if len(bare_units) == 1 else ""
+    else:
+        unit = unit_match.group(1)
+    return (
+        block_match.group(1).upper() if block_match else "",
+        re.sub(r"\s+", "", unit),
+    )
+
+
 def _case_search_work_text(payload: Mapping[str, Any]) -> str:
     raw_parts: list[str] = []
     for key in ("workType", "work_type", "problem", "issue"):
@@ -548,8 +566,9 @@ def _normalize_case_search_payload(clean: dict[str, Any]) -> dict[str, Any]:
     job_no = str(clean.get("job_no") or clean.get("jobNo") or "").strip()
     clean.pop("jobNo", None)
     clean.pop("job_no", None)
-    block = str(clean.get("block") or "").strip()
-    unit = str(clean.get("unit") or "").strip()
+    derived_block, derived_unit = _case_search_address_anchors(clean.get("address"))
+    block = str(clean.get("block") or derived_block).strip()
+    unit = str(clean.get("unit") or derived_unit).strip()
     clean.pop("query", None)
     clean.pop("zone", None)
     for key in CASE_SEARCH_TEXT_KEYS:
