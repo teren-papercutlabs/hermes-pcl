@@ -224,6 +224,35 @@ pa:
               X-PS-Tenant: tgg
               User-Agent: curl/8.7.1
             timeout: 10
+          tgg_human_resolution_create:
+            type: http
+            tenant: tgg
+            method: POST
+            url: https://systems.papercut-labs.com/api/operator/human-resolution-records
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          tgg_human_resolution_document_append:
+            type: http
+            tenant: tgg
+            method: POST
+            url: https://systems.papercut-labs.com/api/operator/human-resolution-documents
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
+          tgg_human_resolution_document_context:
+            type: http
+            tenant: tgg
+            method: GET
+            url: https://systems.papercut-labs.com/api/operator/human-resolution-documents/{id}
+            path_params:
+            - id
+            headers:
+              X-PS-Tenant: tgg
+              User-Agent: curl/8.7.1
+            timeout: 10
           tgg_human_resolution_apply_case_update:
             type: http
             tenant: tgg

@@ -21,6 +21,9 @@
       - tgg_case_update
       - tgg_case_wc_attach
       - tgg_human_resolution_apply_case_update
+      - tgg_human_resolution_create
+      - tgg_human_resolution_document_append
+      - tgg_human_resolution_document_context
       - tgg_clarification_raise
       - work_costing_ingest_ilinked
       - work_costing_lookup
