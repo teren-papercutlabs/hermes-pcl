@@ -47,6 +47,59 @@ def repository_guard(commit: str) -> dict[str, str]:
     }
 
 
+def preserve_installed_bundle(tmp_path: Path, *, commit: str, release_id: str = "preserve") -> tuple[Path, Path]:
+    """Create the smallest capability-only bundle accepted by ``apply``."""
+    capability_root = tmp_path / "incoming-capability"
+    capability(capability_root, release_id)
+    (capability_root / "plugins/tgg").mkdir(parents=True)
+    (capability_root / "plugins/tgg/plugin.py").write_text("x = 2\n")
+    manifest = json.loads((capability_root / "manifest.json").read_text())
+    manifest["runtime"]["hermes_commit"] = commit
+    manifest["files"]["plugins/tgg/plugin.py"] = release.sha256(
+        capability_root / "plugins/tgg/plugin.py"
+    )
+    (capability_root / "manifest.json").write_text(json.dumps(manifest))
+
+    bundle = tmp_path / "preserve-bundle"
+    bundle.mkdir()
+    capability_archive = bundle / "capability.tgz"
+    release_json = {
+        "schema": release.SCHEMA,
+        "runtime_mode": "preserve_installed",
+        "runtime_commit": commit,
+        "runtime_files": {},
+        "runtime_sha256": None,
+        "capability_release_id": release_id,
+        "capability_manifest_sha256": release.sha256(capability_root / "manifest.json"),
+        "capability_files": release.file_inventory(capability_root),
+        "capability_sha256": release.archive_tree(capability_root, capability_archive),
+        "provider": "p",
+        "model": "m",
+        "reasoning_effort": "r",
+        "capability_declared_runtime_commit": commit,
+        "repository_guard": {"mode": "preserve_installed", "runtime_commit": commit},
+    }
+    (bundle / "release.json").write_text(json.dumps(release_json))
+    return bundle, capability_root
+
+
+def installed_release_fixture(tmp_path: Path, *, runtime_commit: str) -> tuple[Path, Path, Path, Path]:
+    """Seed the existing runtime/capability pointers required by ``apply``."""
+    root, home = tmp_path / "root", tmp_path / "home"
+    installed_runtime = root / "runtime/releases/installed"
+    old_capability = root / "capability/releases/old"
+    old_home_capability = home / "runtime/capabilities/christopher-tgg/releases/old"
+    runtime(installed_runtime, runtime_commit)
+    capability(old_capability, "old")
+    capability(old_home_capability, "old-home")
+    (old_home_capability / "plugins/tgg").mkdir(parents=True)
+    release.replace_pointer(root / "runtime/current", installed_runtime)
+    release.replace_pointer(root / "capability/current", old_capability)
+    release.replace_pointer(home / "runtime/capabilities/christopher-tgg/current", old_home_capability)
+    release.replace_pointer(home / "plugins/tgg", old_home_capability / "plugins/tgg")
+    return root, home, installed_runtime, old_capability
+
+
 def rollback_security_fixture(tmp_path: Path) -> tuple[dict, object, dict[str, str | None]]:
     root, home = tmp_path / "root", tmp_path / "home"
     old_runtime = root / "runtime/releases/old"
@@ -113,6 +166,36 @@ def test_prepare_builds_separately_hashed_payloads(tmp_path: Path, capsys: pytes
     assert emitted["capability_release_id"] == "r1"
     assert release.sha256(bundle / "runtime.tgz") == emitted["runtime_sha256"]
     assert release.sha256(bundle / "capability.tgz") == emitted["capability_sha256"]
+
+
+def test_prepare_preserve_installed_runtime_skips_runtime_payload_and_pins_manifest(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    commit = "a" * 40
+    cap, bundle = tmp_path / "capability", tmp_path / "bundle"
+    capability(cap, "capability-only")
+    manifest = json.loads((cap / "manifest.json").read_text())
+    manifest["runtime"]["hermes_commit"] = commit
+    (cap / "manifest.json").write_text(json.dumps(manifest))
+    monkeypatch.setattr(
+        release,
+        "verify_prepare_repository",
+        lambda _runtime: (_ for _ in ()).throw(AssertionError("must not inspect/archive runtime")),
+    )
+
+    assert release.main([
+        "prepare", "--preserve-installed-runtime", "--capability", str(cap), "--out", str(bundle),
+        "--provider", "p", "--model", "m", "--reasoning-effort", "r",
+    ]) == 0
+
+    emitted = json.loads(capsys.readouterr().out)
+    assert emitted["runtime_mode"] == "preserve_installed"
+    assert emitted["runtime_commit"] == commit
+    assert emitted["capability_declared_runtime_commit"] == commit
+    assert emitted["runtime_files"] == {}
+    assert emitted["runtime_sha256"] is None
+    assert not (bundle / "runtime.tgz").exists()
+    assert (bundle / "capability.tgz").is_file()
 
 
 def test_extract_rejects_modified_payload(tmp_path: Path) -> None:
@@ -636,3 +719,73 @@ def test_apply_flips_all_pointers_and_rolls_back_on_verify_failure(tmp_path: Pat
     before = json.loads(rollback_receipt.read_text())["before"]
     assert before["capability"] == str(old_cap)
     assert before["home_capability"] == str(old_home_cap)
+
+
+def test_apply_preserve_installed_runtime_refuses_mismatched_runtime_without_replacing_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installed_commit, declared_commit = "b" * 40, "a" * 40
+    root, home, installed_runtime, old_capability = installed_release_fixture(
+        tmp_path, runtime_commit=installed_commit
+    )
+    bundle, _capability_root = preserve_installed_bundle(tmp_path, commit=declared_commit)
+    unit_path = tmp_path / "christopher.service"
+    unit_path.write_text("[Service]\n# installed\n")
+    monkeypatch.setattr(release, "verify_apply_repository", lambda *_args, **_kwargs: {"mode": "preserve_installed"})
+    monkeypatch.setattr(
+        release, "ensure_plugin_pointer_directory",
+        lambda _home: (_ for _ in ()).throw(AssertionError("must not normalize plugins before identity proof")),
+    )
+    monkeypatch.setattr(
+        release, "ensure_vision_receipt_tree",
+        lambda _home: (_ for _ in ()).throw(AssertionError("must not normalize vision receipts before identity proof")),
+    )
+    monkeypatch.setattr(release, "control_state", lambda _home: {"controls": "unchanged"})
+    monkeypatch.setattr(release, "restart_service", lambda: (_ for _ in ()).throw(AssertionError("must not restart")))
+
+    args = type("A", (), {
+        "bundle": str(bundle), "root": str(root), "hermes_home": str(home),
+        "systemd_unit": str(unit_path),
+    })()
+    with pytest.raises(release.ReleaseError, match="installed runtime identity"):
+        release.apply(args)
+
+    assert release.pointer_target(root / "runtime/current") == str(installed_runtime)
+    assert release.pointer_target(root / "capability/current") == str(old_capability)
+    assert unit_path.read_text() == "[Service]\n# installed\n"
+
+
+def test_apply_preserve_installed_runtime_keeps_runtime_pointer_and_unit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    commit = "a" * 40
+    root, home, installed_runtime, _old_capability = installed_release_fixture(
+        tmp_path, runtime_commit=commit
+    )
+    bundle, _capability_root = preserve_installed_bundle(tmp_path, commit=commit)
+    unit_path = tmp_path / "christopher.service"
+    unit_path.write_text("[Service]\n# installed\n")
+    commands: list[list[str]] = []
+    monkeypatch.setattr(release, "verify_apply_repository", lambda *_args, **_kwargs: {"mode": "preserve_installed"})
+    monkeypatch.setattr(release, "ensure_plugin_pointer_directory", lambda _home: {})
+    monkeypatch.setattr(release, "ensure_vision_receipt_tree", lambda _home: {"enabled": False})
+    monkeypatch.setattr(release, "control_state", lambda _home: {"controls": "unchanged"})
+    monkeypatch.setattr(release, "command", lambda argv: commands.append(argv) or "")
+    monkeypatch.setattr(release, "restart_service", lambda: commands.append(["restart"]))
+    monkeypatch.setattr(
+        release, "focused_verify", lambda *_args: {"service": "active", "runtime_commit": commit}
+    )
+
+    args = type("A", (), {
+        "bundle": str(bundle), "root": str(root), "hermes_home": str(home),
+        "systemd_unit": str(unit_path),
+    })()
+    assert release.apply(args) == 0
+
+    assert release.pointer_target(root / "runtime/current") == str(installed_runtime)
+    assert unit_path.read_text() == "[Service]\n# installed\n"
+    assert ["systemctl", "daemon-reload"] in commands
+    assert ["restart"] in commands
+    assert release.pointer_target(root / "capability/current") == str(
+        home / "runtime/capabilities/christopher-tgg/releases/preserve"
+    )

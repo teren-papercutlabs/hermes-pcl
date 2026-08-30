@@ -110,6 +110,14 @@ def resolve_protected_main_head() -> str:
 def verify_apply_repository(
     release: dict[str, Any], *, break_glass: bool, reason: str | None
 ) -> dict[str, Any]:
+    if release.get("runtime_mode") == "preserve_installed":
+        if break_glass or reason:
+            raise ReleaseError("preserve-installed runtime mode does not permit repository bypass")
+        return {
+            "mode": "preserve_installed",
+            "runtime_commit": str(release.get("runtime_commit") or ""),
+            "observed_at": _utc_now(),
+        }
     """Verify main again at apply, or record an explicit root/operator bypass."""
     observed_at = _utc_now()
     observed_main_head = resolve_protected_main_head()
@@ -579,19 +587,38 @@ def focused_verify(root: Path, home: Path, expected: dict[str, Any], before_cont
 
 
 def prepare(args: argparse.Namespace) -> int:
-    runtime, capability, out = Path(args.runtime).resolve(), Path(args.capability).resolve(), Path(args.out).resolve()
-    repository_guard = verify_prepare_repository(runtime)
+    capability, out = Path(args.capability).resolve(), Path(args.out).resolve()
+    if out.exists():
+        raise ReleaseError(f"release output already exists: {out}")
+    out.mkdir(parents=True, exist_ok=False)
     manifest = read_manifest(capability)
     required_capability_files(capability, manifest)
-    commit = runtime_identity(runtime)
-    declared_compatibility = declared_runtime_compatibility(manifest, commit)
-    out.mkdir(parents=True, exist_ok=False)
-    runtime_archive, capability_archive = out / "runtime.tgz", out / "capability.tgz"
-    staged_runtime = out / ".runtime-payload"
-    runtime_files = stage_runtime(runtime, Path(args.runtime_manifest).resolve(), staged_runtime, commit)
+    preserve_installed = bool(getattr(args, "preserve_installed_runtime", False))
+    if preserve_installed:
+        declared = str((manifest.get("runtime") or {}).get("hermes_commit") or "").strip()
+        if len(declared) != 40 or any(char not in "0123456789abcdef" for char in declared.lower()):
+            raise ReleaseError("preserve-installed runtime mode requires an exact manifest runtime.hermes_commit")
+        commit = declared
+        declared_compatibility = declared
+        repository_guard = {"mode": "preserve_installed", "runtime_commit": commit, "prepared_at": _utc_now()}
+        runtime_files: dict[str, str] = {}
+        runtime_sha256 = None
+    else:
+        if not args.runtime or not args.runtime_manifest:
+            raise ReleaseError("runtime and runtime-manifest are required unless preserving installed runtime")
+        runtime = Path(args.runtime).resolve()
+        repository_guard = verify_prepare_repository(runtime)
+        commit = runtime_identity(runtime)
+        declared_compatibility = declared_runtime_compatibility(manifest, commit)
+        staged_runtime = out / ".runtime-payload"
+        runtime_files = stage_runtime(runtime, Path(args.runtime_manifest).resolve(), staged_runtime, commit)
+        runtime_sha256 = archive_tree(staged_runtime, out / "runtime.tgz")
+        shutil.rmtree(staged_runtime)
+    capability_archive = out / "capability.tgz"
     release = {"schema": SCHEMA, "created_at": int(time.time()), "runtime_commit": commit,
                "runtime_files": runtime_files,
-               "runtime_sha256": archive_tree(staged_runtime, runtime_archive),
+               "runtime_sha256": runtime_sha256,
+               "runtime_mode": "preserve_installed" if preserve_installed else "replace",
                "capability_release_id": manifest["release_id"],
                "capability_manifest_sha256": sha256(capability / "manifest.json"),
                "capability_files": file_inventory(capability),
@@ -600,7 +627,6 @@ def prepare(args: argparse.Namespace) -> int:
                "reasoning_effort": args.reasoning_effort,
                "capability_declared_runtime_commit": declared_compatibility,
                "repository_guard": repository_guard}
-    shutil.rmtree(staged_runtime)
     atomic_json(out / "release.json", release)
     print(json.dumps(release, sort_keys=True))
     return 0
@@ -618,6 +644,7 @@ def apply(args: argparse.Namespace) -> int:
         reason=getattr(args, "reason", None),
     )
     expected = {key: release[key] for key in ("runtime_commit", "capability_release_id", "provider", "model", "reasoning_effort")}
+    preserve_installed = release.get("runtime_mode") == "preserve_installed"
     inbox = home / "runtime/capture-inbox.db"
     receipt = root / "transactions" / f"{int(time.time())}-{release['runtime_commit'][:12]}" / "receipt.json"
     with ExclusiveActivityLock(root / "release-activity.lock"):
@@ -627,6 +654,8 @@ def apply(args: argparse.Namespace) -> int:
         old["home_capability"] = pointer_target(home / "runtime/capabilities/christopher-tgg/current")
         if not old["runtime"] or not old["capability"] or not old["home_capability"]:
             raise ReleaseError("first activation must be seeded with valid runtime and capability pointers")
+        if preserve_installed and runtime_identity(root / "runtime/current") != release["runtime_commit"]:
+            raise ReleaseError("installed runtime identity does not match preserve-installed capability")
         ensure_plugin_pointer_directory(home)
         ensure_vision_receipt_tree(home)
         before_controls = control_state(home)
@@ -635,13 +664,14 @@ def apply(args: argparse.Namespace) -> int:
         stage = root / ".stage" / str(os.getpid())
         activation_started = False
         try:
-            extract_verified(bundle / "runtime.tgz", release["runtime_sha256"], stage / "runtime")
             extract_verified(bundle / "capability.tgz", release["capability_sha256"], stage / "capability")
-            if runtime_identity(stage / "runtime") != release["runtime_commit"]:
-                raise ReleaseError("runtime archive identity mismatch")
+            if not preserve_installed:
+                extract_verified(bundle / "runtime.tgz", release["runtime_sha256"], stage / "runtime")
+                if runtime_identity(stage / "runtime") != release["runtime_commit"]:
+                    raise ReleaseError("runtime archive identity mismatch")
             if sha256(stage / "capability/manifest.json") != release["capability_manifest_sha256"]:
                 raise ReleaseError("capability manifest hash mismatch")
-            if file_inventory(stage / "runtime") != release["runtime_files"]:
+            if not preserve_installed and file_inventory(stage / "runtime") != release["runtime_files"]:
                 raise ReleaseError("runtime fileset mismatch")
             if file_inventory(stage / "capability") != release["capability_files"]:
                 raise ReleaseError("capability fileset mismatch")
@@ -651,7 +681,10 @@ def apply(args: argparse.Namespace) -> int:
             # identity pointer under /opt targets it rather than duplicating it.
             capability_dest = home / "runtime/capabilities/christopher-tgg/releases" / release["capability_release_id"]
             runtime_dest.parent.mkdir(parents=True, exist_ok=True); capability_dest.parent.mkdir(parents=True, exist_ok=True)
-            for staged, destination, expected_files in ((stage / "runtime", runtime_dest, release["runtime_files"]), (stage / "capability", capability_dest, release["capability_files"])):
+            payloads = [(stage / "capability", capability_dest, release["capability_files"])]
+            if not preserve_installed:
+                payloads.insert(0, (stage / "runtime", runtime_dest, release["runtime_files"]))
+            for staged, destination, expected_files in payloads:
                 if destination.exists():
                     if file_inventory(destination) != expected_files:
                         raise ReleaseError("release id exists with different immutable payload")
@@ -661,22 +694,25 @@ def apply(args: argparse.Namespace) -> int:
             plugins = capability_plugins(capability_dest)
             old["plugins"] = {name: pointer_target(home / "plugins" / name) for name in plugins}
             activation_started = True
-            replace_pointer(root / "runtime/current", runtime_dest)
+            if not preserve_installed:
+                replace_pointer(root / "runtime/current", runtime_dest)
             replace_pointer(root / "capability/current", capability_dest)
             # Home-level links preserve existing runtime selectors without copying capability files.
             replace_pointer(home / "runtime/capabilities/christopher-tgg/current", capability_dest)
             for name in plugins:
                 replace_pointer(home / "plugins" / name, capability_dest / "plugins" / name)
-            after_unit_hash = install_unit(runtime_dest / UNIT_REL, unit_path)
+            after_unit_hash = old["unit_sha256"] if preserve_installed else install_unit(runtime_dest / UNIT_REL, unit_path)
             command(["systemctl", "daemon-reload"])
             restart_service()
             verified = focused_verify(root, home, expected, before_controls)
-            outcome = {"schema": SCHEMA, "status": "committed", "repository_verification": repository_verification, "before": old, "after": {**verified, "unit_sha256": after_unit_hash}}
+            outcome = {"schema": SCHEMA, "status": "committed", "runtime_mode": release.get("runtime_mode", "replace"), "repository_verification": repository_verification, "before": old, "after": {**verified, "unit_sha256": after_unit_hash}}
         except Exception as exc:
             if activation_started:
-                restore_unit(before_unit, unit_path)
+                if not preserve_installed:
+                    restore_unit(before_unit, unit_path)
                 subprocess.run(["systemctl", "daemon-reload"], check=False)
-                if old["runtime"]: replace_pointer(root / "runtime/current", Path(old["runtime"]))
+                if not preserve_installed and old["runtime"]:
+                    replace_pointer(root / "runtime/current", Path(old["runtime"]))
                 if old["capability"]:
                     replace_pointer(root / "capability/current", Path(old["capability"]))
                 if old["home_capability"]:
@@ -687,7 +723,7 @@ def apply(args: argparse.Namespace) -> int:
                 for name, target in (old.get("plugins") or {}).items():
                     restore_pointer(home / "plugins" / name, target)
                 recover_service()
-            outcome = {"schema": SCHEMA, "status": "rolled_back", "repository_verification": repository_verification, "before": old, "error": str(exc)}
+            outcome = {"schema": SCHEMA, "status": "rolled_back", "runtime_mode": release.get("runtime_mode", "replace"), "repository_verification": repository_verification, "before": old, "error": str(exc)}
             atomic_json(receipt, outcome)
             raise
         finally:
@@ -788,7 +824,9 @@ def rollback(args: argparse.Namespace) -> int:
             raise ReleaseError("Christopher is processing; rollback refused")
         ensure_plugin_pointer_directory(home)
         ensure_vision_receipt_tree(home)
-        replace_pointer(root / "runtime/current", targets["runtime"])
+        preserve_installed = receipt.get("runtime_mode") == "preserve_installed"
+        if not preserve_installed:
+            replace_pointer(root / "runtime/current", targets["runtime"])
         replace_pointer(root / "capability/current", targets["capability"])
         replace_pointer(
             home / "runtime/capabilities/christopher-tgg/current",
@@ -796,8 +834,9 @@ def rollback(args: argparse.Namespace) -> int:
         )
         for name, target in targets["plugins"].items():
             restore_pointer(home / "plugins" / name, str(target) if target else None)
-        prior_runtime_unit = targets["runtime"] / UNIT_REL
-        install_unit(prior_runtime_unit, unit_path)
+        if not preserve_installed:
+            prior_runtime_unit = targets["runtime"] / UNIT_REL
+            install_unit(prior_runtime_unit, unit_path)
         command(["systemctl", "daemon-reload"])
         restart_service()
     print(json.dumps({"schema": SCHEMA, "status": "rolled_back", "receipt": args.receipt}, sort_keys=True))
@@ -807,7 +846,7 @@ def rollback(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    make = sub.add_parser("prepare"); make.add_argument("--runtime", required=True); make.add_argument("--runtime-manifest", required=True); make.add_argument("--capability", required=True); make.add_argument("--out", required=True)
+    make = sub.add_parser("prepare"); make.add_argument("--runtime"); make.add_argument("--runtime-manifest"); make.add_argument("--preserve-installed-runtime", action="store_true"); make.add_argument("--capability", required=True); make.add_argument("--out", required=True)
     make.add_argument("--provider", required=True); make.add_argument("--model", required=True); make.add_argument("--reasoning-effort", required=True)
     for name in ("apply", "rollback"):
         item = sub.add_parser(name); item.add_argument("--root", default=str(DEFAULT_ROOT)); item.add_argument("--hermes-home", default=str(DEFAULT_HOME))
