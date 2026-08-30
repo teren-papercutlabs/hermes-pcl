@@ -37,6 +37,7 @@ from gateway.durable_jsonl_consumer import (
 )
 
 MGMT_CHAT = "120363426509183563@g.us"
+PRODUCTION_MGMT_CHAT = "120363407903158826@g.us"
 SITE_CHAT = "120363421424519051@g.us"
 GATE_CHANGED_AT = "2026-07-21T04:00:00+00:00"
 FRESH_TS = "2026-07-21T04:01:00+00:00"
@@ -181,9 +182,9 @@ def _canary_event(entry_id: str = "pa75-canary-entry:batch3") -> dict:
     return event
 
 
-def _enable_document_events(monkeypatch: pytest.MonkeyPatch) -> None:
+def _enable_document_events(monkeypatch: pytest.MonkeyPatch, *, chat_id: str = MGMT_CHAT) -> None:
     monkeypatch.setenv("TGG_MANAGEMENT_DOCUMENT_API_URL", "http://systems.test")
-    monkeypatch.setenv("TGG_MANAGEMENT_DOCUMENT_CHAT_ID", MGMT_CHAT)
+    monkeypatch.setenv("TGG_MANAGEMENT_DOCUMENT_CHAT_ID", chat_id)
     monkeypatch.setenv("CHRISTOPHER_TGG_PS_SERVICE_TOKEN", "test-token")
 
 
@@ -220,7 +221,12 @@ async def test_document_event_drains_typed_outbox_without_creating_whatsapp_ingr
     ]
     with inbox.connect() as conn:
         row = conn.execute("SELECT delivery_key,reply_to_message_id,status,bridge_message_id FROM reply_deliveries").fetchone()
-    assert tuple(row) == ("human-resolution:entry-1", None, "delivered", "WA-notice-1")
+    assert tuple(row) == (
+        "human-resolution:entry-1:destination:120363426509183563@g.us",
+        None,
+        "delivered",
+        "WA-notice-1",
+    )
 
 
 @pytest.mark.asyncio
@@ -514,7 +520,9 @@ async def test_document_event_unknown_bridge_outcome_is_terminal_and_never_retri
     result = await process_management_document_events(inbox, config_path=config_path, runner=object())
     assert result == {"examined": 1, "delivered": 0, "undelivered": 1, "skipped": 0}
     assert inbox.management_document_cursor() == (100, "entry-202")
-    assert inbox.reply_delivery_status("human-resolution:entry-202") == "undelivered"
+    assert inbox.reply_delivery_status(
+        "human-resolution:entry-202:destination:120363426509183563@g.us"
+    ) == "undelivered"
     assert bridge_calls == 1
 
 
@@ -618,17 +626,28 @@ def test_lifecycle_wrong_notice_is_suppressed_before_bridge(
         )
 
 
-def test_lifecycle_without_delivered_initial_is_terminal_without_forged_quote(
+def test_first_lifecycle_notice_in_a_destination_is_fresh_and_becomes_anchor(
     inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _enable_document_events(monkeypatch)
-    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("bridge must not be called")))
+    sent: list[dict] = []
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda request, timeout=0: (
+            sent.append(json.loads(request.data)) or _FakeResponse({"success": True, "messageId": "WA-first"})
+        ),
+    )
     config = consumer._management_document_event_config(config_path)
     assert config is not None
     assert _deliver_management_document_notice(
-        inbox, config=config, entry=_document_entry("entry-no-initial", kind="closure"), captured_outbound=[],
-    ) == "undelivered"
-    assert inbox.reply_delivery_status("human-resolution:entry-no-initial") == "undelivered"
+        inbox,
+        config=config,
+        entry=_document_entry("entry-no-initial", kind="closure"),
+        captured_outbound=[_captured(MGMT_CHAT, "I need a decision.", reply_to=None)],
+    ) == "delivered"
+    assert sent == [{"chatId": MGMT_CHAT, "message": "I need a decision."}]
+    anchor = inbox.initial_management_document_notice(chat_id=MGMT_CHAT, document_id="record-1")
+    assert anchor and anchor["message_id"] == "WA-first"
 
 
 def test_lifecycle_duplicate_and_unknown_outcome_never_resend(
@@ -675,6 +694,64 @@ async def test_source_fired_closure_runs_turn_and_quotes_initial_notice(
 
 
 @pytest.mark.asyncio
+async def test_test_chat_anchor_does_not_block_fresh_production_notice_and_later_quote(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A historical test-chat notice is not a production quote anchor."""
+    constitution = config_path.parent / "constitution.yaml"
+    constitution.write_text(
+        constitution.read_text()
+        + "- job_type: tgg_management\n"
+        + "  match:\n"
+        + "    source.platform: whatsapp\n"
+        + f"    source.chat_id: {PRODUCTION_MGMT_CHAT}\n",
+        encoding="utf-8",
+    )
+    _enable_document_events(monkeypatch, chat_id=PRODUCTION_MGMT_CHAT)
+    _seed_initial_notice(inbox)  # Existing immutable test-chat history.
+    sent: list[dict] = []
+
+    def fake_urlopen(request, timeout=0):
+        if request.full_url.startswith("http://systems.test/"):
+            return _FakeResponse({"data": {"contract": "tgg-human-resolution-document-entry/v1", "entries": [
+                _document_entry("entry-production-first", kind="closure"),
+            ]}})
+        sent.append(json.loads(request.data))
+        return _FakeResponse({"success": True, "messageId": f"WA-production-{len(sent)}"})
+
+    async def fake_turn(entry, **kwargs):
+        assert kwargs["destination_chat_id"] == PRODUCTION_MGMT_CHAT
+        assert kwargs["fresh_initial_notice"] is True
+        return [_captured(PRODUCTION_MGMT_CHAT, "Please decide where this belongs.", reply_to=None)]
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
+    assert await process_management_document_events(inbox, config_path=config_path, runner=object()) == {
+        "examined": 1, "delivered": 1, "undelivered": 0, "skipped": 0,
+    }
+    assert sent == [{"chatId": PRODUCTION_MGMT_CHAT, "message": "Please decide where this belongs."}]
+
+    config = consumer._management_document_event_config(config_path)
+    assert config is not None
+    later = _document_entry("entry-production-later", created_at=101, kind="closure")
+    assert _deliver_management_document_notice(
+        inbox,
+        config=config,
+        entry=later,
+        captured_outbound=[_captured(
+            PRODUCTION_MGMT_CHAT,
+            "Recorded against the selected case.",
+            reply_to="human-resolution-document-entry:entry-production-later",
+        )],
+    ) == "delivered"
+    assert sent[-1]["replyTo"] == {
+        "messageId": "WA-production-1",
+        "body": "Please decide where this belongs.",
+        "fromMe": True,
+    }
+
+
+@pytest.mark.asyncio
 async def test_existing_lifecycle_delivery_suppresses_later_poll_turn(
     inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -701,7 +778,15 @@ def test_document_event_model_input_is_internal_not_a_capture_envelope() -> None
     assert message["isGroup"] is True
     assert message["chatName"] == "TGG Management"
     assert message["metadata"]["contract"] == "tgg_management_document_event/v1"
-    assert "document ID record-1" in message["body"]
+    assert "Decision-ready brief:" in message["body"]
+    assert '"document_id": "record-1"' in message["body"]
+    assert message["metadata"]["decision_ready_brief"] == {
+        "document_id": "record-1",
+        "entry_id": "entry-1",
+        "entry_kind": "initial_default",
+        "body": {"statement": "I need a decision."},
+        "effects": [{"caseJobNo": "AM/JOB/2608/1234", "effectRole": "provisional"}],
+    }
     assert "sourceKey" not in message and "source_key" not in message
     assert message["messageId"].startswith("human-resolution-document-entry:")
 
