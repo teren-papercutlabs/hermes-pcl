@@ -654,6 +654,8 @@ def apply(args: argparse.Namespace) -> int:
         old["home_capability"] = pointer_target(home / "runtime/capabilities/christopher-tgg/current")
         if not old["runtime"] or not old["capability"] or not old["home_capability"]:
             raise ReleaseError("first activation must be seeded with valid runtime and capability pointers")
+        if preserve_installed and runtime_identity(root / "runtime/current") != release["runtime_commit"]:
+            raise ReleaseError("installed runtime identity does not match preserve-installed capability")
         ensure_plugin_pointer_directory(home)
         ensure_vision_receipt_tree(home)
         before_controls = control_state(home)
@@ -663,10 +665,7 @@ def apply(args: argparse.Namespace) -> int:
         activation_started = False
         try:
             extract_verified(bundle / "capability.tgz", release["capability_sha256"], stage / "capability")
-            if preserve_installed:
-                if runtime_identity(root / "runtime/current") != release["runtime_commit"]:
-                    raise ReleaseError("installed runtime identity does not match preserve-installed capability")
-            else:
+            if not preserve_installed:
                 extract_verified(bundle / "runtime.tgz", release["runtime_sha256"], stage / "runtime")
                 if runtime_identity(stage / "runtime") != release["runtime_commit"]:
                     raise ReleaseError("runtime archive identity mismatch")

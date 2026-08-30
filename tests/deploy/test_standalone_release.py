@@ -732,8 +732,14 @@ def test_apply_preserve_installed_runtime_refuses_mismatched_runtime_without_rep
     unit_path = tmp_path / "christopher.service"
     unit_path.write_text("[Service]\n# installed\n")
     monkeypatch.setattr(release, "verify_apply_repository", lambda *_args, **_kwargs: {"mode": "preserve_installed"})
-    monkeypatch.setattr(release, "ensure_plugin_pointer_directory", lambda _home: {})
-    monkeypatch.setattr(release, "ensure_vision_receipt_tree", lambda _home: {"enabled": False})
+    monkeypatch.setattr(
+        release, "ensure_plugin_pointer_directory",
+        lambda _home: (_ for _ in ()).throw(AssertionError("must not normalize plugins before identity proof")),
+    )
+    monkeypatch.setattr(
+        release, "ensure_vision_receipt_tree",
+        lambda _home: (_ for _ in ()).throw(AssertionError("must not normalize vision receipts before identity proof")),
+    )
     monkeypatch.setattr(release, "control_state", lambda _home: {"controls": "unchanged"})
     monkeypatch.setattr(release, "restart_service", lambda: (_ for _ in ()).throw(AssertionError("must not restart")))
 
