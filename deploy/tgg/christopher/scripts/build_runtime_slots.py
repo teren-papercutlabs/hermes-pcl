@@ -339,6 +339,10 @@ CANONICAL_OPERATIONS = {
     "tgg_case_search",
     "tgg_case_update",
     "tgg_case_wc_attach",
+    "tgg_human_resolution_apply_case_update",
+    "tgg_human_resolution_create",
+    "tgg_human_resolution_document_append",
+    "tgg_human_resolution_document_context",
     "tgg_clarification_raise",
     "work_costing_ingest_ilinked",
     "work_costing_lookup",
@@ -725,6 +729,44 @@ def _validate(
     assert operations["tgg_case_media"]["method"] == "GET"
     assert operations["tgg_case_media"]["path_params"] == ["jobNo"]
     assert operations["tgg_media_retention"]["method"] == "POST"
+    assert operations["tgg_human_resolution_create"] == {
+        "type": "http",
+        "tenant": "tgg",
+        "method": "POST",
+        "url": "https://systems.papercut-labs.com/api/operator/human-resolution-records",
+        "headers": {"X-PS-Tenant": "tgg", "User-Agent": "curl/8.7.1"},
+        "timeout": 10,
+    }
+    assert operations["tgg_human_resolution_document_append"] == {
+        "type": "http",
+        "tenant": "tgg",
+        "method": "POST",
+        "url": "https://systems.papercut-labs.com/api/operator/human-resolution-documents",
+        "headers": {"X-PS-Tenant": "tgg", "User-Agent": "curl/8.7.1"},
+        "timeout": 10,
+    }
+    assert operations["tgg_human_resolution_document_context"] == {
+        "type": "http",
+        "tenant": "tgg",
+        "method": "GET",
+        "url": "https://systems.papercut-labs.com/api/operator/human-resolution-documents/{id}",
+        "path_params": ["id"],
+        "headers": {"X-PS-Tenant": "tgg", "User-Agent": "curl/8.7.1"},
+        "timeout": 10,
+    }
+    resolved_case_update = operations["tgg_human_resolution_apply_case_update"]
+    assert resolved_case_update == {
+        "type": "http",
+        "tenant": "tgg",
+        "method": "POST",
+        "url": (
+            "https://systems.papercut-labs.com/api/operator/"
+            "human-resolution-documents/{id}/resolved-case-update"
+        ),
+        "path_params": ["id"],
+        "headers": {"X-PS-Tenant": "tgg", "User-Agent": "curl/8.7.1"},
+        "timeout": 10,
+    }
 
     assert constitution["runtime"] == {
         "provider": "openai-direct-primary",

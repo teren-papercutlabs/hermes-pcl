@@ -399,6 +399,21 @@ class ManagementDocumentEventConfig:
     token_env: str
 
 
+def _management_document_delivery_key(*, entry_id: str, chat_id: str) -> str:
+    """One at-most-once delivery claim per entry and destination chat."""
+    return f"human-resolution:{entry_id}:destination:{chat_id}"
+
+
+def _is_management_document_delivery_key(
+    delivery_key: str, *, entry_id: str, chat_id: str
+) -> bool:
+    """Accept the destination-scoped key and the previous single-destination key."""
+    return delivery_key in {
+        _management_document_delivery_key(entry_id=entry_id, chat_id=chat_id),
+        f"human-resolution:{entry_id}",
+    }
+
+
 def _initial_retention_state(item: Mapping[str, Any]) -> str:
     """Classify media that needs content validation before model ingress."""
     coarse = str(item.get("mediaType") or item.get("mimeType") or "")
@@ -1363,7 +1378,12 @@ class DurableInbox:
     def initial_management_document_notice(
         self, *, chat_id: str, document_id: str
     ) -> dict[str, str] | None:
-        """Return the confirmed initial notice used as a lifecycle quote anchor."""
+        """Return this destination's confirmed document-notice quote anchor.
+
+        The first notice is scoped to both document and destination.  A test
+        management notice is durable history, but must never become the quote
+        anchor for the first production-management notice.
+        """
         with self.connect() as conn:
             rows = conn.execute(
                 "SELECT delivery_key,bridge_message_id,correlation_json FROM reply_deliveries "
@@ -1380,7 +1400,12 @@ class DurableInbox:
                 continue
             if (
                 correlation.get("document_id") == document_id
-                and correlation.get("entry_kind") == "initial_default"
+                and (
+                    correlation.get("notice_role") == "initial_notice"
+                    # Pre-PA-83 rows did not carry the explicit role.  They
+                    # remain valid anchors in their own destination only.
+                    or correlation.get("entry_kind") == "initial_default"
+                )
                 and str(correlation.get("notice_body") or "").strip()
             ):
                 return {
@@ -1388,6 +1413,35 @@ class DurableInbox:
                     "message_id": str(row["bridge_message_id"]),
                     "body": str(correlation["notice_body"]),
                 }
+        return None
+
+    def management_document_delivery_status(
+        self, *, entry_id: str, chat_id: str
+    ) -> str | None:
+        """Read a terminal notice claim for one entry in one destination.
+
+        New claims encode their destination in the key.  The correlation scan
+        also recognises pre-PA-83 claims so upgrading cannot replay an already
+        terminal notice into the same chat.
+        """
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT delivery_key,status,correlation_json FROM reply_deliveries "
+                "WHERE chat_id=? AND delivery_key GLOB 'human-resolution:*' "
+                "ORDER BY created_at,delivery_key",
+                (chat_id,),
+            ).fetchall()
+        for row in rows:
+            if _is_management_document_delivery_key(
+                str(row["delivery_key"]), entry_id=entry_id, chat_id=chat_id
+            ):
+                return str(row["status"])
+            try:
+                correlation = json.loads(row["correlation_json"] or "{}")
+            except (TypeError, ValueError):
+                continue
+            if isinstance(correlation, Mapping) and str(correlation.get("entry_id") or "") == entry_id:
+                return str(row["status"])
         return None
 
     def retention_candidates(
@@ -1845,7 +1899,9 @@ class DurableInbox:
         entry_id = str(stored.get("entry_id") or "").strip()
         if not document_id or not entry_id:
             raise ConsumerError("human-resolution delivery correlation is incomplete")
-        if str(row["delivery_key"]) != f"human-resolution:{entry_id}":
+        if not _is_management_document_delivery_key(
+            str(row["delivery_key"]), entry_id=entry_id, chat_id=record.chat_id
+        ):
             raise ConsumerError("human-resolution delivery correlation key mismatch")
         correlation = {
             "document_id": document_id,
@@ -4201,6 +4257,8 @@ def _management_document_entries(
         kind = str(raw.get("entryKind") or "").strip()
         if created_at < 0 or not entry_id or not record_id or not kind:
             raise ConsumerError("management document event entry identity is incomplete")
+        if not isinstance(raw.get("body"), Mapping) or not isinstance(raw.get("effects"), list):
+            raise ConsumerError("management document event entry has no decision-ready brief")
         identity = (created_at, entry_id)
         if previous is not None and identity <= previous:
             raise ConsumerError("management document event page is not exclusive ascending")
@@ -4212,7 +4270,14 @@ def _management_document_entries(
 def _internal_management_document_message(
     entry: Mapping[str, Any], *, chat_id: str, canary_projection: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Create transient typed model input without claiming WhatsApp provenance."""
+    """Create transient decision-ready input without WhatsApp provenance.
+
+    This is deliberately a new turn in the persistent management conversation,
+    but it receives the producing turn's body/effects directly.  It should use
+    that brief and the chat's existing context to phrase the question, rather
+    than re-reading a document or repeating source investigation just to
+    recreate work that has already been completed.
+    """
     entry_id = str(entry["id"])
     record_id = str(entry["recordId"])
     created_at = int(entry["createdAt"])
@@ -4228,6 +4293,13 @@ def _internal_management_document_message(
         "record_id": record_id,
         "entry_kind": str(entry["entryKind"]),
         "document_url": f"/tgg/human-resolutions/{record_id}",
+        "decision_ready_brief": {
+            "document_id": record_id,
+            "entry_id": entry_id,
+            "entry_kind": entry_kind,
+            "body": dict(entry.get("body") or {}),
+            "effects": list(entry.get("effects") or []),
+        },
     }
     if canary_projection is not None:
         metadata["pa75_canary_projection"] = dict(canary_projection)
@@ -4256,27 +4328,36 @@ def _internal_management_document_message(
         "timestamp": created_at,
         "body": (
             instruction +
-            f"Read the durable document and its cited evidence using document ID {record_id}. "
-            "Then write one natural, first-person message for the management chat. "
-            "Do not treat this internal event as WhatsApp evidence and do not make a case change."
+            "The producing Christopher turn's decision-ready brief is below. "
+            "Use it together with the existing management-chat conversation to write one natural, "
+            "first-person message for management. Do not retrieve the document or investigate source "
+            "history merely to recreate this brief; use document tools only when a genuinely new or missing "
+            "fact is needed. Do not treat this internal event as WhatsApp evidence and do not make a case change."
+            "\n\nDecision-ready brief:\n"
+            + json.dumps(metadata["decision_ready_brief"], ensure_ascii=False, sort_keys=True)
         ),
         "metadata": metadata,
     }
 
 
 def _normalize_management_document_captured_outbound(
-    entry: Mapping[str, Any], captured_outbound: Sequence[Mapping[str, Any]],
+    entry: Mapping[str, Any],
+    captured_outbound: Sequence[Mapping[str, Any]],
+    *,
+    fresh_initial_notice: bool | None = None,
 ) -> list[dict[str, Any]]:
-    """Remove only the synthetic initial-event quote before bridge delivery.
+    """Remove the synthetic quote only from a destination's first notice.
 
-    The typed initial event is deliberately presented to Christopher as a
-    message so the ordinary management selector can respond naturally.  The
-    adapter therefore quite reasonably captures a reply to that synthetic
-    message ID.  It is not a real WhatsApp message and cannot be sent as a
-    bridge quote.  Lifecycle entries instead must retain their quote so the
-    existing delivery guard can validate it against the real initial notice.
+    A destination may first encounter a later lifecycle entry after another
+    destination already received the original initial entry.  That first
+    destination-local notice must be fresh and unquoted, then becomes the
+    anchor for later close-outs in that destination.
     """
-    if str(entry.get("entryKind") or "") != "initial_default":
+    if fresh_initial_notice is None:
+        # Compatibility for direct callers: real drain callers pass the
+        # destination-specific fact explicitly.
+        fresh_initial_notice = str(entry.get("entryKind") or "") == "initial_default"
+    if not fresh_initial_notice:
         return [dict(item) for item in captured_outbound]
     synthetic_anchor = f"human-resolution-document-entry:{str(entry['id'])}"
     normalized: list[dict[str, Any]] = []
@@ -4300,6 +4381,7 @@ async def _run_management_document_turn(
     destination_chat_id: str,
     runner: Any,
     canary_projection: Mapping[str, Any] | None = None,
+    fresh_initial_notice: bool = True,
 ) -> list[dict[str, Any]]:
     """Run the existing management selector in its persistent namespace.
 
@@ -4326,7 +4408,9 @@ async def _run_management_document_turn(
         )
     )
     captured = [dict(item) for item in result.outbound if isinstance(item, Mapping)]
-    return _normalize_management_document_captured_outbound(entry, captured)
+    return _normalize_management_document_captured_outbound(
+        entry, captured, fresh_initial_notice=fresh_initial_notice,
+    )
 
 
 def _deliver_management_document_notice(
@@ -4350,8 +4434,10 @@ def _deliver_management_document_notice(
     entry_id = str(entry["id"])
     document_id = str(entry["recordId"])
     entry_kind = str(entry["entryKind"])
-    key = f"human-resolution:{entry_id}"
-    previous = inbox.reply_delivery_status(key)
+    key = _management_document_delivery_key(entry_id=entry_id, chat_id=config.chat_id)
+    previous = inbox.management_document_delivery_status(
+        entry_id=entry_id, chat_id=config.chat_id,
+    )
     if previous is not None:
         return previous
     correlation = {
@@ -4361,23 +4447,14 @@ def _deliver_management_document_notice(
     }
     if canary_projection is not None:
         correlation["pa75_canary_projection"] = dict(canary_projection)
-    initial_notice = None
-    if entry_kind != "initial_default":
-        initial_notice = inbox.initial_management_document_notice(
-            chat_id=config.chat_id, document_id=document_id,
-        )
-        if initial_notice is None:
-            # The lifecycle entry is real and visible, but quote-less external
-            # delivery would sever it from the original escalation. Record one
-            # terminal safe outcome; never invent an inbound anchor or retry.
-            if inbox.claim_reply_delivery(
-                key, chat_id=config.chat_id, reply_to_message_id=None,
-                correlation=correlation,
-            ):
-                inbox.record_reply_delivery(
-                    key, status="undelivered", error="initial-management-notice-not-delivered",
-                )
-            return inbox.reply_delivery_status(key) or "undelivered"
+    initial_notice = inbox.initial_management_document_notice(
+        chat_id=config.chat_id, document_id=document_id,
+    )
+    # An old test-chat notice cannot anchor production.  The first notice in a
+    # new destination is deliberately fresh even when its lifecycle entry is
+    # an amendment/closure, then becomes that destination's quote anchor.
+    fresh_initial_notice = initial_notice is None
+    correlation["notice_role"] = "initial_notice" if fresh_initial_notice else "lifecycle_notice"
     sends = [
         parsed for raw in captured_outbound
         if (parsed := _parse_captured_send(raw)) is not None
@@ -4390,8 +4467,7 @@ def _deliver_management_document_notice(
     # model-visible; the bridge attaches the already-delivered initial notice
     # below after this current-event anchor has been validated.
     captured_reply_to = (
-        None if entry_kind == "initial_default"
-        else f"human-resolution-document-entry:{entry_id}"
+        None if fresh_initial_notice else f"human-resolution-document-entry:{entry_id}"
     )
     if (
         len(sends) != 1
@@ -4404,7 +4480,7 @@ def _deliver_management_document_notice(
     # the same durable pre-send claim as the idempotency key so a crash after a
     # confirmed provider send cannot leave future lifecycle entries unable to
     # build their honest quote context.
-    if entry_kind == "initial_default":
+    if fresh_initial_notice:
         correlation["notice_body"] = sends[0]["content"]
     if not inbox.claim_reply_delivery(
         key,
@@ -4465,23 +4541,25 @@ async def process_management_document_events(
         # A crash can land after bridge confirmation but before the local
         # cursor write. The durable delivery row is then terminal: advance
         # without reconstructing a model turn or lifecycle notice.
-        prior = inbox.reply_delivery_status(f"human-resolution:{entry_id}")
+        prior = inbox.management_document_delivery_status(
+            entry_id=entry_id, chat_id=config.chat_id,
+        )
         if prior is not None:
             terminal = prior
         else:
-            if str(entry["entryKind"]) != "initial_default" and inbox.initial_management_document_notice(
+            fresh_initial_notice = inbox.initial_management_document_notice(
                 chat_id=config.chat_id, document_id=str(entry["recordId"]),
-            ) is None:
-                terminal = _deliver_management_document_notice(
-                    inbox, config=config, entry=entry, captured_outbound=[],
-                )
-            else:
-                outcome = await _run_management_document_turn(
-                    entry, config_path=config_path, destination_chat_id=config.chat_id, runner=runner,
-                )
-                terminal = _deliver_management_document_notice(
-                    inbox, config=config, entry=entry, captured_outbound=outcome,
-                )
+            ) is None
+            outcome = await _run_management_document_turn(
+                entry,
+                config_path=config_path,
+                destination_chat_id=config.chat_id,
+                runner=runner,
+                fresh_initial_notice=fresh_initial_notice,
+            )
+            terminal = _deliver_management_document_notice(
+                inbox, config=config, entry=entry, captured_outbound=outcome,
+            )
         summary[terminal] += 1
         inbox.advance_management_document_cursor(created_at=created_at, entry_id=entry_id)
         cursor = (created_at, entry_id)
