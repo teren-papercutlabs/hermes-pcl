@@ -20,6 +20,7 @@
       - tgg_case_search
       - tgg_case_update
       - tgg_case_wc_attach
+      - tgg_human_resolution_apply_case_update
       - tgg_clarification_raise
       - work_costing_ingest_ilinked
       - work_costing_lookup
