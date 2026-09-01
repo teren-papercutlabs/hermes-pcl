@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# The verifier is routinely run by root during release staging, while this
+# script itself is part of the immutable runtime it is checking.  Python's
+# normal import cache would otherwise let an ordinary health check create
+# unmanifested __pycache__ entries beside release-owned source files.  Keep
+# every Python child bytecode-free; an explicit compiler is not a verifier and
+# must use its own external cache destination.
+export PYTHONDONTWRITEBYTECODE=1
+
 MODE="${1:---quick}"
 APP_ROOT="${APP_ROOT:-/home/pclaw/apps/hermes-pcl}"
 HERMES_HOME="${HERMES_HOME:-/home/pclaw/.hermes-christopher-tgg}"
