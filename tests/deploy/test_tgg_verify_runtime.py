@@ -373,6 +373,10 @@ def test_deploy_selects_canonical_manifest_and_current_units() -> None:
     assert "ssh" not in deploy_script
 
     verify_script = VERIFY.read_text()
+    assert "export PYTHONDONTWRITEBYTECODE=1" in verify_script
+    assert verify_script.index("export PYTHONDONTWRITEBYTECODE=1") < verify_script.index(
+        'exec "${VERIFY_PYTHON:-$APP_ROOT/.venv/bin/python}"'
+    )
     assert 'SCRIPT_PATH="${BASH_SOURCE[0]}"' in verify_script
     assert 'DEPLOY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"' in verify_script
     assert '"$APP_ROOT/.venv/bin/python" - "$APP_ROOT" "$HERMES_HOME" "$DEPLOY_ROOT"' in verify_script
@@ -529,26 +533,44 @@ def test_verifier_uses_invoked_release_assets_and_legacy_app_virtualenv(tmp_path
     config_path = tmp_path / "config.yaml"
     gate_path = tmp_path / "processing-gate.json"
     status_path = tmp_path / "capture-consumer-status.json"
-    config_path.write_text(yaml.safe_dump({"pa": {"enabled": True, "media_retention": {"max_attempts": 5, "retry_interval_seconds": 60}}}))
+    # Put a deliberately importable module inside the immutable release.  The
+    # verifier imports it in its Python contract child; that child must never
+    # leave a cache file in the release that it is meant to inspect.
+    (release / "yaml.py").write_text(
+        "import json\n\n"
+        "def safe_load(value):\n"
+        "    return json.loads(value)\n",
+        encoding="utf-8",
+    )
+    config_path.write_text(json.dumps({"pa": {"enabled": True, "media_retention": {"max_attempts": 5, "retry_interval_seconds": 60}}}))
     gate_path.write_text(json.dumps({"enabled": True}))
     status_path.write_text(json.dumps(_status(state="running", enabled=True)))
 
     legacy_app_root = tmp_path / "retired-app-root"
+    environment = {
+        **os.environ,
+        "APP_ROOT": str(legacy_app_root),
+        "VERIFY_PYTHON": sys.executable,
+        "PYTHONPATH": str(release),
+        # The script, not the surrounding test environment, owns this safety
+        # invariant.  Leave Python's normal cache destination available so a
+        # missing export would make this test red.
+        "PYTHONDONTWRITEBYTECODE": "0",
+    }
+    environment.pop("PYTHONPYCACHEPREFIX", None)
     result = subprocess.run(
         ["bash", "-x", str(invoked), "--verify-status-contract", str(config_path), str(gate_path), str(status_path)],
         text=True,
         capture_output=True,
         check=False,
-        env={
-            **os.environ,
-            "APP_ROOT": str(legacy_app_root),
-            "VERIFY_PYTHON": sys.executable,
-        },
+        env=environment,
     )
 
     assert result.returncode == 0, result.stderr
     assert f"DEPLOY_ROOT={release}/deploy/tgg/christopher" in result.stderr
     assert f"APP_ROOT={legacy_app_root}" in result.stderr
+    assert not list(release.rglob("__pycache__"))
+    assert not list(release.rglob("*.pyc"))
 
 
 def _run_preserve_env_key(
