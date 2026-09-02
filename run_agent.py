@@ -1155,6 +1155,7 @@ class AIAgent:
         tool_delay: float = 1.0,
         enabled_toolsets: List[str] = None,
         disabled_toolsets: List[str] = None,
+        allowed_tool_names: List[str] = None,
         save_trajectories: bool = False,
         verbose_logging: bool = False,
         quiet_mode: bool = False,
@@ -1221,6 +1222,9 @@ class AIAgent:
             tool_delay (float): Delay between tool calls in seconds (default: 1.0)
             enabled_toolsets (List[str]): Only enable tools from these toolsets (optional)
             disabled_toolsets (List[str]): Disable tools from these toolsets (optional)
+            allowed_tool_names (List[str]): When set, retain only these exact
+                tool names after normal toolset resolution.  This is an
+                authority reduction, never an expansion.
             save_trajectories (bool): Whether to save conversation trajectories to JSONL files (default: False)
             verbose_logging (bool): Enable verbose logging for debugging (default: False)
             quiet_mode (bool): Suppress progress output for clean CLI experience (default: False)
@@ -1875,6 +1879,19 @@ class AIAgent:
             disabled_toolsets=disabled_toolsets,
             quiet_mode=self.quiet_mode,
         )
+        self._allowed_tool_names = None
+        if allowed_tool_names is not None:
+            if (
+                not isinstance(allowed_tool_names, list)
+                or any(not isinstance(name, str) or not name for name in allowed_tool_names)
+            ):
+                raise ValueError("allowed_tool_names must be a list of non-empty strings")
+            allowed = frozenset(allowed_tool_names)
+            self._allowed_tool_names = allowed
+            self.tools = [
+                tool for tool in self.tools
+                if tool.get("function", {}).get("name") in allowed
+            ]
         
         # Show tool configuration and store valid tool names for validation
         self.valid_tool_names = set()
@@ -2101,6 +2118,8 @@ class AIAgent:
             }
             for _schema in self._memory_manager.get_all_tool_schemas():
                 _tname = _schema.get("name", "")
+                if self._allowed_tool_names is not None and _tname not in self._allowed_tool_names:
+                    continue
                 if _tname and _tname in _existing_tool_names:
                     continue  # already registered via plugin path
                 _wrapped = {"type": "function", "function": _schema}
@@ -2410,6 +2429,8 @@ class AIAgent:
             }
             for _schema in self.context_compressor.get_tool_schemas():
                 _tname = _schema.get("name", "")
+                if self._allowed_tool_names is not None and _tname not in self._allowed_tool_names:
+                    continue
                 if _tname and _tname in _existing_tool_names:
                     continue  # already registered via plugin/cache path
                 _wrapped = {"type": "function", "function": _schema}
