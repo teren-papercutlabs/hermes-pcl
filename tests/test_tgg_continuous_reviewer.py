@@ -28,6 +28,10 @@ def test_adapter_preserves_child_result_contract_with_ephemeral_carrier(monkeypa
     def fake_run(**kwargs):
         assert kwargs["allowed_tool_names"] == launch["allowed_tools"]
         assert kwargs["max_iterations"] == 24
+        assert json.dumps(candidate) not in kwargs["prompt"]
+        assert str(candidate_path) not in kwargs["prompt"]
+        assert launch["review_authority"] in kwargs["prompt"]
+        assert launch["review_authority"] not in kwargs["system_prompt"]
         (batch / "continuous-reviewed-final.json").write_text("{}")
         return {"final_response": "ok"}, {"session_id": "pa97-review-clean", "loaded_tools": launch["allowed_tools"], "cleanup": {"deleted": True}}
     monkeypatch.setattr("hermes_cli.ephemeral_session.run_ephemeral_session", fake_run)

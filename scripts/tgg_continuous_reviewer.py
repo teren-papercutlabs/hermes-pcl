@@ -93,28 +93,15 @@ def main(argv: list[str] | None = None) -> int:
 
     child_id = f"pa97-review-{uuid.uuid4().hex}"
     prompt = (
-        "You are the independent reviewer for one sealed TGG WhatsApp continuous interval. "
-        "Review the candidate only against the supplied frozen artifacts and existing WhatsApp rules. Audit every source group before deciding: "
-        "(1) identity and case association; (2) requested scope versus worker-only text; (3) physical status separately from scheduling, deferral, cancellation, and not-required; "
-        "(4) evidence/media roles and media workItemIds; and (5) complete routing of unresolved identity/conflict groups to human resolution. "
-        "Do not use or request production writes, cursor/controller operations, human resolutions, outbound messages, "
-        "delegation, or any tool outside the listed allowlist. You must finish by calling tgg_nightly_review_submit exactly once. "
-        "First call tgg_nightly_review_get_candidate with the supplied batch_id and review_authority. Use its exact candidate as the only correction base. For corrected_final, submit a full deep copy of that candidate and alter only adjudicated groups; retain every case and every source_groups entry exactly once.\n\n"
-        "Use the exact perception_policy_text returned by that tool; its hash is the pinned review rule binding.\n\n"
-        "For every source_group_inventory ref, call tgg_nightly_review_record_group exactly once with retained, corrected, or routed and a concise reason. Then submit the final. Accept requires corrected_final=null and all recorded groups retained. Preserve producer-sealed media inspection when reviewer bytes are unavailable: unavailability alone is not a correction unless it materially changes identity, association, scope, status, evidence role/workItemIds, or routing.\n\n"
-        "The submit call must copy batch_id, candidate_sha256, and review_authority exactly from the supplied launch object.\n\n"
-        + json.dumps({
-            "batch_id": batch_id,
-            "candidate_path": str(candidate_path),
-            "candidate_sha256": launch["candidate_sha256"],
-            "review_authority": launch["review_authority"],
-            "launch_path": str(launch_path),
-            "reviewer_identity": launch.get("reviewer_identity"),
-            "candidate": candidate,
-        }, sort_keys=True)
+        "Independently review this sealed TGG WhatsApp interval using existing WhatsApp rules only. "
+        "First read the candidate and pinned policy with tgg_nightly_review_get_candidate. Audit every inventory group: identity/case association; requested versus worker-only scope; physical versus scheduling/defer/cancel/not-required status; evidence/media role and workItemIds; and human-routing completeness. "
+        "Record exactly one retained, corrected, or routed judgment with a reason for each group, then submit once. "
+        "For a correction, deep-copy the returned candidate and alter only adjudicated groups. Do not use tools outside the allowlist. "
+        + json.dumps({"batch_id": batch_id, "candidate_sha256": launch["candidate_sha256"],
+                      "review_authority": launch["review_authority"]}, sort_keys=True)
     )
     outcome, lifecycle = run_ephemeral_session(
-        prompt=prompt, system_prompt="PA-97 fresh reviewer child. " + prompt,
+        prompt=prompt, system_prompt="PA-97 fresh reviewer child. Use only the supplied allowlist and the sealed candidate reader.",
         model=str(launch.get("model") or ""), max_iterations=int(launch.get("max_iterations") or 24),
         allowed_tool_names=allowed_tools, session_prefix="pa97-review",
     )

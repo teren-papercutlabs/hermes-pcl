@@ -96,3 +96,13 @@ def test_cleanup_failure_dominates_model_failure(monkeypatch, tmp_path):
         subject.run_ephemeral_session(prompt="p", system_prompt="s", model="", max_iterations=1, allowed_tool_names=[])
     assert isinstance(raised.value.__cause__, RuntimeError)
     assert str(raised.value.__cause__) == "model"
+
+
+def test_removes_actual_agent_session_filename_variant(tmp_path):
+    from hermes_cli.ephemeral_session import _remove_ephemeral_session_files
+    sessions = tmp_path / "sessions"; sessions.mkdir()
+    session_id = "pa97-review-abc"
+    for name in (f"{session_id}.json", f"session_{session_id}.json", f"request_dump_{session_id}_x.json"):
+        (sessions / name).write_text("sensitive")
+    _remove_ephemeral_session_files(sessions, session_id)
+    assert not list(sessions.iterdir())
