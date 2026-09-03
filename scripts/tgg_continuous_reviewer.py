@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Import only after launch validation so a malformed controller artifact
     # cannot cause plugin/tool discovery or any model request.
-    from run_agent import AIAgent
+    from hermes_cli.ephemeral_session import run_ephemeral_session
 
     child_id = f"pa97-review-{uuid.uuid4().hex}"
     prompt = (
@@ -113,26 +113,21 @@ def main(argv: list[str] | None = None) -> int:
             "candidate": candidate,
         }, sort_keys=True)
     )
-    agent = AIAgent(
-        model=str(launch.get("model") or ""),
-        max_iterations=int(launch.get("max_iterations") or 24),
-        quiet_mode=True,
-        skip_memory=True,
-        skip_context_files=True,
-        session_id=child_id,
-        allowed_tool_names=allowed_tools,
-        ephemeral_system_prompt="PA-97 fresh reviewer child. " + prompt,
+    outcome, lifecycle = run_ephemeral_session(
+        prompt=prompt, system_prompt="PA-97 fresh reviewer child. " + prompt,
+        model=str(launch.get("model") or ""), max_iterations=int(launch.get("max_iterations") or 24),
+        allowed_tool_names=allowed_tools, session_prefix="pa97-review",
     )
-    outcome = agent.run_conversation(prompt)
     reviewed_path = candidate_path.with_name("continuous-reviewed-final.json")
     submitted = reviewed_path.is_file()
     result = {
         "contract": RESULT_CONTRACT,
         "batch_id": batch_id,
         "launch_sha256": hashlib.sha256(canonical(launch)).hexdigest(),
-        "child_id": child_id,
+        "child_id": lifecycle["session_id"],
         "allowed_tools": allowed_tools,
-        "loaded_tools": sorted(agent.valid_tool_names),
+        "loaded_tools": lifecycle["loaded_tools"],
+        "lifecycle": lifecycle,
         "status": "completed" if submitted else "submission_missing",
         "final_response_sha256": hashlib.sha256(str(outcome.get("final_response") or "").encode()).hexdigest(),
         "final_response": str(outcome.get("final_response") or "")[:4000],
