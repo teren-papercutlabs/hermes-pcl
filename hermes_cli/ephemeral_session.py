@@ -16,20 +16,14 @@ def run_ephemeral_session(*, prompt: str, system_prompt: str, model: str,
     only non-sensitive identity/hash/lifecycle facts, never the prompt or
     tool arguments.
     """
-    from hermes_cli.config import load_config
-    from hermes_cli.runtime_provider import resolve_runtime_provider
     from hermes_constants import get_hermes_home
     from hermes_state import SessionDB
     from run_agent import AIAgent
-    from hermes_cli.oneshot import _oneshot_clarify_callback
+    from hermes_cli.oneshot import _oneshot_clarify_callback, resolve_oneshot_runtime
 
-    cfg = load_config()
-    model_cfg = cfg.get("model") or {}
-    configured = model_cfg if isinstance(model_cfg, str) else (model_cfg.get("default") or model_cfg.get("model") or "")
-    effective_model = str(model or configured)
-    runtime = resolve_runtime_provider(requested=None, target_model=effective_model or None)
+    _cfg, effective_model, runtime = resolve_oneshot_runtime(model)
     session_id = f"{session_prefix}-{uuid.uuid4().hex}"
-    db = SessionDB(); agent = None; outcome: dict[str, Any] = {}; terminal_reason = "failed"; cleanup = {"ended": False, "deleted": False, "agent_closed": False, "db_closed": False}
+    db = SessionDB(); agent = None; outcome: dict[str, Any] = {}; terminal_reason = "failed"; cleanup = {"ended": False, "deleted": False, "agent_closed": False, "db_closed": False}; cleanup_errors = []
     try:
         db.create_session(session_id, "ephemeral", model=effective_model, model_config={"provider": runtime.get("provider")})
         agent = AIAgent(api_key=runtime.get("api_key"), base_url=runtime.get("base_url"), provider=runtime.get("provider"),
@@ -43,14 +37,17 @@ def run_ephemeral_session(*, prompt: str, system_prompt: str, model: str,
         terminal_reason = "completed"
     finally:
         try: db.end_session(session_id, terminal_reason); cleanup["ended"] = True
-        except Exception: pass
+        except Exception as exc: cleanup_errors.append(f"end:{type(exc).__name__}")
         try:
             if agent is not None: agent.close(); cleanup["agent_closed"] = True
+        except Exception as exc: cleanup_errors.append(f"agent_close:{type(exc).__name__}")
         finally:
             try: cleanup["deleted"] = bool(db.delete_session(session_id, sessions_dir=get_hermes_home() / "sessions"))
-            except Exception: pass
+            except Exception as exc: cleanup_errors.append(f"delete:{type(exc).__name__}")
             try: db.close(); cleanup["db_closed"] = True
-            except Exception: pass
+            except Exception as exc: cleanup_errors.append(f"db_close:{type(exc).__name__}")
+    if cleanup_errors or not all(cleanup.values()):
+        raise RuntimeError("EPHEMERAL_SESSION_CLEANUP_FAILED:" + ",".join(cleanup_errors or ["unproven"]))
     return outcome, {"session_id": session_id, "provider": runtime.get("provider"), "model": effective_model,
                      "loaded_tools": sorted(agent.valid_tool_names) if agent is not None else [],
                      "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(), "terminal_reason": terminal_reason,
