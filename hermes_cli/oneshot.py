@@ -215,6 +215,31 @@ def _create_session_db_for_oneshot():
         return None
 
 
+def resolve_oneshot_runtime(model: Optional[str] = None, provider: Optional[str] = None):
+    """Canonical CLI/oneshot model+provider resolution, reusable by ephemeral turns."""
+    from hermes_cli.config import load_config
+    from hermes_cli.models import detect_provider_for_model
+    from hermes_cli.runtime_provider import resolve_runtime_provider
+    cfg = load_config(); model_cfg = cfg.get("model") or {}
+    cfg_model = model_cfg if isinstance(model_cfg, str) else (model_cfg.get("default") or model_cfg.get("model") or "")
+    env_model = os.getenv("HERMES_INFERENCE_MODEL", "").strip(); effective_model = (model or "").strip() or env_model or cfg_model
+    effective_provider = (provider or "").strip() or None; explicit_base_url_from_alias = None
+    if effective_provider is None and (model or env_model):
+        explicit_model = (model or "").strip() or env_model
+        try:
+            from hermes_cli import model_switch as _ms
+            _ms._ensure_direct_aliases(); direct = _ms.DIRECT_ALIASES.get(explicit_model.strip().lower())
+        except Exception: direct = None
+        if direct is not None:
+            effective_model, effective_provider = direct.model, direct.provider
+            explicit_base_url_from_alias = direct.base_url.rstrip("/") if direct.base_url else None
+        else:
+            cfg_provider = str(model_cfg.get("provider") or "").strip().lower() if isinstance(model_cfg, dict) else ""
+            detected = detect_provider_for_model(explicit_model, cfg_provider or os.getenv("HERMES_INFERENCE_PROVIDER", "").strip().lower() or "auto")
+            if detected: effective_provider, effective_model = detected
+    return cfg, effective_model, resolve_runtime_provider(requested=effective_provider, target_model=effective_model or None, explicit_base_url=explicit_base_url_from_alias)
+
+
 def _run_agent(
     prompt: str,
     model: Optional[str] = None,
@@ -226,72 +251,10 @@ def _run_agent(
     run a single conversation.  Returns the final response string."""
     # Imports are local so they don't run when hermes is invoked for
     # other commands (keeps top-level CLI startup cheap).
-    from hermes_cli.config import load_config
-    from hermes_cli.models import detect_provider_for_model
-    from hermes_cli.runtime_provider import resolve_runtime_provider
     from hermes_cli.tools_config import _get_platform_tools
     from run_agent import AIAgent
 
-    cfg = load_config()
-
-    # Resolve effective model: explicit arg → env var → config.
-    model_cfg = cfg.get("model") or {}
-    if isinstance(model_cfg, str):
-        cfg_model = model_cfg
-    else:
-        cfg_model = model_cfg.get("default") or model_cfg.get("model") or ""
-
-    env_model = os.getenv("HERMES_INFERENCE_MODEL", "").strip()
-    effective_model = (model or "").strip() or env_model or cfg_model
-
-    # Resolve effective provider: explicit arg → (auto-detect from model if
-    # model was explicit) → env / config (handled inside resolve_runtime_provider).
-    #
-    # When --model is given without --provider, auto-detect the provider that
-    # serves that model — same semantic as `/model <name>` in an interactive
-    # session.  Without this, resolve_runtime_provider() would fall back to
-    # the user's configured default provider, which may not host the model
-    # the caller just asked for.
-    effective_provider = (provider or "").strip() or None
-    explicit_base_url_from_alias: Optional[str] = None
-    if effective_provider is None and (model or env_model):
-        # Only auto-detect when the model was explicitly requested via arg or
-        # env var (not when it came from config — that's the "use my defaults"
-        # path and the configured provider is already correct).
-        explicit_model = (model or "").strip() or env_model
-        if explicit_model:
-            # First check DIRECT_ALIASES populated from config.yaml `model_aliases:`.
-            # These map a user-defined alias to (model, provider, base_url) for
-            # endpoints not in any catalog (local servers, custom proxies, etc.).
-            try:
-                from hermes_cli import model_switch as _ms
-                _ms._ensure_direct_aliases()
-                direct = _ms.DIRECT_ALIASES.get(explicit_model.strip().lower())
-            except Exception:
-                direct = None
-            if direct is not None:
-                effective_model = direct.model
-                effective_provider = direct.provider
-                if direct.base_url:
-                    explicit_base_url_from_alias = direct.base_url.rstrip("/")
-            else:
-                cfg_provider = ""
-                if isinstance(model_cfg, dict):
-                    cfg_provider = str(model_cfg.get("provider") or "").strip().lower()
-                current_provider = (
-                    cfg_provider
-                    or os.getenv("HERMES_INFERENCE_PROVIDER", "").strip().lower()
-                    or "auto"
-                )
-                detected = detect_provider_for_model(explicit_model, current_provider)
-                if detected:
-                    effective_provider, effective_model = detected
-
-    runtime = resolve_runtime_provider(
-        requested=effective_provider,
-        target_model=effective_model or None,
-        explicit_base_url=explicit_base_url_from_alias,
-    )
+    cfg, effective_model, runtime = resolve_oneshot_runtime(model, provider)
 
     # Pull in explicit toolsets when provided; otherwise use whatever the user
     # has enabled for "cli". sorted() gives stable ordering for config-derived
