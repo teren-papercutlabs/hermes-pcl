@@ -9,7 +9,8 @@ thought to model.
 Run manually:
     scripts/run_tests.sh tests/tools/test_browser_supervisor.py
 
-Automated: skipped in CI unless ``HERMES_E2E_BROWSER=1`` is set.
+Automated: runs in the dedicated ``browser-supervisor`` CI job.  The normal
+unit job excludes this module because it launches a real Chrome process.
 """
 
 from __future__ import annotations
@@ -26,10 +27,15 @@ import time
 import pytest
 
 
-pytestmark = pytest.mark.skipif(
-    not shutil.which("google-chrome") and not shutil.which("chromium"),
-    reason="Chrome/Chromium not installed",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not shutil.which("google-chrome")
+        and not shutil.which("chromium")
+        and not shutil.which("chromium-browser"),
+        reason="Chrome/Chromium not installed",
+    ),
+]
 
 
 def _find_chrome() -> str:
@@ -73,7 +79,10 @@ def chrome_cdp(worker_id):
     )
 
     ws_url = None
-    deadline = time.monotonic() + 15
+    # A hosted runner can take longer than a local workstation to finish
+    # Chrome's first-run initialization.  The dedicated CI job has a bounded
+    # retry, but each attempt gets enough time to be a meaningful signal.
+    deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         try:
             import urllib.request
@@ -89,6 +98,8 @@ def chrome_cdp(worker_id):
         proc.terminate()
         proc.wait(timeout=5)
         shutil.rmtree(profile, ignore_errors=True)
+        if os.environ.get("HERMES_E2E_BROWSER") == "1":
+            pytest.fail("Chrome didn't expose CDP within 30 seconds")
         pytest.skip("Chrome didn't expose CDP in time")
 
     yield ws_url, port
