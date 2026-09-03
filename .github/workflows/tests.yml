@@ -50,9 +50,53 @@ jobs:
           # state. Keep each file on one xdist worker while retaining parallel
           # execution across the suite, so tests cannot overwrite a sibling
           # test's supervisor or sandbox state.
-          python -m pytest tests/ -q --ignore=tests/integration --ignore=tests/e2e --tb=short -n auto --dist loadfile
+          # Real Chrome/CDP coverage lives in browser-supervisor below.  Keep
+          # this high-volume unit job deterministic so a Chrome startup flake
+          # does not require rerunning it.
+          python -m pytest tests/ -q --ignore=tests/integration --ignore=tests/e2e --ignore=tests/tools/test_browser_supervisor.py --tb=short -n auto --dist loadfile
         env:
           # Ensure tests don't accidentally call real APIs
+          OPENROUTER_API_KEY: ""
+          OPENAI_API_KEY: ""
+          NOUS_API_KEY: ""
+
+  browser-supervisor:
+    # This is deliberately a separate blocking job: it exercises the real
+    # local Chrome/CDP lifecycle, whose startup timing is environment-bound.
+    # A retry here never reruns the main deterministic test suite.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: |
+          uv venv .venv --python 3.11
+          source .venv/bin/activate
+          uv pip install -e ".[all,dev]"
+
+      - name: Verify Chrome is available
+        run: google-chrome --version || chromium --version || chromium-browser --version
+
+      - name: Run real Chrome browser-supervisor tests (one retry)
+        run: |
+          source .venv/bin/activate
+          for attempt in 1 2; do
+            python -m pytest tests/tools/test_browser_supervisor.py -v --tb=short -o addopts='' && exit 0
+            if [ "$attempt" = 2 ]; then
+              exit 1
+            fi
+            echo "Browser supervisor test failed; retrying once."
+          done
+        env:
+          HERMES_E2E_BROWSER: "1"
           OPENROUTER_API_KEY: ""
           OPENAI_API_KEY: ""
           NOUS_API_KEY: ""
