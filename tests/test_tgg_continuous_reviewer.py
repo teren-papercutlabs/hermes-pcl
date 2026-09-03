@@ -23,11 +23,13 @@ def test_adapter_preserves_child_result_contract_with_ephemeral_carrier(monkeypa
     candidate_path.write_bytes(raw)
     launch = {"contract": subject.CONTRACT, "batch_id": "nightly:test", "candidate_path": str(candidate_path),
               "candidate_sha256": hashlib.sha256(raw).hexdigest(), "review_authority": "a" * 64,
-              "allowed_tools": ["tgg_nightly_review_get_candidate", "tgg_nightly_review_submit"], "max_iterations": 24}
+              "allowed_tools": ["tgg_nightly_review_get_candidate", "tgg_nightly_review_submit"], "max_iterations": 24,
+              "reviewer_provider": "openai-codex"}
     launch_path = batch / "launch.json"; launch_path.write_text(json.dumps(launch))
     def fake_run(**kwargs):
         assert kwargs["allowed_tool_names"] == launch["allowed_tools"]
         assert kwargs["max_iterations"] == 24
+        assert kwargs["provider"] == "openai-codex"
         assert json.dumps(candidate) not in kwargs["prompt"]
         assert str(candidate_path) not in kwargs["prompt"]
         assert launch["review_authority"] in kwargs["prompt"]
@@ -42,4 +44,16 @@ def test_adapter_preserves_child_result_contract_with_ephemeral_carrier(monkeypa
     assert result["status"] == "completed"
     assert result["allowed_tools"] == launch["allowed_tools"]
     assert result["lifecycle"]["cleanup"]["deleted"] is True
+    assert result["reviewer_provider"] == "openai-codex"
     assert "a" * 64 not in json.dumps(result)
+
+
+def test_launch_refuses_missing_or_non_codex_provider():
+    subject = _load()
+    base = {"contract": subject.CONTRACT, "batch_id": "b", "candidate_sha256": "a", "candidate_path": "/tmp/c",
+            "allowed_tools": ["tgg_nightly_review_submit"]}
+    import pytest
+    with pytest.raises(RuntimeError, match="LAUNCH_INVALID"):
+        subject.validate_launch(base)
+    with pytest.raises(RuntimeError, match="LAUNCH_INVALID"):
+        subject.validate_launch({**base, "reviewer_provider": "openrouter"})

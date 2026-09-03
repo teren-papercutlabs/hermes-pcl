@@ -24,6 +24,7 @@ def _remove_ephemeral_session_files(sessions_dir: Path, session_id: str) -> None
 
 def run_ephemeral_session(*, prompt: str, system_prompt: str, model: str,
                           max_iterations: int, allowed_tool_names: list[str],
+                          provider: str | None = None,
                           session_prefix: str = "ephemeral") -> tuple[dict[str, Any], dict[str, Any]]:
     """Run one canonical-provider turn and erase its session/transcript.
 
@@ -36,7 +37,7 @@ def run_ephemeral_session(*, prompt: str, system_prompt: str, model: str,
     from run_agent import AIAgent
     from hermes_cli.oneshot import _oneshot_clarify_callback, resolve_oneshot_runtime
 
-    _cfg, effective_model, runtime = resolve_oneshot_runtime(model)
+    _cfg, effective_model, runtime = resolve_oneshot_runtime(model, provider)
     session_id = f"{session_prefix}-{uuid.uuid4().hex}"
     db = SessionDB()
     agent = None

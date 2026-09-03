@@ -65,6 +65,7 @@ def validate_launch(value: Mapping[str, Any]) -> tuple[str, list[str]]:
         or len(tools) != len(set(tools))
         or any(not isinstance(tool, str) or not tool for tool in tools)
         or "tgg_nightly_review_submit" not in tools
+        or value.get("reviewer_provider") != "openai-codex"
     ):
         raise RuntimeError("PA97_REVIEWER_LAUNCH_INVALID")
     return batch_id, list(tools)
@@ -103,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     outcome, lifecycle = run_ephemeral_session(
         prompt=prompt, system_prompt="PA-97 fresh reviewer child. Use only the supplied allowlist and the sealed candidate reader.",
         model=str(launch.get("model") or ""), max_iterations=int(launch.get("max_iterations") or 24),
-        allowed_tool_names=allowed_tools, session_prefix="pa97-review",
+        allowed_tool_names=allowed_tools, provider=str(launch["reviewer_provider"]), session_prefix="pa97-review",
     )
     reviewed_path = candidate_path.with_name("continuous-reviewed-final.json")
     submitted = reviewed_path.is_file()
@@ -114,6 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         "child_id": lifecycle["session_id"],
         "allowed_tools": allowed_tools,
         "loaded_tools": lifecycle["loaded_tools"],
+        "reviewer_provider": launch["reviewer_provider"],
         "lifecycle": lifecycle,
         "status": "completed" if submitted else "submission_missing",
         "final_response_sha256": hashlib.sha256(str(outcome.get("final_response") or "").encode()).hexdigest(),
