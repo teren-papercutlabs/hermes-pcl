@@ -7,6 +7,21 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
+def _remove_ephemeral_session_files(sessions_dir: Path, session_id: str) -> None:
+    """Remove both canonical SessionDB and AIAgent transcript name forms."""
+    paths = [
+        sessions_dir / f"{session_id}.json",
+        sessions_dir / f"{session_id}.jsonl",
+        sessions_dir / f"session_{session_id}.json",
+        sessions_dir / f"session_{session_id}.jsonl",
+    ]
+    paths.extend(sessions_dir.glob(f"request_dump_{session_id}_*.json"))
+    for path in paths:
+        path.unlink(missing_ok=True)
+    if any(path.exists() for path in paths):
+        raise RuntimeError("ephemeral transcript remains")
+
+
 def run_ephemeral_session(*, prompt: str, system_prompt: str, model: str,
                           max_iterations: int, allowed_tool_names: list[str],
                           session_prefix: str = "ephemeral") -> tuple[dict[str, Any], dict[str, Any]]:
@@ -56,8 +71,13 @@ def run_ephemeral_session(*, prompt: str, system_prompt: str, model: str,
                 cleanup["agent_closed"] = True
         except Exception as exc: cleanup_errors.append(f"agent_close:{type(exc).__name__}")
         finally:
-            try: cleanup["deleted"] = bool(db.delete_session(session_id, sessions_dir=get_hermes_home() / "sessions"))
-            except Exception as exc: cleanup_errors.append(f"delete:{type(exc).__name__}")
+            try:
+                sessions_dir = get_hermes_home() / "sessions"
+                deleted = db.delete_session(session_id, sessions_dir=sessions_dir)
+                _remove_ephemeral_session_files(sessions_dir, session_id)
+                cleanup["deleted"] = bool(deleted)
+            except Exception as exc:
+                cleanup_errors.append(f"delete:{type(exc).__name__}")
             try: db.close(); cleanup["db_closed"] = True
             except Exception as exc: cleanup_errors.append(f"db_close:{type(exc).__name__}")
     if cleanup_errors or not all(cleanup.values()):
