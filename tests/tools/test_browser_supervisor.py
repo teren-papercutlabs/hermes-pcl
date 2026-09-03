@@ -27,15 +27,7 @@ import time
 import pytest
 
 
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.skipif(
-        not shutil.which("google-chrome")
-        and not shutil.which("chromium")
-        and not shutil.which("chromium-browser"),
-        reason="Chrome/Chromium not installed",
-    ),
-]
+pytestmark = pytest.mark.integration
 
 
 def _find_chrome() -> str:
@@ -44,6 +36,31 @@ def _find_chrome() -> str:
         if path:
             return path
     pytest.skip("no Chrome binary found")
+
+
+def _cleanup_chrome_process(proc: subprocess.Popen, profile: str) -> None:
+    """Best-effort process/profile cleanup that cannot hide a test failure."""
+    try:
+        if proc.poll() is None:
+            proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            # A timed-out terminate must not leak into the one permitted CI
+            # retry.  Wait after kill as well, but keep cleanup best-effort so
+            # the original CDP startup/test failure remains the reported one.
+            try:
+                proc.kill()
+            except (OSError, ProcessLookupError):
+                pass
+            try:
+                proc.wait(timeout=5)
+            except (OSError, ProcessLookupError, subprocess.TimeoutExpired):
+                pass
+    except (OSError, ProcessLookupError):
+        pass
+    finally:
+        shutil.rmtree(profile, ignore_errors=True)
 
 
 @pytest.fixture
@@ -95,21 +112,58 @@ def chrome_cdp(worker_id):
         except Exception:
             time.sleep(0.25)
     if ws_url is None:
-        proc.terminate()
-        proc.wait(timeout=5)
-        shutil.rmtree(profile, ignore_errors=True)
+        _cleanup_chrome_process(proc, profile)
         if os.environ.get("HERMES_E2E_BROWSER") == "1":
             pytest.fail("Chrome didn't expose CDP within 30 seconds")
         pytest.skip("Chrome didn't expose CDP in time")
 
     yield ws_url, port
 
-    proc.terminate()
-    try:
-        proc.wait(timeout=3)
-    except Exception:
-        proc.kill()
-    shutil.rmtree(profile, ignore_errors=True)
+    _cleanup_chrome_process(proc, profile)
+
+
+def test_cdp_startup_timeout_kills_and_cleans_before_ci_failure(monkeypatch):
+    """A hung Chrome is reaped before the browser job's retry can begin."""
+
+    events: list[tuple[str, object]] = []
+
+    class _HungChrome:
+        def poll(self):
+            return None
+
+        def terminate(self):
+            events.append(("terminate", None))
+
+        def wait(self, timeout):
+            events.append(("wait", timeout))
+            if len([event for event in events if event[0] == "wait"]) == 1:
+                raise subprocess.TimeoutExpired("chrome", timeout)
+            return 0
+
+        def kill(self):
+            events.append(("kill", None))
+
+    monkeypatch.setattr(shutil, "which", lambda _name: "/fake/google-chrome")
+    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: _HungChrome())
+    monkeypatch.setattr(tempfile, "mkdtemp", lambda **_kwargs: "/tmp/fake-profile")
+    monkeypatch.setattr(
+        shutil, "rmtree", lambda path, ignore_errors: events.append(("rmtree", path))
+    )
+    monotonic_values = iter((0.0, 31.0))
+    monkeypatch.setattr(time, "monotonic", lambda: next(monotonic_values))
+    monkeypatch.setenv("HERMES_E2E_BROWSER", "1")
+
+    fixture = chrome_cdp.__wrapped__
+    with pytest.raises(pytest.fail.Exception, match="didn't expose CDP"):
+        next(fixture("master"))
+
+    assert events == [
+        ("terminate", None),
+        ("wait", 5),
+        ("kill", None),
+        ("wait", 5),
+        ("rmtree", "/tmp/fake-profile"),
+    ]
 
 
 def _test_page_url() -> str:
