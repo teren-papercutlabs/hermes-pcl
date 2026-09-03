@@ -24,6 +24,7 @@ TOP_LEVEL_RUNTIME_FILES = {
     "model_tools.py",
     "pyproject.toml",
     "run_agent.py",
+    "scripts/tgg_continuous_reviewer.py",
     "toolset_distributions.py",
     "toolsets.py",
     "trajectory_compressor.py",
