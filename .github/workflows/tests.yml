@@ -53,7 +53,7 @@ jobs:
           # Real Chrome/CDP coverage lives in browser-supervisor below.  Keep
           # this high-volume unit job deterministic so a Chrome startup flake
           # does not require rerunning it.
-          python -m pytest tests/ -q --ignore=tests/integration --ignore=tests/e2e --ignore=tests/tools/test_browser_supervisor.py --tb=short -n auto --dist loadfile
+          python -m pytest tests/ -q --ignore=tests/integration --ignore=tests/e2e --ignore=tests/tools/test_browser_supervisor.py --ignore=tests/tools/test_browser_eval_supervisor_path.py --tb=short -n auto --dist loadfile
         env:
           # Ensure tests don't accidentally call real APIs
           OPENROUTER_API_KEY: ""
@@ -85,11 +85,14 @@ jobs:
       - name: Verify Chrome is available
         run: google-chrome --version || chromium --version || chromium-browser --version
 
-      - name: Run real Chrome browser-supervisor tests (one retry)
+      - name: Run serial browser-supervisor tests (one retry)
         run: |
           source .venv/bin/activate
           for attempt in 1 2; do
-            python -m pytest tests/tools/test_browser_supervisor.py -v --tb=short -o addopts='' && exit 0
+            # Both modules own process/global supervisor state.  One pytest
+            # process, explicit module order, and no xdist keep that state
+            # isolated from the parallel deterministic suite.
+            python -m pytest tests/tools/test_browser_supervisor.py tests/tools/test_browser_eval_supervisor_path.py -v --tb=short -o addopts='' -n 0 && exit 0
             if [ "$attempt" = 2 ]; then
               exit 1
             fi
