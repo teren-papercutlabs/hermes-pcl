@@ -69,7 +69,7 @@ ILINKED_ALLOW_PAYLOAD_KEYS = (
     "source_system_requested",
     "ilinked_requested",
 )
-JOB_NO_RE = r"^[A-Z]{2}/JOB/\d{4}/\d{4}$"
+JOB_NO_RE = r"^[A-Z]{2}/JOB/\d{4}/\d{1,5}$"
 
 
 @dataclass(frozen=True)
@@ -2407,7 +2407,7 @@ def _handle_tgg_case_observation(args: Mapping[str, Any], **_kwargs: Any) -> str
     )
 
 
-_JOB_NO_RE = re.compile(r"\b[A-Z]{2}/JOB/\d{4}/\d{1,4}\b")
+_JOB_NO_RE = re.compile(r"\b[A-Z]{2}/JOB/\d{4}/\d{1,5}\b")
 
 _CREATE_JOB_NO_ALIASES = ("reportedJobNo", "reported_job_no", "job_no", "jobno", "jobNumber")
 
