@@ -1,0 +1,177 @@
+import asyncio
+import hashlib
+import json
+from contextlib import closing
+from types import SimpleNamespace
+
+import pytest
+
+from gateway import durable_jsonl_consumer as durable
+from gateway import management_continuation_consumer as continuation
+from gateway.replay import ReplayPlan, replay_context
+from hermes_state import SessionDB
+
+
+def _config(tmp_path, *, chat="management@g.us"):
+    path = tmp_path / "config.yaml"
+    path.write_text(
+        "model:\n  provider: fixture\n  default: fixture-model\n"
+        "pa:\n  management_continuation:\n"
+        "    enabled: true\n    agent_id: agent\n    from_peer: owner\n"
+        f"    to_peer: management\n    management_chat_id: {chat}\n"
+        "    token_env: CONTINUATION_TEST_TOKEN\n"
+        f"    coordinator_receipt_root: {tmp_path}\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _envelope(tmp_path, *, original="original", request="request"):
+    list_id = "case-list-20260910000000-abcdef1234"
+    manifest = {
+        "contract": "tgg-per-case-whatsapp-list/v1", "list_id": list_id,
+        "management_request_id": request,
+        "items": [{"job_no": "SK/JOB/2609/156"}],
+    }
+    path = tmp_path / "lists" / list_id / "manifest.json"
+    path.parent.mkdir(parents=True)
+    raw = json.dumps(manifest).encode()
+    path.write_bytes(raw)
+    return {
+        "contract": "management-list-continuation/v1", "original_message_id": original,
+        "management_request_id": request, "list_id": list_id,
+        "chat_id": "management@g.us", "jobs": ["SK/JOB/2609/156"],
+        "manifest_sha256": hashlib.sha256(raw).hexdigest(),
+    }
+
+
+def _original_record():
+    return durable.InboxRecord(
+        seq=1, message_id="original", chat_id="management@g.us", start_offset=0, end_offset=1,
+        raw={"messageId": "original", "chatId": "management@g.us", "isGroup": True,
+             "senderId": "requester", "senderName": "Requester", "body": "Investigate",
+             "timestamp": 1},
+    )
+
+
+def test_only_typed_rows_are_selected(tmp_path, monkeypatch):
+    monkeypatch.setenv("CONTINUATION_TEST_TOKEN", "token")
+    config = continuation.load_management_continuation_config(
+        _config(tmp_path), inbox_db=tmp_path / "inbox.db", state_db=tmp_path / "state.db"
+    )
+    envelope = _envelope(tmp_path)
+    with closing(SessionDB(db_path=tmp_path / "state.db")) as db:
+        db.create_session_mailbox_message(
+            agent_id="agent", from_session_name="owner", to_session_name="management",
+            body="ordinary mailbox body", source_message_id="ordinary",
+        )
+        row = db.create_session_mailbox_message(
+            agent_id="agent", from_session_name="owner", to_session_name="management",
+            body=json.dumps(envelope), source_message_id="original",
+        )
+        selected = continuation.next_pending_continuation(db, config)
+        assert selected is not None
+        assert selected[0]["id"] == row["id"]
+        assert selected[1].original_message_id == "original"
+
+
+def test_trusted_replay_plan_binds_internal_event_to_retained_namespace():
+    namespace = "agent:live-drain:persistent-chat:fixture:fixture-model"
+    retained = namespace + ":whatsapp:group:management@g.us:requester"
+    plan = ReplayPlan(
+        replay_namespace=namespace,
+        session_key_override=retained,
+    )
+    with replay_context(plan) as context:
+        assert context.namespace_session_key("agent:main:whatsapp:group:management@g.us:system@internal") == retained
+
+
+def test_completed_internal_turn_delivers_against_original_without_forging_it(
+    tmp_path, monkeypatch
+):
+    asyncio.run(_completed_internal_turn_delivers(tmp_path, monkeypatch))
+
+
+async def _completed_internal_turn_delivers(tmp_path, monkeypatch):
+    monkeypatch.setenv("CONTINUATION_TEST_TOKEN", "token")
+    config_path = _config(tmp_path)
+    config = continuation.load_management_continuation_config(
+        config_path, inbox_db=tmp_path / "inbox.db", state_db=tmp_path / "state.db"
+    )
+    envelope = _envelope(tmp_path)
+    inbox = SimpleNamespace(message_id_selection=lambda _: [_original_record()])
+    received = {}
+
+    async def fake_process(records, **kwargs):
+        event = kwargs["replay_messages"][0]
+        received["event"] = event
+        received["session_key_override"] = kwargs["replay_session_key_override"]
+        return {"provider_errors": [], "handled": [{
+            "message_ids": [event["messageId"]], "turn_id": "completed-turn",
+        }], "captured_outbound": [{"kind": "send"}]}
+
+    monkeypatch.setattr(durable, "process_live_records", fake_process)
+    monkeypatch.setattr(continuation, "_retained_live_management_session", lambda **_: ("bound", "session"))
+    monkeypatch.setattr("gateway.management_continuation.require_complete_list", lambda _: {"complete": True})
+    def deliver(_inbox, **kwargs):
+        received["delivery"] = kwargs
+        return {"delivered": 1, "undelivered": 0, "suppressed": 0, "duplicate": 0}
+    monkeypatch.setattr(durable, "deliver_management_replies", deliver)
+
+    with closing(SessionDB(db_path=tmp_path / "state.db")) as db:
+        created = db.create_session_mailbox_message(
+            agent_id="agent", from_session_name="owner", to_session_name="management",
+            body=json.dumps(envelope), source_message_id="original",
+        )
+        row = db.get_session_mailbox_message(created["id"])
+        assert db.claim_session_mailbox(created["id"])
+        parsed = continuation._typed_envelope(row)
+        await continuation.process_claimed_management_continuation(
+            row=row, envelope=parsed, session_db=db, inbox=inbox, config=config,
+            config_path=config_path, state_db=tmp_path / "state.db",
+            gate_changed_at="2026-01-01T00:00:00Z", runner=object(),
+        )
+        assert db.get_session_mailbox_message(created["id"])["status"] == "delivered"
+    assert received["event"]["messageId"].startswith("management-continuation:")
+    assert received["event"]["senderId"] == "system@internal"
+    assert received["session_key_override"] == "bound"
+    assert received["event"]["quotedMessageId"] == "original"
+    assert received["delivery"]["handled_groups"] == [{
+        "message_ids": [received["event"]["messageId"]], "turn_id": "completed-turn"
+    }]
+    assert received["delivery"]["continuation"]["original_message_id"] == "original"
+
+
+def test_unknown_model_outcome_is_failed_not_requeued(tmp_path, monkeypatch):
+    asyncio.run(_unknown_model_outcome_is_failed(tmp_path, monkeypatch))
+
+
+async def _unknown_model_outcome_is_failed(tmp_path, monkeypatch):
+    monkeypatch.setenv("CONTINUATION_TEST_TOKEN", "token")
+    config_path = _config(tmp_path)
+    config = continuation.load_management_continuation_config(
+        config_path, inbox_db=tmp_path / "inbox.db", state_db=tmp_path / "state.db"
+    )
+    envelope = _envelope(tmp_path)
+    inbox = SimpleNamespace(message_id_selection=lambda _: [_original_record()])
+
+    async def unknown(*_args, **_kwargs):
+        return {"provider_errors": ["provider disconnected"], "handled": [], "captured_outbound": []}
+    monkeypatch.setattr(durable, "process_live_records", unknown)
+    monkeypatch.setattr(continuation, "_retained_live_management_session", lambda **_: ("bound", "session"))
+
+    with closing(SessionDB(db_path=tmp_path / "state.db")) as db:
+        created = db.create_session_mailbox_message(
+            agent_id="agent", from_session_name="owner", to_session_name="management",
+            body=json.dumps(envelope), source_message_id="original",
+        )
+        row = db.get_session_mailbox_message(created["id"])
+        assert db.claim_session_mailbox(created["id"])
+        with pytest.raises(continuation.ManagementContinuationError, match="MODEL_OUTCOME_UNKNOWN"):
+            await continuation.process_claimed_management_continuation(
+                row=row, envelope=continuation._typed_envelope(row), session_db=db,
+                inbox=inbox, config=config, config_path=config_path,
+                state_db=tmp_path / "state.db", gate_changed_at="2026-01-01T00:00:00Z",
+                runner=object(),
+            )
+        assert db.get_session_mailbox_message(created["id"])["status"] == "failed"

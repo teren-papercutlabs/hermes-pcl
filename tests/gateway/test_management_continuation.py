@@ -81,9 +81,11 @@ def test_followup_uses_existing_delivery_ledger_without_reusing_original_claim(t
         batch_records=[record], gate_changed_at="2026-01-01T00:00:00Z",
         handled_groups=[{"message_ids": [original], "turn_id": "completed-turn"}])
     assert consumer.deliver_management_replies(**args)["delivered"] == 1
-    continuation = {"list_id": "case-list-20260910000000-abcdef1234", "original_message_id": original}
-    assert consumer.deliver_management_replies(**args, continuation=continuation)["delivered"] == 1
-    assert consumer.deliver_management_replies(**args, continuation=continuation)["duplicate"] == 1
+    continuation = {"list_id": "case-list-20260910000000-abcdef1234", "original_message_id": original,
+                    "internal_message_id": "management-continuation:mailbox-1"}
+    continuation_args = {**args, "handled_groups": [{"message_ids": ["management-continuation:mailbox-1"], "turn_id": "completed-turn"}]}
+    assert consumer.deliver_management_replies(**continuation_args, continuation=continuation)["delivered"] == 1
+    assert consumer.deliver_management_replies(**continuation_args, continuation=continuation)["duplicate"] == 1
     assert consumer.deliver_management_replies(**args)["duplicate"] == 1
     assert len(sent) == 2
     assert sent[1]["replyTo"] == {"messageId": original, "participant": "client", "body": "Investigate these cases"}

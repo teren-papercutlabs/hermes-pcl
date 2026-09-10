@@ -3129,6 +3129,8 @@ async def process_live_records(
     defer_provider_errors: bool = False,
     management_document_correlations: Mapping[str, Mapping[str, Any]] | None = None,
     capture_business_writes_for_test_management: bool = False,
+    replay_messages: Sequence[Mapping[str, Any]] | None = None,
+    replay_session_key_override: str | None = None,
 ) -> dict[str, Any]:
     """Process live durable records through the replay orchestrator.
 
@@ -3171,10 +3173,14 @@ async def process_live_records(
     run_id = f"live-drain-{uuid.uuid4().hex[:12]}"
     replay_plan = ReplayPlan(
         platform="whatsapp",
-        messages=_replay_messages_with_retained_documents(
-            records,
-            config_path=config_path,
-            management_document_correlations=management_document_correlations,
+        messages=(
+            tuple(dict(message) for message in replay_messages)
+            if replay_messages is not None
+            else _replay_messages_with_retained_documents(
+                records,
+                config_path=config_path,
+                management_document_correlations=management_document_correlations,
+            )
         ),
         run_id=run_id,
         attempt_id=f"attempt-{uuid.uuid4().hex[:12]}",
@@ -3196,6 +3202,7 @@ async def process_live_records(
             if persistent_session
             else None
         ),
+        session_key_override=replay_session_key_override,
     )
     try:
         result = await runner.replay(replay_plan)
@@ -3884,10 +3891,16 @@ def deliver_management_replies(
     from urllib.error import HTTPError, URLError
 
     if continuation is not None:
-        if set(continuation) != {"list_id", "original_message_id"} or not re.fullmatch(
+        continuation_keys = {"list_id", "original_message_id", "internal_message_id"}
+        if set(continuation) != continuation_keys or not re.fullmatch(
             r"case-list-[0-9]{14}-[a-f0-9]{10}", str(continuation.get("list_id") or "")
         ) or not continuation.get("original_message_id"):
             raise ConsumerError("management continuation delivery identity invalid")
+        if "internal_message_id" in continuation and not re.fullmatch(
+            r"management-continuation:[A-Za-z0-9-]{1,128}",
+            str(continuation.get("internal_message_id") or ""),
+        ):
+            raise ConsumerError("management continuation internal turn identity invalid")
 
     summary = {"delivered": 0, "undelivered": 0, "suppressed": 0, "duplicate": 0}
     sends: list[dict[str, Any]] = []
@@ -3963,13 +3976,18 @@ def deliver_management_replies(
         anchor_epoch = _timestamp_epoch_seconds(
             anchor_item.get("timestamp") if anchor_item else None
         )
+        handled_anchor = (
+            str(continuation["internal_message_id"])
+            if continuation is not None and continuation.get("internal_message_id")
+            else anchor
+        )
         if (
             not anchor
-            or anchor not in handled_message_ids
+            or handled_anchor not in handled_message_ids
             or anchor_record is None
             or anchor_record.chat_id != chat_id
             or anchor_epoch is None
-            or anchor_epoch < gate_epoch
+            or (continuation is None and anchor_epoch < gate_epoch)
         ):
             summary["suppressed"] += 1
             continue
@@ -5124,6 +5142,55 @@ async def _process_claimed_chat_batch(
         await _process_claimed_chat_batch_unlocked(inbox, records, **kwargs)
 
 
+async def _process_claimed_management_continuation(
+    *,
+    row: Mapping[str, Any],
+    envelope: Any,
+    session_db: Any,
+    continuation_config: Any,
+    inbox: DurableInbox,
+    config_path: Path,
+    state_db: Path,
+    gate_changed_at: str,
+    runner: Any,
+    activity_lock_file: Path | None,
+) -> None:
+    """Run one typed mailbox row under the ordinary management activity lock."""
+    from gateway.management_continuation_consumer import (
+        process_claimed_management_continuation,
+    )
+
+    with SharedActivityLock(activity_lock_file):
+        mailbox_id = ""
+        claimed = False
+        try:
+            mailbox_id = str(row.get("id") or "")
+            claimed = session_db.claim_session_mailbox(mailbox_id)
+            if not claimed:
+                return
+            await process_claimed_management_continuation(
+                row=row,
+                envelope=envelope,
+                session_db=session_db,
+                inbox=inbox,
+                config=continuation_config,
+                config_path=config_path,
+                state_db=state_db,
+                gate_changed_at=gate_changed_at,
+                runner=runner,
+            )
+        except asyncio.CancelledError:
+            if claimed:
+                session_db.fail_session_mailbox(
+                    mailbox_id, "CONTINUATION_CANCELLED_OUTCOME_UNKNOWN"
+                )
+            raise
+        except Exception as exc:
+            # The mailbox implementation recorded the terminal failure.  Do
+            # not let one uncertain provider outcome stop unrelated chats.
+            print(f"management continuation FAILED: {exc}", file=sys.stderr)
+
+
 async def run_consumer(args: argparse.Namespace) -> int:
     config_path = Path(args.config).resolve()
     source = Path(args.source).resolve()
@@ -5148,6 +5215,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
         recovery = inbox.reconcile_orphan_processing(state_db)
         expected_total = inbox.assert_and_record_conservation()
         runner: Any | None = None
+        continuation_session_db: Any | None = None
         tasks: dict[str, asyncio.Task[None]] = {}
         lanes: dict[str, str] = {}
         source_projection_holds: dict[str, str] = {}
@@ -5397,6 +5465,21 @@ async def run_consumer(args: argparse.Namespace) -> int:
                     # after the case-db/schema fault has been repaired.
                     exclude_chats=set(tasks) | set(source_projection_holds),
                 )
+                from gateway.management_continuation_consumer import (
+                    load_management_continuation_config,
+                    next_pending_continuation,
+                )
+                continuation_config = load_management_continuation_config(
+                    config_path, inbox_db=inbox.db_path, state_db=state_db
+                )
+                continuation_candidate: tuple[Mapping[str, Any], Any] | None = None
+                if continuation_config is not None:
+                    if continuation_session_db is None:
+                        from hermes_state import SessionDB
+                        continuation_session_db = SessionDB(db_path=state_db)
+                    continuation_candidate = next_pending_continuation(
+                        continuation_session_db, continuation_config
+                    )
                 gate_changed_at = str(gate.get("changed_at") or "")
                 active_site = sum(1 for lane in lanes.values() if lane == "site")
                 available_site = max(0, site_concurrency - active_site)
@@ -5408,8 +5491,9 @@ async def run_consumer(args: argparse.Namespace) -> int:
                     management_batches
                     or selected_site_batches
                     or document_event_config is not None
+                    or continuation_candidate is not None
                 ) and runner is None:
-                    runner = _new_gateway_runner()
+                    runner = _new_gateway_runner(config_path)
 
                 # PA-74's source-fired document outbox is deliberately
                 # adjacent to, not inside, WhatsApp ingress.  It reuses this
@@ -5442,6 +5526,32 @@ async def run_consumer(args: argparse.Namespace) -> int:
                                 _continuous_interval_batch(records, config_path)
                                 or chat_id not in nightly_chats
                             ),
+                        )
+                    )
+                    lanes[chat_id] = "management"
+
+                # A normal captured management task always wins the chat lane.
+                # Leaving the mailbox pending is the only safe response while
+                # that original session is busy; no second model turn starts.
+                if (
+                    continuation_candidate is not None
+                    and continuation_config.management_chat_id not in tasks
+                    and runner is not None
+                ):
+                    row, envelope = continuation_candidate
+                    chat_id = continuation_config.management_chat_id
+                    tasks[chat_id] = asyncio.create_task(
+                        _process_claimed_management_continuation(
+                            row=row,
+                            envelope=envelope,
+                            session_db=continuation_session_db,
+                            continuation_config=continuation_config,
+                            inbox=inbox,
+                            config_path=config_path,
+                            state_db=state_db,
+                            gate_changed_at=gate_changed_at,
+                            runner=runner,
+                            activity_lock_file=activity_lock_file,
                         )
                     )
                     lanes[chat_id] = "management"
@@ -5602,6 +5712,8 @@ async def run_consumer(args: argparse.Namespace) -> int:
             raise
         finally:
             _stop_cron_ticker(cron_stop, cron_thread)
+            if continuation_session_db is not None:
+                continuation_session_db.close()
 
 
 async def run_fixture(args: argparse.Namespace) -> int:
