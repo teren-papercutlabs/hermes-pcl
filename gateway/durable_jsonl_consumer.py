@@ -3864,6 +3864,7 @@ def deliver_management_replies(
     batch_records: Sequence[InboxRecord],
     gate_changed_at: str,
     handled_groups: Sequence[Mapping[str, Any]],
+    continuation: Mapping[str, Any] | None = None,
 ) -> dict[str, int]:
     """Deliver mgmt-selector responses through the rung-gated bridge.
 
@@ -3881,6 +3882,12 @@ def deliver_management_replies(
     """
     from urllib.request import Request, urlopen
     from urllib.error import HTTPError, URLError
+
+    if continuation is not None:
+        if set(continuation) != {"list_id", "original_message_id"} or not re.fullmatch(
+            r"case-list-[0-9]{14}-[a-f0-9]{10}", str(continuation.get("list_id") or "")
+        ) or not continuation.get("original_message_id"):
+            raise ConsumerError("management continuation delivery identity invalid")
 
     summary = {"delivered": 0, "undelivered": 0, "suppressed": 0, "duplicate": 0}
     sends: list[dict[str, Any]] = []
@@ -3927,10 +3934,15 @@ def deliver_management_replies(
 
     for send in sends:
         chat_id = send["chat_id"]
+        if continuation is not None and send.get("send_kind", "text") != "text":
+            summary["suppressed"] += 1
+            continue
         if chat_id not in management_chats:
             summary["suppressed"] += 1
             continue
         anchor = send["reply_to"] or newest_message_by_chat.get(chat_id)
+        if continuation is not None:
+            anchor = str(continuation["original_message_id"])
         if anchor and "+" in str(anchor) and anchor not in handled_message_ids:
             # A multi-message WhatsApp turn bundle carries a synthetic
             # composite id ("id1+id2+..."; platforms/whatsapp.py join). The
@@ -3986,8 +3998,11 @@ def deliver_management_replies(
             )
         else:
             delivery_key = f"{chat_id}::{anchor or 'no-anchor'}"
+        if continuation is not None:
+            delivery_key = f"continuation::{continuation['list_id']}::{delivery_key}"
         if not inbox.claim_reply_delivery(
-            delivery_key, chat_id=chat_id, reply_to_message_id=anchor
+            delivery_key, chat_id=chat_id, reply_to_message_id=anchor,
+            **({"correlation": dict(continuation)} if continuation is not None else {}),
         ):
             summary["duplicate"] += 1
             continue

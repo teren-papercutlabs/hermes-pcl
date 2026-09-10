@@ -13,6 +13,35 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
+def require_complete_list(envelope: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Read the existing registered coordinator before permitting final output.
+
+    A failed terminal counts toward coordination progress, but is not a
+    substantive answer. Do not mistake the coordinator's complete bit for one.
+    """
+    from tools.registry import registry
+    name = "tgg_whatsapp_case_list_status"
+    tool = registry.get_entry(name)
+    if tool is None or tool.toolset != "tgg-per-case-whatsapp-coordinator":
+        raise ValueError("CONTINUATION_COORDINATOR_UNAVAILABLE")
+    response = json.loads(registry.dispatch(name, {"list_id": envelope["list_id"]}))
+    state = response.get("list")
+    if response.get("ok") is not True or not isinstance(state, dict):
+        raise ValueError("CONTINUATION_LIST_STATUS_UNAVAILABLE")
+    items = state.get("items")
+    if state.get("list_id") != envelope["list_id"] \
+            or state.get("management_request_id") != envelope["management_request_id"] \
+            or not isinstance(items, list) \
+            or [item.get("job_no") for item in items] != envelope["jobs"]:
+        raise ValueError("CONTINUATION_LIST_BINDING_INVALID")
+    if state.get("complete") is not True or any(
+        item.get("status") not in ("completed", "use_recorded") or not item.get("result")
+        for item in items
+    ):
+        raise ValueError("CONTINUATION_LIST_NOT_SUBSTANTIVELY_COMPLETE")
+    return state
+
+
 def enqueue_continuation(*, config: Mapping[str, Any], request: Mapping[str, Any],
                          credential: str, inbox: Any, session_db: Any) -> dict[str, Any]:
     """Authenticate before reading retained records, then use the mailbox API.
