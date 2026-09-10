@@ -42,6 +42,15 @@ def require_complete_list(envelope: Mapping[str, Any]) -> Mapping[str, Any]:
     return state
 
 
+def authenticate_continuation(config: Mapping[str, Any], credential: str) -> None:
+    """Shared by the entry and enqueue boundary, before opening mutable stores."""
+    token_env = config.get("token_env")
+    expected = os.environ.get(token_env, "") if isinstance(token_env, str) else ""
+    if config.get("enabled") is not True or not expected or not isinstance(credential, str) \
+            or not hmac.compare_digest(expected.encode(), credential.encode()):
+        raise ValueError("CONTINUATION_UNAUTHORIZED")
+
+
 def enqueue_continuation(*, config: Mapping[str, Any], request: Mapping[str, Any],
                          credential: str, inbox: Any, session_db: Any) -> dict[str, Any]:
     """Authenticate before reading retained records, then use the mailbox API.
@@ -49,11 +58,7 @@ def enqueue_continuation(*, config: Mapping[str, Any], request: Mapping[str, Any
     Config and stores are supplied by the runtime, never by the request body.
     The authenticated owner binds the existing list to the original inbound.
     """
-    token_env = config.get("token_env")
-    expected = os.environ.get(token_env, "") if isinstance(token_env, str) else ""
-    if config.get("enabled") is not True or not expected or not isinstance(credential, str) \
-            or not hmac.compare_digest(expected.encode(), credential.encode()):
-        raise ValueError("CONTINUATION_UNAUTHORIZED")
+    authenticate_continuation(config, credential)
     fields = {"original_message_id", "management_request_id", "list_id"}
     if set(request) != fields or any(not isinstance(request[key], str) or not request[key]
                                      or len(request[key]) > 256 for key in fields):
