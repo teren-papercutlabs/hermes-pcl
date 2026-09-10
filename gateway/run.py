@@ -5090,6 +5090,7 @@ class GatewayRunner:
                 pending = self._session_db.list_pending_session_mailbox(
                     agent_id=inter_cfg.agent_id,
                     limit=25,
+                    exclude_body_contracts=("management-list-continuation/v1",),
                 )
                 for row in pending:
                     mailbox_id = row.get("id")
@@ -5098,7 +5099,10 @@ class GatewayRunner:
                     target_key = str(row.get("to_session_key") or "").strip()
                     if target_key and self._inter_session_target_busy(target_key):
                         continue
-                    if not self._session_db.claim_session_mailbox(mailbox_id):
+                    if not self._session_db.claim_session_mailbox(
+                        mailbox_id,
+                        exclude_body_contracts=("management-list-continuation/v1",),
+                    ):
                         continue
                     try:
                         delivered = await self._process_inter_session_mailbox_row(row, raw_cfg=raw_cfg)

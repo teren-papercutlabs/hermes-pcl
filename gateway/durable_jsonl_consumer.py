@@ -4835,6 +4835,17 @@ def _write_status(path: Path, payload: Mapping[str, Any]) -> None:
     _atomic_write_json(path, {"version": 1, "updated_at": _utc_now(), **dict(payload)})
 
 
+def _management_continuation_status(
+    session_db: Any | None, config: Any | None
+) -> Mapping[str, Any]:
+    """Return typed mailbox failures for the daemon's existing status file."""
+    if session_db is None or config is None:
+        return {"failed_count": 0, "latest_error": None}
+    from gateway.management_continuation_consumer import failed_continuation_status
+
+    return failed_continuation_status(session_db, config)
+
+
 @contextlib.contextmanager
 def _runtime_config_context(config_path: Path | None):
     """Bind config loading to the explicit Hermes runtime home."""
@@ -5167,7 +5178,10 @@ async def _process_claimed_management_continuation(
         claimed = False
         try:
             mailbox_id = str(row.get("id") or "")
-            claimed = session_db.claim_session_mailbox(mailbox_id)
+            claimed = session_db.claim_session_mailbox(
+                mailbox_id,
+                include_body_contract="management-list-continuation/v1",
+            )
             if not claimed:
                 return
             await process_claimed_management_continuation(
@@ -5218,12 +5232,38 @@ async def run_consumer(args: argparse.Namespace) -> int:
         expected_total = inbox.assert_and_record_conservation()
         runner: Any | None = None
         continuation_session_db: Any | None = None
+        continuation_config: Any | None = None
+        from gateway.management_continuation_consumer import (
+            load_management_continuation_config,
+            terminalize_prior_process_continuations,
+        )
+        continuation_config = load_management_continuation_config(
+            config_path, inbox_db=inbox.db_path, state_db=state_db
+        )
+        if continuation_config is not None:
+            from hermes_state import SessionDB
+            continuation_session_db = SessionDB(db_path=state_db)
+            terminalize_prior_process_continuations(
+                continuation_session_db, continuation_config
+            )
         tasks: dict[str, asyncio.Task[None]] = {}
         lanes: dict[str, str] = {}
         source_projection_holds: dict[str, str] = {}
         cron_stop, cron_thread = _start_cron_ticker()
         try:
             while True:
+                # Keep the existing opt-in configuration reload behaviour.
+                # Orphan terminalization is deliberately startup-only, before
+                # this process can own a typed claim.
+                continuation_config = load_management_continuation_config(
+                    config_path, inbox_db=inbox.db_path, state_db=state_db
+                )
+                if continuation_config is not None and continuation_session_db is None:
+                    from hermes_state import SessionDB
+                    continuation_session_db = SessionDB(db_path=state_db)
+                continuation_status = _management_continuation_status(
+                    continuation_session_db, continuation_config
+                )
                 done_chats = [chat_id for chat_id, task in tasks.items() if task.done()]
                 for chat_id in done_chats:
                     task = tasks.pop(chat_id)
@@ -5305,6 +5345,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             **_retention_status(
                                 inbox, config_path, inspect_media=False
                             ),
+                            "management_continuation": continuation_status,
                             **inbox.source_projection_counts(),
                             "source_projection_cycle": projection_cycle,
                             "source_projection_hold": inbox.source_projection_last_error(),
@@ -5346,6 +5387,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         status_path,
                         {
                             **retention_status,
+                            "management_continuation": continuation_status,
                             **inbox.source_projection_counts(),
                             "source_projection_cycle": projection_cycle,
                             "source_capture_projection_hold": inbox.source_projection_last_error(),
@@ -5397,6 +5439,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                     status_path,
                     {
                         **retention_status,
+                        "management_continuation": continuation_status,
                         **inbox.source_projection_counts(),
                         "source_projection_cycle": projection_cycle,
                         "source_capture_projection_hold": inbox.source_projection_last_error(),
@@ -5467,18 +5510,9 @@ async def run_consumer(args: argparse.Namespace) -> int:
                     # after the case-db/schema fault has been repaired.
                     exclude_chats=set(tasks) | set(source_projection_holds),
                 )
-                from gateway.management_continuation_consumer import (
-                    load_management_continuation_config,
-                    next_pending_continuation,
-                )
-                continuation_config = load_management_continuation_config(
-                    config_path, inbox_db=inbox.db_path, state_db=state_db
-                )
                 continuation_candidate: tuple[Mapping[str, Any], Any] | None = None
                 if continuation_config is not None:
-                    if continuation_session_db is None:
-                        from hermes_state import SessionDB
-                        continuation_session_db = SessionDB(db_path=state_db)
+                    from gateway.management_continuation_consumer import next_pending_continuation
                     continuation_candidate = next_pending_continuation(
                         continuation_session_db, continuation_config
                     )
@@ -5612,6 +5646,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             **_retention_status(
                                 inbox, config_path, inspect_media=True
                             ),
+                            "management_continuation": continuation_status,
                             **inbox.source_projection_counts(),
                             "source_projection_cycle": projection_cycle,
                             "source_capture_projection_hold": inbox.source_projection_last_error(),
@@ -5662,6 +5697,7 @@ async def run_consumer(args: argparse.Namespace) -> int:
                         **_retention_status(
                             inbox, config_path, inspect_media=True
                         ),
+                        "management_continuation": continuation_status,
                         **inbox.source_projection_counts(),
                         "source_projection_cycle": projection_cycle,
                         "source_capture_projection_hold": inbox.source_projection_last_error(),

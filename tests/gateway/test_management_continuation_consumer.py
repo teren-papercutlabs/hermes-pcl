@@ -16,7 +16,7 @@ def _config(tmp_path, *, chat="management@g.us"):
     path = tmp_path / "config.yaml"
     path.write_text(
         "model:\n  provider: fixture\n  default: fixture-model\n"
-        "pa:\n  management_continuation:\n"
+        "pa:\n  enabled: true\n  management_continuation:\n"
         "    enabled: true\n    agent_id: agent\n    from_peer: owner\n"
         f"    to_peer: management\n    management_chat_id: {chat}\n"
         "    token_env: CONTINUATION_TEST_TOKEN\n"
@@ -54,16 +54,22 @@ def _original_record():
     )
 
 
-def test_only_typed_rows_are_selected(tmp_path, monkeypatch):
+def test_typed_claim_reserves_mailbox_and_terminalizes_prior_process_claim(tmp_path, monkeypatch):
     monkeypatch.setenv("CONTINUATION_TEST_TOKEN", "token")
+    config_path = _config(tmp_path)
     config = continuation.load_management_continuation_config(
-        _config(tmp_path), inbox_db=tmp_path / "inbox.db", state_db=tmp_path / "state.db"
+        config_path, inbox_db=tmp_path / "inbox.db", state_db=tmp_path / "state.db"
     )
     envelope = _envelope(tmp_path)
     with closing(SessionDB(db_path=tmp_path / "state.db")) as db:
-        db.create_session_mailbox_message(
+        for index in range(25):
+            db.create_session_mailbox_message(
+                agent_id="agent", from_session_name="owner", to_session_name="management",
+                body=f"ordinary mailbox body {index}", source_message_id=f"ordinary-{index}",
+            )
+        invalid = db.create_session_mailbox_message(
             agent_id="agent", from_session_name="owner", to_session_name="management",
-            body="ordinary mailbox body", source_message_id="ordinary",
+            body="{not-json", source_message_id="ordinary-invalid",
         )
         row = db.create_session_mailbox_message(
             agent_id="agent", from_session_name="owner", to_session_name="management",
@@ -73,6 +79,46 @@ def test_only_typed_rows_are_selected(tmp_path, monkeypatch):
         assert selected is not None
         assert selected[0]["id"] == row["id"]
         assert selected[1].original_message_id == "original"
+        generic_rows = db.list_pending_session_mailbox(
+            agent_id="agent", limit=25,
+            exclude_body_contracts=("management-list-continuation/v1",),
+        )
+        assert len(generic_rows) == 25
+        assert db.claim_session_mailbox(
+            invalid["id"], exclude_body_contracts=("management-list-continuation/v1",)
+        )
+        # An earlier generic read of this row cannot take the reserved
+        # contract because claim repeats the exclusion inside its transaction.
+        assert not db.claim_session_mailbox(
+            row["id"], exclude_body_contracts=("management-list-continuation/v1",)
+        )
+        assert db.claim_session_mailbox(
+            row["id"], include_body_contract="management-list-continuation/v1"
+        )
+    source = tmp_path / "capture.jsonl"
+    source.write_text("", encoding="utf-8")
+    gate = tmp_path / "gate.json"
+    gate.write_text(json.dumps({"version": 1, "enabled": False, "generation": 0}), encoding="utf-8")
+    args = SimpleNamespace(
+        config=str(config_path), source=str(source), cursor=str(tmp_path / "cursor.json"),
+        inbox=str(tmp_path / "inbox.db"), status_file=str(tmp_path / "status.json"),
+        processing_gate=str(gate), state_db=str(tmp_path / "state.db"), case_db=str(tmp_path / "case.db"),
+        source_before_image_dir=str(tmp_path / "before"), lock_file=str(tmp_path / "consumer.lock"),
+        activity_lock_file=None, site_concurrency=1, chat_batch_size=1, retention_batch_size=1,
+        source_projection_batch_size=1, poll_seconds=0.01, max_records=1, once=True,
+    )
+    assert asyncio.run(durable.run_consumer(args)) == 0
+    with closing(SessionDB(db_path=tmp_path / "state.db")) as db:
+        assert db.get_session_mailbox_message(row["id"])["status"] == "failed"
+        assert continuation.failed_continuation_status(db, config) == {
+            "failed_count": 1,
+            "latest_error": "CONTINUATION_PRIOR_PROCESS_OUTCOME_UNKNOWN",
+        }
+    status = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
+    assert status["management_continuation"] == {
+        "failed_count": 1,
+        "latest_error": "CONTINUATION_PRIOR_PROCESS_OUTCOME_UNKNOWN",
+    }
 
 
 def test_trusted_replay_plan_binds_internal_event_to_retained_namespace():

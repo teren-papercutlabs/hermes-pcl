@@ -20,6 +20,7 @@ import yaml
 
 
 _CONTRACT = "management-list-continuation/v1"
+_PRIOR_PROCESS_OUTCOME_UNKNOWN = "CONTINUATION_PRIOR_PROCESS_OUTCOME_UNKNOWN"
 _LIST_ID = re.compile(r"case-list-[0-9]{14}-[a-f0-9]{10}")
 _INTERNAL_MESSAGE_ID = re.compile(r"management-continuation:[A-Za-z0-9-]{1,128}")
 
@@ -136,11 +137,40 @@ def next_pending_continuation(
     session_db: Any, config: ManagementContinuationConfig
 ) -> tuple[Mapping[str, Any], ContinuationEnvelope] | None:
     """Find the oldest typed row without taking generic mailbox traffic."""
-    for row in session_db.list_pending_session_mailbox(agent_id=config.agent_id, limit=25):
+    for row in session_db.list_pending_session_mailbox(
+        agent_id=config.agent_id,
+        include_body_contract=_CONTRACT,
+        limit=25,
+    ):
         envelope = _typed_envelope(row)
         if envelope is not None:
             return row, envelope
     return None
+
+
+def terminalize_prior_process_continuations(
+    session_db: Any, config: ManagementContinuationConfig
+) -> int:
+    """Mark only this consumer's prior-process claims failed without replay."""
+    return int(session_db.fail_running_session_mailbox(
+        agent_id=config.agent_id,
+        from_session_name=config.from_peer,
+        to_session_name=config.to_peer,
+        body_contract=_CONTRACT,
+        error=_PRIOR_PROCESS_OUTCOME_UNKNOWN,
+    ))
+
+
+def failed_continuation_status(
+    session_db: Any, config: ManagementContinuationConfig
+) -> Mapping[str, Any]:
+    """Expose durable typed failures through the daemon status surface."""
+    return session_db.failed_session_mailbox_status(
+        agent_id=config.agent_id,
+        from_session_name=config.from_peer,
+        to_session_name=config.to_peer,
+        body_contract=_CONTRACT,
+    )
 
 
 def _validate_row_identity(
