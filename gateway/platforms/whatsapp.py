@@ -2003,12 +2003,16 @@ class WhatsAppAdapter(BasePlatformAdapter):
                 or self._message_mentions_bot(data)
             )
 
+            from gateway.replay import current_replay_context
+            replay_context = current_replay_context()
+            internal = bool(replay_context and data.get("messageId") in replay_context.plan.internal_message_ids)
             return MessageEvent(
                 text=body,
                 message_type=msg_type,
                 source=source,
                 raw_message=data,
                 message_id=data.get("messageId"),
+                internal=internal,
                 reply_to_message_id=data.get("quotedMessageId"),
                 reply_to_text=self._reply_context_text(data),
                 media_urls=cached_urls,

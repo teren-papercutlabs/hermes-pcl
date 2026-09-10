@@ -3131,6 +3131,7 @@ async def process_live_records(
     capture_business_writes_for_test_management: bool = False,
     replay_messages: Sequence[Mapping[str, Any]] | None = None,
     replay_session_key_override: str | None = None,
+    replay_internal_message_ids: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """Process live durable records through the replay orchestrator.
 
@@ -3203,6 +3204,7 @@ async def process_live_records(
             else None
         ),
         session_key_override=replay_session_key_override,
+        internal_message_ids=replay_internal_message_ids,
     )
     try:
         result = await runner.replay(replay_plan)

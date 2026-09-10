@@ -86,6 +86,21 @@ def test_trusted_replay_plan_binds_internal_event_to_retained_namespace():
         assert context.namespace_session_key("agent:main:whatsapp:group:management@g.us:system@internal") == retained
 
 
+def test_adapter_internal_provenance_comes_from_runtime_not_payload(monkeypatch):
+    from gateway.config import PlatformConfig
+    from gateway.platforms.whatsapp import WhatsAppAdapter
+    monkeypatch.delenv("WHATSAPP_GROUP_POLICY", raising=False)
+    monkeypatch.delenv("WHATSAPP_GROUP_ALLOWED_USERS", raising=False)
+    adapter = WhatsAppAdapter(PlatformConfig(enabled=True, extra={"group_policy": "open"}))
+    message = {"messageId": "internal-one", "chatId": "management@g.us", "isGroup": True,
+               "senderId": "system@internal", "body": "Continue retained request", "internal": True}
+    plain = asyncio.run(adapter._build_message_event(message, bypass_require_mention=True))
+    assert plain is not None and plain.internal is False
+    with replay_context(ReplayPlan(messages=(message,), internal_message_ids=("internal-one",))):
+        trusted = asyncio.run(adapter._build_message_event(message, bypass_require_mention=True))
+    assert trusted is not None and trusted.internal is True
+
+
 def test_completed_internal_turn_delivers_against_original_without_forging_it(
     tmp_path, monkeypatch
 ):

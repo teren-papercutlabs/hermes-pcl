@@ -627,6 +627,9 @@ class ReplayPlan:
     # retained session. This is intentionally not accepted by from_mapping(),
     # so replay files and user input cannot select another conversation.
     session_key_override: Optional[str] = None
+    # Only direct runtime construction may mark events internal. Serialized
+    # replay plans and captured payloads cannot grant this provenance.
+    internal_message_ids: tuple[str, ...] = ()
     replay_policy: Mapping[str, Any] = field(default_factory=dict)
     corpus_manifest: Mapping[str, Any] = field(default_factory=dict)
     config_overlay_manifest: Mapping[str, Any] = field(default_factory=dict)
@@ -643,6 +646,10 @@ class ReplayPlan:
         if self.business_write_mode not in {"apply", "capture"}:
             raise ValueError("business_write_mode must be 'apply' or 'capture'")
         object.__setattr__(self, "replay_namespace", namespace)
+        if self.internal_message_ids:
+            message_ids = {str(message.get("messageId") or "") for message in self.messages}
+            if any(not value or value not in message_ids for value in self.internal_message_ids):
+                raise ValueError("internal message identity is not in this plan")
         override = self.session_key_override
         if override is not None:
             override = str(override).strip()

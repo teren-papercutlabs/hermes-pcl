@@ -340,6 +340,7 @@ async def process_claimed_management_continuation(
             runner=runner,
             replay_messages=(event,),
             replay_session_key_override=session_key,
+            replay_internal_message_ids=(internal_message_id,),
         )
         handled = [
             dict(group) for group in result.get("handled") or []
