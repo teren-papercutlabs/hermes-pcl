@@ -4003,6 +4003,8 @@ class SessionDB:
             contract = None
         else:
             contract = body.get("contract") if isinstance(body, dict) else None
+        if not isinstance(contract, str):
+            contract = None
         if include is not None and contract != include:
             return False
         return contract not in excluded
@@ -4128,7 +4130,7 @@ class SessionDB:
                 "latest_error": matching[0]["last_error"] if matching else None,
             }
         except Exception:
-            return {"failed_count": 0, "latest_error": None}
+            return {"failed_count": None, "latest_error": "MAILBOX_STATUS_UNAVAILABLE"}
 
     def defer_session_mailbox(self, mailbox_id: str, reason: str = "") -> None:
         """Return a claimed row to pending, preserving durability."""

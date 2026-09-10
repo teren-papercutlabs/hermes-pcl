@@ -71,6 +71,10 @@ def test_typed_claim_reserves_mailbox_and_terminalizes_prior_process_claim(tmp_p
             agent_id="agent", from_session_name="owner", to_session_name="management",
             body="{not-json", source_message_id="ordinary-invalid",
         )
+        ordinary_object = db.create_session_mailbox_message(
+            agent_id="agent", from_session_name="owner", to_session_name="management",
+            body='{"contract":{}}', source_message_id="ordinary-object",
+        )
         row = db.create_session_mailbox_message(
             agent_id="agent", from_session_name="owner", to_session_name="management",
             body=json.dumps(envelope), source_message_id="original",
@@ -86,6 +90,9 @@ def test_typed_claim_reserves_mailbox_and_terminalizes_prior_process_claim(tmp_p
         assert len(generic_rows) == 25
         assert db.claim_session_mailbox(
             invalid["id"], exclude_body_contracts=("management-list-continuation/v1",)
+        )
+        assert db.claim_session_mailbox(
+            ordinary_object["id"], exclude_body_contracts=("management-list-continuation/v1",)
         )
         # An earlier generic read of this row cannot take the reserved
         # contract because claim repeats the exclusion inside its transaction.
