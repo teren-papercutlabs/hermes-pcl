@@ -1411,7 +1411,7 @@ async def test_pending_production_video_bypasses_retention_and_completes(
         }
 
     monkeypatch.setattr(consumer, "process_live_records", fake_process)
-    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda *_a, **_k: object())
 
     assert await consumer.run_consumer(args) == 0
     inbox = consumer.DurableInbox(Path(args.inbox))
@@ -1495,7 +1495,7 @@ async def test_one_chat_retention_hold_does_not_kill_other_chat(tmp_path, monkey
         }
 
     monkeypatch.setattr(consumer, "process_live_records", fake_process)
-    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda *_a, **_k: object())
     assert await consumer.run_consumer(args) == 0
     inbox = consumer.DurableInbox(Path(args.inbox))
     assert inbox.counts() == {"completed": 1, "pending": 1}
@@ -1673,7 +1673,7 @@ async def test_demo_pause_retention_hold_preserves_management_lane_and_retries(
         }
 
     monkeypatch.setattr(consumer, "process_live_records", fake_process)
-    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda *_a, **_k: object())
     monkeypatch.setenv("TGG_DEMO_MANAGEMENT_ONLY", "1")
 
     assert await consumer.run_consumer(args) == 0
@@ -2824,7 +2824,7 @@ async def test_nightly_selector_runs_in_fresh_session_while_management_stays_per
         }
 
     monkeypatch.setattr(consumer, "process_live_records", fake_process)
-    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda *_a, **_k: object())
     assert await consumer.run_consumer(args) == 0
     assert observed == [False]
 
@@ -2873,7 +2873,7 @@ async def test_validated_continuous_interval_reuses_persistent_nightly_chat_sess
         }
 
     monkeypatch.setattr(consumer, "process_live_records", fake_process)
-    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda *_a, **_k: object())
     assert await consumer.run_consumer(args) == 0
     assert observed == [True]
 
@@ -3070,7 +3070,7 @@ async def test_seq_3030_management_lane_runs_during_999_site_shape(
         }
 
     monkeypatch.setattr(consumer, "process_live_records", fake_process)
-    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda: object())
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda *_a, **_k: object())
     monkeypatch.delenv("TGG_DEMO_MANAGEMENT_ONLY", raising=False)
 
     assert await consumer.run_consumer(args) == 0
