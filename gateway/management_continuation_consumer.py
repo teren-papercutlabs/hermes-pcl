@@ -380,7 +380,7 @@ async def process_claimed_management_continuation(
         ):
             raise ManagementContinuationError("CONTINUATION_DELIVERY_UNCONFIRMED")
         session_db.complete_session_mailbox(
-            mailbox_id, to_session_key=session_key, to_session_id=session_id
+            mailbox_id, to_session_key=bound_key, to_session_id=bound_id
         )
         return {"mailbox_id": mailbox_id, "delivery": delivery}
     except BaseException as exc:

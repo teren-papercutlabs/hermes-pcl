@@ -146,6 +146,17 @@ def test_unknown_model_outcome_is_failed_not_requeued(tmp_path, monkeypatch):
     asyncio.run(_unknown_model_outcome_is_failed(tmp_path, monkeypatch))
 
 
+def test_retained_session_follows_real_compression_lineage(tmp_path):
+    with closing(SessionDB(db_path=tmp_path / "state.db")) as db:
+        db.create_session("before", source="whatsapp")
+        db.end_session("before", end_reason="compression")
+        db.create_session("after", source="whatsapp", parent_session_id="before")
+        store = SimpleNamespace(_db=db, _ensure_loaded=lambda: None,
+                                _entries={"key": SimpleNamespace(session_id="after")})
+        assert continuation._same_retained_lineage(runner=SimpleNamespace(session_store=store),
+            session_key="key", before_session_id="before", after_session_id="after")
+
+
 async def _unknown_model_outcome_is_failed(tmp_path, monkeypatch):
     monkeypatch.setenv("CONTINUATION_TEST_TOKEN", "token")
     config_path = _config(tmp_path)
