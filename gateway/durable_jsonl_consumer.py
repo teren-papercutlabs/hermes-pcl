@@ -4758,7 +4758,7 @@ async def process_management_document_canary_event(
 
     This deliberately does *not* insert a document entry, poll Systems, append
     a WhatsApp capture row, or advance the production document cursor.  The
-    caller supplies a read-only projection of the Batch 3 record.  That keeps
+    caller supplies a read-only projection of one source record.  That keeps
     the live chat proof honest while Tier 1 separately proves the real source
     transaction produces an outbox entry.
     """
@@ -4772,7 +4772,7 @@ async def process_management_document_canary_event(
     entry = event.get("entry")
     if not isinstance(entry, Mapping):
         raise ConsumerError("management document canary entry is missing")
-    required = ("id", "recordId", "createdAt", "entryKind", "body", "effects")
+    required = ("id", "recordId", "createdAt", "entryKind")
     if any(not str(entry.get(field) or "").strip() for field in required):
         raise ConsumerError("management document canary entry identity is incomplete")
     entry_id = str(entry["id"])
