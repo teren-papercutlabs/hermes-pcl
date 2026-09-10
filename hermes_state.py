@@ -26,7 +26,7 @@ from pathlib import Path
 
 from agent.memory_manager import sanitize_context
 from hermes_constants import get_hermes_home
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -3862,15 +3862,50 @@ class SessionDB:
         source_turn_id: Optional[str] = None,
         source_message_id: Optional[str] = None,
         correlation_id: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Persist a pending inter-session mailbox row."""
+        """Persist a mailbox row, optionally reusing an exact prior request.
+
+        Authentication belongs to the producer boundary. A stable key prevents
+        repeated authorized submissions from creating another turn; it never
+        resets a delivered, claimed or failed row.
+        """
         import uuid
 
         mailbox_id = str(uuid.uuid4())
+        if idempotency_key is not None:
+            if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+                raise ValueError("MAILBOX_IDEMPOTENCY_KEY_INVALID")
+            import hashlib
+            mailbox_id = "idem-" + hashlib.sha256(json.dumps(
+                [str(agent_id), str(from_session_name), idempotency_key],
+                separators=(",", ":"), ensure_ascii=False,
+            ).encode()).hexdigest()
         corr = correlation_id or str(uuid.uuid4())
         now = time.time()
+        bound = {
+            "agent_id": str(agent_id), "from_session_name": str(from_session_name),
+            "to_session_name": str(to_session_name), "body": str(body),
+            "from_session_key": from_session_key, "from_session_id": from_session_id,
+            "to_session_key": to_session_key, "to_session_id": to_session_id,
+            "source_turn_id": source_turn_id, "source_message_id": source_message_id,
+        }
 
         def _do(conn):
+            if idempotency_key is not None:
+                previous = conn.execute(
+                    "SELECT * FROM session_mailbox WHERE id = ?", (mailbox_id,),
+                ).fetchone()
+                if previous is not None:
+                    # Delivery fills resolved destination fields. An omitted
+                    # target must not conflict with that later resolution.
+                    comparison = {key: value for key, value in bound.items()
+                                  if key not in ("to_session_key", "to_session_id") or value is not None}
+                    if any(previous[key] != value for key, value in comparison.items()) or (
+                        correlation_id is not None and previous["correlation_id"] != correlation_id
+                    ):
+                        raise ValueError("MAILBOX_IDEMPOTENCY_CONFLICT")
+                    return dict(previous)
             conn.execute(
                 """
                 INSERT INTO session_mailbox (
@@ -3896,37 +3931,83 @@ class SessionDB:
                     now,
                 ),
             )
+            return {"id": mailbox_id, **bound, "status": "pending",
+                    "correlation_id": corr, "created_at": now}
 
-        self._execute_write(_do)
-        return {
-            "id": mailbox_id,
-            "agent_id": str(agent_id),
-            "from_session_name": str(from_session_name),
-            "to_session_name": str(to_session_name),
-            "status": "pending",
-            "correlation_id": corr,
-            "created_at": now,
-        }
+        row = self._execute_write(_do)
+        return {key: row[key] for key in (
+            "id", "agent_id", "from_session_name", "to_session_name",
+            "status", "correlation_id", "created_at",
+        )}
 
     def list_pending_session_mailbox(
         self,
         *,
         agent_id: Optional[str] = None,
         limit: int = 50,
+        include_body_contract: Optional[str] = None,
+        exclude_body_contracts: Iterable[str] = (),
     ) -> List[Dict[str, Any]]:
-        """Return pending mailbox rows, oldest first."""
+        """Return pending mailbox rows, oldest first.
+
+        Contract filtering is deliberately applied before the limit.  Typed
+        mailbox consumers must not be starved by ordinary rows ahead of them,
+        and the matching predicate is shared with the atomic claim path.
+        """
+        include, excluded = self._mailbox_contract_filter(
+            include_body_contract, exclude_body_contracts
+        )
         try:
             sql = "SELECT * FROM session_mailbox WHERE status = 'pending'"
             params: list[Any] = []
             if agent_id:
                 sql += " AND agent_id = ?"
                 params.append(str(agent_id))
-            sql += " ORDER BY created_at ASC LIMIT ?"
-            params.append(max(1, int(limit)))
+            sql += " ORDER BY created_at ASC"
             cur = self._conn.execute(sql, tuple(params))
-            return [dict(r) for r in cur.fetchall()]
+            selected: list[Dict[str, Any]] = []
+            for sqlite_row in cur:
+                row = dict(sqlite_row)
+                if not self._mailbox_contract_allowed(row.get("body"), include, excluded):
+                    continue
+                selected.append(row)
+                if len(selected) >= max(1, int(limit)):
+                    break
+            return selected
         except Exception:
             return []
+
+    @staticmethod
+    def _mailbox_contract_filter(
+        include_body_contract: Optional[str], exclude_body_contracts: Iterable[str]
+    ) -> tuple[Optional[str], frozenset[str]]:
+        if include_body_contract is not None and (
+            not isinstance(include_body_contract, str) or not include_body_contract
+        ):
+            raise ValueError("MAILBOX_BODY_CONTRACT_INVALID")
+        try:
+            excluded = frozenset(exclude_body_contracts)
+        except TypeError as exc:
+            raise ValueError("MAILBOX_BODY_CONTRACT_INVALID") from exc
+        if any(not isinstance(contract, str) or not contract for contract in excluded):
+            raise ValueError("MAILBOX_BODY_CONTRACT_INVALID")
+        return include_body_contract, excluded
+
+    @staticmethod
+    def _mailbox_contract_allowed(
+        raw_body: Any, include: Optional[str], excluded: frozenset[str]
+    ) -> bool:
+        try:
+            body = json.loads(str(raw_body))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            contract = None
+        else:
+            contract = body.get("contract") if isinstance(body, dict) else None
+        if not isinstance(contract, str):
+            contract = None
+        if include is not None and contract != include:
+            return False
+        return contract not in excluded
 
     def get_session_mailbox_message(self, mailbox_id: str) -> Optional[Dict[str, Any]]:
         """Return one mailbox row by id."""
@@ -3940,11 +4021,30 @@ class SessionDB:
         except Exception:
             return None
 
-    def claim_session_mailbox(self, mailbox_id: str) -> bool:
-        """Atomically transition a pending mailbox row to running."""
+    def claim_session_mailbox(
+        self,
+        mailbox_id: str,
+        *,
+        include_body_contract: Optional[str] = None,
+        exclude_body_contracts: Iterable[str] = (),
+    ) -> bool:
+        """Atomically transition a contract-matching pending row to running."""
+        include, excluded = self._mailbox_contract_filter(
+            include_body_contract, exclude_body_contracts
+        )
         now = time.time()
 
         def _do(conn):
+            row = conn.execute(
+                "SELECT body FROM session_mailbox WHERE id = ? AND status = 'pending'",
+                (str(mailbox_id),),
+            ).fetchone()
+            # This read and transition share the write transaction.  A stale
+            # unfiltered list result therefore cannot claim a reserved row.
+            if row is None or not self._mailbox_contract_allowed(
+                row["body"], include, excluded
+            ):
+                return False
             cur = conn.execute(
                 """
                 UPDATE session_mailbox
@@ -3959,6 +4059,78 @@ class SessionDB:
             return cur.rowcount > 0
 
         return self._execute_write(_do)
+
+    def fail_running_session_mailbox(
+        self,
+        *,
+        agent_id: str,
+        from_session_name: str,
+        to_session_name: str,
+        body_contract: str,
+        error: str,
+    ) -> int:
+        """Terminalize matching prior-process claims without returning them to pending."""
+        include, excluded = self._mailbox_contract_filter(body_contract, ())
+        now = time.time()
+
+        def _do(conn):
+            rows = conn.execute(
+                """
+                SELECT id, body FROM session_mailbox
+                WHERE agent_id = ? AND from_session_name = ? AND to_session_name = ?
+                  AND status = 'running'
+                """,
+                (str(agent_id), str(from_session_name), str(to_session_name)),
+            ).fetchall()
+            ids = [
+                str(row["id"]) for row in rows
+                if self._mailbox_contract_allowed(row["body"], include, excluded)
+            ]
+            if not ids:
+                return 0
+            placeholders = ", ".join("?" for _ in ids)
+            cur = conn.execute(
+                f"""
+                UPDATE session_mailbox
+                SET status = 'failed', failed_at = ?, last_error = ?
+                WHERE status = 'running' AND id IN ({placeholders})
+                """,
+                (now, (error or "")[:1000], *ids),
+            )
+            return int(cur.rowcount)
+
+        return self._execute_write(_do)
+
+    def failed_session_mailbox_status(
+        self,
+        *,
+        agent_id: str,
+        from_session_name: str,
+        to_session_name: str,
+        body_contract: str,
+    ) -> Dict[str, Any]:
+        """Return failed count and newest error for one typed mailbox owner."""
+        include, excluded = self._mailbox_contract_filter(body_contract, ())
+        try:
+            rows = self._conn.execute(
+                """
+                SELECT body, last_error, failed_at FROM session_mailbox
+                WHERE agent_id = ? AND from_session_name = ? AND to_session_name = ?
+                  AND status = 'failed'
+                ORDER BY failed_at DESC
+                """,
+                (str(agent_id), str(from_session_name), str(to_session_name)),
+            )
+            matching = [
+                row for row in rows
+                if self._mailbox_contract_allowed(row["body"], include, excluded)
+            ]
+            return {
+                "failed_count": len(matching),
+                "latest_error": matching[0]["last_error"] if matching else None,
+            }
+        except Exception:
+            return {"failed_count": None, "latest_error": "MAILBOX_STATUS_UNAVAILABLE"}
 
     def defer_session_mailbox(self, mailbox_id: str, reason: str = "") -> None:
         """Return a claimed row to pending, preserving durability."""

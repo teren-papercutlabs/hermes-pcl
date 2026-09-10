@@ -623,6 +623,13 @@ class ReplayPlan:
     history_before_ts: Optional[int] = None
     source_path: Optional[str] = None
     replay_namespace: Optional[str] = None
+    # Trusted runtime code can bind one typed internal event to an already
+    # retained session. This is intentionally not accepted by from_mapping(),
+    # so replay files and user input cannot select another conversation.
+    session_key_override: Optional[str] = None
+    # Only direct runtime construction may mark events internal. Serialized
+    # replay plans and captured payloads cannot grant this provenance.
+    internal_message_ids: tuple[str, ...] = ()
     replay_policy: Mapping[str, Any] = field(default_factory=dict)
     corpus_manifest: Mapping[str, Any] = field(default_factory=dict)
     config_overlay_manifest: Mapping[str, Any] = field(default_factory=dict)
@@ -639,6 +646,16 @@ class ReplayPlan:
         if self.business_write_mode not in {"apply", "capture"}:
             raise ValueError("business_write_mode must be 'apply' or 'capture'")
         object.__setattr__(self, "replay_namespace", namespace)
+        if self.internal_message_ids:
+            message_ids = {str(message.get("messageId") or "") for message in self.messages}
+            if any(not value or value not in message_ids for value in self.internal_message_ids):
+                raise ValueError("internal message identity is not in this plan")
+        override = self.session_key_override
+        if override is not None:
+            override = str(override).strip()
+            if not override.startswith(namespace + ":"):
+                raise ValueError("session_key_override must be in this replay namespace")
+            object.__setattr__(self, "session_key_override", override)
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any], *, base_dir: Path | None = None) -> "ReplayPlan":
@@ -1023,6 +1040,8 @@ class ReplayExecutionContext:
         return {cmd.lstrip("/").lower() for cmd in self.plan.replay_safe_commands}
 
     def namespace_session_key(self, session_key: str) -> str:
+        if self.plan.session_key_override:
+            return str(self.plan.session_key_override)
         return namespace_session_key(session_key, self.replay_namespace)
 
     def bridge_headers(self) -> dict[str, str]:
