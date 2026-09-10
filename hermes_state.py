@@ -3862,15 +3862,50 @@ class SessionDB:
         source_turn_id: Optional[str] = None,
         source_message_id: Optional[str] = None,
         correlation_id: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Persist a pending inter-session mailbox row."""
+        """Persist a mailbox row, optionally reusing an exact prior request.
+
+        Authentication belongs to the producer boundary. A stable key prevents
+        repeated authorized submissions from creating another turn; it never
+        resets a delivered, claimed or failed row.
+        """
         import uuid
 
         mailbox_id = str(uuid.uuid4())
+        if idempotency_key is not None:
+            if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+                raise ValueError("MAILBOX_IDEMPOTENCY_KEY_INVALID")
+            import hashlib
+            mailbox_id = "idem-" + hashlib.sha256(json.dumps(
+                [str(agent_id), str(from_session_name), idempotency_key],
+                separators=(",", ":"), ensure_ascii=False,
+            ).encode()).hexdigest()
         corr = correlation_id or str(uuid.uuid4())
         now = time.time()
+        bound = {
+            "agent_id": str(agent_id), "from_session_name": str(from_session_name),
+            "to_session_name": str(to_session_name), "body": str(body),
+            "from_session_key": from_session_key, "from_session_id": from_session_id,
+            "to_session_key": to_session_key, "to_session_id": to_session_id,
+            "source_turn_id": source_turn_id, "source_message_id": source_message_id,
+        }
 
         def _do(conn):
+            if idempotency_key is not None:
+                previous = conn.execute(
+                    "SELECT * FROM session_mailbox WHERE id = ?", (mailbox_id,),
+                ).fetchone()
+                if previous is not None:
+                    # Delivery fills resolved destination fields. An omitted
+                    # target must not conflict with that later resolution.
+                    comparison = {key: value for key, value in bound.items()
+                                  if key not in ("to_session_key", "to_session_id") or value is not None}
+                    if any(previous[key] != value for key, value in comparison.items()) or (
+                        correlation_id is not None and previous["correlation_id"] != correlation_id
+                    ):
+                        raise ValueError("MAILBOX_IDEMPOTENCY_CONFLICT")
+                    return dict(previous)
             conn.execute(
                 """
                 INSERT INTO session_mailbox (
@@ -3896,17 +3931,14 @@ class SessionDB:
                     now,
                 ),
             )
+            return {"id": mailbox_id, **bound, "status": "pending",
+                    "correlation_id": corr, "created_at": now}
 
-        self._execute_write(_do)
-        return {
-            "id": mailbox_id,
-            "agent_id": str(agent_id),
-            "from_session_name": str(from_session_name),
-            "to_session_name": str(to_session_name),
-            "status": "pending",
-            "correlation_id": corr,
-            "created_at": now,
-        }
+        row = self._execute_write(_do)
+        return {key: row[key] for key in (
+            "id", "agent_id", "from_session_name", "to_session_name",
+            "status", "correlation_id", "created_at",
+        )}
 
     def list_pending_session_mailbox(
         self,
