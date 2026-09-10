@@ -182,6 +182,38 @@ def _canary_event(entry_id: str = "pa75-canary-entry:batch3") -> dict:
     return event
 
 
+def _backend15_empty_effects_event() -> dict:
+    """Match the real Backend15 initial-default shape without copying its source text."""
+    event = _canary_event(
+        "pa75-canary-entry:backend15-review-boundary-20260911-04095a4acc004f5394037935"
+    )
+    event.update({
+        "id": "pa75-canary:backend15-review-boundary-20260911-04095a4acc004f5394037935",
+        "source_record_id": "1af369d2-4fe7-44c2-ab85-96a446c1517e",
+        "source_entry_id": "aa0a274c-a2ed-4a3a-b568-8afc2f5e4166",
+        "test_attempt_id": "backend15-review-boundary-20260911",
+    })
+    event["entry"].update({
+        "recordId": event["source_record_id"],
+        "sourceEntryId": event["source_entry_id"],
+        "effects": [],
+    })
+    event["source_record_projection"] = {
+        "recordId": event["source_record_id"],
+        "initialEntryId": event["source_entry_id"],
+        "kind": "unknown_case_identity",
+    }
+    event["source_record_projection_sha256"] = __import__("hashlib").sha256(
+        (json.dumps(event["source_record_projection"], ensure_ascii=False, sort_keys=True,
+                    separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    event["event_sha256"] = __import__("hashlib").sha256(
+        (json.dumps({key: value for key, value in event.items() if key != "event_sha256"},
+                    ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    return event
+
+
 def _enable_document_events(monkeypatch: pytest.MonkeyPatch, *, chat_id: str = MGMT_CHAT) -> None:
     monkeypatch.setenv("TGG_MANAGEMENT_DOCUMENT_API_URL", "http://systems.test")
     monkeypatch.setenv("TGG_MANAGEMENT_DOCUMENT_CHAT_ID", chat_id)
@@ -266,6 +298,36 @@ async def test_pa75_typed_canary_event_uses_real_notice_delivery_without_poll_or
     assert calls == ["http://127.0.0.1:3011/send"]
     assert inbox.management_document_cursor() is None
     assert inbox.total() == 0
+
+
+@pytest.mark.asyncio
+async def test_pa75_typed_canary_accepts_backend15_initial_default_with_no_effects(
+    inbox: DurableInbox, config_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_document_events(monkeypatch)
+    calls: list[str] = []
+
+    def fake_urlopen(request, timeout=0):
+        calls.append(request.full_url)
+        return _FakeResponse({"success": True, "messageId": "WA-backend15-canary"})
+
+    async def fake_turn(entry, **kwargs):
+        assert entry["recordId"] == "1af369d2-4fe7-44c2-ab85-96a446c1517e"
+        assert entry["sourceEntryId"] == "aa0a274c-a2ed-4a3a-b568-8afc2f5e4166"
+        assert entry["effects"] == []
+        return [_captured(MGMT_CHAT, "Has this report been reviewed?", reply_to=None)]
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("gateway.durable_jsonl_consumer._run_management_document_turn", fake_turn)
+    event = _backend15_empty_effects_event()
+    result = await process_management_document_canary_event(
+        inbox, config_path=config_path, runner=object(), event=event,
+    )
+    assert result["record_id"] == "1af369d2-4fe7-44c2-ab85-96a446c1517e"
+    assert result["entry_id"] == event["entry"]["id"]
+    assert result["delivery_outcome"] == "delivered"
+    assert result["outbound_count"] == 1
+    assert calls == ["http://127.0.0.1:3011/send"]
 
 
 def test_pa75_canary_cli_uses_real_notice_path_and_immutable_receipt(
@@ -425,7 +487,9 @@ def test_pa75_raw_capture_receipt_is_idempotent_and_refuses_divergence(
 @pytest.mark.parametrize(
     "mutate,reason",
     [
-        (lambda event: event["entry"].pop("body"), "entry identity is incomplete"),
+        (lambda event: event["entry"].pop("body"), "entry projection is incomplete"),
+        (lambda event: event["entry"].pop("effects"), "entry projection is incomplete"),
+        (lambda event: event["entry"].update(effects=None), "entry projection is incomplete"),
         (lambda event: event.update(source_record_projection_sha256="0" * 64), "source projection hash mismatch"),
         (lambda event: event["entry"].update(id="3d781e49-242e-46ea-951c-1cec68675953"), "entry ID must use the canary namespace"),
     ],
