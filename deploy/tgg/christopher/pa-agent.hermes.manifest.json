@@ -248,6 +248,7 @@
     "gateway/management_continuation.py",
     "gateway/management_continuation_consumer.py",
     "gateway/management_continuation_entry.py",
+    "gateway/management_message_context.py",
     "gateway/mirror.py",
     "gateway/pa_eval.py",
     "gateway/pa_observability.py",
