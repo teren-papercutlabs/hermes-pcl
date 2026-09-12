@@ -1,16 +1,42 @@
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 
 from cron.jobs import create_job, get_job
-from cron.scheduler import run_job
+from cron.scheduler import _merge_cron_pa_toolsets, run_job
 from gateway.session_context import clear_session_vars, set_session_vars
 from tools.cronjob_tools import cronjob
 
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "pa" / "bobby_tgg_constitution.yaml"
+
+
+def test_explicit_tgg_readonly_delegation_survives_cron_default():
+    enabled = ["tgg-management-readonly-investigation", "delegation"]
+    context = SimpleNamespace(
+        job_type="tgg_management",
+        job_brief=SimpleNamespace(enabled_toolsets=enabled, disabled_toolsets=[]),
+    )
+    actual_enabled, disabled = _merge_cron_pa_toolsets(
+        None, ["cronjob", "messaging", "clarify", "delegation"], context
+    )
+    assert actual_enabled == enabled
+    assert disabled == ["cronjob", "messaging", "clarify"]
+    # A deliberate declaration-level disable still wins.
+    context.job_brief.disabled_toolsets = ["delegation"]
+    assert "delegation" in _merge_cron_pa_toolsets(None, ["delegation"], context)[1]
+
+
+def test_other_cron_context_keeps_default_delegation_exclusion():
+    context = SimpleNamespace(
+        job_type="tgg_management",
+        job_brief=SimpleNamespace(enabled_toolsets=["delegation"], disabled_toolsets=[]),
+    )
+    assert _merge_cron_pa_toolsets(None, ["delegation"], context)[1] == ["delegation"]
+    assert _merge_cron_pa_toolsets(None, ["delegation"], None)[1] == ["delegation"]
 
 
 @pytest.fixture()
