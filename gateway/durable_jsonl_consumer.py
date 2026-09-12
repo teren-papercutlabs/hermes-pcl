@@ -4966,6 +4966,29 @@ async def _process_claimed_chat_batch_unlocked(
         )
         return
     try:
+        context_records: tuple[Any, ...] = ()
+        if (
+            direct_trigger_required
+            and records[0].chat_id in _management_selector_chats(config_path)
+        ):
+            # The durable consumer is Christopher's owned adapter above the
+            # native GatewayRunner/ReplayPlan harness.  Reuse its supported
+            # replay_messages seam to supply a trailing passive burst only
+            # after these newly claimed rows have independently passed the
+            # direct-trigger gate.  The selected rows remain terminal skipped;
+            # they are context, not newly claimed work.
+            from gateway.management_message_context import (
+                contextual_replay_message,
+                previous_skipped_context,
+            )
+
+            context_records = previous_skipped_context(
+                inbox_db=inbox.db_path,
+                state_db=state_db,
+                current_records=records,
+                limit=steering_batch_size,
+            )
+        replay_records = (*context_records, *records)
         # Capture-lane retention normally terminals while the row is pending.
         # This claimed-chat path remains the idempotent safety net: Hermes sees
         # either retained media, an explicit permanent refusal, or an explicit
@@ -4992,7 +5015,7 @@ async def _process_claimed_chat_batch_unlocked(
             await asyncio.to_thread(
                 _inject_bounded_source_evidence,
                 case_db,
-                records,
+                replay_records,
                 before_image_path=before_image_path,
                 run_id=projection_run_id,
                 dry_run=False,
@@ -5028,6 +5051,17 @@ async def _process_claimed_chat_batch_unlocked(
                     runner=runner,
                     management_document_correlations=management_document_correlations,
                     capture_business_writes_for_test_management=capture_canary_reply,
+                    replay_messages=(
+                        contextual_replay_message(
+                            _replay_messages_with_retained_documents(
+                                replay_records,
+                                config_path=config_path,
+                                management_document_correlations=management_document_correlations,
+                            )
+                        )
+                        if context_records
+                        else None
+                    ),
                 )
             )
             if allow_active_steering:
@@ -5087,7 +5121,8 @@ async def _process_claimed_chat_batch_unlocked(
                 continue
             for message_id in group.get("message_ids") or []:
                 turn_for_message[str(message_id)] = turn_id
-        unknown = set(turn_for_message) - expected
+        contextual = {record.message_id for record in context_records}
+        unknown = set(turn_for_message) - expected - contextual
         if unknown:
             raise ConsumerError(
                 f"turn evidence referenced messages outside claimed chat batch: {sorted(unknown)}"
