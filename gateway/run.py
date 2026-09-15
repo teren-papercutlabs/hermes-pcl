@@ -18593,6 +18593,8 @@ class GatewayRunner:
                                 f"classified. Start at exact cursor={resume_cursor}."
                             )
                         completion_prompt = (
+                            f"Continuous WhatsApp interval. batch_id={batch_id}. "
+                            f"authoritative_chat_id={authoritative_chat_id}. "
                             "The immutable nightly chat receipt is still missing for "
                             f"batch_id={batch_id} and authoritative_chat_id={authoritative_chat_id}. "
                             "Previous pages, image inspections and findings are durably saved. "
