@@ -2962,6 +2962,93 @@ def test_management_trigger_requires_mention_or_quoted_christopher_reply():
     assert consumer._management_direct_trigger(consumer.InboxRecord(4, "wrong", "management@g.us", 3, 4, wrong_reply_raw)) is False
 
 
+@pytest.mark.asyncio
+async def test_management_brief_admits_unmentioned_messages_without_widening_nightly(
+    tmp_path, monkeypatch
+):
+    real_management = "120363407903158826@g.us"
+    test_management = "120363426509183563@g.us"
+    nightly_chat = "900000000000000001@g.us"
+    messages = [
+        _message("real-unmentioned", real_management),
+        _message("test-unmentioned", test_management),
+        _message("nightly-unmentioned", nightly_chat),
+    ]
+    args = _enabled_consumer_args(tmp_path, messages)
+    constitution = Path(
+        yaml.safe_load(Path(args.config).read_text())["pa"]["constitution_path"]
+    )
+    constitution.write_text(
+        yaml.safe_dump({
+            "job_briefs": {
+                "tgg_management": {
+                    "require_mention": False,
+                },
+            },
+            "selectors": [
+                {
+                    "job_type": "tgg_management",
+                    "match": {
+                        "source.platform": "whatsapp",
+                        "source.chat_id": chat_id,
+                    },
+                }
+                for chat_id in (real_management, test_management)
+            ] + [{
+                "job_type": "tgg_nightly_whatsapp",
+                "match": {
+                    "source.platform": "whatsapp",
+                    "source.chat_id": nightly_chat,
+                },
+            }],
+        }),
+        encoding="utf-8",
+    )
+    processed_chats: list[str] = []
+
+    async def fake_process(records, **_kwargs):
+        chat_id = records[0].chat_id
+        processed_chats.append(chat_id)
+        message_ids = [record.message_id for record in records]
+        return {
+            "processed": len(records),
+            "submitted_message_ids": message_ids,
+            "handled": [{
+                "message_ids": message_ids,
+                "turn_id": f"turn-{chat_id}",
+            }],
+            "captured_outbound": [],
+        }
+
+    monkeypatch.setattr(consumer, "process_live_records", fake_process)
+    monkeypatch.setattr(consumer, "_new_gateway_runner", lambda *_a, **_k: object())
+
+    assert await consumer.run_consumer(args) == 0
+    assert set(processed_chats) == {real_management, test_management}
+    inbox = consumer.DurableInbox(Path(args.inbox))
+    with inbox.connect() as conn:
+        rows = {
+            row["message_id"]: (row["status"], row["last_error"])
+            for row in conn.execute(
+                "SELECT message_id,status,last_error FROM ingress_events"
+            )
+        }
+    assert rows == {
+        "real-unmentioned": ("completed", None),
+        "test-unmentioned": ("completed", None),
+        "nightly-unmentioned": (
+            "skipped", "PRIORITY_DIRECT_TRIGGER_NOT_RECOGNIZED"
+        ),
+    }
+
+
+def test_management_direct_trigger_setting_defaults_closed(tmp_path):
+    args = _enabled_consumer_args(tmp_path, [])
+    config = Path(args.config)
+    assert consumer._management_requires_direct_trigger(config, "management@g.us")
+    assert consumer._management_requires_direct_trigger(config, "other@g.us")
+
+
 def test_startup_reconciles_successful_turn_refs_and_requeues_only_unmatched(tmp_path):
     inbox = consumer.DurableInbox(tmp_path / "inbox.db")
     source = tmp_path / "events.jsonl"
