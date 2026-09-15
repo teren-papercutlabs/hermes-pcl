@@ -3386,6 +3386,29 @@ def _management_quiet_seconds(config_path: Path) -> float:
         raise ConsumerError("tgg_management debounce_addressed_ms is invalid") from None
 
 
+def _management_requires_direct_trigger(config_path: Path, chat_id: str) -> bool:
+    """Read the management brief gate without widening other priority chats."""
+    if chat_id not in _management_selector_chats(config_path):
+        return True
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    pa = data.get("pa") if isinstance(data, dict) else None
+    constitution_raw = str((pa or {}).get("constitution_path") or "")
+    if not constitution_raw:
+        return True
+    constitution_path = Path(constitution_raw)
+    if not constitution_path.is_file():
+        return True
+    constitution = yaml.safe_load(constitution_path.read_text(encoding="utf-8")) or {}
+    briefs = constitution.get("job_briefs") if isinstance(constitution, Mapping) else None
+    management = briefs.get("tgg_management") if isinstance(briefs, Mapping) else None
+    raw = management.get("require_mention") if isinstance(management, Mapping) else None
+    if raw is None:
+        return True
+    if not isinstance(raw, bool):
+        raise ConsumerError("tgg_management require_mention must be boolean")
+    return raw
+
+
 def _normalize_whatsapp_id(value: Any) -> str:
     normalized = str(value or "").strip()
     if ":" in normalized and "@" in normalized:
@@ -5556,7 +5579,9 @@ async def run_consumer(args: argparse.Namespace) -> int:
                             runner=runner,
                             case_db=case_db,
                             source_before_image_dir=source_before_image_dir,
-                            direct_trigger_required=True,
+                            direct_trigger_required=_management_requires_direct_trigger(
+                                config_path, chat_id
+                            ),
                             allow_active_steering=True,
                             persistent_session=(
                                 _continuous_interval_batch(records, config_path)
