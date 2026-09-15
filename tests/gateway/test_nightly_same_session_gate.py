@@ -1,5 +1,6 @@
 """The nightly analyzer receipt gate stays inside one live agent session."""
 
+import re
 import sys
 import threading
 import types
@@ -72,6 +73,8 @@ def _runner():
 
 @pytest.mark.asyncio
 async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monkeypatch, tmp_path):
+    batch_id = "nightly:2026-08-17:abcdef012345"
+    authoritative_chat_id = "120363421153247095@g.us"
     _FakeAgent.instances = []
     fake_run_agent = types.ModuleType("run_agent")
     fake_run_agent.AIAgent = _FakeAgent
@@ -91,9 +94,9 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
         index = len(status_calls)
         return {
             "ok": True,
-            "completed_chat_ids": [] if index < 4 else ["amk@g.us"],
+            "completed_chat_ids": [] if index < 4 else [authoritative_chat_id],
             "chat_progress": {
-                "amk@g.us": {
+                authoritative_chat_id: {
                     "sha256": "baseline" if index == 1 else f"progress-{index - 1}",
                     "page_classifications": 3 if index == 1 else index + 2,
                 }
@@ -116,7 +119,7 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
         session_id="nightly-session",
         session_key="nightly-session-key",
         pa_job_type="tgg_nightly_whatsapp",
-        pa_context={"nightly_batch_id": "nightly:2026-08-17:test", "authoritative_chat_id": "amk@g.us"},
+        pa_context={"nightly_batch_id": batch_id, "authoritative_chat_id": authoritative_chat_id},
         suppress_delivery=True,
     )
 
@@ -128,17 +131,25 @@ async def test_nightly_analyzer_continues_same_agent_session_until_receipt(monke
     assert calls[0]["conversation_history"] == []
     assert calls[1]["conversation_history"] == []
     assert calls[2]["conversation_history"] == []
-    assert all(
-        "batch_id=nightly:2026-08-17:test" in call["message"]
-        and "authoritative_chat_id=amk@g.us" in call["message"]
-        for call in calls[1:]
+    receipt_binding = re.compile(
+        r"\bContinuous WhatsApp interval\. batch_id=(nightly:\d{4}-\d{2}-\d{2}:[0-9a-f]{12})\. "
+        r"authoritative_chat_id=(\d+@g\.us)\."
     )
+    prior_continuation = (
+        "The immutable nightly chat receipt is still missing for "
+        f"batch_id={batch_id} and authoritative_chat_id={authoritative_chat_id}."
+    )
+    assert receipt_binding.search(prior_continuation) is None
+    assert [receipt_binding.search(call["message"]).groups() for call in calls[1:]] == [
+        (batch_id, authoritative_chat_id),
+        (batch_id, authoritative_chat_id),
+    ]
     assert "Start at exact cursor=100" in calls[1]["message"]
     assert "Start at exact cursor=125" in calls[2]["message"]
     assert "Do not load the full chat ledger" in calls[1]["message"]
     assert "process exactly that one page" in calls[1]["message"].lower()
     assert len(status_calls) == 4
-    assert status_calls == [{"batch_id": "nightly:2026-08-17:test"}] * 4
+    assert status_calls == [{"batch_id": batch_id}] * 4
     assert runner._queued_events == {}
 
 
