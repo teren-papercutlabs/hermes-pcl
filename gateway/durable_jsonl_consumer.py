@@ -3540,11 +3540,12 @@ def _parse_captured_send(entry: Mapping[str, Any]) -> dict[str, Any] | None:
         "chat_id": chat_id,
         "content": content,
         "reply_to": str(reply_to) if reply_to else None,
+        "workspace_owner": str(entry.get("workspace_owner") or "").strip() or None,
     }
 
 
 _CAPTURED_IMAGE_MEDIA_RE = re.compile(
-    r"MEDIA:\s*(?P<path>(?:file://)?(?:~/|/)\S+)",
+    r"MEDIA:\s*(?P<path>(?:(?:file://)?(?:~/|/)\S+|work/\S+))",
     re.IGNORECASE,
 )
 
@@ -3578,13 +3579,17 @@ def _expand_captured_send(send: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "response_text": cleaned or None,
                 "reply_to": send.get("reply_to"),
                 "ordinal": ordinal,
+                "workspace_owner": send.get("workspace_owner"),
             }
         )
     return expanded
 
 
 def _resolve_captured_media_path(
-    raw_path: Any, retention: Mapping[str, Any]
+    raw_path: Any,
+    retention: Mapping[str, Any] | None,
+    *,
+    workspace_owner: str | None = None,
 ) -> Path:
     """Resolve a captured local path or configured opaque media reference.
 
@@ -3599,12 +3604,21 @@ def _resolve_captured_media_path(
     text = str(raw_path or "").strip()
     if not text or any(marker in text for marker in ("?", "#", "\r", "\n")):
         raise MediaRetentionError("captured media reference is invalid")
+    if text.startswith(("work/", "/work/")):
+        from tools.python_sandbox_tool import resolve_sandbox_work_path
+
+        try:
+            return resolve_sandbox_work_path(text, str(workspace_owner or ""))
+        except ValueError as exc:
+            raise MediaRetentionError(str(exc)) from exc
     if text.startswith("file://"):
         parsed = urlsplit(text)
         if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
             raise MediaRetentionError("captured media file URI is invalid")
         text = unquote(parsed.path)
 
+    if retention is None:
+        raise MediaRetentionError("retained media is not configured")
     ref_prefix = str(retention["ref_prefix"])
     prefix = f"{ref_prefix}/"
     if text.startswith(prefix):
@@ -3755,6 +3769,7 @@ def _parse_captured_media(entry: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "caption": str(caption) if caption else None,
                 "reply_to": str(reply_to) if reply_to else None,
                 "ordinal": ordinal,
+                "workspace_owner": str(entry.get("workspace_owner") or "").strip() or None,
             })
     return parsed
 
@@ -3965,6 +3980,7 @@ def deliver_management_replies(
             {
                 "response_text": str(send.get("response_text") or "").strip(),
                 "anchor_item": dict(anchor_item),
+                "failure_note": str(send.get("failure_note") or "").strip(),
             },
         )
         if not entry.get("response_text") and send.get("response_text"):
@@ -4024,17 +4040,54 @@ def deliver_management_replies(
         # again.  ``anchor`` is the source-native messageId, not replay-1.
         if send.get("send_kind", "text") == "media":
             retention = _retention_config(config_path)
-            if retention is None:
-                summary["suppressed"] += 1
-                continue
             try:
-                media_path = _resolve_captured_media_path(send["path"], retention)
+                media_path = _resolve_captured_media_path(
+                    send["path"],
+                    retention,
+                    workspace_owner=send.get("workspace_owner"),
+                )
                 media_type, media_mime, media_file_name = (
                     _validated_captured_media_type(media_path)
                 )
                 media_identity = hashlib.sha256(media_path.read_bytes()).hexdigest()
-            except (OSError, MediaRetentionError):
-                summary["suppressed"] += 1
+            except (OSError, MediaRetentionError) as exc:
+                requested_reference = str(send.get("path") or "")
+                if not requested_reference.startswith(("work/", "/work/")):
+                    summary["suppressed"] += 1
+                    continue
+                refusal_identity = json.dumps(
+                    {
+                        "chat_id": chat_id,
+                        "anchor": str(anchor),
+                        "ordinal": int(send.get("ordinal") or 0),
+                        "requested_reference": requested_reference,
+                        "workspace_owner": str(send.get("workspace_owner") or ""),
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                refusal_digest = hashlib.sha256(refusal_identity.encode()).hexdigest()
+                delivery_key = f"media-refused::{chat_id}::{anchor}::{refusal_digest}"
+                if not inbox.claim_reply_delivery(
+                    delivery_key,
+                    chat_id=chat_id,
+                    reply_to_message_id=anchor,
+                ):
+                    summary["duplicate"] += 1
+                    continue
+                inbox.record_reply_delivery(
+                    delivery_key,
+                    status="undelivered",
+                    error=f"sandbox attachment refused: {exc}"[:300],
+                )
+                summary["undelivered"] += 1
+                failed_send = dict(send)
+                failed_send["failure_note"] = (
+                    "I couldn't send the attachment. Use the exact files[].path "
+                    "returned by the sandbox, or an existing /media/... reference."
+                )
+                note_media_failure(failed_send, chat_id, str(anchor), anchor_item)
                 continue
             delivery_key = (
                 f"media::{chat_id}::{anchor}::{media_identity}::{send['ordinal']}"
@@ -4170,7 +4223,9 @@ def deliver_management_replies(
             summary["duplicate"] += 1
             continue
         answer = str(failure.get("response_text") or "").strip()
-        note = "I couldn't send one or more of the selected images."
+        note = str(failure.get("failure_note") or "").strip() or (
+            "I couldn't send one or more of the selected images."
+        )
         if (chat_id, anchor) in media_caption_delivered:
             message = note
         else:

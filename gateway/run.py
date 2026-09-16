@@ -6649,7 +6649,21 @@ class GatewayRunner:
 
         def _make_guard(kind: str):
             async def _guard(*args, **kwargs):
-                message_id = ctx.record_outbound(kind=kind, args=args, kwargs=kwargs)
+                capture_kwargs = dict(kwargs)
+                metadata = capture_kwargs.get("metadata")
+                workspace_owner = None
+                if isinstance(metadata, Mapping):
+                    clean_metadata = dict(metadata)
+                    workspace_owner = clean_metadata.pop(
+                        "_hermes_replay_workspace_owner", None
+                    )
+                    capture_kwargs["metadata"] = clean_metadata or None
+                message_id = ctx.record_outbound(
+                    kind=kind,
+                    args=args,
+                    kwargs=capture_kwargs,
+                    workspace_owner=workspace_owner,
+                )
                 if ctx.delivery_mode == "drop":
                     return SendResult(success=True, message_id=None, raw_response={"replay": "drop"})
                 return SendResult(success=True, message_id=message_id, raw_response={"replay": "capture"})
@@ -6670,6 +6684,7 @@ class GatewayRunner:
         ):
             if hasattr(adapter, name):
                 setattr(adapter, name, _make_guard(name))
+        adapter._hermes_replay_delivery_guard = True
 
     def _replay_home_channel(self, platform: Any, plan: Any) -> str | None:
         """Resolve the replay-only home channel without mutating ``os.environ``.

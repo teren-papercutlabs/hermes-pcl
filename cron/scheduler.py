@@ -581,6 +581,8 @@ def _deliver_whatsapp_via_tgg_reply_bridge(
     chat_id: str,
     text: str,
     media_files: list,
+    *,
+    workspace_owner: str | None = None,
 ) -> Optional[str]:
     """Deliver Christopher cron output through the durable consumer bridge.
 
@@ -600,6 +602,10 @@ def _deliver_whatsapp_via_tgg_reply_bridge(
 
     def resolve_media_path(value: str) -> Path:
         text = str(value or "")
+        if text.startswith(("work/", "/work/")):
+            from tools.python_sandbox_tool import resolve_sandbox_work_path
+
+            return resolve_sandbox_work_path(text, str(workspace_owner or ""))
         candidate = Path(text)
         # Promoted refs are absolute-looking `/media/...` handles; every
         # other absolute local path retains the established cron behaviour.
@@ -640,15 +646,21 @@ def _deliver_whatsapp_via_tgg_reply_bridge(
         except (URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
             return f"bridge {endpoint} failed: {exc}"
 
+    resolved_media_files: list[tuple[Path, bool]] = []
+    for media_path, is_voice in media_files:
+        try:
+            resolved_media_files.append((resolve_media_path(str(media_path)), is_voice))
+        except (OSError, ValueError) as exc:
+            return (
+                "attachment was not delivered; use the exact files[].path returned "
+                f"by the sandbox or an existing /media/... reference ({exc})"
+            )
+
     if text.strip():
         error = post("send", {"chatId": chat_id, "message": text})
         if error:
             return error
-    for media_path, _is_voice in media_files:
-        try:
-            resolved_media = resolve_media_path(str(media_path))
-        except (OSError, ValueError) as exc:
-            return f"bridge media refused: {exc}"
+    for resolved_media, _is_voice in resolved_media_files:
         suffix = resolved_media.suffix.lower()
         media_type = (
             "image" if suffix in _IMAGE_EXTS else "video" if suffix in _VIDEO_EXTS
@@ -666,7 +678,14 @@ def _deliver_whatsapp_via_tgg_reply_bridge(
     return None
 
 
-def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Optional[str]:
+def _deliver_result(
+    job: dict,
+    content: str,
+    adapters=None,
+    loop=None,
+    *,
+    workspace_owner: str | None = None,
+) -> Optional[str]:
     """
     Deliver job output to the configured target(s) (origin chat, specific platform, etc.).
 
@@ -758,7 +777,11 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
         if not pconfig or not pconfig.enabled:
             if platform == Platform.WHATSAPP and os.environ.get("TGG_REPLY_BRIDGE_URL", "").strip():
                 error = _deliver_whatsapp_via_tgg_reply_bridge(
-                    job, chat_id, cleaned_delivery_content, media_files,
+                    job,
+                    chat_id,
+                    cleaned_delivery_content,
+                    media_files,
+                    workspace_owner=workspace_owner,
                 )
                 if error:
                     logger.error("Job '%s': %s", job["id"], error)
@@ -1395,7 +1418,9 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         logger.info("Job '%s': script produced no output, skipping AI call.", job_name)
         return True, "", SILENT_MARKER, None
     origin = _resolve_origin(job)
-    _cron_session_id = f"cron_{job_id}_{_hermes_now().strftime('%Y%m%d_%H%M%S')}"
+    _cron_session_id = str(job.get("_runtime_session_id") or "") or (
+        f"cron_{job_id}_{_hermes_now().strftime('%Y%m%d_%H%M%S')}"
+    )
 
     logger.info("Running job '%s' (ID: %s)", job_name, job_id)
     logger.info("Prompt: %s", prompt[:100])
@@ -1436,6 +1461,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         platform="",
         chat_id="",
         chat_name="",
+        session_key=_cron_session_id,
         session_id=_cron_session_id,
     )
     _cron_delivery_vars = (
@@ -1680,6 +1706,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             skip_memory=True,  # Cron system prompts would corrupt user representations
             platform="cron",
             session_id=_cron_session_id,
+            gateway_session_key=_cron_session_id,
             session_db=_session_db,
         )
         
@@ -1959,7 +1986,12 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
         def _process_job(job: dict) -> bool:
             """Run one due job end-to-end: execute, save, deliver, mark."""
             try:
-                success, output, final_response, error = run_job(job)
+                cron_session_id = (
+                    f"cron_{job['id']}_{_hermes_now().strftime('%Y%m%d_%H%M%S')}"
+                )
+                run_input = dict(job)
+                run_input["_runtime_session_id"] = cron_session_id
+                success, output, final_response, error = run_job(run_input)
 
                 output_file = save_job_output(job["id"], output)
                 if verbose:
@@ -1977,7 +2009,13 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
                 delivery_error = None
                 if should_deliver:
                     try:
-                        delivery_error = _deliver_result(job, deliver_content, adapters=adapters, loop=loop)
+                        delivery_error = _deliver_result(
+                            job,
+                            deliver_content,
+                            adapters=adapters,
+                            loop=loop,
+                            workspace_owner=cron_session_id,
+                        )
                     except Exception as de:
                         delivery_error = str(de)
                         logger.error("Delivery failed for job %s: %s", job["id"], de)
@@ -1989,7 +2027,12 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
                     success = False
                     error = "Agent completed but produced empty response (model error, timeout, or misconfiguration)"
 
-                mark_job_run(job["id"], success, error, delivery_error=delivery_error)
+                mark_job_run(
+                    job["id"],
+                    success and not delivery_error,
+                    error,
+                    delivery_error=delivery_error,
+                )
                 return True
 
             except Exception as e:

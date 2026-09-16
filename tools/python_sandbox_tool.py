@@ -788,6 +788,57 @@ def _workspace_key(session_id: str) -> str:
     return "s_" + hashlib.sha256(session_id.encode("utf-8")).hexdigest()
 
 
+def resolve_sandbox_work_path(raw_path: Any, workspace_owner: str) -> Path:
+    """Resolve one sandbox-local ``work/...`` reference for its owner.
+
+    The model sees only the sandbox path.  Host paths stay private and are
+    resolved at the final delivery boundary.  Symlinks are refused even when
+    they point back into the workspace so a captured reference cannot change
+    meaning between validation and use.
+    """
+    text = str(raw_path or "").strip()
+    owner = str(workspace_owner or "").strip()
+    if not owner:
+        raise ValueError("sandbox workspace owner is unavailable")
+    if text.startswith("/work/"):
+        relative_text = text[len("/work/"):]
+    elif text.startswith("work/"):
+        relative_text = text[len("work/"):]
+    else:
+        raise ValueError("attachment is not a sandbox work path")
+    relative = Path(relative_text)
+    if (
+        not relative_text
+        or relative.is_absolute()
+        or any(part in {"", ".", ".."} for part in relative.parts)
+    ):
+        raise ValueError("sandbox work path is invalid")
+
+    work_root = (
+        get_hermes_home()
+        / "sandbox_workspaces"
+        / _workspace_key(owner)
+        / "work"
+    )
+    candidate = work_root / relative
+    if not candidate.is_relative_to(work_root):
+        raise ValueError("sandbox work path escapes its workspace")
+
+    current = work_root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError("sandbox work path contains a symlink")
+    try:
+        resolved_root = work_root.resolve(strict=True)
+        resolved = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise ValueError("sandbox work file is unavailable") from exc
+    if not resolved.is_relative_to(resolved_root) or not resolved.is_file():
+        raise ValueError("sandbox work path is not a confined regular file")
+    return resolved
+
+
 def _workspace_lock(session_id: str) -> threading.Lock:
     key = _workspace_key(session_id)
     with _WORKSPACE_LOCKS_GUARD:
@@ -1173,12 +1224,15 @@ def _handle_python_sandbox(
     available, reason = _probe(force=True)
     if not available:
         return _unavailable(reason)
+    from gateway.session_context import get_session_env
+
+    workspace_owner = get_session_env("HERMES_SESSION_KEY", "").strip() or session_id
     return python_sandbox(
         args.get("code", ""),
         args.get("datasets"),
         args.get("input_json"),
         args.get("timeout_seconds"),
-        session_id=session_id,
+        session_id=workspace_owner,
     )
 
 
@@ -1193,8 +1247,9 @@ _BASE_DESCRIPTION = (
     "~50 items, sums/statistics, and parsing spreadsheets or CSVs. Aggregate "
     "in code. Print only counts, totals, and up to ~20 examples. Write the "
     "structured answer to RESULT_PATH as JSON (8KB cap); keep large detail "
-    "in /work files. A promoted workbook's files[] media_ref is its native "
-    "attachment reference; client_url is its secondary shareable link."
+    "in /work files. files[].path is sandbox-local and may be attached only "
+    "where the active sender supports it. When present, files[].media_ref is "
+    "a retained attachment reference and client_url is its secondary shareable link."
 )
 
 PYTHON_SANDBOX_SCHEMA = {

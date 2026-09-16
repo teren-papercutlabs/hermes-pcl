@@ -2963,6 +2963,11 @@ class BasePlatformAdapter(ABC):
                 _text, _eph_ttl = self._unwrap_ephemeral(response)
                 if _text:
                     _thread_meta = _thread_metadata_for_source(event.source, _reply_anchor_for_event(event))
+                    if getattr(self, "_hermes_replay_delivery_guard", False):
+                        _thread_meta = dict(_thread_meta or {})
+                        _thread_meta["_hermes_replay_workspace_owner"] = (
+                            _replay_ctx.namespace_session_key(session_key)
+                        )
                     _r = await self._send_with_retry(
                         chat_id=event.source.chat_id,
                         content=_text,
@@ -3217,6 +3222,15 @@ class BasePlatformAdapter(ABC):
 
             # Call the handler (this can take a while with tool calls)
             response = await self._message_handler(event)
+
+            # The gateway handler clears task-local session context before
+            # returning.  Replay capture still needs the stable workspace
+            # owner at the actual adapter send, so carry it in metadata only
+            # for the installed replay guard.  The guard removes this private
+            # field before recording ordinary adapter arguments.
+            if getattr(self, "_hermes_replay_delivery_guard", False):
+                _thread_metadata = dict(_thread_metadata or {})
+                _thread_metadata["_hermes_replay_workspace_owner"] = session_key
 
             # Slash-command handlers may return an EphemeralReply sentinel to
             # request that their reply message auto-delete after a TTL (used

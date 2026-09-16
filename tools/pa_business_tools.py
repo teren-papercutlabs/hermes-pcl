@@ -1202,8 +1202,11 @@ def _materialize_large_tgg_query_result(
         from hermes_constants import get_hermes_home
         from tools.python_sandbox_tool import _workspace_key
 
-        session_id = get_session_env("HERMES_SESSION_ID", "").strip()
-        if not session_id:
+        workspace_owner = (
+            get_session_env("HERMES_SESSION_KEY", "").strip()
+            or get_session_env("HERMES_SESSION_ID", "").strip()
+        )
+        if not workspace_owner:
             return result
         encoded = json.dumps(result, ensure_ascii=False, sort_keys=True)
         if len(encoded) <= 16_000:
@@ -1212,7 +1215,7 @@ def _materialize_large_tgg_query_result(
         workspace = (
             get_hermes_home()
             / "sandbox_workspaces"
-            / _workspace_key(session_id)
+            / _workspace_key(workspace_owner)
             / "work"
         )
         workspace.mkdir(parents=True, exist_ok=True, mode=0o700)
