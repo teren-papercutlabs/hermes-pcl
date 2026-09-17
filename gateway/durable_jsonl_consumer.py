@@ -3646,6 +3646,140 @@ def _resolve_captured_media_path(
     return resolved
 
 
+def _recent_valid_sandbox_file_paths(
+    messages: Sequence[Mapping[str, Any]],
+    *,
+    workspace_owner: str,
+) -> tuple[str, ...]:
+    """Return exact paths from the newest sandbox result that has usable files."""
+    for message in reversed(messages):
+        if not isinstance(message, Mapping) or message.get("role") != "tool":
+            continue
+        content = message.get("content")
+        if not isinstance(content, str):
+            continue
+        try:
+            payload = json.loads(content)
+        except (TypeError, ValueError):
+            continue
+        files = payload.get("files") if isinstance(payload, Mapping) else None
+        if not isinstance(files, Sequence) or isinstance(files, (str, bytes)):
+            continue
+        exact_paths: list[str] = []
+        for item in files:
+            if not isinstance(item, Mapping):
+                continue
+            path = str(item.get("path") or "").strip()
+            if not path or path in exact_paths:
+                continue
+            try:
+                resolved = _resolve_captured_media_path(
+                    path,
+                    None,
+                    workspace_owner=workspace_owner,
+                )
+                _validated_captured_media_type(resolved)
+            except (OSError, MediaRetentionError):
+                continue
+            exact_paths.append(path)
+        if exact_paths:
+            return tuple(exact_paths)
+    return ()
+
+
+def validate_management_attachment_response(
+    response_text: str,
+    messages: Sequence[Mapping[str, Any]],
+    *,
+    retention: Mapping[str, Any] | None,
+    workspace_owner: str,
+) -> str | None:
+    """Validate proposed Management attachments before replay captures a send.
+
+    A returned string is a runtime-generated correction observation for the
+    model, not a client message.  ``None`` accepts the response unchanged.
+    """
+    proposed = str(response_text or "")
+    raw_directives = re.findall(r"(?im)\bMEDIA:\s*([^\s]+)", proposed)
+    if not raw_directives:
+        return None
+
+    expanded = _expand_captured_send(
+        {
+            "send_kind": "text",
+            "chat_id": "validation-only",
+            "content": proposed,
+            "reply_to": None,
+            "workspace_owner": workspace_owner,
+        }
+    )
+    media_sends = [
+        item for item in expanded if item.get("send_kind") == "media"
+    ]
+    refusal: str | None = None
+    if len(media_sends) != len(raw_directives):
+        refusal = "the MEDIA directive is not a supported attachment reference"
+    else:
+        for send in media_sends:
+            try:
+                path = _resolve_captured_media_path(
+                    send.get("path"),
+                    retention,
+                    workspace_owner=workspace_owner,
+                )
+                _validated_captured_media_type(path)
+            except (OSError, MediaRetentionError) as exc:
+                refusal = str(exc)
+                break
+    if refusal is None:
+        return None
+
+    exact_paths = _recent_valid_sandbox_file_paths(
+        messages,
+        workspace_owner=workspace_owner,
+    )
+    if exact_paths:
+        rendered = ", ".join(f"`{path}`" for path in exact_paths)
+        exact_hint = (
+            "The newest usable sandbox result returned these exact "
+            f"files[].path values: {rendered}. Copy the intended value unchanged. "
+        )
+    else:
+        exact_hint = (
+            "Use an exact files[].path value returned by the current sandbox "
+            "result. If no such value is available, explain that the attachment "
+            "could not be sent. "
+        )
+    return (
+        "[Runtime attachment validation — not a client message] The proposed "
+        f"attachment was rejected before sending because {refusal}. "
+        f"{exact_hint}Do not construct or infer a /media/... reference. "
+        "Produce the corrected final response now."
+    )
+
+
+def build_management_attachment_response_validator(
+    *,
+    config_path: Path,
+    workspace_owner: str,
+):
+    """Build the exact pre-send validator used by the Management response loop."""
+    retention = _retention_config(config_path)
+
+    def _validate(
+        response_text: str,
+        messages: Sequence[Mapping[str, Any]],
+    ) -> str | None:
+        return validate_management_attachment_response(
+            response_text,
+            messages,
+            retention=retention,
+            workspace_owner=workspace_owner,
+        )
+
+    return _validate
+
+
 def _captured_provider_error(
     captured_outbound: Sequence[Mapping[str, Any]],
 ) -> str | None:

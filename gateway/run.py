@@ -17261,6 +17261,10 @@ class GatewayRunner:
         )
         pa_tenant_slug = _pa_tenant_slug(pa_resolved_context)
         pa_max_output_tokens = _pa_max_output_tokens(pa_resolved_context)
+        management_attachment_validation_enabled = (
+            str(getattr(pa_resolved_context, "job_type", "") or "")
+            == "tgg_management"
+        )
 
         # ── PA structured case record (S7) ────────────────────────────────
         # Once per inbound turn: resolve which case this message belongs to
@@ -17920,8 +17924,15 @@ class GatewayRunner:
             )
             if suppress_delivery:
                 _streaming_enabled = False
+            if management_attachment_validation_enabled:
+                # The final answer must pass attachment resolution before any
+                # streamed or native response is captured for delivery.
+                _streaming_enabled = False
             _want_stream_deltas = _streaming_enabled
-            _want_interim_messages = interim_assistant_messages_enabled
+            _want_interim_messages = (
+                interim_assistant_messages_enabled
+                and not management_attachment_validation_enabled
+            )
             _want_interim_consumer = _want_interim_messages
             if _want_stream_deltas or _want_interim_consumer:
                 try:
@@ -18092,6 +18103,27 @@ class GatewayRunner:
             agent.request_overrides = turn_route.get("request_overrides") or {}
             agent.max_tokens = pa_max_output_tokens
             agent.tenant_slug = pa_tenant_slug
+            if management_attachment_validation_enabled:
+                from gateway.durable_jsonl_consumer import (
+                    build_management_attachment_response_validator,
+                )
+
+                agent.final_response_validator = (
+                    build_management_attachment_response_validator(
+                        config_path=_hermes_home / "config.yaml",
+                        workspace_owner=session_key or "",
+                    )
+                )
+                agent.final_response_validation_max_retries = 1
+                agent.final_response_validation_failure = (
+                    "I couldn't send the attachment because its file reference "
+                    "was invalid. Please ask me to try again."
+                )
+            else:
+                # Cached agents cross job-selector turns.  Never retain a
+                # Management-only guard on an ordinary conversation.
+                agent.final_response_validator = None
+                agent.final_response_validation_max_retries = 0
             _apply_pa_compression_policy(agent, pa_resolved_context)
 
             _bg_review_release = threading.Event()
@@ -18695,6 +18727,9 @@ class GatewayRunner:
                     "system_prompt": _session_meta_system_prompt(_agent),
                     # Turn-scoped telemetry passthrough (PA turn-recording).
                     **_turn_telemetry_fields(result),
+                    "final_response_validation": result.get(
+                        "final_response_validation"
+                    ),
                 }
             
             # Scan tool results for MEDIA:<path> tags that need to be delivered
@@ -18824,6 +18859,9 @@ class GatewayRunner:
                 "system_prompt": _session_meta_system_prompt(_agent),
                 # Turn-scoped telemetry passthrough (PA turn-recording).
                 **_turn_telemetry_fields(result),
+                "final_response_validation": result.get(
+                    "final_response_validation"
+                ),
             }
         
         # Start progress message sender if enabled

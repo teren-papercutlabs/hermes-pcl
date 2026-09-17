@@ -1410,6 +1410,15 @@ class AIAgent:
         self.stream_delta_callback = stream_delta_callback
         self.interim_assistant_callback = interim_assistant_callback
         self.status_callback = status_callback
+        # Optional gateway-owned completion guard.  A non-empty return value
+        # rejects the proposed final answer and is shown to the model as a
+        # private correction observation before one bounded retry.  The
+        # gateway keeps this unset for ordinary conversations.
+        self.final_response_validator = None
+        self.final_response_validation_max_retries = 0
+        self.final_response_validation_failure = (
+            "I couldn't complete the response because its output was invalid."
+        )
         self.tool_gen_callback = tool_gen_callback
 
         
@@ -12406,6 +12415,9 @@ class AIAgent:
         self._last_content_tools_all_housekeeping = False
         self._mute_post_response = False
         self._unicode_sanitization_passes = 0
+        final_response_validation_retries = 0
+        final_response_validation_observations: list[str] = []
+        final_response_validation_exhausted = False
         self._tool_guardrails.reset_for_turn()
         self._tool_guardrail_halt_decision = None
         # True until the server rejects an image_url content part with an error
@@ -15909,6 +15921,94 @@ class AIAgent:
                         length_continue_retries = 0
                     
                     final_response = self._strip_think_blocks(final_response).strip()
+
+                    # A bounded gateway-owned guard may reject a complete
+                    # response before it reaches streaming/native delivery.
+                    # Keep the rejected proposal and observation only long
+                    # enough for the real model's correction call; neither is
+                    # persisted as conversation history.
+                    _final_validator = getattr(self, "final_response_validator", None)
+                    if _final_validator is not None:
+                        try:
+                            _validation_feedback = _final_validator(
+                                final_response,
+                                list(messages),
+                            )
+                        except Exception as _validation_exc:
+                            logger.warning(
+                                "Final response validation failed closed: %s",
+                                _validation_exc,
+                            )
+                            _validation_feedback = (
+                                "The proposed response could not be validated. "
+                                "Produce a safe response without the invalid output."
+                            )
+                        if _validation_feedback:
+                            final_response_validation_observations.append(
+                                str(_validation_feedback)
+                            )
+                            _validation_limit = max(
+                                0,
+                                int(
+                                    getattr(
+                                        self,
+                                        "final_response_validation_max_retries",
+                                        0,
+                                    )
+                                    or 0
+                                ),
+                            )
+                            _validation_retry_available = (
+                                final_response_validation_retries < _validation_limit
+                                and (
+                                    (
+                                        api_call_count < self.max_iterations
+                                        and self.iteration_budget.remaining > 0
+                                    )
+                                    or self._budget_grace_call
+                                )
+                            )
+                            if _validation_retry_available:
+                                final_response_validation_retries += 1
+                                rejected_msg = self._build_assistant_message(
+                                    assistant_message,
+                                    finish_reason,
+                                )
+                                rejected_msg["_final_validation_synthetic"] = True
+                                messages.append(rejected_msg)
+                                messages.append(
+                                    {
+                                        "role": "user",
+                                        "content": str(_validation_feedback),
+                                        "_final_validation_synthetic": True,
+                                    }
+                                )
+                                final_response = None
+                                self._session_messages = messages
+                                continue
+
+                            while (
+                                messages
+                                and isinstance(messages[-1], dict)
+                                and messages[-1].get("_final_validation_synthetic")
+                            ):
+                                messages.pop()
+                            final_response = str(
+                                getattr(
+                                    self,
+                                    "final_response_validation_failure",
+                                    "",
+                                )
+                                or "I couldn't complete the response because its output was invalid."
+                            )
+                            final_msg = {
+                                "role": "assistant",
+                                "content": final_response,
+                            }
+                            messages.append(final_msg)
+                            final_response_validation_exhausted = True
+                            _turn_exit_reason = "final_response_validation_exhausted"
+                            break
                     
                     final_msg = self._build_assistant_message(assistant_message, finish_reason)
 
@@ -15923,6 +16023,7 @@ class AIAgent:
                             messages[-1].get("_thinking_prefill")
                             or messages[-1].get("_empty_recovery_synthetic")
                             or messages[-1].get("_empty_terminal_sentinel")
+                            or messages[-1].get("_final_validation_synthetic")
                         )
                     ):
                         messages.pop()
@@ -16193,6 +16294,15 @@ class AIAgent:
             "api_calls": api_call_count,
             "completed": completed,
             "turn_exit_reason": _turn_exit_reason,
+            "final_response_validation": (
+                {
+                    "rejections": len(final_response_validation_observations),
+                    "exhausted": final_response_validation_exhausted,
+                    "observations": final_response_validation_observations,
+                }
+                if final_response_validation_observations
+                else None
+            ),
             "partial": False,  # True only when stopped due to invalid tool calls
             "interrupted": interrupted,
             "response_previewed": getattr(self, "_response_was_previewed", False),
