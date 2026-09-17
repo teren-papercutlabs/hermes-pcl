@@ -321,6 +321,34 @@ def test_system_base_prefix_needs_no_duplicate_mount(tmp_path):
     assert 'ro_dir /usr/local "$JAIL/usr/local"' not in script
 
 
+def test_reader_seed_copy_drops_host_acl_xattrs_and_ownership(tmp_path):
+    run = tmp_path / "run"
+    (run / "inputs").mkdir(parents=True)
+    (run / "work").mkdir()
+    (run / "script.py").write_text("", encoding="utf-8")
+    (run / "inputs" / "params.json").write_text("{}", encoding="utf-8")
+    seed = tmp_path / "seed"
+    seed.mkdir()
+
+    default_script = sandbox._generate_init_script(
+        run,
+        {},
+        Path("/opt/runtime"),
+        seed_work=seed,
+    )
+    reader_script = sandbox._generate_init_script(
+        run,
+        {},
+        Path("/opt/runtime"),
+        seed_work=seed,
+        strip_seed_metadata=True,
+    )
+
+    assert 'cp -a "$JAIL/seed/." "$JAIL/work/"' in default_script
+    assert '--no-preserve=all "$JAIL/seed/." "$JAIL/work/"' in reader_script
+    assert "cp -a" not in reader_script
+
+
 def test_child_env_scrubs_secrets_and_exposes_contract_paths(tmp_path):
     env = sandbox._build_env(
         {"records": tmp_path / "records.db", "media": tmp_path / "media"},

@@ -1200,7 +1200,12 @@ def _materialize_large_tgg_query_result(
     try:
         from gateway.session_context import get_session_env
         from hermes_constants import get_hermes_home
-        from tools.python_sandbox_tool import _workspace_key
+        from tools.python_sandbox_access import (
+            SandboxReaderPolicyError,
+            configured_reader_uid,
+            grant_reader_work_access,
+        )
+        from tools.python_sandbox_tool import _load_config, _workspace_key
 
         workspace_owner = (
             get_session_env("HERMES_SESSION_KEY", "").strip()
@@ -1224,6 +1229,9 @@ def _materialize_large_tgg_query_result(
             tmp = path.with_suffix(".tmp")
             tmp.write_text(encoded, encoding="utf-8")
             os.replace(tmp, path)
+        reader_uid = configured_reader_uid(_load_config())
+        if reader_uid is not None:
+            grant_reader_work_access(get_hermes_home(), workspace, reader_uid)
         # Put the handle first so inline-preview fallback still tells the
         # model where the complete immutable result is.
         return {
@@ -1237,6 +1245,8 @@ def _materialize_large_tgg_query_result(
             ),
             **dict(result),
         }
+    except SandboxReaderPolicyError:
+        raise
     except Exception:
         logger.debug("Could not materialize large PA query for sandbox", exc_info=True)
         return result
@@ -1249,10 +1259,10 @@ def _handle_tgg_read(operation: str, payload: Mapping[str, Any]) -> str:
             operation=operation,
             payload=payload,
         )
+        _harvest_case_states(result)
+        result = _materialize_large_tgg_query_result(operation, result)
     except Exception as exc:
         return tool_error(exc)
-    _harvest_case_states(result)
-    result = _materialize_large_tgg_query_result(operation, result)
     return tool_result(result)
 
 
@@ -2531,8 +2541,11 @@ def _handle_business_call(args: Mapping[str, Any], *, user_task: Any = None) -> 
         )
     except Exception as exc:
         return tool_error(exc)
-    _harvest_case_states(result)
-    result = _materialize_large_tgg_query_result(effective_operation, result)
+    try:
+        _harvest_case_states(result)
+        result = _materialize_large_tgg_query_result(effective_operation, result)
+    except Exception as exc:
+        return tool_error(exc)
     return tool_result(_shape_attach_unjustified_result(result))
 
 

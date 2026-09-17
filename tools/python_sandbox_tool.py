@@ -29,6 +29,11 @@ except ImportError:  # pragma: no cover - Windows availability is fail-closed
 
 from hermes_constants import get_hermes_home
 from tools.path_security import validate_within_dir
+from tools.python_sandbox_access import (
+    SandboxReaderPolicyError,
+    configured_reader_uid,
+    grant_reader_work_access,
+)
 from tools.python_sandbox_paths import (
     is_python_sandbox_dataset_name,
     python_sandbox_dataset_path,
@@ -333,6 +338,7 @@ def _generate_init_script(
     scratch_mb: int = 64,
     sqlite_datasets: set[str] | None = None,
     seed_work: Path | None = None,
+    strip_seed_metadata: bool = False,
 ) -> str:
     """Generate the mount plan executed as namespace-root."""
     jail = run_dir / "jail"
@@ -387,7 +393,11 @@ def _generate_init_script(
     )
     if seed_work is not None:
         lines.append(f'ro_dir {_q(seed_work)} "$JAIL/seed"')
-        lines.append('cp -a "$JAIL/seed/." "$JAIL/work/"')
+        lines.append(
+            'cp -R --no-preserve=all "$JAIL/seed/." "$JAIL/work/"'
+            if strip_seed_metadata
+            else 'cp -a "$JAIL/seed/." "$JAIL/work/"'
+        )
         # result.json is the current invocation's return channel, not user
         # workspace state. A prior result must never be harvested as this run's.
         lines.append('rm -f "$JAIL/work/result.json"')
@@ -879,13 +889,21 @@ def _prune_workspaces(
             kept += 1
 
 
-def _replace_workspace(source: Path, destination: Path) -> None:
+def _replace_workspace(
+    source: Path,
+    destination: Path,
+    *,
+    hermes_home: Path,
+    reader_uid: str | None = None,
+) -> None:
     """Mirror one completed run into its retained session workspace."""
     parent = destination.parent
     parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     staged = parent / f".work-{uuid.uuid4().hex}.tmp"
     try:
         shutil.copytree(source, staged, ignore=shutil.ignore_patterns("result.json"))
+        if reader_uid is not None:
+            grant_reader_work_access(hermes_home, staged, reader_uid)
         if destination.exists():
             shutil.rmtree(destination)
         os.replace(staged, destination)
@@ -1007,6 +1025,11 @@ def _run_python_sandbox(
             {"status": "error", "error": "input_json exceeds 32KB", "result": None}
         )
 
+    try:
+        reader_uid = configured_reader_uid(config)
+    except SandboxReaderPolicyError as exc:
+        return json.dumps({"status": "error", "error": str(exc), "result": None})
+
     run_id = f"r_{uuid.uuid4().hex[:8]}"
     hermes_home = get_hermes_home()
     root = hermes_home / "sandbox_runs"
@@ -1034,6 +1057,14 @@ def _run_python_sandbox(
         _prune_workspaces(workspace_root, config, exclude=workspace)
         seed_work = workspace / "work"
         seed_work.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if reader_uid is not None:
+            try:
+                grant_reader_work_access(hermes_home, seed_work, reader_uid)
+            except SandboxReaderPolicyError as exc:
+                logger.exception("Could not apply sandbox reader ACL before execution")
+                return json.dumps(
+                    {"status": "error", "error": str(exc), "result": None}
+                )
 
     limits = _limits(config)
     sqlite_datasets = {
@@ -1056,6 +1087,7 @@ def _run_python_sandbox(
             limits["scratch_mb"],
             sqlite_datasets,
             seed_work,
+            reader_uid is not None,
         ),
         encoding="utf-8",
     )
@@ -1162,20 +1194,38 @@ def _run_python_sandbox(
 
     duration = round(time.monotonic() - started, 3)
     export_complete = work / _EXPORT_COMPLETE
+    publication_error: SandboxReaderPolicyError | None = None
     if export_complete.exists():
         export_complete.unlink()
         if workspace is not None:
-            _replace_workspace(work, workspace / "work")
-    payload, harvest_error = _harvest(
-        work,
-        stdout,
-        stderr,
-        status,
-        limits,
-        run_id=run_id,
-        artifact_url_base=config.get("artifact_url_base"),
-        media_retention=config.get("media_retention"),
-    )
+            try:
+                _replace_workspace(
+                    work,
+                    workspace / "work",
+                    hermes_home=hermes_home,
+                    reader_uid=reader_uid,
+                )
+            except SandboxReaderPolicyError as exc:
+                logger.exception("Could not apply sandbox reader ACL before publication")
+                publication_error = exc
+    if publication_error is None:
+        payload, harvest_error = _harvest(
+            work,
+            stdout,
+            stderr,
+            status,
+            limits,
+            run_id=run_id,
+            artifact_url_base=config.get("artifact_url_base"),
+            media_retention=config.get("media_retention"),
+        )
+    else:
+        payload = {
+            "status": "error",
+            "error": str(publication_error),
+            "result": None,
+        }
+        harvest_error = None
     payload.update(
         {
             "datasets_attached": datasets,
